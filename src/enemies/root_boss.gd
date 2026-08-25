@@ -1,0 +1,476 @@
+class_name RootBoss
+extends EnemyBase
+
+signal boss_hp_changed(frac: float)
+
+enum Phase { ONE = 1, TWO = 2, THREE = 3 }
+enum Act { HOVER, BURST, SPIRAL, CHARGE_WIND, CHARGE_GO, STAGGER, TELEPORT_OUT, TELEPORT_IN, FREEZE_WIND }
+
+var act: int = Act.HOVER
+var act_t := 0.0
+var _v := Vector2.ZERO
+var _burst_cd := 2.2
+var _spiral_cd := 4.5
+var _summon_cd := 7.0
+var _charge_cd := 6.0
+var _teleport_cd := 3.5
+var _freeze_cd := 5.0
+var _spiral_angle := 0.0
+var _spiral_shots := 0
+var _charge_dir := Vector2.RIGHT
+var _summoned := 0
+var phase: int = Phase.ONE
+var _phase_flash := 0.0
+var boss_index := 1
+var boss_title := "ROOT.exe"
+var boss_quote := ""
+var _exposed := 0.0
+var kind := 1
+var _glitch_off := Vector2.ZERO
+
+const MK_DATA := [
+	{"title": "ROOT.exe", "col": Color("ff3d81"), "quote": "you have 1 unread virus"},
+	{"title": "SEGFAULT", "col": Color("ff9a3d"), "quote": "memory at 0xDEADBEEF could not be read"},
+	{"title": "BLUE SCREEN", "col": Color("4f8cff"), "quote": ":( your run ran into a problem"},
+	{"title": "PAGE FAULT", "col": Color("b46bff"), "quote": "paging too hard"},
+]
+
+static func title_for_index(i: int) -> String:
+	var kind := kind_for_index(i)
+	var base: String = MK_DATA[kind - 1]["title"]
+	return base + (" MK-%d" % ceilf(i / 4.0)) if i > 4 else base
+
+static func quote_for_index(i: int) -> String:
+	return String(MK_DATA[kind_for_index(i) - 1]["quote"])
+
+static func kind_for_index(i: int) -> int:
+	return ((i - 1) % 4) + 1
+
+func _init() -> void:
+	display_name = "ROOT"
+	hp = 130
+	speed = 42.0
+	pts = 2500
+	radius = 52.0
+	col = Balance.COL_DRONE
+	mote_count = 26
+
+func configure(wave_scale_f: float, is_elite: bool) -> void:
+	kind = kind_for_index(boss_index)
+	hp = 130 + 55 * (boss_index - 1)
+	max_hp = hp
+	speed = 55.0 + 5.0 * (boss_index - 1)
+	pts = 2500 * boss_index
+	mote_count = 26 + 6 * (boss_index - 1)
+	boss_title = title_for_index(boss_index)
+	boss_quote = quote_for_index(boss_index)
+	col = MK_DATA[kind - 1]["col"]
+	if kind == 2:
+		_teleport_cd = 3.0
+	if kind == 3:
+		_freeze_cd = 4.0
+
+func _ready() -> void:
+	super._ready()
+	add_to_group("boss")
+	z_index = 13
+	glow.scale = Vector2.ONE * (radius * 3.2 / 128.0)
+
+func _move(delta: float) -> void:
+	act_t -= delta
+	if _exposed > 0.0:
+		_exposed -= delta
+	var frac := float(hp) / float(max_hp)
+	var new_phase := Phase.ONE
+	if frac < 0.33:
+		new_phase = Phase.THREE
+	elif frac < 0.66:
+		new_phase = Phase.TWO
+	if new_phase != phase:
+		phase = new_phase
+		_enter_phase()
+	if scale.x > 0.5 and act != Act.CHARGE_GO:
+		var breathe := 1.0 + 0.022 * sin(t * 2.1)
+		scale = Vector2.ONE * breathe
+		rotation = 0.035 * sin(t * 0.85)
+	_burst_cd -= delta
+	_spiral_cd -= delta
+	_summon_cd -= delta
+	_charge_cd -= delta
+	_teleport_cd -= delta
+	_freeze_cd -= delta
+	match act:
+		Act.HOVER:
+			var to_p := aim_at_player()
+			var target := to_p * speed + to_p.orthogonal() * sin(t * 1.3) * 40.0
+			_v = _v.move_toward(target, 300.0 * delta)
+			_try_attacks()
+		Act.BURST:
+			_v = _v.move_toward(Vector2.ZERO, 500.0 * delta)
+			if act_t <= 0.0:
+				act = Act.HOVER
+		Act.SPIRAL:
+			_v = _v.move_toward(Vector2.ZERO, 500.0 * delta)
+			if act_t <= 0.0:
+				act = Act.HOVER
+		Act.CHARGE_WIND:
+			_v = _v.move_toward(Vector2.ZERO, 800.0 * delta)
+			_charge_dir = aim_at_player()
+			if act_t <= 0.0:
+				act = Act.CHARGE_GO
+				act_t = 0.5
+				_v = _charge_dir * (760.0 + 40.0 * boss_index)
+				Sfx.play("dash", 0.5, -4.0)
+				Fx.shake(0.3)
+		Act.CHARGE_GO:
+			if act_t <= 0.0:
+				act = Act.STAGGER
+				act_t = 0.7
+				if kind == 1 and boss_index >= 3:
+					_exposed = 2.5
+					Fx.ring(global_position, Color(1, 1, 1, 0.9), radius, radius + 40.0, 0.4, 3.0)
+		Act.STAGGER:
+			_v = _v.move_toward(Vector2.ZERO, 600.0 * delta)
+			if act_t <= 0.0:
+				act = Act.HOVER
+		Act.TELEPORT_OUT:
+			_v = Vector2.ZERO
+			modulate.a = maxf(modulate.a - delta * 4.0, 0.0)
+			if act_t <= 0.0:
+				_do_teleport_in()
+		Act.TELEPORT_IN:
+			modulate.a = minf(modulate.a + delta * 5.0, 1.0)
+			if act_t <= 0.0:
+				act = Act.HOVER
+				_volley(3)
+		Act.FREEZE_WIND:
+			_v = _v.move_toward(Vector2.ZERO, 500.0 * delta)
+			if act_t <= 0.0:
+				_apply_freeze()
+				act = Act.HOVER
+	var r := Balance.arena_rect()
+	if position.x <= r.position.x + radius + 1 or position.x >= r.end.x - radius - 1 or position.y <= r.position.y + radius + 1 or position.y >= r.end.y - radius - 1:
+		if act == Act.CHARGE_GO:
+			act = Act.STAGGER
+			act_t = 0.8
+			Fx.shake(0.45)
+			Fx.sparks(position, col, 16, 380.0, 0.5, 3.5)
+			Sfx.play("hit", 0.5, -2.0)
+
+func _try_attacks() -> void:
+	var mk := clampi(boss_index, 1, 8)
+	if act != Act.HOVER:
+		return
+	match kind:
+		1:
+			if _burst_cd <= 0.0:
+				_burst_cd = 2.5 if phase == Phase.ONE else (2.1 if phase == Phase.TWO else 1.7)
+				_do_burst(14 + 4 * (phase - 1), 205.0 + 10.0 * phase)
+			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summoned < 6:
+				_summon_cd = 8.5
+				_do_summon("drone")
+			if phase >= Phase.THREE and _charge_cd <= 0.0:
+				_start_charge()
+		2:
+			if _teleport_cd <= 0.0:
+				_teleport_cd = maxf(2.6, 4.0 - 0.3 * phase)
+				act = Act.TELEPORT_OUT
+				act_t = 0.35
+				Sfx.play("charge", 1.6, -8.0)
+			if _burst_cd <= 0.0:
+				_burst_cd = 2.4
+				_do_burst(8, 240.0)
+			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summoned < 6:
+				_summon_cd = 9.0
+				_do_summon("lancer")
+		3:
+			if _freeze_cd <= 0.0:
+				_freeze_cd = maxf(4.5, 7.0 - 0.5 * phase)
+				act = Act.FREEZE_WIND
+				act_t = 0.7
+				Sfx.play("charge", 0.8, -6.0)
+			if _spiral_cd <= 0.0:
+				_start_spiral(18 + 4 * phase, 1.8)
+			if _burst_cd <= 0.0:
+				_burst_cd = 2.6
+				_do_burst(10, 220.0)
+			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summoned < 4:
+				_summon_cd = 10.0
+				_do_summon("spewer")
+		4:
+			var pages := _pages_alive()
+			if pages < 4 and _summon_cd <= 0.0:
+				_summon_cd = 6.0
+				_do_pages()
+			if pages == 0:
+				if _burst_cd <= 0.0:
+					_burst_cd = 1.9
+					_do_burst(16, 230.0)
+				if _charge_cd <= 0.0 and phase >= Phase.TWO:
+					_start_charge()
+			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summoned < 4:
+				_summon_cd = 11.0
+				_do_summon("trojan")
+	if mk >= 4 and phase >= Phase.THREE and _charge_cd <= 0.0 and act == Act.HOVER and kind != 4:
+		_charge_cd = 5.2
+		_start_charge()
+
+func _start_charge() -> void:
+	act = Act.CHARGE_WIND
+	act_t = 0.55
+	Sfx.play("charge", 0.7, -4.0)
+
+func _start_spiral(shots: int, dur: float) -> void:
+	_spiral_cd = 5.5
+	act = Act.SPIRAL
+	act_t = dur
+	_spiral_shots = shots
+	_spiral_angle = Game.rng.randf() * TAU
+
+func _do_teleport_in() -> void:
+	var r := Balance.arena_rect()
+	var p := position
+	for attempt in 12:
+		p = Vector2(Game.rng.randf_range(r.position.x + 120.0, r.end.x - 120.0), Game.rng.randf_range(r.position.y + 120.0, r.end.y - 120.0))
+		if player == null or not is_instance_valid(player) or p.distance_to(player.global_position) > 240.0:
+			break
+	position = p
+	var z := CorruptionZone.new()
+	z.position = p
+	get_parent().call_deferred("add_child", z)
+	Fx.ring(p, col, 8.0, radius + 30.0, 0.3, 3.0)
+	Fx.sparks(p, col, 10, 240.0, 0.4, 3.0)
+	act = Act.TELEPORT_IN
+	act_t = 0.3
+
+func _apply_freeze() -> void:
+	if player != null and is_instance_valid(player):
+		player.apply_freeze(1.5)
+	Fx.flash(Color(0.2, 0.45, 1.0), 0.22, 0.5)
+	Fx.ring(global_position, Color(0.4, 0.6, 1.0), radius, 700.0, 0.7, 4.0)
+	Fx.text(global_position + Vector2(0, -radius - 20.0), "SYSTEM FROZEN", Color(0.55, 0.75, 1.0), 16)
+	Sfx.play("boss", 1.4, -6.0)
+	Fx.shake(0.3)
+
+func _volley(n: int) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	var base := aim_at_player().angle()
+	for i in n:
+		_spawn_orb(Vector2.from_angle(base + (i - (n - 1) * 0.5) * 0.22), 260.0)
+	Sfx.play("shoot", 0.5, -6.0)
+
+func _pages_alive() -> int:
+	var count := 0
+	for p in get_tree().get_nodes_in_group("page"):
+		if is_instance_valid(p):
+			count += 1
+	return count
+
+func _do_pages() -> void:
+	for i in 4:
+		if _pages_alive() >= 4:
+			break
+		var pg := PageNode.new()
+		pg.boss = self
+		pg.orbit_idx = i
+		pg.position = global_position + Vector2.from_angle(TAU * i / 4.0) * 90.0
+		get_parent().call_deferred("add_child", pg)
+	Fx.ring(global_position, col, radius, radius + 80.0, 0.4, 3.0, true)
+	Sfx.play("wave", 0.8, -6.0)
+
+func _process(delta: float) -> void:
+	if act == Act.SPIRAL and _spiral_shots > 0:
+		var fire_acc: float = get_meta("sp_acc", 0.0) + delta
+		while fire_acc >= 0.085 and _spiral_shots > 0:
+			fire_acc -= 0.085
+			_spiral_shots -= 1
+			_spiral_angle += 0.47
+			_spawn_orb(Vector2.from_angle(_spiral_angle), 235.0)
+		set_meta("sp_acc", fire_acc)
+	if kind == 2:
+		_glitch_off = Vector2(Game.rng.randf_range(-3.0, 3.0), Game.rng.randf_range(-3.0, 3.0)) if Game.rng.randf() < 0.3 else _glitch_off.lerp(Vector2.ZERO, 0.2)
+	queue_redraw()
+
+func _do_burst(n: int, spd: float) -> void:
+	var off := Game.rng.randf() * TAU
+	for i in n:
+		_spawn_orb(Vector2.from_angle(TAU * i / n + off), spd)
+	Fx.ring(global_position, col, radius, radius + 70.0, 0.35, 3.0)
+	Sfx.play("shoot", 0.4, -4.0, 0.05)
+	Fx.shake(0.18)
+
+func _do_summon(kind_name: String) -> void:
+	for i in 3:
+		var d: EnemyBase
+		match kind_name:
+			"lancer":
+				d = LancerEnemy.new()
+			"spewer":
+				d = SpewerEnemy.new()
+			"trojan":
+				d = TrojanEnemy.new()
+			_:
+				d = DroneEnemy.new()
+		d.position = global_position + Vector2.from_angle(TAU * i / 3.0 + Game.rng.randf()) * (radius + 26.0)
+		get_parent().call_deferred("add_child", d)
+		_summoned += 1
+	Fx.ring(global_position, Color(1, 1, 1, 0.7), radius, radius + 50.0, 0.3, 2.0)
+
+func _spawn_orb(dir: Vector2, spd: float) -> void:
+	if not EnemyOrb.can_spawn(self):
+		return
+	if player == null or not is_instance_valid(player):
+		return
+	var orb := EnemyOrb.new()
+	orb.setup(global_position + dir * (radius + 8.0), dir, spd, col)
+	get_parent().call_deferred("add_child", orb)
+
+func _enter_phase() -> void:
+	_phase_flash = 1.0
+	if act != Act.CHARGE_WIND and act != Act.CHARGE_GO and act != Act.FREEZE_WIND and act != Act.TELEPORT_OUT and act != Act.TELEPORT_IN:
+		act = Act.STAGGER
+		act_t = 0.8
+	Fx.ring(global_position, col, radius, radius + 160.0, 0.5, 5.0, true)
+	Fx.ring(global_position, Color(1, 1, 1, 0.8), radius, radius + 90.0, 0.35, 3.0)
+	Fx.shake(0.5)
+	Sfx.play("boss", 1.2, -2.0)
+	var base: Color = MK_DATA[kind - 1]["col"]
+	col = base.lerp(Color(1, 1, 1), 0.15 * phase)
+	glow.self_modulate = col
+
+func take_hit(dmg: int, from: Vector2) -> void:
+	if kind == 4 and _pages_alive() > 0:
+		Fx.sparks(from, Color(0.7, 0.5, 1.0), 4, 120.0, 0.25, 2.0)
+		return
+	if _exposed > 0.0:
+		dmg *= 2
+	super.take_hit(dmg, from)
+	boss_hp_changed.emit(float(maxf(hp, 0)) / float(max_hp))
+
+func die() -> void:
+	died.emit(self)
+	var pos := global_position
+	var c := col
+	Fx.slowmo(0.18, 0.9)
+	Fx.flash(Color(1, 1, 1), 0.55, 0.5)
+	Fx.burst(pos, c, 3.4, 16)
+	Fx.ring(pos, c, 10.0, 320.0, 0.8, 6.0)
+	Fx.ring(pos, Color(1, 1, 1, 0.9), 10.0, 200.0, 0.5, 4.0)
+	Fx.shards(pos, c, 14, 460.0)
+	Fx.shake(1.0)
+	Fx.zoom_punch(0.09)
+	Sfx.play("explode_big", 0.7, 0.0)
+	Sfx.play("gameover", 1.6, -6.0)
+	for p in get_tree().get_nodes_in_group("page"):
+		if is_instance_valid(p):
+			p.queue_free()
+	queue_free()
+
+func _draw() -> void:
+	var c := _flash_col(col)
+	if _phase_flash > 0.0:
+		_phase_flash -= 0.04
+		c = c.lerp(Color(1, 1, 1), clampf(_phase_flash, 0.0, 1.0))
+	var r := radius
+	match kind:
+		2:
+			_draw_segfault(c, r)
+		3:
+			_draw_bluescreen(c, r)
+		4:
+			_draw_pagefault(c, r)
+		_:
+			_draw_root(c, r)
+
+func _draw_root(c: Color, r: float) -> void:
+	var spin := t * 0.8
+	var segs := 6
+	for i in segs:
+		var a0 := spin + TAU * i / segs
+		draw_arc(Vector2.ZERO, r, a0, a0 + TAU / segs * 0.62, 10, Color(c.r, c.g, c.b, 0.9), 5.0, true)
+	var tri := PackedVector2Array()
+	var spin2 := -t * 1.3
+	for i in 3:
+		tri.push_back(Vector2.from_angle(spin2 + TAU * i / 3.0) * r * 0.62)
+	draw_polyline(tri + PackedVector2Array([tri[0]]), Color(c.r, c.g, c.b, 0.75), 3.5, true)
+	draw_circle(Vector2.ZERO, r * 0.34, Color(c.r, c.g, c.b, 0.25))
+	draw_arc(Vector2.ZERO, r * 0.34, 0, TAU, 28, c, 2.6, true)
+	var look := aim_at_player().angle()
+	var eye := Vector2.from_angle(look) * r * 0.1
+	if _exposed > 0.0:
+		var ea := 0.6 + 0.4 * sin(t * 20.0)
+		draw_circle(eye, r * 0.22, Color(1, 1, 1, 0.35 * ea))
+		draw_circle(eye, r * 0.18, Color(1, 1, 1, ea))
+		draw_circle(eye, r * 0.09, Color(1, 0.3, 0.4, 0.9))
+	else:
+		draw_circle(eye, r * 0.16, c)
+		draw_circle(eye, r * 0.07, Color(1, 1, 1, 0.95))
+	var hp_frac := float(hp) / float(max_hp)
+	draw_arc(Vector2.ZERO, r + 10.0, -PI / 2, -PI / 2 + TAU * hp_frac, 48, Color(c.r, c.g, c.b, 0.55), 2.5, true)
+	if act == Act.CHARGE_WIND:
+		var a := 0.3 + 0.45 * absf(sin(t * 26.0))
+		draw_line(Vector2.ZERO, _charge_dir.rotated(-rotation) * 900.0, Color(1, 1, 1, a), 2.5)
+
+func _draw_segfault(c: Color, r: float) -> void:
+	var off := _glitch_off
+	for half in 2:
+		var shift := off if half == 0 else -off * 1.4
+		var pts := PackedVector2Array()
+		var start := half * 3
+		for i in 4:
+			var a := TAU * (start + i) / 6.0 + t * 0.5
+			pts.push_back(Vector2.from_angle(a) * r + shift)
+		if pts.size() > 2:
+			draw_polyline(pts, Color(c.r, c.g, c.b, 0.85 if half == 0 else 0.5), 4.0, true)
+	draw_circle(Vector2.ZERO, r * 0.3, Color(c.r, c.g, c.b, 0.3))
+	var blink := fmod(t, 1.0) < 0.12
+	if blink:
+		draw_circle(Vector2.ZERO, r * 0.18, Color(1, 1, 1, 0.8))
+	else:
+		draw_circle(Vector2.ZERO, r * 0.14, c)
+	for i in 3:
+		var ly := -r * 0.5 + i * r * 0.5
+		draw_line(Vector2(-r, ly + off.y * 0.5), Vector2(r, ly + off.y * 0.5), Color(c.r, c.g, c.b, 0.12), 1.0)
+	var hp_frac := float(hp) / float(max_hp)
+	draw_arc(Vector2.ZERO, r + 10.0, -PI / 2, -PI / 2 + TAU * hp_frac, 48, Color(c.r, c.g, c.b, 0.55), 2.5, true)
+	if act == Act.TELEPORT_OUT or act == Act.TELEPORT_IN:
+		draw_arc(Vector2.ZERO, r * (1.4 - 0.4 * modulate.a), 0, TAU, 32, Color(1, 1, 1, 0.5), 2.0, true)
+
+func _draw_bluescreen(c: Color, r: float) -> void:
+	var rr := r * 0.92
+	var rect := Rect2(-rr, -rr * 0.72, rr * 2.0, rr * 1.44)
+	draw_rect(rect, Color(c.r, c.g, c.b, 0.10))
+	draw_rect(rect, Color(c.r, c.g, c.b, 0.9), false, 4.0)
+	for i in 5:
+		var ly := rect.position.y + rect.size.y * (0.15 + 0.18 * i) + sin(t * 3.0 + i) * 3.0
+		draw_line(Vector2(rect.position.x + 10.0, ly), Vector2(rect.end.x - 10.0, ly), Color(c.r, c.g, c.b, 0.14), 1.5)
+	var eye_h := r * 0.16
+	var eye_w := r * 0.07
+	var eye_y := -r * 0.18
+	draw_rect(Rect2(Vector2(-r * 0.22 - eye_w * 0.5, eye_y - eye_h * 0.5), Vector2(eye_w, eye_h)), Color(1, 1, 1, 0.95))
+	draw_rect(Rect2(Vector2(r * 0.22 - eye_w * 0.5, eye_y - eye_h * 0.5), Vector2(eye_w, eye_h)), Color(1, 1, 1, 0.95))
+	draw_arc(Vector2(0, r * 0.22), r * 0.2, PI * 1.15, PI * 1.85, 16, Color(1, 1, 1, 0.95), 3.5, true)
+	if act == Act.FREEZE_WIND:
+		var a := 0.3 + 0.5 * absf(sin(t * 24.0))
+		draw_rect(rect.grow(6.0 + 6.0 * absf(sin(t * 12.0))), Color(0.4, 0.6, 1.0, a), false, 2.5)
+	var hp_frac := float(hp) / float(max_hp)
+	draw_arc(Vector2.ZERO, r + 10.0, -PI / 2, -PI / 2 + TAU * hp_frac, 48, Color(c.r, c.g, c.b, 0.55), 2.5, true)
+
+func _draw_pagefault(c: Color, r: float) -> void:
+	var pages := _pages_alive()
+	for i in 3:
+		var off := Vector2.from_angle(t * (0.6 + i * 0.25)) * r * 0.12 * i
+		var rect := Rect2(Vector2(-r * 0.7, -r * 0.5) + off, Vector2(r * 1.4, r))
+		draw_rect(rect, Color(c.r, c.g, c.b, 0.10 + 0.06 * i), false, 2.0)
+	draw_circle(Vector2.ZERO, r * 0.3, Color(c.r, c.g, c.b, 0.3))
+	if pages > 0:
+		draw_arc(Vector2.ZERO, r * 0.55, 0, TAU, 32, Color(0.8, 0.65, 1.0, 0.5 + 0.3 * sin(t * 6.0)), 3.0, true)
+		draw_string(Fx.mono_font, Vector2(-14, 6), "%d" % pages, HORIZONTAL_ALIGNMENT_CENTER, 28, 20, Color(1, 1, 1, 0.9))
+	else:
+		var look := aim_at_player().angle()
+		var eye := Vector2.from_angle(look) * r * 0.08
+		draw_circle(eye, r * 0.14, c)
+		draw_circle(eye, r * 0.06, Color(1, 1, 1, 0.95))
+	var hp_frac := float(hp) / float(max_hp)
+	draw_arc(Vector2.ZERO, r + 10.0, -PI / 2, -PI / 2 + TAU * hp_frac, 48, Color(c.r, c.g, c.b, 0.55), 2.5, true)

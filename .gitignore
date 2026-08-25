@@ -1,0 +1,15 @@
+# Godot-generated data
+.godot/
+
+# Local export credentials
+export_credentials.cfg
+
+# Builds
+*.apk
+*.aab
+
+# Local files
+.nomedia
+.DS_Store
+*.tmp
+*.log
