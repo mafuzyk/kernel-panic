@@ -1,7 +1,7 @@
 # KERNEL PANIC
 
 <p align="center">
-  <img src="icon.svg" width="112" alt="KERNEL PANIC icon">
+  <img src="assets/icons/launcher.png" width="112" alt="KERNEL PANIC icon">
 </p>
 
 <p align="center">
