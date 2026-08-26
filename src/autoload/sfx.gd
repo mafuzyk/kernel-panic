@@ -182,6 +182,7 @@ func _load_settings() -> void:
 
 func save_settings() -> void:
 	var cf := ConfigFile.new()
+	cf.load(SAVE_PATH)
 	cf.set_value("audio", "muted", muted)
 	cf.set_value("audio", "sfx_vol", sfx_vol)
 	cf.set_value("audio", "music_vol", music_vol)

@@ -231,6 +231,17 @@ func _autotest() -> void:
 	Game.to_menu()
 	ok = await _until(func() -> bool:
 		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 6.0, "menu return")
+	print("AT_STEP savewipe")
+	var cf_save := ConfigFile.new()
+	cf_save.load(Sfx.SAVE_PATH)
+	cf_save.set_value("run", "best_classic", 777777)
+	cf_save.save(Sfx.SAVE_PATH)
+	Sfx.save_settings()
+	var cf_verify := ConfigFile.new()
+	cf_verify.load(Sfx.SAVE_PATH)
+	_check(int(cf_verify.get_value("run", "best_classic", 0)) == 777777, "save_settings preserves run records")
+	cf_verify.set_value("run", "best_classic", 0)
+	cf_verify.save(Sfx.SAVE_PATH)
 	print("AT_STEP ui_fixes")
 	var menu_script: Script = load("res://src/ui/menu.gd")
 	var wrap_ok: bool = menu_script._next_touch_scale_idx(1.2) == 0 and menu_script._next_touch_scale_idx(0.85) == 1 and menu_script._next_touch_scale_idx(1.0) == 2
@@ -455,6 +466,68 @@ func _systems_test(arena: Arena) -> void:
 			s.queue_free()
 	sb.queue_free()
 	await _ticks(3)
+	print("AT_STEP patches8")
+	Game.patch_levels = {"splitshot": 1}
+	player.fire_cd = 0.0
+	var shots0s: int = Game.stats["shots"]
+	player._shoot()
+	var bullets_now := 0
+	for c in arena.get_children():
+		if c is PlayerBullet:
+			bullets_now += 1
+			c.queue_free()
+	_check(bullets_now == 2, "splitshot adds projectile (%d)" % bullets_now)
+	_check(Game.stats["shots"] == shots0s + 1, "splitshot counts one shot")
+	Game.patch_levels = {"heavy": 1, "splitshot": 1}
+	player.fire_cd = 0.0
+	player._shoot()
+	var heavy2 := 0
+	for c in arena.get_children():
+		if c is PlayerBullet and c.dmg == 2:
+			heavy2 += 1
+			c.queue_free()
+	_check(heavy2 == 2, "splitshot inherits heavy damage (%d)" % heavy2)
+	Game.patch_levels = {}
+	print("AT_STEP secondwind")
+	Game.patch_levels = {"secondwind": 1}
+	player.second_wind_used = false
+	player.invuln = 0.0
+	player.hp = 1
+	player.take_damage(player.global_position + Vector2(5, 0), "TEST")
+	_check(player.hp >= 1 and not player.dead and player.second_wind_used, "second wind prevents death")
+	player.invuln = 0.0
+	player.take_damage(player.global_position + Vector2(5, 0), "TEST")
+	player.invuln = 0.0
+	player.hp = 1
+	player.take_damage(player.global_position + Vector2(5, 0), "TEST")
+	_check(player.dead, "second wind only once")
+	Game.patch_levels = {}
+	if player.dead:
+		player.queue_free()
+		await _ticks(3)
+		player = Player.new()
+		get_tree().current_scene.add_child(player)
+		arena.player = player
+		await _ticks(2)
+	print("AT_STEP thorns")
+	Game.patch_levels = {"thorns": 1}
+	var tn := DroneEnemy.new()
+	tn.setup_mini()
+	tn.position = player.global_position + Vector2(20, 0)
+	arena.enemy_container.add_child(tn)
+	await _ticks(3)
+	var tn_hp: int = tn.hp if is_instance_valid(tn) else 0
+	_check(tn_hp <= 1, "thorns reflects contact damage (hp %d)" % tn_hp)
+	Game.patch_levels = {}
+	for e in get_tree().get_nodes_in_group("enemies"):
+		e.queue_free()
+	await _ticks(2)
+	print("AT_STEP turbo")
+	Game.patch_levels = {"turbo": 2}
+	player.dash_cd = 0.9
+	player.notify_kill()
+	_check(absf(player.dash_cd - 0.2) < 0.01, "turbo kill recharge (-0.35 x2)")
+	Game.patch_levels = {}
 	print("AT_STEP programs")
 	Game.unlocked_programs["kernel"] = true
 	Game.unlocked_programs["daemon"] = true

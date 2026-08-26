@@ -44,6 +44,8 @@ var dash_charges := 1
 var dash_recharge_t := 0.0
 var shield_ready := false
 var shield_meter := 0.0
+var second_wind_used := false
+var thorns_cd := 0.0
 
 func _ready() -> void:
 	touch_mode = DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
@@ -162,6 +164,8 @@ func _physics_process(delta: float) -> void:
 		dash_cd -= delta
 	if dash_charges > 1 and dash_recharge_t > 0.0:
 		dash_recharge_t -= delta
+	if thorns_cd > 0.0:
+		thorns_cd -= delta
 	if invuln > 0.0:
 		invuln -= delta
 		visible = fmod(invuln, 0.14) > 0.055 or invuln <= 0.0
@@ -223,6 +227,7 @@ func magnet_radius() -> float:
 func fire_interval() -> float:
 	var rate := Balance.FIRE_RATE_OC if overclock_active else Balance.FIRE_RATE
 	rate *= float(prog.get("rate_mul", 1.0))
+	rate *= pow(0.9, Game.patch_level("splitshot"))
 	if prog.has("close_rate_mul"):
 		var nearest: Node2D = _nearest_enemy()
 		if nearest != null and is_instance_valid(nearest) and global_position.distance_to(nearest.global_position) < float(prog.get("close_range", 160.0)):
@@ -242,13 +247,16 @@ func _shoot() -> void:
 	var b := PlayerBullet.new()
 	var bspeed := Balance.BULLET_SPEED * (1.0 + 0.22 * Game.patch_level("threads"))
 	var shot_dir := dir.rotated(Game.rng.randf_range(-spread, spread))
-	b.setup(global_position + dir * 18.0, shot_dir, overclock_active)
-	b.vel = shot_dir * bspeed
-	b.life = Balance.BULLET_LIFE * float(prog.get("range_mul", 1.0)) * (1.0 + 0.12 * Game.patch_level("threads"))
-	b.pierce += Game.patch_level("core")
-	b.dmg = 1 + int(prog.get("dmg_bonus", 0)) + Game.patch_level("heavy")
-	b.bounces = Game.patch_level("ricochet")
-	get_parent().add_child(b)
+	for k in range(1 + Game.patch_level("splitshot")):
+		var bullet := PlayerBullet.new()
+		var sdir := shot_dir.rotated(0.0 if k == 0 else (0.28 * ceilf(k / 2.0) * (1 if k % 2 == 1 else -1)))
+		bullet.setup(global_position + dir * 18.0, sdir, overclock_active)
+		bullet.vel = sdir * bspeed
+		bullet.life = Balance.BULLET_LIFE * float(prog.get("range_mul", 1.0)) * (1.0 + 0.12 * Game.patch_level("threads"))
+		bullet.pierce += Game.patch_level("core")
+		bullet.dmg = 1 + int(prog.get("dmg_bonus", 0)) + Game.patch_level("heavy")
+		bullet.bounces = Game.patch_level("ricochet")
+		get_parent().add_child(bullet)
 	vel -= dir * 26.0
 	_muzzle_t = 0.06
 	Sfx.play("shoot", 1.25 if overclock_active else 1.0, -10.0, 0.07)
@@ -265,7 +273,7 @@ func request_dash(input_vec: Vector2) -> void:
 	if dir.length() < 0.2:
 		dir = Vector2.from_angle(rotation)
 	dir = dir.normalized()
-	vel = dir * Balance.DASH_SPEED
+	vel = dir * Balance.DASH_SPEED * (1.0 + 0.12 * Game.patch_level("turbo"))
 	dash_id += 1
 	dash_t = Balance.DASH_TIME
 	dash_cd = Balance.DASH_CD * pow(0.82, Game.patch_level("dash"))
@@ -285,6 +293,8 @@ func _avail_charges() -> int:
 	return int(n)
 
 func notify_kill() -> void:
+	if Game.patch_level("turbo") > 0 and dash_cd > 0.0:
+		dash_cd = maxf(dash_cd - 0.35 * Game.patch_level("turbo"), 0.0)
 	if prog.has("kill_dash_refund"):
 		dash_cd = minf(dash_cd, dash_cd * (1.0 - float(prog["kill_dash_refund"])))
 		if dash_charges > 1 and dash_recharge_t > 0.0:
@@ -385,6 +395,10 @@ func _on_area_entered(a: Area2D) -> void:
 		var push := (global_position - a.global_position).normalized() * 240.0
 		vel += push
 		a.kb += -push * 0.5
+		if Game.patch_level("thorns") > 0 and thorns_cd <= 0.0:
+			thorns_cd = 0.6
+			a.take_hit(1, global_position)
+			Fx.sparks(a.global_position, Balance.COL_PLAYER_HOT, 4, 140.0, 0.25, 2.0)
 		take_damage(a.global_position, a.display_name)
 
 func take_damage(from: Vector2, killer := "DAEMON") -> void:
@@ -416,6 +430,17 @@ func take_damage(from: Vector2, killer := "DAEMON") -> void:
 	get_tree().call_group("overlay", "hurt_pulse")
 	hp_changed.emit(hp, max_hp)
 	if hp <= 0:
+		if Game.patch_level("secondwind") > 0 and not second_wind_used and Game.mode != "onehp":
+			second_wind_used = true
+			hp = 1
+			invuln = maxf(invuln, 2.0)
+			Sfx.play("ready", 0.9, -2.0)
+			Fx.flash(Color(0.6, 1.0, 0.8), 0.3, 0.5)
+			Fx.ring(global_position, Color(0.6, 1.0, 0.8), 10.0, 140.0, 0.5, 4.0)
+			Fx.text(global_position + Vector2(0, -30), "SECOND WIND", Color(0.6, 1.0, 0.8), 16)
+			Sfx.haptic(60)
+			hp_changed.emit(hp, max_hp)
+			return
 		_die()
 
 func _die() -> void:

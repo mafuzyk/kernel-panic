@@ -137,7 +137,7 @@ func mark_bestiary(display: String) -> void:
 func bestiary_seen(id: String) -> bool:
 	return bestiary.has(id)
 
-const PATCH_CODES := {"rapid": "RP", "cell": "OC", "magnet": "MG", "hp": "HP", "dash": "PH", "frag": "FR", "threads": "TH", "chain": "CH", "core": "HC", "restore": "SR", "light": "LF", "mdash": "MD", "heavy": "HV", "ricochet": "RC", "pdash": "PD", "staticf": "SF", "vampic": "VP", "recycler": "RY", "dataleech": "DL"}
+const PATCH_CODES := {"rapid": "RP", "cell": "OC", "magnet": "MG", "hp": "HP", "dash": "PH", "frag": "FR", "threads": "TH", "chain": "CH", "core": "HC", "restore": "SR", "light": "LF", "mdash": "MD", "heavy": "HV", "ricochet": "RC", "pdash": "PD", "staticf": "SF", "vampic": "VP", "recycler": "RY", "dataleech": "DL", "splitshot": "SP", "secondwind": "SW", "thorns": "TN", "turbo": "TD"}
 
 func build_string() -> String:
 	if patch_levels.is_empty():
@@ -180,6 +180,10 @@ const PATCH_DEFS := [
 	{"id": "vampic", "title": "VAMPIC PROTOCOL", "desc": "CHAIN x4 HEALS 1 INTEGRITY", "max": 1, "rare": true, "legend": true},
 	{"id": "recycler", "title": "RECYCLER", "desc": "+6% RECOVER CHANCE PER LEVEL", "max": 3, "rare": false, "legend": false},
 	{"id": "dataleech", "title": "DATA LEECH", "desc": "ELITES ALWAYS DROP RECOVER", "max": 1, "rare": true, "legend": false},
+	{"id": "splitshot", "title": "SPLITSHOT", "desc": "+1 ANGLED PROJECTILE, -10% FIRE RATE", "max": 2, "rare": true, "legend": false},
+	{"id": "secondwind", "title": "SECOND WIND", "desc": "SURVIVE DEATH ONCE PER RUN, HEAL 1", "max": 1, "rare": true, "legend": true},
+	{"id": "thorns", "title": "THORNS", "desc": "CONTACT REFLECTS 1 DAMAGE BACK", "max": 2, "rare": true, "legend": false},
+	{"id": "turbo", "title": "TURBO DASH", "desc": "+12% DASH SPEED, KILLS SPEED RECHARGE", "max": 2, "rare": true, "legend": false},
 ]
 
 func start_run() -> void:
@@ -231,7 +235,7 @@ func patch_level(id: String) -> int:
 func roll_patch_offer() -> Array:
 	var pool: Array = []
 	for d in PATCH_DEFS:
-		if mode == "onehp" and (d["id"] == "dataleech" or d["id"] == "recycler"):
+		if mode == "onehp" and (d["id"] == "dataleech" or d["id"] == "recycler" or d["id"] == "secondwind"):
 			continue
 		if patch_level(d["id"]) < int(d["max"]):
 			pool.append(d)
