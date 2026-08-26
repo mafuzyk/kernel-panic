@@ -382,14 +382,14 @@ func _build_settings() -> void:
 	box.add_child(aim_btn)
 	var touch_sz := Button.new()
 	touch_sz.flat = true
-	touch_sz.text = "TOUCH SIZE: %s" % ["SMALL", "NORMAL", "BIG"][clampi(int(round((Sfx.touch_scale - 0.85) / 0.175)), 0, 2)]
+	touch_sz.text = "TOUCH SIZE: %s" % ["SMALL", "NORMAL", "BIG"][_touch_scale_idx(Sfx.touch_scale)]
 	touch_sz.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	touch_sz.add_theme_font_size_override("font_size", 17)
 	touch_sz.add_theme_color_override("font_color", Balance.COL_TEXT)
 	touch_sz.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
 	touch_sz.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	touch_sz.pressed.connect(func() -> void:
-		var idx := clampi(int(round((Sfx.touch_scale - 0.85) / 0.175)) + 1, 0, 2)
+		var idx := _next_touch_scale_idx(Sfx.touch_scale)
 		Sfx.touch_scale = [0.85, 1.0, 1.2][idx]
 		touch_sz.text = "TOUCH SIZE: %s" % ["SMALL", "NORMAL", "BIG"][idx]
 		Sfx.save_settings()
@@ -420,11 +420,7 @@ func _build_settings() -> void:
 		if reset.text == "RESET HIGH SCORE":
 			reset.text = "TAP AGAIN TO CONFIRM"
 			return
-		Game.best = 0
-		var cf := ConfigFile.new()
-		cf.load(Sfx.SAVE_PATH)
-		cf.set_value("run", "best", 0)
-		cf.save(Sfx.SAVE_PATH)
+		_reset_scores()
 		_update_best()
 		reset.text = "CLEARED"
 	)
@@ -523,6 +519,20 @@ func _mk_title(f: Font, col: Color) -> Label:
 	l.offset_bottom = 260.0
 	add_child(l)
 	return l
+
+func _reset_scores() -> void:
+	Game.best = 0
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("run", "best", 0)
+	cf.set_value("run", "best_classic", 0)
+	cf.save(Sfx.SAVE_PATH)
+
+static func _touch_scale_idx(v: float) -> int:
+	return clampi(int(round((v - 0.85) / 0.175)), 0, 2)
+
+static func _next_touch_scale_idx(v: float) -> int:
+	return (_touch_scale_idx(v) + 1) % 3
 
 func _update_best() -> void:
 	var b := Game.best_for_mode()

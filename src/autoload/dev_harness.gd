@@ -196,6 +196,18 @@ func _autotest() -> void:
 	Game.to_menu()
 	ok = await _until(func() -> bool:
 		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 6.0, "menu return")
+	print("AT_STEP ui_fixes")
+	var menu_script: Script = load("res://src/ui/menu.gd")
+	var wrap_ok: bool = menu_script._next_touch_scale_idx(1.2) == 0 and menu_script._next_touch_scale_idx(0.85) == 1 and menu_script._next_touch_scale_idx(1.0) == 2
+	_check(wrap_ok, "touch size cycles with modulo")
+	var menu_scene: Node = get_tree().current_scene
+	if menu_scene.has_method("_reset_scores"):
+		menu_scene._reset_scores()
+		var cf_after := ConfigFile.new()
+		cf_after.load(Sfx.SAVE_PATH)
+		_check(int(cf_after.get_value("run", "best_classic", -1)) == 0 and Game.best == 0, "reset scores clears best_classic")
+	else:
+		_fail("menu exposes _reset_scores")
 	_finish()
 
 func _systems_test(arena: Arena) -> void:
@@ -290,6 +302,11 @@ func _systems_test(arena: Arena) -> void:
 	for i in 3:
 		seed_b.append(Game.roll_patch_offer()[0]["id"])
 	_check(str(seed_a) == str(seed_b), "weekly seed is deterministic")
+	Game.best = 4242
+	var cf_reset := ConfigFile.new()
+	cf_reset.set_value("run", "best_classic", 4242)
+	cf_reset.set_value("run", "best", 4242)
+	cf_reset.save(Sfx.SAVE_PATH)
 	print("AT_STEP weekly_det")
 	var comp_a: Array = []
 	var events_a: Array = []
