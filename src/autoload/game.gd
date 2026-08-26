@@ -139,7 +139,7 @@ func mark_bestiary(display: String) -> void:
 func bestiary_seen(id: String) -> bool:
 	return bestiary.has(id)
 
-const PATCH_CODES := {"rapid": "RP", "cell": "OC", "magnet": "MG", "hp": "HP", "dash": "PH", "frag": "FR", "threads": "TH", "chain": "CH", "core": "HC", "restore": "SR", "light": "LF", "mdash": "MD", "heavy": "HV", "ricochet": "RC", "pdash": "PD", "staticf": "SF", "vampic": "VP", "recycler": "RY", "dataleech": "DL", "splitshot": "SP", "secondwind": "SW", "thorns": "TN", "turbo": "TD"}
+const PATCH_CODES := {"rapid": "RP", "cell": "OC", "magnet": "MG", "hp": "HP", "dash": "PH", "frag": "FR", "threads": "TH", "chain": "CH", "core": "HC", "restore": "SR", "light": "LF", "mdash": "MD", "heavy": "HV", "ricochet": "RC", "pdash": "PD", "staticf": "SF", "vampic": "VP", "recycler": "RY", "dataleech": "DL", "splitshot": "SP", "secondwind": "SW", "thorns": "TN", "turbo": "TD", "scrapdiet": "SD"}
 
 func build_string() -> String:
 	if patch_levels.is_empty():
@@ -188,6 +188,7 @@ const PATCH_DEFS := [
 	{"id": "secondwind", "title": "SECOND WIND", "desc": "SURVIVE DEATH ONCE PER RUN, HEAL 1", "max": 1, "rare": true, "legend": true},
 	{"id": "thorns", "title": "THORNS", "desc": "CONTACT REFLECTS 1 DAMAGE BACK", "max": 2, "rare": true, "legend": false},
 	{"id": "turbo", "title": "TURBO DASH", "desc": "+12% DASH SPEED, KILLS SPEED RECHARGE", "max": 2, "rare": true, "legend": false},
+	{"id": "scrapdiet", "title": "SCRAP DIET", "desc": "25 OVERFLOW MOTES HEAL 1 INTEGRITY", "max": 2, "rare": true, "legend": false},
 ]
 
 func start_run() -> void:
@@ -239,7 +240,7 @@ func patch_level(id: String) -> int:
 func roll_patch_offer() -> Array:
 	var pool: Array = []
 	for d in PATCH_DEFS:
-		if mode == "onehp" and (d["id"] == "dataleech" or d["id"] == "recycler" or d["id"] == "secondwind"):
+		if mode == "onehp" and (d["id"] == "dataleech" or d["id"] == "recycler" or d["id"] == "secondwind" or d["id"] == "scrapdiet"):
 			continue
 		if patch_level(d["id"]) < int(d["max"]):
 			pool.append(d)

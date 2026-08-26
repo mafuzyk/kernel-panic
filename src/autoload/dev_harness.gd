@@ -546,6 +546,48 @@ func _systems_test(arena: Arena) -> void:
 	player.notify_kill()
 	_check(absf(player.dash_cd - 0.2) < 0.01, "turbo kill recharge (-0.35 x2)")
 	Game.patch_levels = {}
+	print("AT_STEP scrap")
+	Game.patch_levels = {"scrapdiet": 1}
+	Game.set_program("kernel")
+	player.queue_free()
+	await _ticks(3)
+	var ps := Player.new()
+	ps.position = Vector2(400, 0)
+	get_tree().current_scene.add_child(ps)
+	await _ticks(2)
+	_check(ps._scrap_threshold() == 20, "scrap threshold lvl1 is 20")
+	ps.oc_ready = true
+	ps.meter = Balance.OC_METER_MAX
+	var sc0: int = ps.scrap_count
+	ps.collect_mote()
+	_check(ps.scrap_count == sc0 + 1, "scrap counts oc_ready overflow")
+	ps.oc_ready = false
+	ps.overclock_active = true
+	ps.collect_mote()
+	_check(ps.scrap_count == sc0 + 2, "scrap counts overclock_active overflow")
+	var hp_before_scrap: int = ps.hp - 1
+	ps.hp = ps.max_hp - 1
+	for i in 18:
+		ps.collect_mote()
+	_check(ps.hp == hp_before_scrap + 1, "scrap heals at threshold (20)")
+	_check(ps.scrap_count == 0, "scrap counter resets after heal")
+	ps.overclock_active = false
+	ps.meter = 50.0
+	ps.oc_ready = false
+	ps.collect_mote()
+	_check(ps.scrap_count == 0, "meter-filling pickup does not advance scrap")
+	ps.queue_free()
+	await _ticks(2)
+	player = Player.new()
+	player.position = Vector2.ZERO
+	get_tree().current_scene.add_child(player)
+	arena.player = player
+	if arena.hud != null:
+		arena.hud.player = player
+	if arena.touch != null:
+		arena.touch.player = player
+	await _ticks(2)
+	Game.patch_levels = {}
 	print("AT_STEP programs")
 	Game.unlocked_programs["kernel"] = true
 	Game.unlocked_programs["daemon"] = true

@@ -46,6 +46,20 @@ var shield_ready := false
 var shield_meter := 0.0
 var second_wind_used := false
 var thorns_cd := 0.0
+var scrap_count := 0
+
+func _scrap_threshold() -> int:
+	return 25 - 5 * Game.patch_level("scrapdiet")
+
+func _register_scrap_overflow() -> void:
+	if Game.patch_level("scrapdiet") <= 0 or Game.mode == "onehp":
+		return
+	scrap_count += 1
+	if scrap_count >= _scrap_threshold():
+		scrap_count = 0
+		heal(1)
+		Fx.text(global_position + Vector2(0, -30), "SCRAP +1", Color(1.0, 0.75, 0.4), 14)
+		Sfx.play("ready", 1.1, -6.0)
 
 func _ready() -> void:
 	touch_mode = DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
@@ -333,6 +347,7 @@ func collect_mote() -> void:
 			return
 	if overclock_active:
 		Game.add_score(5)
+		_register_scrap_overflow()
 		return
 	pickup_streak += 1
 	streak_t = 1.0
@@ -340,6 +355,7 @@ func collect_mote() -> void:
 	Sfx.haptic(8)
 	if oc_ready:
 		Game.add_score(5)
+		_register_scrap_overflow()
 		return
 	meter = minf(meter + Balance.MOTE_VALUE, Balance.OC_METER_MAX)
 	if meter >= Balance.OC_METER_MAX:

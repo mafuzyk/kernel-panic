@@ -165,6 +165,13 @@ func _oc_bar(f: Font) -> void:
 	if _oc_active:
 		label += " ACTIVE"
 	draw_string(f, Vector2(24, 78), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(txt_col.r, txt_col.g, txt_col.b, 0.85))
+	if Game.patch_level("scrapdiet") > 0 and player != null and is_instance_valid(player):
+		var thr: int = player._scrap_threshold()
+		var sc := Color(1.0, 0.75, 0.4, 0.9)
+		draw_rect(Rect2(190, 52, 86, 8), Color(sc.r, sc.g, sc.b, 0.14))
+		var sfrac: float = clampf(float(player.scrap_count) / float(thr), 0.0, 1.0)
+		draw_rect(Rect2(190, 52, 86.0 * sfrac, 8), Color(sc.r, sc.g, sc.b, 0.8))
+		draw_string(f, Vector2(190, 78), "SCRAP %d/%d" % [player.scrap_count, thr], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, sc)
 	_patch_chips(f)
 
 func _patch_chips(f: Font) -> void:
