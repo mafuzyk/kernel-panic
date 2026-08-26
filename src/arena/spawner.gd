@@ -124,7 +124,11 @@ func _build_queue() -> void:
 				break
 		_queue.append(picked[0])
 		budget -= picked[1]
-	_queue.shuffle()
+	for i in range(_queue.size() - 1, 0, -1):
+		var j := Game.rng.randi_range(0, i)
+		var tmp = _queue[i]
+		_queue[i] = _queue[j]
+		_queue[j] = tmp
 
 func _spawn_boss() -> void:
 	var idx := int(wave / float(Balance.BOSS_EVERY))

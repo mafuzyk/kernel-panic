@@ -94,7 +94,7 @@ func die() -> void:
 	for m in carried:
 		if is_instance_valid(m):
 			m.stolen = false
-			m.vel = Vector2.from_angle(randf() * TAU) * 180.0
+			m.vel = Vector2.from_angle(Game.rng.randf() * TAU) * 180.0
 			m.life = maxf(m.life, 6.0)
 	carried.clear()
 	Game.add_score(25)

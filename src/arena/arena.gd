@@ -408,7 +408,7 @@ func _show_tip() -> void:
 		tl.layer = 45
 		tl.add_child(_tip_label)
 		add_child(tl)
-	_tip_index = (Game.rng.randi() if Game.mode == "weekly" else randi()) % TIPS.size()
+	_tip_index = randi() % TIPS.size()
 	_tip_label.text = "TIP // " + TIPS[_tip_index]
 	_tip_label.modulate.a = 0.0
 	var tw := create_tween()
@@ -666,7 +666,7 @@ func _on_enemy_died(e: EnemyBase) -> void:
 	for i in n:
 		var m := Mote.new()
 		m.player = player
-		m.setup(e.global_position + Vector2.from_angle(randf() * TAU) * randf_range(4.0, 16.0))
+		m.setup(e.global_position + Vector2.from_angle(Game.rng.randf() * TAU) * Game.rng.randf_range(4.0, 16.0))
 		mote_container.call_deferred("add_child", m)
 	if e is RootBoss:
 		hud.boss = null

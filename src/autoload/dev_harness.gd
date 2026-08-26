@@ -258,6 +258,35 @@ func _systems_test(arena: Arena) -> void:
 	for i in 3:
 		seed_b.append(Game.roll_patch_offer()[0]["id"])
 	_check(str(seed_a) == str(seed_b), "weekly seed is deterministic")
+	print("AT_STEP weekly_det")
+	var comp_a: Array = []
+	var events_a: Array = []
+	Game.rng.seed = 777
+	for w in range(1, 7):
+		sp.wave = w
+		sp._roll_wave_event(false, w)
+		events_a.append(sp._next_event)
+		sp._build_queue()
+		comp_a.append(" ".join(sp._queue))
+	var comp_b: Array = []
+	var events_b: Array = []
+	Game.rng.seed = 777
+	for w in range(1, 7):
+		sp.wave = w
+		sp._roll_wave_event(false, w)
+		events_b.append(sp._next_event)
+		sp._build_queue()
+		comp_b.append(" ".join(sp._queue))
+	_check(str(comp_a) == str(comp_b), "weekly wave composition deterministic")
+	_check(str(events_a) == str(events_b), "weekly wave events deterministic")
+	var l1 := LancerEnemy.new()
+	l1.phase_t = Game.rng.randf_range(0.6, 1.1)
+	Game.rng.seed = 99
+	l1.phase_t = Game.rng.randf_range(0.6, 1.1)
+	Game.rng.seed = 99
+	var l2 := LancerEnemy.new()
+	l2.phase_t = Game.rng.randf_range(0.6, 1.1)
+	_check(absf(l1.phase_t - l2.phase_t) < 0.0001, "enemy rng uses seeded stream")
 	Game.mode = "classic"
 	Game.patch_levels = {}
 	await _ticks(2)

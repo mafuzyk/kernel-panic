@@ -17,16 +17,16 @@ func _init() -> void:
 	pts = 110
 	radius = 15.0
 	col = Balance.COL_SPEWER
-	_fire_t = randf_range(1.2, 2.2)
+	_fire_t = Game.rng.randf_range(1.2, 2.2)
 
 func _on_ready() -> void:
-	_strafe_dir = 1.0 if randf() < 0.5 else -1.0
+	_strafe_dir = 1.0 if Game.rng.randf() < 0.5 else -1.0
 
 func _move(delta: float) -> void:
 	_orbit_flip_t -= delta
 	if _orbit_flip_t <= 0.0:
-		_orbit_flip_t = randf_range(2.0, 4.0)
-		if randf() < 0.35:
+		_orbit_flip_t = Game.rng.randf_range(2.0, 4.0)
+		if Game.rng.randf() < 0.35:
 			_strafe_dir *= -1.0
 	var to_p := player.global_position - global_position if player != null else Vector2.ZERO
 	var d := to_p.length()
@@ -58,7 +58,7 @@ func _fire() -> void:
 	get_parent().add_child(orb)
 	Sfx.play("shoot", 0.55, -7.0, 0.08)
 	Fx.sparks(global_position + aim_at_player() * radius, col, 5, 120.0, 0.3, 2.4)
-	_fire_t = randf_range(1.9, 2.5)
+	_fire_t = Game.rng.randf_range(1.9, 2.5)
 
 func vel() -> Vector2:
 	return _v

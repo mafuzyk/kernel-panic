@@ -11,7 +11,7 @@ var stolen := false
 
 func setup(pos: Vector2) -> void:
 	position = pos
-	vel = Vector2.from_angle(randf() * TAU) * randf_range(50.0, 170.0)
+	vel = Vector2.from_angle(Game.rng.randf() * TAU) * Game.rng.randf_range(50.0, 170.0)
 
 func _ready() -> void:
 	add_to_group("motes")

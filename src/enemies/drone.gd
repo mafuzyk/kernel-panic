@@ -26,7 +26,7 @@ func configure(wave_scale_f: float, is_elite: bool) -> void:
 		max_hp = hp
 
 func _on_ready() -> void:
-	_wob = randf() * TAU
+	_wob = Game.rng.randf() * TAU
 	if mini:
 		col = Color("ff7ba4")
 		glow.self_modulate = col

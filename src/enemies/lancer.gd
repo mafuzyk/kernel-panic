@@ -49,7 +49,7 @@ func _move(delta: float) -> void:
 			_v = _v.move_toward(aim_at_player() * speed * 0.4, 400.0 * delta)
 			if phase_t <= 0.0:
 				phase = Phase.APPROACH
-				phase_t = randf_range(0.5, 0.9)
+				phase_t = Game.rng.randf_range(0.5, 0.9)
 
 func _ghost_draw(node: Node2D, c: Color) -> void:
 	var r := radius
