@@ -137,6 +137,22 @@ func _autotest() -> void:
 	await _until(func() -> bool: return player.hp < hp_before, 4.0, "orb damages player")
 	_check(player.hp == hp_before - 1, "player takes 1 damage")
 	_check(Game.mult == 1, "damage breaks combo")
+	print("AT_STEP vampic")
+	Game.patch_levels = {"vampic": 1}
+	player.max_hp = Balance.PLAYER_MAX_HP
+	player.hp = player.max_hp - 2
+	var hp_before_v := player.hp
+	for i in 3:
+		Game.register_kill(10)
+	_check(player.hp == hp_before_v + 1, "vampic heals once at x4")
+	for i in 3:
+		Game.register_kill(10)
+	_check(player.hp == hp_before_v + 1, "vampic does not heal at x7")
+	Game.register_kill(10)
+	_check(player.hp == hp_before_v + 1, "vampic does not heal twice (x8)")
+	Game.break_combo()
+	Game.patch_levels = {}
+	player.heal(99)
 	var e2 := DroneEnemy.new()
 	e2.position = player.global_position + Vector2(2, 0)
 	arena.enemy_container.add_child(e2)

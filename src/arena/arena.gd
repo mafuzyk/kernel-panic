@@ -681,7 +681,6 @@ func _on_enemy_died(e: EnemyBase) -> void:
 			Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
 		offer_patch()
 	Sfx.haptic(12)
-	Game.combo_milestone.emit(Game.mult)
 
 func _on_bestiary_unlocked(id: String) -> void:
 	if player == null or player.dead:
