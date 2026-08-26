@@ -104,7 +104,7 @@ func _ready() -> void:
 	_best_label.offset_bottom = 354.0
 	add_child(_best_label)
 	var tag := Label.new()
-	tag.text = "KERNEL PANIC v1.0 // purge loop online"
+	tag.text = "KERNEL PANIC v%s // purge loop online" % ProjectSettings.get_setting("application/config/version", "dev")
 	tag.add_theme_font_override("font", mono)
 	tag.add_theme_font_size_override("font_size", 11)
 	tag.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.3))

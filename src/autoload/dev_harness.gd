@@ -201,6 +201,12 @@ func _autotest() -> void:
 	var wrap_ok: bool = menu_script._next_touch_scale_idx(1.2) == 0 and menu_script._next_touch_scale_idx(0.85) == 1 and menu_script._next_touch_scale_idx(1.0) == 2
 	_check(wrap_ok, "touch size cycles with modulo")
 	var menu_scene: Node = get_tree().current_scene
+	var ver_ok := false
+	var expected_ver: String = ProjectSettings.get_setting("application/config/version", "dev")
+	for c in menu_scene.get_children():
+		if c is Label and c.text.begins_with("KERNEL PANIC v" + expected_ver):
+			ver_ok = true
+	_check(ver_ok, "menu version matches project setting (%s)" % expected_ver)
 	if menu_scene.has_method("_reset_scores"):
 		menu_scene._reset_scores()
 		var cf_after := ConfigFile.new()
