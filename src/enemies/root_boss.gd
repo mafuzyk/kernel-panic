@@ -4,7 +4,7 @@ extends EnemyBase
 signal boss_hp_changed(frac: float)
 
 enum Phase { ONE = 1, TWO = 2, THREE = 3 }
-enum Act { HOVER, BURST, SPIRAL, CHARGE_WIND, CHARGE_GO, STAGGER, TELEPORT_OUT, TELEPORT_IN, FREEZE_WIND }
+enum Act { HOVER, BURST, SPIRAL, CHARGE_WIND, CHARGE_GO, STAGGER, TELEPORT_OUT, TELEPORT_IN, FREEZE_WIND, LANCE_WIND, LANCE_GO }
 
 var act: int = Act.HOVER
 var act_t := 0.0
@@ -15,6 +15,8 @@ var _summon_cd := 7.0
 var _charge_cd := 6.0
 var _teleport_cd := 3.5
 var _freeze_cd := 5.0
+var _lance_cd := 6.0
+var _lance_dir := Vector2.RIGHT
 var _spiral_angle := 0.0
 var _spiral_shots := 0
 var _charge_dir := Vector2.RIGHT
@@ -112,6 +114,7 @@ func _move(delta: float) -> void:
 	_charge_cd -= delta
 	_teleport_cd -= delta
 	_freeze_cd -= delta
+	_lance_cd -= delta
 	match act:
 		Act.HOVER:
 			var to_p := aim_at_player()
@@ -161,6 +164,20 @@ func _move(delta: float) -> void:
 			if act_t <= 0.0:
 				_apply_freeze()
 				act = Act.HOVER
+		Act.LANCE_WIND:
+			_v = _v.move_toward(Vector2.ZERO, 700.0 * delta)
+			_lance_dir = aim_at_player()
+			if act_t <= 0.0:
+				act = Act.LANCE_GO
+				act_t = 0.3
+				_v = _lance_dir * 900.0
+				Sfx.play("dash", 0.7, -6.0)
+				Fx.shake(0.25)
+		Act.LANCE_GO:
+			if act_t <= 0.0:
+				act = Act.STAGGER
+				act_t = 0.6
+				Fx.sparks(global_position, col, 10, 300.0, 0.4, 3.0)
 	var r := Balance.arena_rect()
 	if position.x <= r.position.x + radius + 1 or position.x >= r.end.x - radius - 1 or position.y <= r.position.y + radius + 1 or position.y >= r.end.y - radius - 1:
 		if act == Act.CHARGE_GO:
@@ -193,6 +210,11 @@ func _try_attacks() -> void:
 			if _burst_cd <= 0.0:
 				_burst_cd = 2.4
 				_do_burst(8, 240.0)
+			if phase >= Phase.TWO and _lance_cd <= 0.0:
+				_lance_cd = maxf(4.5, 7.0 - phase)
+				act = Act.LANCE_WIND
+				act_t = 0.5
+				Sfx.play("charge", 1.2, -8.0)
 			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summons_alive() < 6:
 				_summon_cd = 9.0
 				_do_summon("lancer")
@@ -350,7 +372,7 @@ func _spawn_orb(dir: Vector2, spd: float) -> void:
 
 func _enter_phase() -> void:
 	_phase_flash = 1.0
-	if act != Act.CHARGE_WIND and act != Act.CHARGE_GO and act != Act.FREEZE_WIND and act != Act.TELEPORT_OUT and act != Act.TELEPORT_IN:
+	if act != Act.CHARGE_WIND and act != Act.CHARGE_GO and act != Act.FREEZE_WIND and act != Act.TELEPORT_OUT and act != Act.TELEPORT_IN and act != Act.LANCE_WIND and act != Act.LANCE_GO:
 		act = Act.STAGGER
 		act_t = 0.8
 	Fx.ring(global_position, col, radius, radius + 160.0, 0.5, 5.0, true)
@@ -503,6 +525,10 @@ func _draw_segfault(c: Color, r: float) -> void:
 	draw_arc(Vector2.ZERO, r + 10.0, -PI / 2, -PI / 2 + TAU * hp_frac, 48, Color(c.r, c.g, c.b, 0.55), 2.5, true)
 	if act == Act.TELEPORT_OUT or act == Act.TELEPORT_IN:
 		draw_arc(Vector2.ZERO, r * (1.4 - 0.4 * modulate.a), 0, TAU, 32, Color(1, 1, 1, 0.5), 2.0, true)
+	if act == Act.LANCE_WIND:
+		var la := 0.3 + 0.45 * absf(sin(t * 28.0))
+		draw_line(Vector2.ZERO, _lance_dir.rotated(-rotation) * 860.0, Color(1, 0.6, 0.24, la), 2.5)
+		draw_line(Vector2.ZERO, _lance_dir.rotated(-rotation) * 860.0, Color(1, 1, 1, la * 0.4), 1.0)
 
 func _draw_bluescreen(c: Color, r: float) -> void:
 	var rr := r * 0.92

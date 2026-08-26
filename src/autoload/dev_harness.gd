@@ -322,6 +322,25 @@ func _systems_test(arena: Arena) -> void:
 	await _ticks(2)
 	player.invuln = 0.0
 	player.hp = player.max_hp
+	print("AT_STEP lance")
+	var seg := RootBoss.new()
+	seg.boss_index = 2
+	seg.configure(1.0, false)
+	seg.hp = int(seg.max_hp * 0.4)
+	arena.enemy_container.add_child(seg)
+	await _ticks(2)
+	seg._lance_cd = 0.0
+	var lance_seen := false
+	for i in 90:
+		await get_tree().process_frame
+		if not is_instance_valid(seg):
+			break
+		if seg.act == RootBoss.Act.LANCE_WIND or seg.act == RootBoss.Act.LANCE_GO:
+			lance_seen = true
+			break
+	_check(lance_seen, "segfault enters lance wind")
+	seg.queue_free()
+	await _ticks(2)
 	print("AT_STEP mk4")
 	var mk4 := RootBoss.new()
 	mk4.boss_index = 4
