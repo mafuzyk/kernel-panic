@@ -451,6 +451,51 @@ func _systems_test(arena: Arena) -> void:
 			s.queue_free()
 	sb.queue_free()
 	await _ticks(3)
+	print("AT_STEP newenemies")
+	var rec = load("res://src/enemies/recursor.gd").new()
+	rec.position = player.global_position + Vector2(300, 0)
+	arena.enemy_container.add_child(rec)
+	await _ticks(2)
+	_check(rec.display_name == "RECURSOR", "recursor builds")
+	var zones_before := get_tree().get_nodes_in_group("corruption").size()
+	for i in 150:
+		await get_tree().process_frame
+		if not is_instance_valid(rec):
+			break
+		if rec.phase == 3 or rec.phase == 2:
+			break
+	var zones_after := get_tree().get_nodes_in_group("corruption").size()
+	if not is_instance_valid(rec):
+		rec = null
+	_check(zones_after > zones_before or rec == null, "recursor leaves corruption zones")
+	if is_instance_valid(rec):
+		var min_dist: float = rec.global_position.distance_to(player.global_position)
+		_check(min_dist > 85.0, "recursor never teleports onto player (%d px)" % int(min_dist))
+		rec.queue_free()
+	var fw = load("res://src/enemies/firewall.gd").new()
+	fw.position = player.global_position + Vector2(-350, -200)
+	arena.enemy_container.add_child(fw)
+	await _ticks(2)
+	_check(fw.display_name == "FIREWALL", "firewall builds")
+	for i in 240:
+		await get_tree().process_frame
+		if not is_instance_valid(fw):
+			break
+		if fw._settled and get_tree().get_nodes_in_group("enemy_orbs").size() >= 5:
+			break
+	var fw_orbs := 0
+	for orb in get_tree().get_nodes_in_group("enemy_orbs"):
+		if is_instance_valid(orb) and orb.get_meta("fw_owner", -1) == fw.get_instance_id():
+			fw_orbs += 1
+	_check(fw_orbs >= 3, "firewall maintains rotating wall (%d orbs)" % fw_orbs)
+	if is_instance_valid(fw):
+		fw.take_hit(999, fw.global_position)
+		await _ticks(6)
+		var left := 0
+		for orb in get_tree().get_nodes_in_group("enemy_orbs"):
+			if is_instance_valid(orb) and orb.get_meta("fw_owner", -1) == fw.get_instance_id():
+				left += 1
+		_check(left == 0, "firewall wall dies with owner")
 	print("AT_STEP oom")
 	var oom: EnemyBase = arena.spawner._make_enemy("oom")
 	_check(oom is OomKiller, "OOM_KILLER builds")

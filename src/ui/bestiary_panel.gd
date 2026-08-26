@@ -10,6 +10,8 @@ const ENTRIES := [
 	{"id": "trojan", "name": "TROJAN", "desc": "leaves corruption pools. do not swim."},
 	{"id": "oom", "name": "OOM_KILLER", "desc": "steals your motes and runs. rude."},
 	{"id": "boss", "name": "ROOT DAEMON", "desc": "cycle boss. every variant gets personal."},
+	{"id": "recursor", "name": "RECURSOR", "desc": "teleports and leaves corruption. pools mark where it was. keep moving."},
+	{"id": "firewall", "name": "FIREWALL", "desc": "rotating wall of orbs. kill the wall to drop the wall."},
 ]
 
 var t := 0.0
@@ -99,5 +101,17 @@ func _draw_glyph(id: String, c: Color) -> void:
 			for i in 6:
 				var a0 := TAU * i / 6.0
 				draw_arc(Vector2.ZERO, 17, a0, a0 + TAU / 6.0 * 0.6, 8, c, 2.0, true)
+		"recursor":
+			draw_colored_polygon(PackedVector2Array([Vector2(0, -15), Vector2(15, 0), Vector2(0, 15), Vector2(-15, 0)]), Color(c.r, c.g, c.b, 0.25))
+			draw_polyline(PackedVector2Array([Vector2(0, -15), Vector2(15, 0), Vector2(0, 15), Vector2(-15, 0), Vector2(0, -15)]), c, 1.5, true)
+			draw_circle(Vector2.ZERO, 4.5, c)
+			draw_circle(Vector2(14, -14), 3.0, Color(c.r, c.g, c.b, 0.5))
+		"firewall":
+			var fpts := PackedVector2Array()
+			for i in 8:
+				fpts.push_back(Vector2.from_angle(TAU * i / 8.0) * 14)
+			draw_polyline(fpts + PackedVector2Array([fpts[0]]), c, 1.5, true)
+			for i in 5:
+				draw_circle(Vector2.from_angle(TAU * i / 5.0) * 22, 3.0, Color(c.r, c.g, c.b, 0.7))
 			var tri := PackedVector2Array([Vector2(8, 0), Vector2(-6, 7), Vector2(-6, -7)])
 			draw_polyline(tri + PackedVector2Array([tri[0]]), c, 1.5, true)

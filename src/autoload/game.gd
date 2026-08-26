@@ -87,7 +87,7 @@ func effective_aim_mode() -> String:
 func score_mult() -> int:
 	return 3 if mode == "onehp" else 1
 
-const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss"}
+const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall"}
 
 func mark_bestiary(display: String) -> void:
 	var id: String = BESTIARY_MAP.get(display, "")

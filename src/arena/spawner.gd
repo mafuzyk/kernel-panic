@@ -101,6 +101,10 @@ func _build_queue() -> void:
 		pool.append(["bulwark", 4, 0.5 + (wave - 5) * 0.1])
 	if wave >= 8:
 		pool.append(["trojan", 3, 0.7 + (wave - 7) * 0.12])
+	if wave >= 9:
+		pool.append(["firewall", 4, 0.6 + (wave - 8) * 0.08])
+	if wave >= 7:
+		pool.append(["recursor", 3, 0.9 + wave * 0.06])
 	if wave >= 5:
 		pool.append(["oom", 2, 0.4 + (wave - 4) * 0.05])
 	var guard := 200
@@ -232,6 +236,10 @@ func _make_enemy(kind: String) -> EnemyBase:
 			return TrojanEnemy.new()
 		"oom":
 			return OomKiller.new()
+		"recursor":
+			return load("res://src/enemies/recursor.gd").new()
+		"firewall":
+			return load("res://src/enemies/firewall.gd").new()
 	return null
 
 func _edge_point(min_player_dist := 250.0) -> Vector2:
