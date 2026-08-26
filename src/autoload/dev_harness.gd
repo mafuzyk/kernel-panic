@@ -198,6 +198,21 @@ func _autotest() -> void:
 	_check(player.hp == hp_before_v + 1, "vampic does not heal at x7")
 	Game.register_kill(10)
 	_check(player.hp == hp_before_v + 1, "vampic does not heal twice (x8)")
+	print("AT_STEP vampic_cd")
+	Game.break_combo()
+	player.hp = player.max_hp - 1
+	var hp_cd0 := player.hp
+	Game.vampic_cd = Game.VAMPIC_COOLDOWN
+	Game.register_kill(10)
+	_check(player.hp == hp_cd0, "vampic on cooldown does not heal")
+	Game.vampic_cd = 0.0
+	for i in 3:
+		Game.register_kill(10)
+	_check(player.hp == hp_cd0 + 1, "vampic heals again after cooldown expires")
+	Game.vampic_cd = 0.0
+	Game.break_combo()
+	Game.patch_levels = {}
+	player.heal(99)
 	Game.break_combo()
 	Game.patch_levels = {}
 	player.heal(99)
@@ -646,6 +661,8 @@ func _systems_test(arena: Arena) -> void:
 			if is_instance_valid(orb) and orb.get_meta("fw_owner", -1) == fw.get_instance_id():
 				left += 1
 		_check(left == 0, "firewall wall dies with owner")
+	player.invuln = 9999.0
+	player.hp = player.max_hp
 	print("AT_STEP oom")
 	var oom: EnemyBase = arena.spawner._make_enemy("oom")
 	_check(oom is OomKiller, "OOM_KILLER builds")
@@ -677,7 +694,8 @@ func _systems_test(arena: Arena) -> void:
 	arena.add_child(b)
 	await _ticks(30)
 	_check(is_instance_valid(b) and b.vel.x > 0, "ricochet reflects off wall")
-	b.queue_free()
+	if is_instance_valid(b):
+		b.queue_free()
 	print("AT_STEP heavy")
 	Game.patch_levels = {"heavy": 1}
 	player.fire_cd = 0.0
@@ -853,6 +871,8 @@ func _touch_test() -> void:
 	for leftover in get_tree().get_nodes_in_group("enemies"):
 		leftover.queue_free()
 	await _ticks(2)
+	player.invuln = 9999.0
+	player.hp = player.max_hp
 	print("AT_STEP drag")
 	player.touch_mode = true
 	var e3 := DroneEnemy.new()

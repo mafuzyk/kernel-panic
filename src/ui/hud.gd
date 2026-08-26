@@ -111,6 +111,10 @@ func _process(delta: float) -> void:
 		_oc_ready = player.oc_ready
 		_oc_active = player.overclock_active
 		_dash_frac = clampf(1.0 - player.dash_cd / Balance.DASH_CD, 0.0, 1.0)
+	if _build_label != null and Game.patch_level("vampic") > 0:
+		var on_cd := Game.vampic_cd > 0.0
+		var blink := 0.35 + 0.3 * absf(sin(Time.get_ticks_msec() / 180.0))
+		_build_label.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, blink if on_cd else 0.5))
 	if boss != null and is_instance_valid(boss):
 		_boss_frac = float(boss.hp) / float(boss.max_hp)
 		_boss_name = boss.boss_title + " // KERNEL DAEMON"

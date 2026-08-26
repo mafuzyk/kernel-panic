@@ -15,6 +15,8 @@ var combo_window := Balance.COMBO_WINDOW
 var patch_levels := {}
 var mode := "classic"
 var program := "kernel"
+var vampic_cd := 0.0
+const VAMPIC_COOLDOWN := 10.0
 var unlocked_programs := {"kernel": true}
 var onehp_unlocked := false
 var bestiary := {}
@@ -148,6 +150,8 @@ func build_string() -> String:
 	return " ".join(parts)
 
 func _process(delta: float) -> void:
+	if vampic_cd > 0.0:
+		vampic_cd = maxf(vampic_cd - delta, 0.0)
 	if combo_left > 0.0 and state == State.PLAYING:
 		combo_left -= delta
 		if combo_left <= 0.0:

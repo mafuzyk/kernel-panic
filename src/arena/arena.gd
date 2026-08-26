@@ -727,7 +727,8 @@ func _on_bestiary_unlocked(id: String) -> void:
 func _on_combo_milestone(m: int) -> void:
 	if (m != 4 and m != Balance.COMBO_MAX) or player == null or player.dead:
 		return
-	if m == 4 and Game.patch_level("vampic") > 0 and player.hp < player.max_hp:
+	if m == 4 and Game.patch_level("vampic") > 0 and Game.vampic_cd <= 0.0 and player.hp < player.max_hp:
+		Game.vampic_cd = Game.VAMPIC_COOLDOWN
 		player.heal(1)
 		Fx.text(player.global_position + Vector2(0, -52), "+1", Balance.COL_PLAYER, 13)
 	Fx.text(player.global_position + Vector2(0, -40), "CHAIN x%d" % m, Balance.COL_MOTE, 18 if m < Balance.COMBO_MAX else 22)
