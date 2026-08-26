@@ -19,9 +19,12 @@ func zoom_punch(amount: float) -> void:
 
 func _process(delta: float) -> void:
 	trauma = maxf(trauma - delta * 1.9, 0.0)
-	var mouse := get_global_mouse_position()
-	var lean_target := (mouse - global_position) * 0.055
-	lean_target = lean_target.limit_length(42.0)
+	var desktop := DisplayServer.get_name() == "windows" or DisplayServer.get_name() == "x11" or DisplayServer.get_name() == "macos"
+	var lean_target := Vector2.ZERO
+	if desktop and not DisplayServer.is_touchscreen_available():
+		var mouse := get_global_mouse_position()
+		lean_target = (mouse - global_position) * 0.055
+		lean_target = lean_target.limit_length(42.0)
 	_lean = _lean.lerp(lean_target, 3.0 * delta)
 	var shake_amt: float = trauma * trauma * [0.0, 0.45, 1.0][clampi(Sfx.shake_level, 0, 2)]
 	var off := Vector2(

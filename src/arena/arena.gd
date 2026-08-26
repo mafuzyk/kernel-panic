@@ -135,11 +135,15 @@ func _update_quality(delta: float) -> void:
 	_fps_time = 0.0
 	if fps < 45.0 and fps > 0.0:
 		_fps_accum += 1.0
-	else:
-		_fps_accum = maxf(_fps_accum - 1.0, 0.0)
+	elif fps > 55.0 or fps <= 0.0:
+		_fps_accum = maxf(_fps_accum - 1.0, -6.0)
 	if _fps_accum >= 2.0 and quality_tier < 1:
 		quality_tier = 1
 		Fx.quality_scale = 0.5
+		_fps_accum = 0.0
+	elif _fps_accum <= -4.0 and quality_tier > 0:
+		quality_tier = 0
+		Fx.quality_scale = 1.0
 		_fps_accum = 0.0
 
 var _bg_mat: ShaderMaterial

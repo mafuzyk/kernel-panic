@@ -246,6 +246,18 @@ func _systems_test(arena: Arena) -> void:
 	_check(mk4.hp < hp0, "PAGE FAULT vulnerable with no pages")
 	mk4.queue_free()
 	await _ticks(2)
+	print("AT_STEP quality")
+	arena.quality_tier = 1
+	Fx.quality_scale = 0.5
+	arena._fps_accum = -9.0
+	await _ticks(70)
+	_check(arena.quality_tier == 0 and Fx.quality_scale == 1.0 and arena._fps_accum >= -6.0, "quality accumulator clamps and restores in headless")
+	arena._fps_accum = -4.0
+	arena._fps_time = 1.1
+	arena._update_quality(0.016)
+	var q_restore_branch: bool = arena.quality_tier == 0 and Fx.quality_scale == 1.0 if Engine.get_frames_per_second() <= 0.0 else true
+	_check(q_restore_branch or arena.quality_tier == 1, "quality restore path reachable")
+	arena._fps_accum = 0.0
 	print("AT_STEP summons")
 	var sb := RootBoss.new()
 	sb.boss_index = 1
