@@ -24,6 +24,7 @@ var boss_index := 1
 var boss_title := "ROOT.exe"
 var boss_quote := ""
 var _exposed := 0.0
+var _recover_half_dropped := false
 var kind := 1
 var _glitch_off := Vector2.ZERO
 
@@ -355,6 +356,13 @@ func take_hit(dmg: int, from: Vector2) -> void:
 		dmg *= 2
 	super.take_hit(dmg, from)
 	boss_hp_changed.emit(float(maxf(hp, 0)) / float(max_hp))
+	if not _recover_half_dropped and hp > 0 and hp <= max_hp / 2:
+		_recover_half_dropped = true
+		arena_drop_recover.call_deferred()
+
+func arena_drop_recover() -> void:
+	if is_instance_valid(self) and get_parent() != null:
+		get_parent().call_deferred("spawn_boss_recover", global_position)
 
 func die() -> void:
 	died.emit(self)

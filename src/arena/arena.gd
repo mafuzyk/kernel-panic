@@ -672,7 +672,11 @@ func _on_enemy_died(e: EnemyBase) -> void:
 		m.player = player
 		m.setup(e.global_position + Vector2.from_angle(Game.rng.randf() * TAU) * Game.rng.randf_range(4.0, 16.0))
 		mote_container.call_deferred("add_child", m)
+	if Game.recover_chance(e.elite) > 0.0 and Game.rng.randf() < Game.recover_chance(e.elite):
+		_spawn_recover(e.global_position)
 	if e is RootBoss:
+		if Game.mode != "onehp":
+			_spawn_recover(e.global_position)
 		hud.boss = null
 		overlay.aberrate(1.2)
 		hud.show_banner("ROOT PURGED", "INTEGRITY +1  SCORE +250", 2.0)
@@ -685,6 +689,17 @@ func _on_enemy_died(e: EnemyBase) -> void:
 			Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
 		offer_patch()
 	Sfx.haptic(12)
+
+func spawn_boss_recover(pos: Vector2) -> void:
+	if Game.mode != "onehp":
+		_spawn_recover(pos)
+
+func _spawn_recover(pos: Vector2) -> void:
+	if Game.mode == "onehp":
+		return
+	var rp := RecoverPickup.new()
+	rp.setup(pos, player)
+	mote_container.call_deferred("add_child", rp)
 
 func _on_bestiary_unlocked(id: String) -> void:
 	if player == null or player.dead:

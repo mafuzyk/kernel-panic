@@ -153,6 +153,37 @@ func _autotest() -> void:
 				spread_ok = false
 			newest.queue_free()
 	_check(spread_ok, "bullet rotation matches velocity")
+	print("AT_STEP recover")
+	_check(Game.recover_chance(false) == 0.08, "recover chance normal 8%")
+	_check(Game.recover_chance(true) == 0.25, "recover chance elite 25%")
+	Game.patch_levels = {"recycler": 3}
+	_check(absf(Game.recover_chance(false) - 0.26) < 0.001, "recycler adds 6% per level")
+	Game.patch_levels = {"dataleech": 1}
+	_check(Game.recover_chance(true) == 1.0, "data leech elites always drop")
+	Game.patch_levels = {"dataleech": 1, "recycler": 2}
+	var onehp_all_zero := true
+	for i in 5:
+		if Game.recover_chance(i % 2 == 0) > 0.0:
+			onehp_all_zero = false
+	_check(onehp_all_zero == (Game.mode == "onehp"), "recover chance respects mode gate")
+	Game.patch_levels = {}
+	Game.mode = "onehp"
+	_check(Game.recover_chance(false) == 0.0 and Game.recover_chance(true) == 0.0, "one hp disables recover")
+	var offer_onehp: Array = []
+	for i in 12:
+		var offs := Game.roll_patch_offer()
+		for d in offs:
+			if d["id"] == "dataleech" or d["id"] == "recycler":
+				offer_onehp.append(d["id"])
+	Game.mode = "classic"
+	_check(offer_onehp.is_empty(), "onehp offers exclude recover patches")
+	var rp = load("res://src/pickups/recover_pickup.gd").new()
+	rp.setup(player.global_position + Vector2(12, 0), player)
+	player.hp = player.max_hp - 1
+	arena.mote_container.add_child(rp)
+	var hp_rec0 := player.hp
+	ok = await _until(func() -> bool: return player.hp == hp_rec0 + 1 or not is_instance_valid(rp), 4.0, "recover pickup collected")
+	_check(player.hp == hp_rec0 + 1, "recover pickup heals on touch")
 	print("AT_STEP vampic")
 	Game.patch_levels = {"vampic": 1}
 	player.max_hp = Balance.PLAYER_MAX_HP
