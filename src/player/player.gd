@@ -225,8 +225,9 @@ func _shoot() -> void:
 	var spread := Balance.BULLET_SPREAD
 	var b := PlayerBullet.new()
 	var bspeed := Balance.BULLET_SPEED * (1.0 + 0.22 * Game.patch_level("threads"))
-	b.setup(global_position + dir * 18.0, dir.rotated(randf_range(-spread, spread)), overclock_active)
-	b.vel = dir.rotated(randf_range(-spread, spread)) * bspeed
+	var shot_dir := dir.rotated(Game.rng.randf_range(-spread, spread))
+	b.setup(global_position + dir * 18.0, shot_dir, overclock_active)
+	b.vel = shot_dir * bspeed
 	b.life = Balance.BULLET_LIFE * (1.0 + 0.12 * Game.patch_level("threads"))
 	b.pierce += Game.patch_level("core")
 	b.dmg = 1 + Game.patch_level("heavy")

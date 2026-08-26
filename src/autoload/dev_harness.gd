@@ -137,6 +137,22 @@ func _autotest() -> void:
 	await _until(func() -> bool: return player.hp < hp_before, 4.0, "orb damages player")
 	_check(player.hp == hp_before - 1, "player takes 1 damage")
 	_check(Game.mult == 1, "damage breaks combo")
+	print("AT_STEP spread")
+	Game.patch_levels = {}
+	var spread_ok := true
+	for si in 6:
+		player.fire_cd = 0.0
+		player._shoot()
+		var newest: PlayerBullet = null
+		for c in arena.get_children():
+			if c is PlayerBullet and (newest == null or c.get_instance_id() > newest.get_instance_id()):
+				newest = c
+		if newest != null:
+			var ang_diff: float = absf(wrapf(newest.rotation - newest.vel.angle(), -PI, PI))
+			if ang_diff > 0.02:
+				spread_ok = false
+			newest.queue_free()
+	_check(spread_ok, "bullet rotation matches velocity")
 	print("AT_STEP vampic")
 	Game.patch_levels = {"vampic": 1}
 	player.max_hp = Balance.PLAYER_MAX_HP
