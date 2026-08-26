@@ -207,7 +207,7 @@ func start_run() -> void:
 		_:
 			rng.randomize()
 	new_best = false
-	stats = {"kills": 0, "shots": 0, "hits": 0, "damage": 0, "time": 0.0, "wave": 1, "boss_kills": 0}
+	stats = {"kills": 0, "shots": 0, "hits": 0, "damage": 0, "time": 0.0, "wave": 1, "boss_kills": 0, "heals": {}}
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	get_tree().call_deferred("change_scene_to_file", "res://src/arena/arena.tscn")
@@ -233,6 +233,11 @@ func recover_chance(is_elite: bool) -> float:
 	if is_elite and patch_level("dataleech") > 0:
 		c = 1.0
 	return minf(c, 1.0)
+
+func register_heal(source: String) -> void:
+	if not stats.has("heals"):
+		stats["heals"] = {}
+	stats["heals"][source] = int(stats["heals"].get(source, 0)) + 1
 
 func patch_level(id: String) -> int:
 	return int(patch_levels.get(id, 0))

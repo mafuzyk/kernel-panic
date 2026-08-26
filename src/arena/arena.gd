@@ -361,6 +361,7 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 		Sfx.play("ready", 1.2, -4.0)
 	if wave > 1 and (wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
 		player.heal(1)
+		Game.register_heal("cycle")
 		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
 
 func _run_boss_intro() -> void:
@@ -641,6 +642,7 @@ func _show_game_over() -> void:
 		"",
 		"CYCLES        %d" % s["wave"],
 		"DAEMONS PURGED %d" % s["kills"],
+		_heals_line(s),
 		"ACCURACY      %d%%" % int(acc),
 		"UPTIME        %02d:%02d" % [int(s["time"] / 60.0), int(s["time"]) % 60],
 	]
@@ -665,6 +667,18 @@ func _show_game_over() -> void:
 	Sfx.play("gameover", 0.9, 0.0)
 	Sfx.duck_music(-8.0, 2.0)
 
+func _heals_line(s: Dictionary) -> String:
+	var heals: Dictionary = s.get("heals", {})
+	var total := 0
+	for k in heals:
+		total += int(heals[k])
+	if total == 0:
+		return "HEALS +0"
+	var parts: Array = []
+	for k in heals:
+		parts.append("%s x%d" % [str(k).to_upper(), int(heals[k])])
+	return "HEALS +%d (%s)" % [total, ", ".join(parts)]
+
 func _on_enemy_died(e: EnemyBase) -> void:
 	Game.mark_bestiary(e.display_name)
 	var was_split: bool = e is RootBoss and e.get("_split_silent") == true
@@ -688,6 +702,9 @@ func _on_enemy_died(e: EnemyBase) -> void:
 	if Game.recover_chance(e.elite) > 0.0 and Game.rng.randf() < Game.recover_chance(e.elite):
 		_spawn_recover(e.global_position)
 	if e is RootBoss and not was_split:
+		if player.hp < player.max_hp:
+			player.heal(1)
+			Game.register_heal("boss")
 		if Game.mode != "onehp":
 			_spawn_recover(e.global_position)
 		if not Game.unlocked_programs.has("rootlet") and int(Game.stats.get("damage", 0)) == _boss_dmg_snapshot:
@@ -730,6 +747,7 @@ func _on_combo_milestone(m: int) -> void:
 	if m == 4 and Game.patch_level("vampic") > 0 and Game.vampic_cd <= 0.0 and player.hp < player.max_hp:
 		Game.vampic_cd = Game.VAMPIC_COOLDOWN
 		player.heal(1)
+		Game.register_heal("vampic")
 		Fx.text(player.global_position + Vector2(0, -52), "+1", Balance.COL_PLAYER, 13)
 	Fx.text(player.global_position + Vector2(0, -40), "CHAIN x%d" % m, Balance.COL_MOTE, 18 if m < Balance.COMBO_MAX else 22)
 	Fx.ring(player.global_position, Balance.COL_MOTE, 10.0, 60.0, 0.35, 2.5)

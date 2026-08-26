@@ -546,6 +546,14 @@ func _systems_test(arena: Arena) -> void:
 	player.notify_kill()
 	_check(absf(player.dash_cd - 0.2) < 0.01, "turbo kill recharge (-0.35 x2)")
 	Game.patch_levels = {}
+	print("AT_STEP heals")
+	Game.stats["heals"] = {}
+	Game.register_heal("recover")
+	Game.register_heal("recover")
+	Game.register_heal("cycle")
+	_check(Game.stats["heals"]["recover"] == 2 and Game.stats["heals"]["cycle"] == 1, "heal telemetry counts by source")
+	var line: String = arena._heals_line(Game.stats)
+	_check(line.begins_with("HEALS +3") and "RECOVER x2" in line, "heals line formats (%s)" % line)
 	print("AT_STEP scrap")
 	Game.patch_levels = {"scrapdiet": 1}
 	Game.set_program("kernel")

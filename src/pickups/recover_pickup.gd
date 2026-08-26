@@ -41,6 +41,8 @@ func _physics_process(delta: float) -> void:
 func _collect() -> void:
 	if player.has_method("heal"):
 		player.heal(1)
+		if player.has_method("get") and Game.stats.has("heals"):
+			Game.register_heal("recover")
 	Fx.text(global_position + Vector2(0, -26), "+1 INTEGRITY", COL_RECOVER, 14)
 	Fx.sparks(global_position, COL_RECOVER, 8, 160.0, 0.35, 2.5)
 	Fx.ring(global_position, COL_RECOVER, 6.0, 46.0, 0.3, 2.5)

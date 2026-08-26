@@ -58,6 +58,7 @@ func _register_scrap_overflow() -> void:
 	if scrap_count >= _scrap_threshold():
 		scrap_count = 0
 		heal(1)
+		Game.register_heal("scrap")
 		Fx.text(global_position + Vector2(0, -30), "SCRAP +1", Color(1.0, 0.75, 0.4), 14)
 		Sfx.play("ready", 1.1, -6.0)
 
