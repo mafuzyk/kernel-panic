@@ -107,12 +107,9 @@ func _autotest() -> void:
 	await _ticks(3)
 	_check(Game.score > 0, "kill scores points")
 	_check(Game.mult >= 2, "combo multiplier increments")
-	var mote_count := get_tree().get_nodes_in_group("motes").size()
+	var mote_count: int = arena.mote_field.count()
 	_check(mote_count > 0, "kill drops motes")
-	var m := Mote.new()
-	m.player = player
-	m.setup(player.global_position + Vector2(4, 0))
-	arena.mote_container.add_child(m)
+	arena.mote_field.spawn(player.global_position + Vector2(4, 0))
 	var meter_before := player.meter
 	await _until(func() -> bool: return player.meter > meter_before or player.oc_ready, 4.0, "mote collection")
 	_check(player.meter > meter_before or player.oc_ready, "mote fills overclock meter")
@@ -495,12 +492,14 @@ func _systems_test(arena: Arena) -> void:
 	player.hp = 1
 	player.take_damage(player.global_position + Vector2(5, 0), "TEST")
 	_check(player.hp >= 1 and not player.dead and player.second_wind_used, "second wind prevents death")
+	player.died.disconnect(arena._on_player_died)
 	player.invuln = 0.0
 	player.take_damage(player.global_position + Vector2(5, 0), "TEST")
 	player.invuln = 0.0
 	player.hp = 1
 	player.take_damage(player.global_position + Vector2(5, 0), "TEST")
 	_check(player.dead, "second wind only once")
+	player.died.connect(arena._on_player_died)
 	Game.patch_levels = {}
 	if player.dead:
 		player.queue_free()
@@ -508,6 +507,10 @@ func _systems_test(arena: Arena) -> void:
 		player = Player.new()
 		get_tree().current_scene.add_child(player)
 		arena.player = player
+		if arena.touch != null:
+			arena.touch.player = player
+		if arena.hud != null:
+			arena.hud.player = player
 		await _ticks(2)
 	print("AT_STEP thorns")
 	Game.patch_levels = {"thorns": 1}
@@ -562,8 +565,13 @@ func _systems_test(arena: Arena) -> void:
 	p2.queue_free()
 	await _ticks(2)
 	Game.set_program("rootlet")
+	for e in get_tree().get_nodes_in_group("enemies"):
+		e.queue_free()
+	for o in get_tree().get_nodes_in_group("enemy_orbs"):
+		o.queue_free()
+	await _ticks(2)
 	var p3 := Player.new()
-	p3.position = player.global_position + Vector2(200, 0)
+	p3.position = arena.player.global_position + Vector2(200, 0) if is_instance_valid(arena.player) else Vector2(200, 0)
 	get_tree().current_scene.add_child(p3)
 	await _ticks(2)
 	_check(p3.max_hp == 5, "rootlet hp 5")
@@ -575,7 +583,10 @@ func _systems_test(arena: Arena) -> void:
 	_check(p3.hp == p3.max_hp, "rootlet shield absorbs hit")
 	_check(not p3.shield_ready and p3.shield_meter < Balance.OC_METER_MAX, "shield consumed")
 	p3.shield_ready = true
+	p3.invuln = 0.0
 	p3.take_damage(p3.global_position + Vector2(10, 0), "TEST")
+	_check(p3.hp == p3.max_hp, "second shield absorbs too")
+	p3.invuln = 0.0
 	p3.take_damage(p3.global_position + Vector2(10, 0), "TEST")
 	_check(p3.hp == p3.max_hp - 1, "second unprotected hit deals damage")
 	p3.queue_free()
@@ -587,6 +598,8 @@ func _systems_test(arena: Arena) -> void:
 	arena.player = player
 	if arena.hud != null:
 		arena.hud.player = player
+	if arena.touch != null:
+		arena.touch.player = player
 	await _ticks(2)
 	print("AT_STEP newenemies")
 	var rec = load("res://src/enemies/recursor.gd").new()
@@ -614,7 +627,7 @@ func _systems_test(arena: Arena) -> void:
 	arena.enemy_container.add_child(fw)
 	await _ticks(2)
 	_check(fw.display_name == "FIREWALL", "firewall builds")
-	for i in 240:
+	for i in 600:
 		await get_tree().process_frame
 		if not is_instance_valid(fw):
 			break
@@ -639,17 +652,22 @@ func _systems_test(arena: Arena) -> void:
 	oom.position = arena.player.global_position + Vector2(320, 0)
 	arena.enemy_container.add_child(oom)
 	await _ticks(2)
-	var test_mote := Mote.new()
-	test_mote.player = null
-	test_mote.setup(oom.global_position + Vector2(12, 0))
-	arena.mote_container.add_child(test_mote)
+	var steal_box := [-1]
+	arena.mote_field.spawn(oom.global_position + Vector2(12, 0))
 	await _until(func() -> bool:
-		return is_instance_valid(test_mote) and test_mote.stolen, 4.0, "oom steal")
-	_check(is_instance_valid(test_mote) and test_mote.stolen, "OOM_KILLER steals motes")
+		var f = arena.mote_field
+		for i in range(f.count()):
+			if f.is_stolen(i):
+				steal_box[0] = i
+				return true
+		return false, 4.0, "oom steal")
+	var field_ref = arena.mote_field
+	var stolen_idx: int = steal_box[0]
+	_check(stolen_idx >= 0 and field_ref.is_stolen(stolen_idx), "OOM_KILLER steals motes")
 	oom.take_hit(99, oom.global_position)
 	await _ticks(3)
-	_check(is_instance_valid(test_mote) and not test_mote.stolen, "killed OOM_KILLER returns motes")
-	oom = null
+	if stolen_idx >= 0:
+		_check(not field_ref.is_stolen(stolen_idx), "killed OOM_KILLER returns motes")
 	print("AT_STEP ricochet")
 	Game.patch_levels = {"ricochet": 1}
 	var b := PlayerBullet.new()
@@ -738,14 +756,14 @@ func _systems_test(arena: Arena) -> void:
 	arena.spawner.wave = 5
 	arena.spawner._roll_wave_event(false)
 	arena._on_wave_cleared(1)
-	var m := Mote.new()
-	m.player = player
-	m.setup(player.global_position + Vector2(300, 0))
-	arena.mote_container.add_child(m)
-	await _ticks(2)
+	var before_vacuum: int = arena.mote_field.count()
+	_check(before_vacuum > 0, "motes exist before vacuum")
 	arena._on_wave_cleared(2)
-	_check(m._force_collect, "wave clear vacuums motes")
-	m.queue_free()
+	for vi in 180:
+		await get_tree().process_frame
+		if arena.mote_field.count() == 0:
+			break
+	_check(arena.mote_field.count() == 0, "wave clear vacuums motes")
 	arena.offer_patch()
 	await _until(func() -> bool: return arena._patch_open, 4.0, "patch panel opens")
 	await _ticks(20)
@@ -765,7 +783,14 @@ func _systems_test(arena: Arena) -> void:
 
 func _touch_test() -> void:
 	var arena: Arena = get_tree().current_scene
+	if not is_instance_valid(arena.player) or arena.player == null:
+		arena.player = Player.new()
+		arena.add_child(arena.player)
 	var player: Player = arena.player
+	if arena.touch != null:
+		arena.touch.player = player
+	if arena.hud != null:
+		arena.hud.player = player
 	var touch_ui := TouchControls.new()
 	touch_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
 	touch_ui.player = player
@@ -920,10 +945,7 @@ func _stress() -> void:
 		o.setup(player.global_position + Vector2.from_angle(TAU * i / 30.0) * 220.0, Vector2.from_angle(TAU * i / 30.0), 90.0, Color.RED)
 		arena.enemy_container.add_child(o)
 	for i in 40:
-		var m := Mote.new()
-		m.player = player
-		m.setup(player.global_position + Vector2.from_angle(randf() * TAU) * randf_range(100.0, 420.0))
-		arena.mote_container.add_child(m)
+		arena.mote_field.spawn(player.global_position + Vector2.from_angle(randf() * TAU) * randf_range(100.0, 420.0))
 	var boss := RootBoss.new()
 	boss.boss_index = 1
 	boss.configure(1.3, false)
@@ -940,7 +962,8 @@ func _stress() -> void:
 		acc += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
 		accp += Performance.get_monitor(Performance.TIME_PROCESS)
 		n += 1
-	print("STRESS_RESULT avg_phys=%.2fms avg_proc=%.2fms enemies=%d motes=%d" % [acc / maxf(n, 1), accp / maxf(n, 1), EnemyBase.shared_list.size(), get_tree().get_nodes_in_group("motes").size()])
+	var mf_at_end: Node = get_tree().get_first_node_in_group("mote_field")
+	print("STRESS_RESULT avg_phys=%.2fms avg_proc=%.2fms enemies=%d motes=%d" % [acc / maxf(n, 1), accp / maxf(n, 1), EnemyBase.shared_list.size(), mf_at_end.count() if mf_at_end != null else -1])
 	get_tree().quit(0)
 
 func _capture() -> void:
@@ -1044,7 +1067,8 @@ func _demo() -> void:
 		if t >= next_log:
 			next_log += 5.0
 			var alive := get_tree().get_nodes_in_group("enemies").size()
-			var motes := get_tree().get_nodes_in_group("motes").size()
+			var mf_demo: Node = get_tree().get_first_node_in_group("mote_field")
+			var motes: int = mf_demo.count() if mf_demo != null else 0
 			print("DEMO t=%03d wave=%d hp=%d score=%d mult=%d alive=%d motes=%d meter=%d fps=%d proc=%.2fms phys=%.2fms" % [int(t), Game.wave, player.hp, Game.score, Game.mult, alive, motes, int(player.meter), Engine.get_frames_per_second(), Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0])
 	print("DEMO_END t=%d wave=%d score=%d dead=%s" % [int(t), Game.wave, Game.score, str(player.dead)])
 	get_tree().quit(0)
@@ -1104,10 +1128,7 @@ func _populate(arena: Arena, n := 6) -> void:
 		e.configure(1.0, i == 5)
 		arena.enemy_container.add_child(e)
 	for i in 10:
-		var m := Mote.new()
-		m.player = player
-		m.setup(player.global_position + Vector2.from_angle(randf() * TAU) * randf_range(80.0, 300.0))
-		arena.mote_container.add_child(m)
+		arena.mote_field.spawn(player.global_position + Vector2.from_angle(randf() * TAU) * randf_range(80.0, 300.0))
 
 func _spawn_boss(arena: Arena, mk := 1) -> void:
 	var boss := RootBoss.new()

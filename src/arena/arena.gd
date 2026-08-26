@@ -9,6 +9,7 @@ var overlay: ArenaOverlay
 var walls: ArenaWalls
 var enemy_container: Node2D
 var mote_container: Node2D
+var mote_field: MoteField
 var enemy_list: Array = []
 var quality_tier := 0
 var _fps_accum := 0.0
@@ -38,6 +39,8 @@ func _ready() -> void:
 	add_child(walls)
 	mote_container = Node2D.new()
 	add_child(mote_container)
+	mote_field = MoteField.new()
+	mote_container.add_child(mote_field)
 	enemy_container = Node2D.new()
 	add_child(enemy_container)
 	player = Player.new()
@@ -402,8 +405,8 @@ func _on_wave_cleared(wave: int) -> void:
 	hud.show_banner("CYCLE %02d CLEAR" % wave, "+%d // NEXT: %s" % [wave * 25, spawner.preview_next()], 2.2)
 	Game.add_score(wave * 25)
 	Sfx.play("ui", 1.3, -6.0)
-	for m in get_tree().get_nodes_in_group("motes"):
-		m.force_collect()
+	if mote_field != null and is_instance_valid(mote_field):
+		mote_field.collect_all()
 	_show_tip()
 	if wave % 3 == 0:
 		offer_patch()
@@ -678,11 +681,10 @@ func _on_enemy_died(e: EnemyBase) -> void:
 		n *= 2
 	var motes := get_tree().get_nodes_in_group("motes").size()
 	n = mini(n, maxi(0, 90 - motes))
-	for i in n:
-		var m := Mote.new()
-		m.player = player
-		m.setup(e.global_position + Vector2.from_angle(Game.rng.randf() * TAU) * Game.rng.randf_range(4.0, 16.0))
-		mote_container.call_deferred("add_child", m)
+	var field := mote_field if is_instance_valid(mote_field) else null
+	if field != null:
+		for i in n:
+			field.spawn_burst(e.global_position, 1)
 	if Game.recover_chance(e.elite) > 0.0 and Game.rng.randf() < Game.recover_chance(e.elite):
 		_spawn_recover(e.global_position)
 	if e is RootBoss and not was_split:
@@ -789,7 +791,7 @@ func _process(delta: float) -> void:
 		var level := 0
 		if hud.boss != null and is_instance_valid(hud.boss):
 			level = 2
-		elif player.overclock_active or Game.mult >= 4:
+		elif (player != null and is_instance_valid(player) and player.overclock_active) or Game.mult >= 4:
 			level = 1
 		Sfx.set_intensity(level)
 		_update_quality(delta)

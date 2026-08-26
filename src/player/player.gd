@@ -119,10 +119,10 @@ func _physics_process(delta: float) -> void:
 		if _ghost_cd <= 0.0:
 			_ghost_cd = 0.035
 			Fx.ghost(global_position, rotation, _ship_draw, Balance.COL_PLAYER, 0.26, 1.0)
-		if Game.patch_level("mdash") > 0:
-			for m in get_tree().get_nodes_in_group("motes"):
-				if global_position.distance_to(m.global_position) < 160.0:
-					m.force_collect()
+		if Game.patch_level("mdash") > 0 and get_tree() != null:
+			var field := get_tree().get_first_node_in_group("mote_field")
+			if field != null:
+				field.magnet_all_near(global_position, 160.0)
 		if Game.patch_level("pdash") > 0:
 			for e in EnemyBase.shared_list:
 				if is_instance_valid(e) and e.last_pdash_id != dash_id and global_position.distance_to(e.global_position) < Balance.PLAYER_RADIUS + e.radius + 10.0:
