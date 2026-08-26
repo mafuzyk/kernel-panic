@@ -246,6 +246,26 @@ func _systems_test(arena: Arena) -> void:
 	_check(mk4.hp < hp0, "PAGE FAULT vulnerable with no pages")
 	mk4.queue_free()
 	await _ticks(2)
+	print("AT_STEP summons")
+	var sb := RootBoss.new()
+	sb.boss_index = 1
+	sb.configure(1.0, false)
+	arena.enemy_container.add_child(sb)
+	await _ticks(2)
+	for i in 7:
+		sb._do_summon("drone")
+	await _ticks(4)
+	var alive_summons := 0
+	for s in get_tree().get_nodes_in_group("boss_summon"):
+		if is_instance_valid(s):
+			alive_summons += 1
+	_check(alive_summons == 21, "summons tagged for alive cap (%d)" % alive_summons)
+	_check(sb.has_method("_summons_alive") and sb._summons_alive() == 21, "boss counts living summons")
+	for s in get_tree().get_nodes_in_group("boss_summon"):
+		if is_instance_valid(s):
+			s.queue_free()
+	sb.queue_free()
+	await _ticks(3)
 	print("AT_STEP oom")
 	var oom: EnemyBase = arena.spawner._make_enemy("oom")
 	_check(oom is OomKiller, "OOM_KILLER builds")

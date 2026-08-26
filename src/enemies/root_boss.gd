@@ -18,7 +18,6 @@ var _freeze_cd := 5.0
 var _spiral_angle := 0.0
 var _spiral_shots := 0
 var _charge_dir := Vector2.RIGHT
-var _summoned := 0
 var phase: int = Phase.ONE
 var _phase_flash := 0.0
 var boss_index := 1
@@ -166,7 +165,7 @@ func _try_attacks() -> void:
 			if _burst_cd <= 0.0:
 				_burst_cd = 2.5 if phase == Phase.ONE else (2.1 if phase == Phase.TWO else 1.7)
 				_do_burst(14 + 4 * (phase - 1), 205.0 + 10.0 * phase)
-			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summoned < 6:
+			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summons_alive() < 6:
 				_summon_cd = 8.5
 				_do_summon("drone")
 			if phase >= Phase.THREE and _charge_cd <= 0.0:
@@ -180,7 +179,7 @@ func _try_attacks() -> void:
 			if _burst_cd <= 0.0:
 				_burst_cd = 2.4
 				_do_burst(8, 240.0)
-			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summoned < 6:
+			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summons_alive() < 6:
 				_summon_cd = 9.0
 				_do_summon("lancer")
 		3:
@@ -194,7 +193,7 @@ func _try_attacks() -> void:
 			if _burst_cd <= 0.0:
 				_burst_cd = 2.6
 				_do_burst(10, 220.0)
-			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summoned < 4:
+			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summons_alive() < 4:
 				_summon_cd = 10.0
 				_do_summon("spewer")
 		4:
@@ -208,7 +207,7 @@ func _try_attacks() -> void:
 					_do_burst(16, 230.0)
 				if _charge_cd <= 0.0 and phase >= Phase.TWO:
 					_start_charge()
-			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summoned < 4:
+			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summons_alive() < 4:
 				_summon_cd = 11.0
 				_do_summon("trojan")
 	if mk >= 4 and phase >= Phase.THREE and _charge_cd <= 0.0 and act == Act.HOVER and kind != 4:
@@ -280,6 +279,8 @@ func _do_pages() -> void:
 	Sfx.play("wave", 0.8, -6.0)
 
 func _process(delta: float) -> void:
+	if _phase_flash > 0.0:
+		_phase_flash = maxf(_phase_flash - delta * 2.4, 0.0)
 	if act == Act.SPIRAL and _spiral_shots > 0:
 		var fire_acc: float = get_meta("sp_acc", 0.0) + delta
 		while fire_acc >= 0.085 and _spiral_shots > 0:
@@ -300,6 +301,13 @@ func _do_burst(n: int, spd: float) -> void:
 	Sfx.play("shoot", 0.4, -4.0, 0.05)
 	Fx.shake(0.18)
 
+func _summons_alive() -> int:
+	var n := 0
+	for s in get_tree().get_nodes_in_group("boss_summon"):
+		if is_instance_valid(s):
+			n += 1
+	return n
+
 func _do_summon(kind_name: String) -> void:
 	for i in 3:
 		var d: EnemyBase
@@ -313,8 +321,8 @@ func _do_summon(kind_name: String) -> void:
 			_:
 				d = DroneEnemy.new()
 		d.position = global_position + Vector2.from_angle(TAU * i / 3.0 + Game.rng.randf()) * (radius + 26.0)
+		d.add_to_group("boss_summon")
 		get_parent().call_deferred("add_child", d)
-		_summoned += 1
 	Fx.ring(global_position, Color(1, 1, 1, 0.7), radius, radius + 50.0, 0.3, 2.0)
 
 func _spawn_orb(dir: Vector2, spd: float) -> void:
@@ -370,7 +378,6 @@ func die() -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	if _phase_flash > 0.0:
-		_phase_flash -= 0.04
 		c = c.lerp(Color(1, 1, 1), clampf(_phase_flash, 0.0, 1.0))
 	var r := radius
 	match kind:
