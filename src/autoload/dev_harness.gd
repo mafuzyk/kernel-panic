@@ -256,6 +256,72 @@ func _systems_test(arena: Arena) -> void:
 	_check(mk2.boss_title == "SEGFAULT", "MK-2 boss is SEGFAULT")
 	_check(RootBoss.title_for_index(15).begins_with("BLUE SCREEN"), "cycle 15 boss is BLUE SCREEN")
 	_check(RootBoss.title_for_index(20).begins_with("PAGE FAULT"), "cycle 20 boss is PAGE FAULT")
+	print("AT_STEP bossrework")
+	var f1 := RootBoss.new()
+	f1.boss_index = 1
+	f1.configure(1.0, false)
+	var f2 := RootBoss.new()
+	f2.boss_index = 2
+	f2.configure(1.0, false)
+	_check(f1.max_hp == 120, "boss hp formula mk1=120")
+	_check(f2.max_hp == 162, "boss hp formula mk2=162")
+	f1.queue_free()
+	f2.queue_free()
+	await _ticks(2)
+	print("AT_STEP rootsplit")
+	player.invuln = 9999.0
+	var rb := RootBoss.new()
+	rb.boss_index = 1
+	rb.configure(1.0, false)
+	rb.position = player.global_position + Vector2(300, -80)
+	arena.enemy_container.add_child(rb)
+	await _ticks(2)
+	rb.hp = int(rb.max_hp / 2.0) + 5
+	rb.take_hit(rb.hp + 99, rb.global_position + Vector2(6, 0))
+	await _ticks(5)
+	var minis_found := 0
+	for e in arena.enemy_container.get_children():
+		if e is RootBoss and is_instance_valid(e) and e.mini:
+			minis_found += 1
+	_check(minis_found == 2, "root splits into two minis (%d)" % minis_found)
+	var recover_script: Script = load("res://src/pickups/recover_pickup.gd")
+	var split_recover := false
+	for c in arena.mote_container.get_children():
+		if c.get_script() == recover_script:
+			split_recover = true
+	_check(split_recover, "root split drops recover")
+	var probe_mini: RootBoss = null
+	for e in arena.enemy_container.get_children():
+		if e is RootBoss and is_instance_valid(e) and e.mini:
+			probe_mini = e
+			break
+	if probe_mini != null:
+		var minis_before := minis_found
+		arena._patch_pending = 0
+		probe_mini.take_hit(probe_mini.hp + 99, probe_mini.global_position)
+		await _ticks(4)
+		if get_tree().paused:
+			get_tree().paused = false
+		if arena._patch_open:
+			arena._pick_patch(0)
+		var minis_now := 0
+		for e in arena.enemy_container.get_children():
+			if e is RootBoss and is_instance_valid(e) and e.mini:
+				minis_now += 1
+		_check(minis_now < minis_before + 2, "minis never split again")
+	await _ticks(4)
+	for e in get_tree().get_nodes_in_group("boss"):
+		if is_instance_valid(e):
+			e.queue_free()
+	for c in arena.enemy_container.get_children():
+		if c is RootBoss:
+			c.queue_free()
+	await _ticks(4)
+	for o in get_tree().get_nodes_in_group("enemy_orbs"):
+		o.queue_free()
+	await _ticks(2)
+	player.invuln = 0.0
+	player.hp = player.max_hp
 	print("AT_STEP mk4")
 	var mk4 := RootBoss.new()
 	mk4.boss_index = 4

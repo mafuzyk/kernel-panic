@@ -32,6 +32,7 @@ var _patch_pending := 0
 var wave_signal_count := 0
 
 func _ready() -> void:
+	add_to_group("arena")
 	_build_background()
 	walls = ArenaWalls.new()
 	add_child(walls)
@@ -655,7 +656,8 @@ func _show_game_over() -> void:
 
 func _on_enemy_died(e: EnemyBase) -> void:
 	Game.mark_bestiary(e.display_name)
-	Game.register_kill(e.pts, e is RootBoss)
+	var was_split: bool = e is RootBoss and e.get("_split_silent") == true
+	Game.register_kill(0 if was_split else e.pts, e is RootBoss and not was_split)
 	player.add_kill_mote_bonus()
 	var n := e.mote_count
 	if n < 0:
@@ -674,7 +676,7 @@ func _on_enemy_died(e: EnemyBase) -> void:
 		mote_container.call_deferred("add_child", m)
 	if Game.recover_chance(e.elite) > 0.0 and Game.rng.randf() < Game.recover_chance(e.elite):
 		_spawn_recover(e.global_position)
-	if e is RootBoss:
+	if e is RootBoss and not was_split:
 		if Game.mode != "onehp":
 			_spawn_recover(e.global_position)
 		hud.boss = null

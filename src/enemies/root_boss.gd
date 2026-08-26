@@ -25,6 +25,8 @@ var boss_title := "ROOT.exe"
 var boss_quote := ""
 var _exposed := 0.0
 var _recover_half_dropped := false
+var mini := false
+var split_done := false
 var kind := 1
 var _glitch_off := Vector2.ZERO
 
@@ -57,7 +59,18 @@ func _init() -> void:
 
 func configure(wave_scale_f: float, is_elite: bool) -> void:
 	kind = kind_for_index(boss_index)
-	hp = 130 + 55 * (boss_index - 1)
+	if mini:
+		radius = 26.0
+		speed = 95.0
+		pts = 600
+		mote_count = 6
+		boss_title = "MINI-" + title_for_index(boss_index)
+		col = MK_DATA[kind - 1]["col"].lerp(Color(1, 1, 1), 0.25)
+		_teleport_cd = 99.0
+		_summon_cd = 999.0
+		_charge_cd = 4.5
+		return
+	hp = 120 + 42 * (boss_index - 1)
 	max_hp = hp
 	speed = 55.0 + 5.0 * (boss_index - 1)
 	pts = 2500 * boss_index
@@ -166,7 +179,7 @@ func _try_attacks() -> void:
 			if _burst_cd <= 0.0:
 				_burst_cd = 2.5 if phase == Phase.ONE else (2.1 if phase == Phase.TWO else 1.7)
 				_do_burst(14 + 4 * (phase - 1), 205.0 + 10.0 * phase)
-			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summons_alive() < 6:
+			if not mini and phase >= Phase.TWO and _summon_cd <= 0.0 and _summons_alive() < 6:
 				_summon_cd = 8.5
 				_do_summon("drone")
 			if phase >= Phase.THREE and _charge_cd <= 0.0:
@@ -354,6 +367,9 @@ func take_hit(dmg: int, from: Vector2) -> void:
 		return
 	if _exposed > 0.0:
 		dmg *= 2
+	if kind == 1 and not mini and not split_done and dmg >= hp:
+		_split_into_minis()
+		return
 	super.take_hit(dmg, from)
 	boss_hp_changed.emit(float(maxf(hp, 0)) / float(max_hp))
 	if not _recover_half_dropped and hp > 0 and hp <= max_hp / 2:
@@ -363,6 +379,42 @@ func take_hit(dmg: int, from: Vector2) -> void:
 func arena_drop_recover() -> void:
 	if is_instance_valid(self) and get_parent() != null:
 		get_parent().call_deferred("spawn_boss_recover", global_position)
+
+func _split_into_minis() -> void:
+	split_done = true
+	var remaining := maxi(hp, 1)
+	Fx.flash(Color(1, 1, 1), 0.4, 0.4)
+	Fx.burst(global_position, col, 2.4, 12)
+	Fx.ring(global_position, col, 10.0, 220.0, 0.6, 5.0)
+	Fx.shake(0.7)
+	Sfx.play("explode_big", 0.9, -2.0)
+	for i in 2:
+		var m := RootBoss.new()
+		m.mini = true
+		m.split_done = true
+		m.boss_index = boss_index
+		m.configure(1.0, false)
+		m.hp = int(remaining * 0.3)
+		m.max_hp = m.hp
+		m.position = global_position + Vector2(-40.0 + 80.0 * i, 20.0)
+		m.col = col.lerp(Color(1, 1, 1), 0.25)
+		get_parent().call_deferred("add_child", m)
+	var arena_node: Node = null
+	if get_tree() != null:
+		arena_node = get_tree().get_first_node_in_group("arena")
+	if arena_node == null:
+		var walker := get_parent()
+		while walker != null and arena_node == null:
+			if walker.has_method("spawn_boss_recover"):
+				arena_node = walker
+			walker = walker.get_parent()
+	if arena_node != null:
+		arena_node.call_deferred("spawn_boss_recover", global_position)
+	_split_silent = true
+	died.emit(self)
+	queue_free()
+
+var _split_silent := false
 
 func die() -> void:
 	died.emit(self)
