@@ -352,6 +352,10 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 	else:
 		hud.show_banner("CYCLE %02d" % wave, "PURGE THE DAEMONS", 1.8)
 		Sfx.play("wave", 1.0 + wave * 0.01, -6.0)
+	if wave >= 5 and not Game.unlocked_programs.has("daemon"):
+		Game.unlock_program("daemon")
+		hud.show_banner("PROGRAM UNLOCKED", "DAEMON AVAILABLE IN SETTINGS", 2.4)
+		Sfx.play("ready", 1.2, -4.0)
 	if wave > 1 and (wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
 		player.heal(1)
 		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
@@ -597,8 +601,11 @@ func _pick_patch(idx: int) -> void:
 	Sfx.haptic(20)
 	_try_show_patch()
 
+var _boss_dmg_snapshot := 0
+
 func _on_boss_spawned(boss: RootBoss) -> void:
 	hud.boss = boss
+	_boss_dmg_snapshot = int(Game.stats.get("damage", 0))
 
 func show_event_banner(txt: String) -> void:
 	hud.show_banner("CYCLE %02d // %s" % [Game.wave, txt], "", 1.8)
@@ -659,6 +666,7 @@ func _on_enemy_died(e: EnemyBase) -> void:
 	var was_split: bool = e is RootBoss and e.get("_split_silent") == true
 	Game.register_kill(0 if was_split else e.pts, e is RootBoss and not was_split)
 	player.add_kill_mote_bonus()
+	player.notify_kill()
 	var n := e.mote_count
 	if n < 0:
 		n = 1 if e.radius < 11.0 else (2 if e.radius < 17.0 else 3)
@@ -679,6 +687,10 @@ func _on_enemy_died(e: EnemyBase) -> void:
 	if e is RootBoss and not was_split:
 		if Game.mode != "onehp":
 			_spawn_recover(e.global_position)
+		if not Game.unlocked_programs.has("rootlet") and int(Game.stats.get("damage", 0)) == _boss_dmg_snapshot:
+			Game.unlock_program("rootlet")
+			hud.show_banner("PROGRAM UNLOCKED", "ROOTLET AVAILABLE IN SETTINGS", 2.4)
+			Sfx.play("ready", 1.2, -4.0)
 		hud.boss = null
 		overlay.aberrate(1.2)
 		hud.show_banner("ROOT PURGED", "INTEGRITY +1  SCORE +250", 2.0)

@@ -204,6 +204,20 @@ func _build_button_row() -> void:
 	_mode_btn.text = "MODE: CLASSIC"
 	_mode_btn.pressed.connect(_cycle_mode)
 	row.add_child(_mode_btn)
+	var prog_btn := Button.new()
+	_style_card_button(prog_btn, Color(0.6, 1.0, 0.8))
+	prog_btn.text = "PROGRAM: %s" % Game.program_def()["name"]
+	prog_btn.pressed.connect(func() -> void:
+		var ids: Array = []
+		for pid in Game.PROGRAM_DEFS:
+			if Game.unlocked_programs.has(pid):
+				ids.append(pid)
+		var idx := ids.find(Game.program)
+		Game.set_program(ids[(idx + 1) % ids.size()])
+		prog_btn.text = "PROGRAM: %s" % Game.program_def()["name"]
+		Sfx.play("ui", 1.1, -8.0)
+	)
+	row.add_child(prog_btn)
 	var settings_btn := Button.new()
 	_style_card_button(settings_btn, Balance.COL_TEXT)
 	settings_btn.text = "SETTINGS"

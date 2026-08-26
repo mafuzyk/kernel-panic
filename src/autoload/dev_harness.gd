@@ -54,6 +54,10 @@ func _until(fn: Callable, timeout_s: float, label: String) -> bool:
 
 func _autotest() -> void:
 	_watchdog()
+	Game.unlocked_programs["kernel"] = true
+	Game.unlocked_programs["daemon"] = true
+	Game.unlocked_programs["rootlet"] = true
+	Game.set_program("kernel")
 	await _ticks(20)
 	_check(get_tree().current_scene != null and get_tree().current_scene.name == "Menu", "menu is main scene")
 	_check(InputMap.has_action("mute"), "mute input action exists")
@@ -451,6 +455,66 @@ func _systems_test(arena: Arena) -> void:
 			s.queue_free()
 	sb.queue_free()
 	await _ticks(3)
+	print("AT_STEP programs")
+	Game.unlocked_programs["kernel"] = true
+	Game.unlocked_programs["daemon"] = true
+	Game.unlocked_programs["rootlet"] = true
+	Game.set_program("kernel")
+	_check(Game.program_def()["hp"] == 4, "kernel default hp 4")
+	Game.set_program("daemon")
+	player.queue_free()
+	await _ticks(3)
+	var p2 := Player.new()
+	p2.position = Vector2.ZERO
+	get_tree().current_scene.add_child(p2)
+	await _ticks(2)
+	_check(p2.max_hp == 3, "daemon hp 3")
+	_check(p2.dash_charges == 2, "daemon two dash charges")
+	for leftover in get_tree().get_nodes_in_group("enemies"):
+		leftover.queue_free()
+	await _ticks(2)
+	var d_near := DroneEnemy.new()
+	d_near.setup_mini()
+	d_near.position = p2.global_position + Vector2(400, 0)
+	arena.enemy_container.add_child(d_near)
+	await _ticks(2)
+	var interval_far: float = p2.fire_interval()
+	d_near.position = p2.global_position + Vector2(60, 0)
+	await _ticks(2)
+	var interval_close: float = p2.fire_interval()
+	_check(interval_close < interval_far, "daemon close-range fire rate boost (%.3f -> %.3f)" % [interval_far, interval_close])
+	p2.dash_cd = 0.5
+	p2.notify_kill()
+	_check(p2.dash_cd < 0.5, "daemon kill refunds dash cd")
+	p2.queue_free()
+	await _ticks(2)
+	Game.set_program("rootlet")
+	var p3 := Player.new()
+	p3.position = player.global_position + Vector2(200, 0)
+	get_tree().current_scene.add_child(p3)
+	await _ticks(2)
+	_check(p3.max_hp == 5, "rootlet hp 5")
+	_check(not p3.oc_ready and p3.shield_meter == 0.0, "rootlet has no overclock")
+	p3.shield_meter = Balance.OC_METER_MAX
+	p3.shield_ready = true
+	p3.invuln = 0.0
+	p3.take_damage(p3.global_position + Vector2(10, 0), "TEST")
+	_check(p3.hp == p3.max_hp, "rootlet shield absorbs hit")
+	_check(not p3.shield_ready and p3.shield_meter < Balance.OC_METER_MAX, "shield consumed")
+	p3.shield_ready = true
+	p3.take_damage(p3.global_position + Vector2(10, 0), "TEST")
+	p3.take_damage(p3.global_position + Vector2(10, 0), "TEST")
+	_check(p3.hp == p3.max_hp - 1, "second unprotected hit deals damage")
+	p3.queue_free()
+	await _ticks(3)
+	Game.set_program("kernel")
+	player = Player.new()
+	player.position = Vector2.ZERO
+	get_tree().current_scene.add_child(player)
+	arena.player = player
+	if arena.hud != null:
+		arena.hud.player = player
+	await _ticks(2)
 	print("AT_STEP newenemies")
 	var rec = load("res://src/enemies/recursor.gd").new()
 	rec.position = player.global_position + Vector2(300, 0)

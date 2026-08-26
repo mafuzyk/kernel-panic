@@ -14,6 +14,8 @@ enum State { MENU, PLAYING, GAME_OVER }
 var combo_window := Balance.COMBO_WINDOW
 var patch_levels := {}
 var mode := "classic"
+var program := "kernel"
+var unlocked_programs := {"kernel": true}
 var onehp_unlocked := false
 var bestiary := {}
 var rng := RandomNumberGenerator.new()
@@ -37,6 +39,32 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	_load_run_config()
 
+const PROGRAM_DEFS := {
+	"kernel": {"name": "KERNEL", "desc": "balanced standard process", "hp": 4, "speed_mul": 1.0, "dmg_bonus": 0, "rate_mul": 1.0, "range_mul": 1.0, "dash_charges": 1},
+	"daemon": {"name": "DAEMON", "desc": "3 HP. short range. hot close fire rate. kills recharge dash. 2 dash charges.", "hp": 3, "speed_mul": 1.0, "dmg_bonus": 0, "rate_mul": 1.0, "range_mul": 0.72, "dash_charges": 2, "close_rate_mul": 1.6, "close_range": 160.0, "kill_dash_refund": 0.7},
+	"rootlet": {"name": "ROOTLET", "desc": "5 HP. slow. heavy shots. shield instead of overclock.", "hp": 5, "speed_mul": 0.85, "dmg_bonus": 1, "rate_mul": 0.8, "range_mul": 1.0, "dash_charges": 1, "shield_mode": true},
+}
+
+func program_def() -> Dictionary:
+	return PROGRAM_DEFS.get(program, PROGRAM_DEFS["kernel"])
+
+func unlock_program(id: String) -> void:
+	if unlocked_programs.has(id):
+		return
+	unlocked_programs[id] = true
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("programs", "unlocked", unlocked_programs)
+	cf.save(Sfx.SAVE_PATH)
+
+func set_program(id: String) -> void:
+	if unlocked_programs.has(id):
+		program = id
+		var cf := ConfigFile.new()
+		cf.load(Sfx.SAVE_PATH)
+		cf.set_value("run", "program", id)
+		cf.save(Sfx.SAVE_PATH)
+
 func _load_run_config() -> void:
 	var cf := ConfigFile.new()
 	if cf.load(Sfx.SAVE_PATH) == OK:
@@ -46,6 +74,12 @@ func _load_run_config() -> void:
 		mode = cf.get_value("game", "mode", "classic")
 		if mode == "onehp" and not onehp_unlocked:
 			mode = "classic"
+		unlocked_programs = cf.get_value("programs", "unlocked", {"kernel": true})
+		if not unlocked_programs.has("kernel"):
+			unlocked_programs["kernel"] = true
+		var saved_prog: String = cf.get_value("run", "program", "kernel")
+		if unlocked_programs.has(saved_prog):
+			program = saved_prog
 	rng.randomize()
 
 func week_number() -> int:

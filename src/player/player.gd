@@ -39,10 +39,18 @@ var _lockon_pulse := 0.0
 var dash_id := 0
 var _static_tick := 0.0
 var _ext_count := 0
+var prog: Dictionary = {}
+var dash_charges := 1
+var dash_recharge_t := 0.0
+var shield_ready := false
+var shield_meter := 0.0
 
 func _ready() -> void:
 	touch_mode = DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
-	max_hp = 1 if Game.mode == "onehp" else Balance.PLAYER_MAX_HP
+	prog = Game.program_def()
+	dash_charges = int(prog.get("dash_charges", 1))
+	shield_ready = bool(prog.get("shield_mode", false))
+	max_hp = 1 if Game.mode == "onehp" else int(prog.get("hp", Balance.PLAYER_MAX_HP))
 	hp = max_hp
 	add_to_group("player")
 	collision_layer = Balance.LAYER_PLAYER
@@ -102,6 +110,7 @@ func _physics_process(delta: float) -> void:
 		input_vec = touch_move.limit_length(1.0)
 	var target_speed := Balance.PLAYER_SPEED * (1.15 if overclock_active else 1.0) * slow_factor
 	target_speed *= 1.0 + 0.12 * Game.patch_level("light")
+	target_speed *= float(prog.get("speed_mul", 1.0))
 	if dash_t > 0.0:
 		dash_t -= delta
 		_ghost_cd -= delta
@@ -151,6 +160,8 @@ func _physics_process(delta: float) -> void:
 	aim_assist_dir = Vector2.from_angle(rotation) if manual_touch_aim else Vector2.ZERO
 	if dash_cd > 0.0:
 		dash_cd -= delta
+	if dash_charges > 1 and dash_recharge_t > 0.0:
+		dash_recharge_t -= delta
 	if invuln > 0.0:
 		invuln -= delta
 		visible = fmod(invuln, 0.14) > 0.055 or invuln <= 0.0
@@ -211,6 +222,11 @@ func magnet_radius() -> float:
 
 func fire_interval() -> float:
 	var rate := Balance.FIRE_RATE_OC if overclock_active else Balance.FIRE_RATE
+	rate *= float(prog.get("rate_mul", 1.0))
+	if prog.has("close_rate_mul"):
+		var nearest: Node2D = _nearest_enemy()
+		if nearest != null and is_instance_valid(nearest) and global_position.distance_to(nearest.global_position) < float(prog.get("close_range", 160.0)):
+			rate *= float(prog["close_rate_mul"])
 	rate *= 1.0 + 0.18 * Game.patch_level("rapid")
 	rate *= pow(0.9, Game.patch_level("heavy"))
 	return 1.0 / (rate * slow_factor)
@@ -228,9 +244,9 @@ func _shoot() -> void:
 	var shot_dir := dir.rotated(Game.rng.randf_range(-spread, spread))
 	b.setup(global_position + dir * 18.0, shot_dir, overclock_active)
 	b.vel = shot_dir * bspeed
-	b.life = Balance.BULLET_LIFE * (1.0 + 0.12 * Game.patch_level("threads"))
+	b.life = Balance.BULLET_LIFE * float(prog.get("range_mul", 1.0)) * (1.0 + 0.12 * Game.patch_level("threads"))
 	b.pierce += Game.patch_level("core")
-	b.dmg = 1 + Game.patch_level("heavy")
+	b.dmg = 1 + int(prog.get("dmg_bonus", 0)) + Game.patch_level("heavy")
 	b.bounces = Game.patch_level("ricochet")
 	get_parent().add_child(b)
 	vel -= dir * 26.0
@@ -239,7 +255,11 @@ func _shoot() -> void:
 	Game.stats["shots"] += 1
 
 func request_dash(input_vec: Vector2) -> void:
-	if dead or dash_cd > 0.0 or dash_t > 0.0:
+	if dead or dash_t > 0.0:
+		return
+	if dash_charges > 1 and _avail_charges() <= 0:
+		return
+	if dash_charges <= 1 and dash_cd > 0.0:
 		return
 	var dir := input_vec
 	if dir.length() < 0.2:
@@ -250,11 +270,29 @@ func request_dash(input_vec: Vector2) -> void:
 	dash_t = Balance.DASH_TIME
 	dash_cd = Balance.DASH_CD * pow(0.82, Game.patch_level("dash"))
 	invuln = maxf(invuln, Balance.DASH_IFRAMES)
+	if dash_charges > 1:
+		dash_recharge_t = Balance.DASH_CD
 	Sfx.play("dash", 1.0, -6.0)
 	Fx.ring(global_position, Balance.COL_PLAYER, 6.0, 30.0, 0.25, 2.0)
 	Fx.shake(0.08)
 
+func _avail_charges() -> int:
+	var n := 1
+	if dash_recharge_t <= 0.0:
+		n = dash_charges
+	else:
+		n = maxf(dash_charges - 1.0, 1.0)
+	return int(n)
+
+func notify_kill() -> void:
+	if prog.has("kill_dash_refund"):
+		dash_cd = minf(dash_cd, dash_cd * (1.0 - float(prog["kill_dash_refund"])))
+		if dash_charges > 1 and dash_recharge_t > 0.0:
+			dash_recharge_t *= (1.0 - float(prog["kill_dash_refund"]))
+
 func try_overclock() -> void:
+	if prog.get("shield_mode", false):
+		return
 	if oc_ready and not overclock_active and not dead:
 		oc_ready = false
 		overclock_active = true
@@ -273,6 +311,16 @@ func try_overclock() -> void:
 func collect_mote() -> void:
 	if dead:
 		return
+	if shield_ready:
+		if not shield_ready_full():
+			shield_meter = minf(shield_meter + Balance.MOTE_VALUE, Balance.OC_METER_MAX)
+			if shield_meter >= Balance.OC_METER_MAX:
+				shield_ready = true
+				Sfx.play("ready", 1.0, -4.0)
+				Sfx.haptic(25)
+				Fx.text(global_position + Vector2(0, -26), "SHIELD READY", Color(0.6, 1.0, 0.8), 13)
+			meter_changed.emit(shield_meter, shield_ready)
+			return
 	if overclock_active:
 		Game.add_score(5)
 		return
@@ -291,6 +339,9 @@ func collect_mote() -> void:
 		Fx.text(global_position + Vector2(0, -26), "OVERCLOCK READY", Balance.COL_PLAYER_HOT, 13)
 	meter_changed.emit(meter, oc_ready)
 
+func shield_ready_full() -> bool:
+	return bool(prog.get("shield_mode", false)) and shield_meter >= Balance.OC_METER_MAX
+
 func apply_freeze(dur: float) -> void:
 	if dead:
 		return
@@ -306,6 +357,11 @@ func add_max_hp(n: int) -> void:
 	heal(n)
 
 func add_kill_mote_bonus() -> void:
+	if shield_ready:
+		if not shield_ready_full():
+			shield_meter = minf(shield_meter + Balance.MOTE_KILL_VALUE, Balance.OC_METER_MAX)
+			meter_changed.emit(shield_meter, false)
+		return
 	if overclock_active:
 		if oc_t < oc_duration() + 3.0:
 			oc_t = minf(oc_t + 0.35, oc_duration() + 3.0)
@@ -333,6 +389,16 @@ func _on_area_entered(a: Area2D) -> void:
 
 func take_damage(from: Vector2, killer := "DAEMON") -> void:
 	if dead or invuln > 0.0 or dash_t > 0.0:
+		return
+	if bool(prog.get("shield_mode", false)) and shield_ready:
+		shield_ready = false
+		shield_meter = 0.0
+		invuln = maxf(invuln, 0.8)
+		Sfx.play("hit", 1.2, -4.0)
+		Fx.ring(global_position, Color(0.6, 1.0, 0.8), 8.0, 60.0, 0.35, 3.0)
+		Fx.text(global_position + Vector2(0, -26), "SHIELD DOWN", Color(0.6, 1.0, 0.8), 13)
+		Sfx.haptic(30)
+		meter_changed.emit(0.0, false)
 		return
 	hp -= 1
 	Game.stats["damage"] += 1
