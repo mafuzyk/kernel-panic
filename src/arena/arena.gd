@@ -631,6 +631,7 @@ func _show_game_over() -> void:
 		acc = float(s["hits"]) / float(s["shots"]) * 100.0
 	var lines := [
 		"TERMINATED BY %s" % str(Game.stats.get("killer", "DAEMON")),
+		"PROGRAM       %s" % Game.program_def()["name"],
 		"BUILD         %s" % Game.build_string(),
 		"FINAL SCORE   %07d" % Game.score,
 		"BEST          %07d" % Game.best,
@@ -767,7 +768,7 @@ func _set_paused(v: bool) -> void:
 	get_tree().paused = v
 	_pause_panel.visible = v
 	if v:
-		_pause_stats.text = "SCORE %07d   CYCLE %02d   COMBO x%d   BUILD: %s" % [Game.score, Game.wave, Game.mult, Game.build_string()]
+		_pause_stats.text = "%s // SCORE %07d   CYCLE %02d   COMBO x%d\nBUILD: %s" % [Game.program_def()["name"], Game.score, Game.wave, Game.mult, Game.build_string()]
 	Sfx.play("ui", 1.0, -6.0)
 	if not v:
 		_try_show_patch()

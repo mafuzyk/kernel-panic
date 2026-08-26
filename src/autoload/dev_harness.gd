@@ -751,9 +751,11 @@ func _systems_test(arena: Arena) -> void:
 	await _ticks(20)
 	_check(arena._patch_open and arena._patch_panel.visible and arena._patch_panel.modulate.a > 0.5, "patch panel opens and is visible")
 	_check(get_tree().paused, "patch pauses world")
+	var build_before: String = arena.hud._build_label.text
 	arena._pick_patch(0)
 	await _ticks(2)
 	_check(not get_tree().paused and not arena._patch_open, "patch pick resumes world")
+	_check(arena.hud._build_label != null and arena.hud._build_label.text != "NO PATCHES", "hud shows active patches")
 	_check(Game.patch_levels.size() > 0 or true, "patch applied")
 	Sfx.haptic(10)
 	_check(Sfx._stems.size() == 3, "three music stems loaded")

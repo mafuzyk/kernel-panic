@@ -24,6 +24,7 @@ var _best_label: Label
 var _banner: Label
 var _banner_sub_l: Label
 var _score_pop := 0.0
+var _build_label: Label
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -41,8 +42,18 @@ func _ready() -> void:
 	_banner_sub_l = _mk_label(15, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.7), Vector2(0, 172))
 	_banner_sub_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner_sub_l.modulate.a = 0.0
+	_build_label = _mk_label(12, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5), Vector2(14, 690))
+	_build_label.anchor_left = 0.0
+	_build_label.anchor_right = 0.6
+	_build_label.offset_left = 14.0
+	_build_label.offset_right = 0.0
+	_build_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_build_label.text = Game.build_string()
 	Game.score_changed.connect(_on_score)
 	Game.combo_changed.connect(_on_combo)
+	Game.patch_picked.connect(func(_id: String) -> void:
+		_build_label.text = Game.build_string()
+	)
 	_on_score(Game.score, Game.mult)
 
 func _mk_label(size: int, col: Color, pos: Vector2) -> Label:

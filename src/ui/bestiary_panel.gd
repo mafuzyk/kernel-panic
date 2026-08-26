@@ -2,14 +2,14 @@ class_name BestiaryPanel
 extends Control
 
 const ENTRIES := [
-	{"id": "drone", "name": "DRONE", "desc": "basic corrupted process. chases. dies. respawns."},
-	{"id": "lancer", "name": "LANCER", "desc": "telegraphs, then lunges. respect the line."},
-	{"id": "spewer", "name": "SPEWER", "desc": "keeps distance, spits orbs. orbs are destructible."},
-	{"id": "splitter", "name": "SPLITTER", "desc": "splits in two on death. math is not on your side."},
-	{"id": "bulwark", "name": "BULWARK", "desc": "armored. slow, angry, full of orbs on death."},
+	{"id": "drone", "name": "DRONE", "desc": "basic corrupted process. dash through packs."},
+	{"id": "lancer", "name": "LANCER", "desc": "telegraphs then lunges. sidestep the line, punish the stagger."},
+	{"id": "spewer", "name": "SPEWER", "desc": "keeps distance, spits orbs. shoot the orbs down."},
+	{"id": "splitter", "name": "SPLITTER", "desc": "splits on death. kill it away from you."},
+	{"id": "bulwark", "name": "BULWARK", "desc": "armored and slow. dash past, never hug."},
 	{"id": "trojan", "name": "TROJAN", "desc": "leaves corruption pools. do not swim."},
-	{"id": "oom", "name": "OOM_KILLER", "desc": "steals your motes and runs. rude."},
-	{"id": "boss", "name": "ROOT DAEMON", "desc": "cycle boss. every variant gets personal."},
+	{"id": "oom", "name": "OOM_KILLER", "desc": "steals your motes and runs. hunt it first."},
+	{"id": "boss", "name": "ROOT DAEMON", "desc": "every variant has a tell. learn it. respect it."},
 	{"id": "recursor", "name": "RECURSOR", "desc": "teleports and leaves corruption. pools mark where it was. keep moving."},
 	{"id": "firewall", "name": "FIREWALL", "desc": "rotating wall of orbs. kill the wall to drop the wall."},
 ]
