@@ -17,6 +17,9 @@ var _teleport_cd := 3.5
 var _freeze_cd := 5.0
 var _lance_cd := 6.0
 var _lance_dir := Vector2.RIGHT
+var _fan_cd := 4.5
+var _shield_rebuilt := false
+var _rebuild_warning_t := 0.0
 var _spiral_angle := 0.0
 var _spiral_shots := 0
 var _charge_dir := Vector2.RIGHT
@@ -115,6 +118,7 @@ func _move(delta: float) -> void:
 	_teleport_cd -= delta
 	_freeze_cd -= delta
 	_lance_cd -= delta
+	_fan_cd -= delta
 	match act:
 		Act.HOVER:
 			var to_p := aim_at_player()
@@ -226,6 +230,10 @@ func _try_attacks() -> void:
 				Sfx.play("charge", 0.8, -6.0)
 			if _spiral_cd <= 0.0:
 				_start_spiral(18 + 4 * phase, 1.8)
+			if phase >= Phase.TWO and _fan_cd <= 0.0:
+				_fan_cd = maxf(3.8, 6.0 - phase * 0.7)
+				_volley(5)
+				Fx.ring(global_position, col, radius, radius + 90.0, 0.35, 2.5)
 			if _burst_cd <= 0.0:
 				_burst_cd = 2.6
 				_do_burst(10, 220.0)
@@ -394,13 +402,43 @@ func take_hit(dmg: int, from: Vector2) -> void:
 		return
 	super.take_hit(dmg, from)
 	boss_hp_changed.emit(float(maxf(hp, 0)) / float(max_hp))
+	if kind == 4 and not mini and not _shield_rebuilt and hp > 0 and hp <= max_hp / 2 and _pages_alive() == 0:
+		_shield_rebuilt = true
+		_warn_and_rebuild_shield()
 	if not _recover_half_dropped and hp > 0 and hp <= max_hp / 2:
 		_recover_half_dropped = true
 		arena_drop_recover.call_deferred()
 
 func arena_drop_recover() -> void:
-	if is_instance_valid(self) and get_parent() != null:
-		get_parent().call_deferred("spawn_boss_recover", global_position)
+	if not is_instance_valid(self):
+		return
+	var walker := get_parent()
+	while walker != null and not walker.has_method("spawn_boss_recover"):
+		walker = walker.get_parent()
+	if walker != null:
+		walker.call_deferred("spawn_boss_recover", global_position)
+
+func _warn_and_rebuild_shield() -> void:
+	Fx.ring(global_position, Color(0.8, 0.65, 1.0), radius, radius + 140.0, 0.6, 5.0, true)
+	Fx.ring(global_position, Color(1, 1, 1, 0.8), radius, radius + 70.0, 0.45, 3.0)
+	Fx.text(global_position + Vector2(0, -radius - 24.0), "SHIELD RESTORING", Color(0.85, 0.7, 1.0), 16)
+	Sfx.play("charge", 0.9, -4.0)
+	Sfx.haptic(40)
+	var tree := get_tree()
+	if tree == null:
+		return
+	await tree.create_timer(0.8).timeout
+	if not is_instance_valid(self):
+		return
+	for i in 6:
+		if _pages_alive() >= 6:
+			break
+		var pg := PageNode.new()
+		pg.boss = self
+		pg.orbit_idx = i % 4
+		pg.position = global_position + Vector2.from_angle(TAU * i / 6.0) * 90.0
+		get_parent().call_deferred("add_child", pg)
+	Fx.ring(global_position, Color(0.8, 0.65, 1.0), radius + 20.0, radius + 90.0, 0.4, 3.0, true)
 
 func _split_into_minis() -> void:
 	split_done = true

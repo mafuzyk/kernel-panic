@@ -322,6 +322,63 @@ func _systems_test(arena: Arena) -> void:
 	await _ticks(2)
 	player.invuln = 0.0
 	player.hp = player.max_hp
+	print("AT_STEP bossfan")
+	var bs := RootBoss.new()
+	bs.boss_index = 3
+	bs.configure(1.0, false)
+	bs.hp = int(bs.max_hp * 0.4)
+	arena.enemy_container.add_child(bs)
+	await _ticks(2)
+	for i in 38:
+		var o := EnemyOrb.new()
+		o.setup(player.global_position + Vector2(500 + i, 300), Vector2.ZERO, 10.0, Color.RED)
+		arena.enemy_container.add_child(o)
+	await _ticks(2)
+	bs._fan_cd = 0.0
+	var orbs_before := get_tree().get_nodes_in_group("enemy_orbs").size()
+	await _ticks(20)
+	var orbs_after := get_tree().get_nodes_in_group("enemy_orbs").size()
+	_check(orbs_after <= 40 and orbs_after >= orbs_before, "bluescreen fan respects orb cap (%d)" % orbs_after)
+	for o in get_tree().get_nodes_in_group("enemy_orbs"):
+		o.queue_free()
+	bs.queue_free()
+	await _ticks(3)
+	print("AT_STEP pfshield")
+	var pf := RootBoss.new()
+	pf.boss_index = 4
+	pf.configure(1.0, false)
+	pf.hp = int(pf.max_hp * 0.55)
+	arena.enemy_container.add_child(pf)
+	await _ticks(2)
+	pf.take_hit(int(pf.max_hp * 0.1), pf.global_position)
+	await _ticks(60)
+	var pages_now := pf._pages_alive()
+	_check(pages_now > 0, "page fault rebuilds shield at half hp (%d pages)" % pages_now)
+	var hp_before_block := pf.hp
+	pf.take_hit(1, pf.global_position)
+	_check(pf.hp == hp_before_block, "rebuilt shield blocks damage again")
+	var second_rebuild := pf._shield_rebuilt
+	for pg in get_tree().get_nodes_in_group("page"):
+		if is_instance_valid(pg):
+			pg.take_hit(9999, pg.global_position)
+	await _ticks(3)
+	pf.take_hit(9999, pf.global_position)
+	await _ticks(4)
+	_check(second_rebuild and not is_instance_valid(pf), "shield rebuild happens only once per fight")
+	for e in get_tree().get_nodes_in_group("page"):
+		if is_instance_valid(e):
+			e.queue_free()
+	if is_instance_valid(pf):
+		pf.queue_free()
+	await _ticks(3)
+	if get_tree().paused:
+		get_tree().paused = false
+	arena._patch_open = false
+	arena._patch_pending = 0
+	if arena._patch_panel != null:
+		arena._patch_panel.visible = false
+	player.invuln = 9999.0
+	player.hp = player.max_hp
 	print("AT_STEP lance")
 	var seg := RootBoss.new()
 	seg.boss_index = 2
