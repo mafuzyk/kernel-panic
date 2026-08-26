@@ -43,10 +43,11 @@ func _input(event: InputEvent) -> void:
 				_aim_pos = t.position
 				_aim_active = true
 				if player != null and is_instance_valid(player):
-					if Sfx.aim_mode == "lockon":
+					var press_mode := Game.effective_aim_mode()
+					if press_mode == "lockon":
 						player.touch_aim = Vector2.ZERO
-					elif Sfx.aim_mode == "stick":
-						player.touch_aim = (t.position - _aim_origin)
+					elif press_mode == "stick":
+						player.touch_aim = Vector2.ZERO
 		else:
 			if t.index == _move_id:
 				_move_id = -1
@@ -72,13 +73,11 @@ func _input(event: InputEvent) -> void:
 		elif d.index == _aim_id:
 			_aim_pos = d.position
 			if player != null and is_instance_valid(player):
-				if Sfx.aim_mode == "lockon":
+				var aim_mode := Game.effective_aim_mode()
+				if aim_mode == "lockon":
 					player.touch_aim = Vector2.ZERO
-				elif Sfx.aim_mode == "stick":
-					var off := _aim_pos - _aim_origin
-					if off.length() > 110.0:
-						_aim_origin = _aim_pos - off.normalized() * 110.0
-						off = off.normalized() * 110.0
+				elif aim_mode == "stick":
+					var off := (_aim_pos - _aim_origin).limit_length(110.0)
 					player.touch_aim = off if off.length() > 10.0 else Vector2.ZERO
 				else:
 					var raw := _aim_pos - _aim_origin
@@ -113,7 +112,7 @@ func _process(delta: float) -> void:
 	if player != null and is_instance_valid(player):
 		player.touch_move = _move_vec
 		player.touch_fire = _aim_active
-		if _aim_active and Sfx.aim_mode == "lockon":
+		if _aim_active and Game.effective_aim_mode() == "lockon":
 			player.lockon_active = true
 		else:
 			player.lockon_active = false
@@ -132,14 +131,15 @@ func _draw() -> void:
 		draw_circle(_move_origin + _move_vec * 48.0, 22.0, Color(c.r, c.g, c.b, 0.35))
 	if not _aim_active:
 		return
-	if Sfx.aim_mode == "stick":
+	var draw_mode := Game.effective_aim_mode()
+	if draw_mode == "stick":
 		draw_circle(_aim_origin, 44.0, Color(c.r, c.g, c.b, 0.07))
 		draw_arc(_aim_origin, 44.0, 0, TAU, 32, Color(c.r, c.g, c.b, 0.45), 2.0, true)
 		var knob := _aim_origin + (_aim_pos - _aim_origin).limit_length(44.0)
 		draw_circle(knob, 16.0, Color(1, 1, 1, 0.2))
 		draw_arc(knob, 16.0, 0, TAU, 20, Color(1, 1, 1, 0.6), 2.0, true)
 		draw_line(_aim_origin, knob, Color(c.r, c.g, c.b, 0.3), 2.0)
-	elif Sfx.aim_mode == "lockon":
+	elif draw_mode == "lockon":
 		draw_circle(_aim_origin, 26.0, Color(c.r, c.g, c.b, 0.06))
 		draw_arc(_aim_origin, 26.0, 0, TAU, 32, Color(c.r, c.g, c.b, 0.45), 2.0, true)
 		draw_string(mono, _aim_origin + Vector2(-34, -32), "LOCK", HORIZONTAL_ALIGNMENT_CENTER, 80, 12, Color(1, 0.4, 0.5, 0.8))

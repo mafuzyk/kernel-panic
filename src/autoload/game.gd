@@ -79,6 +79,11 @@ func unlock_onehp() -> void:
 	cf.set_value("run", "onehp_unlocked", true)
 	cf.save(Sfx.SAVE_PATH)
 
+func effective_aim_mode() -> String:
+	if mode == "weekly" and Sfx.aim_mode == "lockon":
+		return "stick"
+	return Sfx.aim_mode
+
 func score_mult() -> int:
 	return 3 if mode == "onehp" else 1
 

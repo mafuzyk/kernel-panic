@@ -513,11 +513,36 @@ func _touch_test() -> void:
 	var idle_rot := player.rotation
 	await _ticks(30)
 	_check(absf(wrapf(player.rotation - idle_rot, -PI, PI)) < 0.05, "touch idle keeps aim (no auto-aim)")
+	var saved_aim := Sfx.aim_mode
+	Sfx.aim_mode = "stick"
 	_press(Vector2(900, 400), true, 8)
 	_drag(8, Vector2(900, 400), Vector2(1020, 400))
 	await _ticks(35)
 	_check(player.touch_aim.length() > 50.0 and absf(wrapf(player.rotation, -PI, PI)) < 0.5, "touch drag aims along drag direction")
+	print("AT_DEBUG aim_origin=", touch_ui._aim_origin)
+	var origin_before: Vector2 = touch_ui._aim_origin
+	_drag(8, Vector2(1020, 400), Vector2(1240, 620))
+	await _ticks(5)
+	_check(touch_ui._aim_origin == origin_before, "anchored stick keeps base fixed during drag")
+	_check(player.touch_aim.length() <= 111.0, "stick offset clamped to max length")
+	_drag(8, Vector2(1240, 620), Vector2(900, 400))
 	_press(Vector2(900, 400), false, 8)
+	Sfx.aim_mode = "lockon"
+	Game.mode = "classic"
+	_press(Vector2(900, 400), true, 12)
+	await _ticks(30)
+	_check(player.lockon_active, "lockon active in classic when enabled")
+	_check(Game.effective_aim_mode() == "lockon", "effective mode is lockon in classic")
+	_press(Vector2(900, 400), false, 12)
+	Game.mode = "weekly"
+	_press(Vector2(900, 400), true, 13)
+	await _ticks(10)
+	_check(not player.lockon_active, "lockon blocked in weekly")
+	_check(Game.effective_aim_mode() == "stick", "weekly downgrades lockon to stick")
+	_press(Vector2(900, 400), false, 13)
+	_check(Sfx.aim_mode == "lockon", "weekly does not erase saved aim preference")
+	Sfx.aim_mode = saved_aim
+	Game.mode = "classic"
 	player.touch_mode = false
 	tcl.queue_free()
 	await _ticks(2)

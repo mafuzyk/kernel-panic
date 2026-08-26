@@ -16,6 +16,13 @@ var _klog: Label
 var _klog_t := 0.0
 var _esc_armed := 0.0
 var _bestiary_panel: BestiaryPanel
+var _aim_btn_ref: Button
+
+func _refresh_aim_label(btn: Button) -> void:
+	if Game.mode == "weekly" and Sfx.aim_mode == "lockon":
+		btn.text = "AIM MODE: LOCK-ON // BLOCKED IN WEEKLY"
+	else:
+		btn.text = "AIM MODE: %s" % Sfx.aim_mode.to_upper()
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -292,6 +299,8 @@ func _cycle_mode() -> void:
 	cf.set_value("game", "mode", Game.mode)
 	cf.save(Sfx.SAVE_PATH)
 	_refresh_mode_ui()
+	if _aim_btn_ref != null:
+		_refresh_aim_label(_aim_btn_ref)
 
 func _refresh_mode_ui() -> void:
 	var cf := ConfigFile.new()
@@ -375,10 +384,14 @@ func _build_settings() -> void:
 	aim_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	aim_btn.pressed.connect(func() -> void:
 		var order := ["drag", "stick", "lockon"]
-		Sfx.aim_mode = order[(order.find(Sfx.aim_mode) + 1) % 3]
-		aim_btn.text = "AIM MODE: %s" % Sfx.aim_mode.to_upper()
+		if Game.mode == "weekly":
+			order = ["drag", "stick"]
+		Sfx.aim_mode = order[(order.find(Sfx.aim_mode) + 1) % order.size()]
+		_refresh_aim_label(aim_btn)
 		Sfx.save_settings()
 	)
+	_aim_btn_ref = aim_btn
+	_refresh_aim_label(aim_btn)
 	box.add_child(aim_btn)
 	var touch_sz := Button.new()
 	touch_sz.flat = true
