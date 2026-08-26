@@ -320,23 +320,49 @@ func _touch_test() -> void:
 	await _ticks(2)
 	_check(not player.touch_fire and player.touch_move.length() < 0.1, "touch release clears state")
 	var dash_before := player.dash_cd
+	var dash_id_before := player.dash_id
 	_press(touch_ui._dash_btn().get_center(), true, 9)
 	await _ticks(2)
 	_press(touch_ui._dash_btn().get_center(), false, 9)
 	await _ticks(2)
 	_check(player.dash_cd > dash_before, "touch dash button dashes")
+	_check(player.dash_id == dash_id_before + 1, "touch dash increments dash id")
+	Game.patch_levels = {"pdash": 1}
+	var pd_target := DroneEnemy.new()
+	pd_target.setup_mini()
+	pd_target.position = player.global_position + Vector2(24, 0)
+	arena.enemy_container.add_child(pd_target)
+	player.invuln = 99.0
+	var pd_id_before := player.dash_id
+	player.dash_cd = 0.0
+	player.dash_t = 0.0
+	_press(touch_ui._dash_btn().get_center(), true, 11)
+	await _ticks(2)
+	_press(touch_ui._dash_btn().get_center(), false, 11)
+	await _ticks(14)
+	_check(player.dash_id == pd_id_before + 1, "phase dash touch dash fired")
+	_check((not is_instance_valid(pd_target)) or pd_target.last_pdash_id == player.dash_id or pd_target.hp <= 0, "touch dash applies phase dash damage")
+	if is_instance_valid(pd_target):
+		pd_target.take_hit(99, pd_target.global_position)
+	Game.patch_levels = {}
+	player.invuln = 0.0
 	arena._set_paused(true)
 	_press(touch_ui._pause_btn().get_center(), true, 10)
 	_press(touch_ui._pause_btn().get_center(), false, 10)
 	await _ticks(2)
 	_check(get_tree().paused, "pause stays while paused (pause btn guarded)")
 	arena._set_paused(false)
+	for leftover in get_tree().get_nodes_in_group("enemies"):
+		leftover.queue_free()
+	await _ticks(2)
 	print("AT_STEP drag")
 	player.touch_mode = true
 	var e3 := DroneEnemy.new()
 	e3.position = player.global_position + Vector2(240, 0)
 	arena.enemy_container.add_child(e3)
 	e3.configure(1.0, false)
+	player.touch_aim = Vector2.ZERO
+	player.lockon_active = false
 	var idle_rot := player.rotation
 	await _ticks(30)
 	_check(absf(wrapf(player.rotation - idle_rot, -PI, PI)) < 0.05, "touch idle keeps aim (no auto-aim)")
@@ -549,14 +575,14 @@ func _autopilot(player: Player) -> void:
 		player.touch_aim = (nearest.global_position - player.global_position)
 		player.touch_fire = true
 		if nd < 110.0 and player.dash_cd <= 0.0:
-			player._do_dash(away)
+			player.request_dash(away)
 	else:
 		player.touch_fire = false
 	player.touch_move = move
 	if player.oc_ready:
 		player.try_overclock()
 	if player.hp == 1 and nearest != null and nd < 260.0 and player.dash_cd <= 0.0:
-		player._do_dash((player.global_position - nearest.global_position).normalized())
+		player.request_dash((player.global_position - nearest.global_position).normalized())
 
 func _populate(arena: Arena, n := 6) -> void:
 	var kinds := ["drone", "drone", "spewer", "lancer", "splitter", "bulwark"]

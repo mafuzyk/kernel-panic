@@ -128,6 +128,7 @@ func _physics_process(delta: float) -> void:
 	position.x = clampf(position.x, r.position.x + Balance.PLAYER_RADIUS, r.end.x - Balance.PLAYER_RADIUS)
 	position.y = clampf(position.y, r.position.y + Balance.PLAYER_RADIUS, r.end.y - Balance.PLAYER_RADIUS)
 	var manual_touch_aim := touch_aim.length() > 0.2
+	var desktop := DisplayServer.get_name() == "windows" or DisplayServer.get_name() == "x11" or DisplayServer.get_name() == "macos"
 	if manual_touch_aim:
 		aim = touch_aim.normalized() * 100.0
 	elif lockon_active:
@@ -138,8 +139,11 @@ func _physics_process(delta: float) -> void:
 			if _lockon_pulse <= 0.0:
 				_lockon_pulse = 0.18
 				Fx.ring(tgt.global_position, Color(1, 0.4, 0.5), 14.0, 24.0, 0.18, 2.0)
-	manual_touch_aim = manual_touch_aim or lockon_active
-	if not manual_touch_aim:
+	elif touch_mode and not desktop:
+		# Touchscreen without active aim: keep last heading, never chase a stale pointer.
+		aim = Vector2.ZERO
+		lockon_target = null
+	else:
 		aim = get_global_mouse_position() - global_position
 		lockon_target = null
 	if aim.length() > 4.0:
@@ -159,8 +163,8 @@ func _physics_process(delta: float) -> void:
 	var want_fire := Input.is_action_pressed("fire") or touch_fire
 	if want_fire and fire_cd <= 0.0:
 		_shoot()
-	if Input.is_action_just_pressed("dash") and dash_cd <= 0.0 and dash_t <= 0.0:
-		_do_dash(input_vec)
+	if Input.is_action_just_pressed("dash"):
+		request_dash(input_vec)
 	if Input.is_action_just_pressed("overclock"):
 		try_overclock()
 	if overclock_active:
@@ -233,11 +237,14 @@ func _shoot() -> void:
 	Sfx.play("shoot", 1.25 if overclock_active else 1.0, -10.0, 0.07)
 	Game.stats["shots"] += 1
 
-func _do_dash(input_vec: Vector2) -> void:
+func request_dash(input_vec: Vector2) -> void:
+	if dead or dash_cd > 0.0 or dash_t > 0.0:
+		return
 	var dir := input_vec
 	if dir.length() < 0.2:
 		dir = Vector2.from_angle(rotation)
-	vel = dir.normalized() * Balance.DASH_SPEED
+	dir = dir.normalized()
+	vel = dir * Balance.DASH_SPEED
 	dash_id += 1
 	dash_t = Balance.DASH_TIME
 	dash_cd = Balance.DASH_CD * pow(0.82, Game.patch_level("dash"))

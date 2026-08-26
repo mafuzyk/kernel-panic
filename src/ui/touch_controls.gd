@@ -104,15 +104,9 @@ var _tex_pause: Texture2D = preload("res://assets/icons/icon_pause.png")
 var _tex_oc: Texture2D = preload("res://assets/icons/icon_overclock.png")
 
 func _press_dash() -> void:
-	if player == null or player.dead:
+	if player == null or not is_instance_valid(player):
 		return
-	if player.dash_cd <= 0.0 and player.dash_t <= 0.0:
-		player.vel = _move_vec.normalized() * Balance.DASH_SPEED if _move_vec.length() > 0.2 else Vector2.from_angle(player.rotation) * Balance.DASH_SPEED
-		player.dash_t = Balance.DASH_TIME
-		player.dash_cd = Balance.DASH_CD
-		player.invuln = maxf(player.invuln, Balance.DASH_IFRAMES)
-		Sfx.play("dash", 1.0, -6.0)
-		Fx.ring(player.global_position, Balance.COL_PLAYER, 6.0, 30.0, 0.25, 2.0)
+	player.request_dash(_move_vec)
 
 func _process(delta: float) -> void:
 	t += delta
