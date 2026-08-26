@@ -109,6 +109,10 @@ func _autotest() -> void:
 	_check(Game.mult >= 2, "combo multiplier increments")
 	var mote_count: int = arena.mote_field.count()
 	_check(mote_count > 0, "kill drops motes")
+	var still_idx: int = arena.mote_field.spawn(player.global_position + Vector2(300, 0))
+	var still_pos: Vector2 = arena.mote_field.pos_of(still_idx)
+	await _ticks(20)
+	_check(arena.mote_field.alive_at(still_idx) and arena.mote_field.pos_of(still_idx).distance_to(still_pos) < 0.01, "motes stay still before magnet")
 	arena.mote_field.spawn(player.global_position + Vector2(4, 0))
 	var meter_before := player.meter
 	await _until(func() -> bool: return player.meter > meter_before or player.oc_ready, 4.0, "mote collection")

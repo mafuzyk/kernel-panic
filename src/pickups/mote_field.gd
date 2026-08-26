@@ -37,8 +37,34 @@ func _ready() -> void:
 		_hide_instance(i)
 
 func _build_quad_mesh() -> Mesh:
-	var mesh := QuadMesh.new()
-	mesh.size = Vector2(26.0, 26.0)
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([
+		# Outer soft halo.
+		Vector3(0.0, -11.0, 0.0), Vector3(7.8, 0.0, 0.0),
+		Vector3(0.0, 11.0, 0.0), Vector3(-7.8, 0.0, 0.0),
+		# Main yellow diamond.
+		Vector3(0.0, -6.0, 0.0), Vector3(4.3, 0.0, 0.0),
+		Vector3(0.0, 6.0, 0.0), Vector3(-4.3, 0.0, 0.0),
+		# White core.
+		Vector3(0.0, -2.4, 0.0), Vector3(1.7, 0.0, 0.0),
+		Vector3(0.0, 2.4, 0.0), Vector3(-1.7, 0.0, 0.0),
+	])
+	arrays[Mesh.ARRAY_COLOR] = PackedColorArray([
+		Color(1.0, 0.824, 0.310, 0.14), Color(1.0, 0.824, 0.310, 0.14),
+		Color(1.0, 0.824, 0.310, 0.14), Color(1.0, 0.824, 0.310, 0.14),
+		Color(1.0, 0.824, 0.310, 0.95), Color(1.0, 0.824, 0.310, 0.95),
+		Color(1.0, 0.824, 0.310, 0.95), Color(1.0, 0.824, 0.310, 0.95),
+		Color(1.0, 1.0, 1.0, 0.92), Color(1.0, 1.0, 1.0, 0.92),
+		Color(1.0, 1.0, 1.0, 0.92), Color(1.0, 1.0, 1.0, 0.92),
+	])
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([
+		0, 1, 2, 0, 2, 3,
+		4, 5, 6, 4, 6, 7,
+		8, 9, 10, 8, 10, 11,
+	])
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
 
 func count() -> int:
@@ -77,7 +103,8 @@ func spawn_burst(pos: Vector2, n: int) -> void:
 
 func _init_slot(idx: int, pos: Vector2) -> void:
 	_pos[idx] = pos
-	_vel[idx] = Vector2.from_angle(Game.rng.randf() * TAU) * Game.rng.randf_range(50.0, 170.0)
+	# Motes are pickups, not debris: stay put until magnetized/collected.
+	_vel[idx] = Vector2.ZERO
 	_life[idx] = Balance.MOTE_LIFE
 	_flags[idx] = F_ALIVE
 	_seed_t[idx] = Game.rng.randf() * TAU
@@ -202,25 +229,10 @@ func _push_instances() -> void:
 		if blink:
 			_hide_instance(i)
 			continue
-		var pulse := 1.0 + 0.16 * sin((now * 7.0) + _seed_t[i])
+		var pulse := 1.0
 		var xform := Transform2D(0.0, _pos[i])
 		xform = xform.scaled(Vector2(pulse, pulse))
 		mm.set_instance_transform_2d(i, xform)
-		mm.set_instance_color(i, Color(1, 1, 1, 1))
+		mm.set_instance_color(i, Color.WHITE)
 	for j in range(_count, MAX):
 		_hide_instance(j)
-
-func _draw() -> void:
-	# Diamond overlay for crisp neon edges (one batched call; motes are small).
-	for i in _count:
-		if not alive_at(i):
-			continue
-		if _life[i] < 2.5 and fmod(_life[i], 0.22) < 0.11:
-			continue
-		var s := 5.2
-		var pts := PackedVector2Array([
-			_pos[i] + Vector2(0, -s), _pos[i] + Vector2(s * 0.7, 0),
-			_pos[i] + Vector2(0, s), _pos[i] + Vector2(-s * 0.7, 0)
-		])
-		draw_colored_polygon(pts, Balance.COL_MOTE)
-		draw_circle(_pos[i], s * 0.45, Color(1, 1, 1, 0.85))

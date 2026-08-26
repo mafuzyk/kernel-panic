@@ -97,8 +97,8 @@ func _ready() -> void:
 	controls.add_theme_color_override("default_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.6))
 	controls.anchor_left = 0.0
 	controls.anchor_right = 1.0
-	controls.offset_top = 556.0
-	controls.offset_bottom = 620.0
+	controls.offset_top = 514.0
+	controls.offset_bottom = 576.0
 	add_child(controls)
 	_best_label = Label.new()
 	_best_label.add_theme_font_override("font", mono)
@@ -120,8 +120,9 @@ func _ready() -> void:
 	tag.anchor_right = 1.0
 	tag.offset_left = -500.0
 	tag.offset_right = -16.0
-	tag.offset_top = 686.0
-	tag.offset_bottom = 706.0
+	# Keep the build stamp out of Android's gesture/navigation inset.
+	tag.offset_top = 96.0
+	tag.offset_bottom = 116.0
 	add_child(tag)
 	var overlay_layer := CanvasLayer.new()
 	overlay_layer.layer = 80
@@ -151,8 +152,8 @@ func _ready() -> void:
 	_klog.text = "[    0.000000] kernel panic daemon online"
 	add_child(_klog)
 
-func _style_card_button(b: Button, border: Color) -> void:
-	b.custom_minimum_size = Vector2(270, 84)
+func _style_card_button(b: Button, border: Color, button_size := Vector2(270, 84)) -> void:
+	b.custom_minimum_size = button_size
 	b.focus_mode = Control.FOCUS_NONE
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(border.r, border.g, border.b, 0.07)
@@ -172,7 +173,7 @@ func _style_card_button(b: Button, border: Color) -> void:
 	b.add_theme_color_override("font_color", Balance.COL_TEXT)
 	b.add_theme_color_override("font_hover_color", Balance.COL_PLAYER_HOT)
 	b.add_theme_color_override("font_pressed_color", Balance.COL_PLAYER_HOT)
-	b.pivot_offset = b.custom_minimum_size * 0.5
+	b.pivot_offset = button_size * 0.5
 	b.button_down.connect(func() -> void:
 		b.scale = Vector2(0.96, 0.96)
 		Sfx.play("ui", 1.0, -10.0)
@@ -187,25 +188,32 @@ func _build_button_row() -> void:
 	row.anchor_right = 0.5
 	row.anchor_top = 1.0
 	row.anchor_bottom = 1.0
-	row.offset_left = -590.0
-	row.offset_right = 590.0
-	row.offset_top = -128.0
-	row.offset_bottom = -34.0
-	row.add_theme_constant_override("separation", 20)
+	var touch_layout := DisplayServer.is_touchscreen_available()
+	var gap: float = 12.0 if touch_layout else 20.0
+	var side_margin: float = 24.0 if touch_layout else 40.0
+	var row_width: float = maxf(size.x - side_margin * 2.0, 0.0)
+	var button_h: float = 72.0 if touch_layout else 84.0
+	var button_w: float = minf(270.0, (row_width - gap * 4.0) / 5.0)
+	var bottom_safe: float = 54.0 if touch_layout else 24.0
+	row.offset_left = -row_width * 0.5
+	row.offset_right = row_width * 0.5
+	row.offset_top = -bottom_safe - button_h
+	row.offset_bottom = -bottom_safe
+	row.add_theme_constant_override("separation", int(gap))
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(row)
 	var purge := Button.new()
-	_style_card_button(purge, Balance.COL_PLAYER)
+	_style_card_button(purge, Balance.COL_PLAYER, Vector2(button_w, button_h))
 	purge.text = ">> PURGE"
 	purge.pressed.connect(_start)
 	row.add_child(purge)
 	_mode_btn = Button.new()
-	_style_card_button(_mode_btn, Balance.COL_MOTE)
+	_style_card_button(_mode_btn, Balance.COL_MOTE, Vector2(button_w, button_h))
 	_mode_btn.text = "MODE: CLASSIC"
 	_mode_btn.pressed.connect(_cycle_mode)
 	row.add_child(_mode_btn)
 	var prog_btn := Button.new()
-	_style_card_button(prog_btn, Color(0.6, 1.0, 0.8))
+	_style_card_button(prog_btn, Color(0.6, 1.0, 0.8), Vector2(button_w, button_h))
 	prog_btn.text = "PROGRAM: %s" % Game.program_def()["name"]
 	prog_btn.pressed.connect(func() -> void:
 		var ids: Array = []
@@ -219,12 +227,12 @@ func _build_button_row() -> void:
 	)
 	row.add_child(prog_btn)
 	var settings_btn := Button.new()
-	_style_card_button(settings_btn, Balance.COL_TEXT)
+	_style_card_button(settings_btn, Balance.COL_TEXT, Vector2(button_w, button_h))
 	settings_btn.text = "SETTINGS"
 	settings_btn.pressed.connect(_open_settings)
 	row.add_child(settings_btn)
 	var best_btn := Button.new()
-	_style_card_button(best_btn, Balance.COL_SPEWER)
+	_style_card_button(best_btn, Balance.COL_SPEWER, Vector2(button_w, button_h))
 	best_btn.text = "BESTIARY"
 	best_btn.pressed.connect(_open_bestiary)
 	row.add_child(best_btn)
@@ -233,14 +241,14 @@ func _build_button_row() -> void:
 	_mode_info.add_theme_font_size_override("font_size", 12)
 	_mode_info.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.6))
 	_mode_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_mode_info.anchor_left = 0.5
-	_mode_info.anchor_right = 0.5
-	_mode_info.anchor_top = 1.0
-	_mode_info.anchor_bottom = 1.0
-	_mode_info.offset_left = -590.0
-	_mode_info.offset_right = -60.0
-	_mode_info.offset_top = -30.0
-	_mode_info.offset_bottom = -10.0
+	_mode_info.anchor_left = 0.0
+	_mode_info.anchor_right = 0.0
+	_mode_info.anchor_top = 0.0
+	_mode_info.anchor_bottom = 0.0
+	_mode_info.offset_left = 24.0
+	_mode_info.offset_right = size.x - 24.0
+	_mode_info.offset_top = 458.0
+	_mode_info.offset_bottom = 482.0
 	add_child(_mode_info)
 	_refresh_mode_ui()
 
@@ -261,7 +269,7 @@ func _open_bestiary() -> void:
 		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_bestiary_panel.add_child(title)
 		var hint := Label.new()
-		hint.text = "purge a daemon to log its data"
+		hint.text = "purge a daemon to log its data  //  SWIPE TO SCROLL"
 		hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 		hint.add_theme_font_size_override("font_size", 13)
 		hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
@@ -293,6 +301,7 @@ func _open_bestiary() -> void:
 		layer.add_child(_bestiary_panel)
 		add_child(layer)
 	_bestiary_panel.visible = true
+	_bestiary_panel.scroll_y = 0.0
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_bestiary() -> void:
