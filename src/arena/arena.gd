@@ -29,6 +29,7 @@ var _patch_box: HBoxContainer
 var _patch_offers: Array = []
 var _patch_open := false
 var _patch_pending := 0
+var wave_signal_count := 0
 
 func _ready() -> void:
 	_build_background()
@@ -67,10 +68,10 @@ func _ready() -> void:
 		tcl.layer = 30
 		tcl.add_child(touch)
 		add_child(tcl)
-	spawner.start(self, enemy_container, 1)
 	spawner.wave_started.connect(_on_wave_started)
 	spawner.wave_cleared.connect(_on_wave_cleared)
 	spawner.boss_spawned.connect(_on_boss_spawned)
+	spawner.start(self, enemy_container, 1)
 	enemy_container.child_entered_tree.connect(_on_enemy_child)
 	enemy_container.child_exiting_tree.connect(_on_enemy_exit)
 	player.hp_changed.connect(_on_player_hp)
@@ -333,6 +334,7 @@ func _build_intro() -> void:
 	add_child(il_layer)
 
 func _on_wave_started(wave: int, is_boss: bool) -> void:
+	wave_signal_count += 1
 	Game.wave = wave
 	Game.stats["wave"] = wave
 	walls.pulse()

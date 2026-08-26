@@ -83,6 +83,7 @@ func _autotest() -> void:
 	_check(arena.spawner != null, "spawner exists")
 	await _ticks(30)
 	_check(Game.wave == 1, "wave 1 started")
+	_check(arena.wave_signal_count >= 1, "wave_started signal received for wave 1")
 	var shots_before: int = Game.stats["shots"]
 	Input.action_press("fire")
 	await _ticks(30)
