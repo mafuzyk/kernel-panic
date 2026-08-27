@@ -712,7 +712,7 @@ func _on_enemy_died(e: EnemyBase) -> void:
 		if player.hp < player.max_hp:
 			player.heal(1)
 			Game.register_heal("boss")
-		if Game.mode != "onehp":
+		if not is_fragment and Game.mode != "onehp":
 			_spawn_recover(e.global_position)
 		if not Game.unlocked_programs.has("rootlet") and int(Game.stats.get("damage", 0)) == _boss_dmg_snapshot:
 			Game.unlock_program("rootlet")
@@ -725,9 +725,6 @@ func _on_enemy_died(e: EnemyBase) -> void:
 		Sfx.haptic(90)
 		if e.boss_index >= 2:
 			Game.unlock_onehp()
-		if player.hp < player.max_hp:
-			player.heal(1)
-			Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
 		offer_patch()
 	Sfx.haptic(12)
 

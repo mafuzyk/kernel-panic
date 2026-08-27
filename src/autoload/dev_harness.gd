@@ -300,6 +300,11 @@ func _systems_test(arena: Arena) -> void:
 	f2.queue_free()
 	await _ticks(2)
 	print("AT_STEP rootsplit")
+	var recover_script: Script = load("res://src/pickups/recover_pickup.gd")
+	for c in arena.mote_container.get_children():
+		if c.get_script() == recover_script:
+			c.queue_free()
+	await _ticks(2)
 	player.invuln = 9999.0
 	var rb := RootBoss.new()
 	rb.boss_index = 1
@@ -329,12 +334,11 @@ func _systems_test(arena: Arena) -> void:
 			if e is RootBoss and is_instance_valid(e) and e.mini and e.global_position.distance_to(mini_positions[i]) > 8.0:
 				mini_moved = true
 	_check(mini_moved, "root minis move during their phase")
-	var recover_script: Script = load("res://src/pickups/recover_pickup.gd")
-	var split_recover := false
+	var split_recover_count := 0
 	for c in arena.mote_container.get_children():
 		if c.get_script() == recover_script:
-			split_recover = true
-	_check(split_recover, "root split drops recover")
+			split_recover_count += 1
+	_check(split_recover_count == 1, "root split drops one recover")
 	var probe_mini: RootBoss = null
 	for e in arena.enemy_container.get_children():
 		if e is RootBoss and is_instance_valid(e) and e.mini:
@@ -342,6 +346,8 @@ func _systems_test(arena: Arena) -> void:
 			break
 	if probe_mini != null:
 		var minis_before := minis_found
+		player.hp = maxi(1, player.max_hp - 2)
+		Game.stats["heals"] = {}
 		arena._patch_pending = 0
 		arena._patch_open = false
 		get_tree().paused = false
@@ -352,6 +358,7 @@ func _systems_test(arena: Arena) -> void:
 			get_tree().paused = false
 		if arena._patch_open:
 			arena._pick_patch(0)
+		_check(int(Game.stats["heals"].get("boss", 0)) == 0, "first root mini gives no boss heal")
 		var minis_now := 0
 		for e in arena.enemy_container.get_children():
 			if e is RootBoss and is_instance_valid(e) and e.mini:
@@ -366,6 +373,12 @@ func _systems_test(arena: Arena) -> void:
 			last_mini.take_hit(last_mini.hp + 99, last_mini.global_position)
 			await _ticks(4)
 		_check(arena._patch_open or arena._patch_pending == 1, "root encounter gives one card after both minis")
+		_check(int(Game.stats["heals"].get("boss", 0)) == 1 and player.hp == player.max_hp - 1, "root encounter gives one boss heal")
+		var final_recover_count := 0
+		for c in arena.mote_container.get_children():
+			if c.get_script() == recover_script:
+				final_recover_count += 1
+		_check(final_recover_count == 1, "root encounter gives one recover total")
 		if get_tree().paused:
 			get_tree().paused = false
 		if arena._patch_open:
