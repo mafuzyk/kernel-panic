@@ -10,6 +10,12 @@ var quality_scale := 1.0
 var _spark_pool: Array[CPUParticles2D] = []
 var _spark_i := 0
 
+const TRACE_TEMPLATES := [
+	"segfault at 0xdeadbeef\n #0 purge_one(<%s>)\n #1 hit_loop",
+	"BUG: unable to handle kernel paging\n #0 reap_daemon(<%s>)\n #1 swapper/0",
+	"%s terminated on signal 11 (core dumped)",
+]
+
 func _ready() -> void:
 	mono_font = load("res://assets/fonts/ShareTechMono.ttf")
 	_add_mat = CanvasItemMaterial.new()
@@ -111,6 +117,15 @@ func text(pos: Vector2, s: String, color: Color, size: int = 15) -> void:
 	var t := FloatText.new()
 	t.setup(s, color, size, mono_font)
 	t.position = pos + Vector2(randf_range(-8, 8), -14)
+	_attach(t)
+
+func stacktrace(pos: Vector2, killer: String, big := false) -> void:
+	var t := FloatText.new()
+	var col := Balance.COL_DANGER if big else Balance.COL_MOTE
+	t.setup(TRACE_TEMPLATES[randi() % TRACE_TEMPLATES.size()] % killer, col, 14 if big else 12, mono_font)
+	t.dur = 1.1
+	t.multiline = true
+	t.position = pos + Vector2(randf_range(-8, 8), 26.0)
 	_attach(t)
 
 func ghost(pos: Vector2, rot: float, draw_fn: Callable, color: Color, life: float = 0.28, node_scale: float = 1.0) -> void:
@@ -253,6 +268,7 @@ class FloatText extends Node2D:
 	var font: Font
 	var t := 0.0
 	var dur := 0.75
+	var multiline := false
 
 	func setup(s: String, c: Color, sz: int, f: Font) -> void:
 		label = s
@@ -275,7 +291,10 @@ class FloatText extends Node2D:
 		c.a = clampf(1.6 - k * 1.6, 0.0, 1.0)
 		var pop := 1.0 + 0.5 * pow(maxf(0.0, 1.0 - k * 4.0), 2.0)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2(pop, pop))
-		draw_string(font, Vector2.ZERO, label, HORIZONTAL_ALIGNMENT_CENTER, -1, fsize, c)
+		if multiline:
+			draw_multiline_string(font, Vector2(-120, 0), label, HORIZONTAL_ALIGNMENT_CENTER, 240, fsize, 6, c)
+		else:
+			draw_string(font, Vector2.ZERO, label, HORIZONTAL_ALIGNMENT_CENTER, -1, fsize, c)
 
 class DotGhost extends Node2D:
 	var radius := 6.0

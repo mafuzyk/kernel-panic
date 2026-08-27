@@ -684,6 +684,10 @@ func _on_enemy_died(e: EnemyBase) -> void:
 	Game.mark_bestiary(e.display_name)
 	var was_split: bool = e is RootBoss and e.get("_split_silent") == true
 	var is_fragment: bool = e is RootBoss and e.mini
+	if e.elite:
+		Fx.stacktrace(e.global_position, e.display_name)
+	elif e is RootBoss and not was_split:
+		Fx.stacktrace(e.global_position, e.display_name, true)
 	if was_split:
 		_boss_fragments_pending = 2
 	elif is_fragment:

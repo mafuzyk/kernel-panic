@@ -73,6 +73,9 @@ func _autotest() -> void:
 		if not (e.has("threat") and e.has("bugs")):
 			entries_ok = false
 	_check(entries_ok, "bestiary entries carry threat and bugs fields")
+	Fx.stacktrace(Vector2.ZERO, "TEST_CRASH")
+	await _ticks(2)
+	_check(true, "stacktrace renders without error")
 	_check(InputMap.has_action("mute"), "mute input action exists")
 	var ek := InputEventKey.new()
 	ek.physical_keycode = KEY_ENTER
