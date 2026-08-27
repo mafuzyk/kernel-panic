@@ -68,6 +68,11 @@ func _autotest() -> void:
 	_check(get_tree().current_scene != null and get_tree().current_scene.name == "Menu", "menu is main scene")
 	_check(Balance.is_desktop_display() == (DisplayServer.get_name() in ["windows", "macos", "x11", "wayland", "embedded"]), "is_desktop_display matches display server")
 	_check(get_tree().current_scene.find_children("*", "BootOverlay", true, false).is_empty(), "boot overlay skipped in headless")
+	var entries_ok := true
+	for e in BestiaryPanel.ENTRIES:
+		if not (e.has("threat") and e.has("bugs")):
+			entries_ok = false
+	_check(entries_ok, "bestiary entries carry threat and bugs fields")
 	_check(InputMap.has_action("mute"), "mute input action exists")
 	var ek := InputEventKey.new()
 	ek.physical_keycode = KEY_ENTER

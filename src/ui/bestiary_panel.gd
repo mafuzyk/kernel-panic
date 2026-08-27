@@ -2,16 +2,16 @@ class_name BestiaryPanel
 extends Control
 
 const ENTRIES := [
-	{"id": "drone", "name": "DRONE", "desc": "basic corrupted process. dash through packs."},
-	{"id": "lancer", "name": "LANCER", "desc": "telegraphs then lunges. sidestep the line, punish the stagger."},
-	{"id": "spewer", "name": "SPEWER", "desc": "keeps distance, spits orbs. shoot the orbs down."},
-	{"id": "splitter", "name": "SPLITTER", "desc": "splits on death. kill it away from you."},
-	{"id": "bulwark", "name": "BULWARK", "desc": "armored and slow. dash past, never hug."},
-	{"id": "trojan", "name": "TROJAN", "desc": "leaves corruption pools. do not swim."},
-	{"id": "oom", "name": "OOM_KILLER", "desc": "steals your motes and runs. hunt it first."},
-	{"id": "boss", "name": "ROOT DAEMON", "desc": "every variant has a tell. learn it. respect it."},
-	{"id": "recursor", "name": "RECURSOR", "desc": "teleports and leaves corruption. pools mark where it was. keep moving."},
-	{"id": "firewall", "name": "FIREWALL", "desc": "rotating wall of orbs. kill the wall to drop the wall."},
+	{"id": "drone", "name": "DRONE", "desc": "basic corrupted process. dash through packs.", "threat": 50, "bugs": "swarms without a scheduler. forever."},
+	{"id": "lancer", "name": "LANCER", "desc": "telegraphs then lunges. sidestep the line, punish the stagger.", "threat": 90, "bugs": "lunges in a straight line. sidestep = fix."},
+	{"id": "spewer", "name": "SPEWER", "desc": "keeps distance, spits orbs. shoot the orbs down.", "threat": 110, "bugs": "orbs are shootable. it has not learned this."},
+	{"id": "splitter", "name": "SPLITTER", "desc": "splits on death. kill it away from you.", "threat": 100, "bugs": "death is a fork(). plan accordingly."},
+	{"id": "bulwark", "name": "BULWARK", "desc": "armored and slow. dash past, never hug.", "threat": 300, "bugs": "armor does not cover the back. or manners."},
+	{"id": "trojan", "name": "TROJAN", "desc": "leaves corruption pools. do not swim.", "threat": 140, "bugs": "leaves pools. calls them 'features'."},
+	{"id": "oom", "name": "OOM_KILLER", "desc": "steals your motes and runs. hunt it first.", "threat": 150, "bugs": "steals motes. returns nothing. ever."},
+	{"id": "boss", "name": "ROOT DAEMON", "desc": "every variant has a tell. learn it. respect it.", "threat": 2500, "bugs": "segfaults reproduce. two of them."},
+	{"id": "recursor", "name": "RECURSOR", "desc": "teleports and leaves corruption. pools mark where it was. keep moving.", "threat": 140, "bugs": "leaves corruption where it *was*. check behind you."},
+	{"id": "firewall", "name": "FIREWALL", "desc": "rotating wall of orbs. kill the wall to drop the wall.", "threat": 180, "bugs": "wall persists after death of nearby processes."},
 ]
 
 var t := 0.0
@@ -120,10 +120,12 @@ func _draw() -> void:
 		draw_string(orbitron, origin + Vector2(14, ch - 70.0), name_txt, HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 16, Balance.COL_TEXT if seen else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.4))
 		var desc: String = e["desc"] if seen else "purge one to log its data."
 		draw_multiline_string(mono, origin + Vector2(14, ch - 48.0), desc, HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 12, 2, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.65 if seen else 0.3))
+		if seen:
+			draw_string(mono, origin + Vector2(cw - 14.0, 20.0), "%d PTS" % int(e["threat"]), HORIZONTAL_ALIGNMENT_RIGHT, 90.0, 11, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.7))
 		if not seen:
 			draw_string(mono, origin + Vector2(14, ch - 14.0), "[ LOCKED ]", HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 11, Color(Balance.COL_DANGER.r, Balance.COL_DANGER.g, Balance.COL_DANGER.b, 0.5))
 		else:
-			draw_string(mono, origin + Vector2(14, ch - 14.0), "[ LOGGED ]", HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 11, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.6))
+			draw_string(mono, origin + Vector2(14, ch - 14.0), "BUGS: " + str(e["bugs"]), HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
 	var viewport_h: float = maxf(size.y - 270.0, 240.0)
 	var rows: int = ceili(float(ENTRIES.size()) / float(cols))
 	var content_h: float = rows * ch + (rows - 1) * gap
