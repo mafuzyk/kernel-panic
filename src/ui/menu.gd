@@ -17,6 +17,7 @@ var _klog_t := 0.0
 var _esc_armed := 0.0
 var _bestiary_panel: BestiaryPanel
 var _aim_btn_ref: Button
+var _boot: BootOverlay
 
 func _refresh_aim_label(btn: Button) -> void:
 	if Game.mode == "weekly" and Sfx.aim_mode == "lockon":
@@ -151,6 +152,12 @@ func _ready() -> void:
 	_klog.offset_bottom = 190.0
 	_klog.text = "[    0.000000] kernel panic daemon online"
 	add_child(_klog)
+	if not DevHarness.active and DisplayServer.get_name() != "headless":
+		_boot = BootOverlay.new()
+		var bl := CanvasLayer.new()
+		bl.layer = 95
+		bl.add_child(_boot)
+		add_child(bl)
 
 func _style_card_button(b: Button, border: Color, button_size := Vector2(270, 84)) -> void:
 	b.custom_minimum_size = button_size
