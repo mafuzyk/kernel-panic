@@ -463,7 +463,7 @@ func _systems_test(arena: Arena) -> void:
 	seg._lance_cd = 0.0
 	var lance_seen := false
 	for i in 90:
-		await get_tree().process_frame
+		await _ticks(1)
 		if not is_instance_valid(seg):
 			break
 		if seg.act == RootBoss.Act.LANCE_WIND or seg.act == RootBoss.Act.LANCE_GO:
@@ -741,6 +741,7 @@ func _systems_test(arena: Arena) -> void:
 			break
 		if rec.phase == 3 or rec.phase == 2:
 			break
+	await _ticks(3)
 	var zones_after := get_tree().get_nodes_in_group("corruption").size()
 	if not is_instance_valid(rec):
 		rec = null
@@ -754,17 +755,20 @@ func _systems_test(arena: Arena) -> void:
 	arena.enemy_container.add_child(fw)
 	await _ticks(2)
 	_check(fw.display_name == "FIREWALL", "firewall builds")
+	var fw_angle_before: float = fw._wall_angle
 	for i in 600:
-		await get_tree().process_frame
+		await _ticks(1)
 		if not is_instance_valid(fw):
 			break
 		if fw._settled and get_tree().get_nodes_in_group("enemy_orbs").size() >= 5:
 			break
+	await _ticks(3)
 	var fw_orbs := 0
 	for orb in get_tree().get_nodes_in_group("enemy_orbs"):
 		if is_instance_valid(orb) and orb.get_meta("fw_owner", -1) == fw.get_instance_id():
 			fw_orbs += 1
 	_check(fw_orbs >= 3, "firewall maintains rotating wall (%d orbs)" % fw_orbs)
+	_check(absf(fw._wall_angle - fw_angle_before) > 0.01, "firewall wall rotates")
 	if is_instance_valid(fw):
 		fw.take_hit(999, fw.global_position)
 		await _ticks(6)
