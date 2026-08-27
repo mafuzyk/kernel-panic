@@ -66,6 +66,7 @@ func _autotest() -> void:
 	Game.set_program("kernel")
 	await _ticks(20)
 	_check(get_tree().current_scene != null and get_tree().current_scene.name == "Menu", "menu is main scene")
+	_check(Balance.is_desktop_display() == (DisplayServer.get_name() in ["windows", "macos", "x11", "wayland", "embedded"]), "is_desktop_display matches display server")
 	_check(InputMap.has_action("mute"), "mute input action exists")
 	var ek := InputEventKey.new()
 	ek.physical_keycode = KEY_ENTER
