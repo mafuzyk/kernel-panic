@@ -85,7 +85,7 @@ Three run modes change the rules:
 - `Esc`: pause
 - `M`: mute
 
-## Run and build from source
+## Run and build from source on Linux
 
 KERNEL PANIC is built with **Godot 4.7.2** and GDScript.
 
@@ -100,16 +100,7 @@ mkdir -p build/linux-x86_64
 godot --headless --path . --export-release "Linux x86_64" build/linux-x86_64/kernel-panic
 ```
 
-Keep `kernel-panic` and `kernel-panic.pck` together when distributing the build.
-
-To create the Android APK, install Godot's Android export templates, a JDK 17, and the Android SDK with the required platform/build-tools packages. Configure the SDK and JDK paths in Godot's Android Editor Settings, then run:
-
-```sh
-mkdir -p build/android
-godot --headless --path . --export-debug Android build/android/kernel-panic.apk
-```
-
-The Android preset currently exports 64-bit ARM (`arm64-v8a`). The debug export uses Godot's debug keystore; configure a separate release keystore in the editor for a production-signed APK. Never commit signing credentials. The project includes an automated harness that can be run with:
+Keep `kernel-panic` and `kernel-panic.pck` together when distributing the build. The project includes an automated harness that can be run with:
 
 ```sh
 godot --headless --path . -- --autotest
