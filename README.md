@@ -28,9 +28,28 @@ Somehow, it worked.
 
 ## Play it
 
-Grab the Android APK from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest).
+Grab the Android APK, or the Linux build when available, from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest).
 
-Android may ask for permission to install apps from your browser or file manager. KERNEL PANIC does not request network access and stores progress locally.
+## Install the game
+
+### Android
+
+1. Download `KERNEL-PANIC.apk` from the latest release and open it from your browser or file manager.
+2. If Android blocks the installation, allow that app to **Install unknown apps** in the system settings, then open the APK again.
+3. Confirm **Install**. The current export targets 64-bit ARM devices (`arm64-v8a`).
+
+KERNEL PANIC does not request network access and stores progress locally.
+
+### Linux x86_64
+
+Download both `kernel-panic` and `kernel-panic.pck` from the same release and keep them in the same directory. Then run:
+
+```sh
+chmod +x kernel-panic
+./kernel-panic
+```
+
+For a local export from this repository, the files are generated at `build/linux-x86_64/`. The executable and its `.pck` must remain together.
 
 ## How it plays
 
