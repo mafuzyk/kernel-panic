@@ -76,6 +76,14 @@ func _autotest() -> void:
 	Fx.stacktrace(Vector2.ZERO, "TEST_CRASH")
 	await _ticks(2)
 	_check(true, "stacktrace renders without error")
+	var ret_script := load("res://src/ui/reticle.gd")
+	_check(ret_script != null, "reticle script loads")
+	var ret: Reticle = ret_script.new()
+	ret.player = null
+	add_child(ret)
+	await _ticks(2)
+	_check(is_instance_valid(ret), "reticle ticks without error")
+	ret.queue_free()
 	_check(InputMap.has_action("mute"), "mute input action exists")
 	var ek := InputEventKey.new()
 	ek.physical_keycode = KEY_ENTER

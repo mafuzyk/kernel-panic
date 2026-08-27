@@ -25,6 +25,7 @@ var _intro_bars: Array[ColorRect] = []
 var _intro_label: Label
 var _intro_quote: Label
 var touch: TouchControls
+var reticle: Reticle
 var _patch_panel: Control
 var _patch_box: HBoxContainer
 var _patch_offers: Array = []
@@ -73,6 +74,13 @@ func _ready() -> void:
 		tcl.layer = 30
 		tcl.add_child(touch)
 		add_child(tcl)
+	if (Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available()) or OS.get_environment("KP_FORCE_RETICLE") != "":
+		var rl := CanvasLayer.new()
+		rl.layer = 85
+		reticle = Reticle.new()
+		reticle.player = player
+		rl.add_child(reticle)
+		add_child(rl)
 	spawner.wave_started.connect(_on_wave_started)
 	spawner.wave_cleared.connect(_on_wave_cleared)
 	spawner.boss_spawned.connect(_on_boss_spawned)
@@ -490,6 +498,7 @@ func _try_show_patch() -> void:
 		return
 	_patch_pending -= 1
 	_patch_open = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_patch_offers = Game.roll_patch_offer()
 	if _patch_offers.is_empty():
 		_patch_open = false
@@ -623,6 +632,7 @@ func _on_player_died() -> void:
 	if _state != "play":
 		return
 	_state = "dead"
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	spawner.stop()
 	overlay.aberrate(1.4)
 	var t := get_tree().create_timer(1.3, true, false, true)
@@ -797,6 +807,8 @@ func _set_paused(v: bool) -> void:
 	get_tree().paused = v
 	_pause_panel.visible = v
 	if v:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if v:
 		_pause_stats.text = "%s // SCORE %07d   CYCLE %02d   COMBO x%d\nBUILD: %s" % [Game.program_def()["name"], Game.score, Game.wave, Game.mult, Game.build_string()]
 	Sfx.play("ui", 1.0, -6.0)
 	if not v:
@@ -808,6 +820,10 @@ func _notification(what: int) -> void:
 			_set_paused(true)
 
 func _process(delta: float) -> void:
+	var want_hidden := _state == "play" and not get_tree().paused and reticle != null
+	var target_mouse := Input.MOUSE_MODE_HIDDEN if want_hidden else Input.MOUSE_MODE_VISIBLE
+	if Input.mouse_mode != target_mouse:
+		Input.mouse_mode = target_mouse
 	if _bg_mat != null:
 		var c := _era_color
 		if OS.get_environment("KP_NOTINT") == "":
@@ -822,3 +838,6 @@ func _process(delta: float) -> void:
 			level = 1
 		Sfx.set_intensity(level)
 		_update_quality(delta)
+
+func _exit_tree() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
