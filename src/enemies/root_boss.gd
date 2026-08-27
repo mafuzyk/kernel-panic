@@ -259,9 +259,13 @@ func _try_attacks() -> void:
 		_start_charge()
 
 func _start_charge() -> void:
+	_charge_cd = 5.2
 	act = Act.CHARGE_WIND
 	act_t = 0.55
 	Sfx.play("charge", 0.7, -4.0)
+
+func vel() -> Vector2:
+	return _v
 
 func _start_spiral(shots: int, dur: float) -> void:
 	_spiral_cd = 5.5

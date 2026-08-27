@@ -450,6 +450,21 @@ func _systems_test(arena: Arena) -> void:
 	_check(mk4.hp < hp0, "PAGE FAULT vulnerable with no pages")
 	mk4.queue_free()
 	await _ticks(2)
+	print("AT_STEP rootcharge")
+	var charge := RootBoss.new()
+	charge.boss_index = 1
+	charge.configure(1.0, false)
+	charge.position = Vector2.ZERO
+	arena.enemy_container.add_child(charge)
+	await _ticks(2)
+	charge._v = Vector2.RIGHT * 800.0
+	charge.act = RootBoss.Act.CHARGE_GO
+	charge.act_t = 0.4
+	var charge_start := charge.global_position
+	await _ticks(10)
+	_check(charge.global_position.distance_to(charge_start) > 20.0, "root charge moves during charge")
+	charge.queue_free()
+	await _ticks(2)
 	print("AT_STEP quality")
 	arena.quality_tier = 1
 	Fx.quality_scale = 0.5
