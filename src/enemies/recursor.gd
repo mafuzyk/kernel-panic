@@ -69,7 +69,7 @@ func _finish_teleport() -> void:
 	phase = Phase.ARRIVE
 	phase_t = 0.3
 	Fx.ring(global_position, col, 4.0, 40.0, 0.3, 2.0)
-	Sfx.play("teleport" if Sfx.has_sound("teleport") else "hit", 1.3, -12.0)
+	Sfx.play("dash", 1.3, -12.0)
 
 func _leave_zone(pos: Vector2) -> void:
 	var zones := get_tree().get_nodes_in_group("corruption") if get_tree() != null else []

@@ -80,7 +80,8 @@ func _steal(idx: int) -> void:
 	var f := _field()
 	if f == null or f.is_stolen(idx):
 		return
-	f.steal_nearest(global_position)
+	if f.steal(idx) < 0:
+		return
 	f.set_slot_position(idx, f.pos_of(idx))
 	carried_ids.append(idx)
 	Fx.sparks(f.pos_of(idx), col, 5, 140.0, 0.3, 2.5)

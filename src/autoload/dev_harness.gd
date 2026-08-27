@@ -747,6 +747,11 @@ func _systems_test(arena: Arena) -> void:
 		rec = null
 	_check(zones_after > zones_before or rec == null, "recursor leaves corruption zones")
 	if is_instance_valid(rec):
+		rec._dest = rec.global_position + Vector2(120, 0)
+		rec.phase = RecursorEnemy.Phase.GONE
+		rec.phase_t = 0.0
+		rec._finish_teleport()
+		_check(rec.phase == RecursorEnemy.Phase.ARRIVE, "recursor teleport finishes without audio error")
 		var min_dist: float = rec.global_position.distance_to(player.global_position)
 		_check(min_dist > 85.0, "recursor never teleports onto player (%d px)" % int(min_dist))
 		rec.queue_free()
@@ -785,6 +790,18 @@ func _systems_test(arena: Arena) -> void:
 	oom.position = arena.player.global_position + Vector2(320, 0)
 	arena.enemy_container.add_child(oom)
 	await _ticks(2)
+	var target_field: MoteField = arena.mote_field
+	for i in range(target_field.count() - 1, -1, -1):
+		target_field.kill_slot(i)
+	var near_idx := target_field.spawn(oom.global_position + Vector2(12, 0))
+	var selected_idx := target_field.spawn(oom.global_position + Vector2(160, 0))
+	oom.set_physics_process(false)
+	oom._steal(selected_idx)
+	_check(target_field.is_stolen(selected_idx) and not target_field.is_stolen(near_idx), "OOM_KILLER steals selected mote slot")
+	target_field.free_all_stolen()
+	target_field.kill_slot(near_idx)
+	oom.carried_ids.clear()
+	oom.set_physics_process(true)
 	var steal_box := [-1]
 	arena.mote_field.spawn(oom.global_position + Vector2(12, 0))
 	await _until(func() -> bool:

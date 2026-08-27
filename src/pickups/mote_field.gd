@@ -153,9 +153,13 @@ func nearest_free(pos: Vector2) -> int:
 
 func steal_nearest(pos: Vector2) -> int:
 	var idx := nearest_free(pos)
-	if idx >= 0:
-		_flags[idx] |= F_STOLEN
-		_flags[idx] &= ~F_MAGNET
+	return steal(idx)
+
+func steal(idx: int) -> int:
+	if idx < 0 or idx >= _count or not alive_at(idx) or is_stolen(idx):
+		return -1
+	_flags[idx] |= F_STOLEN
+	_flags[idx] &= ~F_MAGNET
 	return idx
 
 func release_all_stolen() -> void:
