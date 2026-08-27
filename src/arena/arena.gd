@@ -30,6 +30,7 @@ var _patch_box: HBoxContainer
 var _patch_offers: Array = []
 var _patch_open := false
 var _patch_pending := 0
+var _boss_fragments_pending := 0
 var wave_signal_count := 0
 
 func _ready() -> void:
@@ -682,7 +683,13 @@ func _heals_line(s: Dictionary) -> String:
 func _on_enemy_died(e: EnemyBase) -> void:
 	Game.mark_bestiary(e.display_name)
 	var was_split: bool = e is RootBoss and e.get("_split_silent") == true
-	Game.register_kill(0 if was_split else e.pts, e is RootBoss and not was_split)
+	var is_fragment: bool = e is RootBoss and e.mini
+	if was_split:
+		_boss_fragments_pending = 2
+	elif is_fragment:
+		_boss_fragments_pending = maxi(_boss_fragments_pending - 1, 0)
+	var boss_reward: bool = e is RootBoss and not was_split and (not is_fragment or _boss_fragments_pending == 0)
+	Game.register_kill(0 if was_split else e.pts, boss_reward)
 	player.add_kill_mote_bonus()
 	player.notify_kill()
 	var n := e.mote_count
@@ -699,9 +706,9 @@ func _on_enemy_died(e: EnemyBase) -> void:
 	if field != null:
 		for i in n:
 			field.spawn_burst(e.global_position, 1)
-	if Game.recover_chance(e.elite) > 0.0 and Game.rng.randf() < Game.recover_chance(e.elite):
+	if not is_fragment and not was_split and Game.recover_chance(e.elite) > 0.0 and Game.rng.randf() < Game.recover_chance(e.elite):
 		_spawn_recover(e.global_position)
-	if e is RootBoss and not was_split:
+	if boss_reward:
 		if player.hp < player.max_hp:
 			player.heal(1)
 			Game.register_heal("boss")

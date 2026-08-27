@@ -307,14 +307,28 @@ func _systems_test(arena: Arena) -> void:
 	rb.position = player.global_position + Vector2(300, -80)
 	arena.enemy_container.add_child(rb)
 	await _ticks(2)
-	rb.hp = int(rb.max_hp / 2.0) + 5
-	rb.take_hit(rb.hp + 99, rb.global_position + Vector2(6, 0))
+	rb.hp = int(rb.max_hp * 0.51) + 1
+	rb.take_hit(2, rb.global_position + Vector2(6, 0))
 	await _ticks(5)
 	var minis_found := 0
 	for e in arena.enemy_container.get_children():
 		if e is RootBoss and is_instance_valid(e) and e.mini:
 			minis_found += 1
 	_check(minis_found == 2, "root splits into two minis (%d)" % minis_found)
+	var mini_hp_ok := true
+	var mini_positions: Array[Vector2] = []
+	for e in arena.enemy_container.get_children():
+		if e is RootBoss and is_instance_valid(e) and e.mini:
+			mini_hp_ok = mini_hp_ok and e.hp >= 2 and e.max_hp >= 2
+			mini_positions.append(e.global_position)
+	_check(minis_found == 2 and mini_hp_ok, "root minis survive more than one hit")
+	await _ticks(10)
+	var mini_moved := false
+	for i in mini_positions.size():
+		for e in arena.enemy_container.get_children():
+			if e is RootBoss and is_instance_valid(e) and e.mini and e.global_position.distance_to(mini_positions[i]) > 8.0:
+				mini_moved = true
+	_check(mini_moved, "root minis move during their phase")
 	var recover_script: Script = load("res://src/pickups/recover_pickup.gd")
 	var split_recover := false
 	for c in arena.mote_container.get_children():
@@ -329,8 +343,11 @@ func _systems_test(arena: Arena) -> void:
 	if probe_mini != null:
 		var minis_before := minis_found
 		arena._patch_pending = 0
+		arena._patch_open = false
+		get_tree().paused = false
 		probe_mini.take_hit(probe_mini.hp + 99, probe_mini.global_position)
 		await _ticks(4)
+		_check(arena._patch_pending == 0 and not arena._patch_open, "first root mini gives no boss card")
 		if get_tree().paused:
 			get_tree().paused = false
 		if arena._patch_open:
@@ -340,6 +357,19 @@ func _systems_test(arena: Arena) -> void:
 			if e is RootBoss and is_instance_valid(e) and e.mini:
 				minis_now += 1
 		_check(minis_now < minis_before + 2, "minis never split again")
+		var last_mini: RootBoss = null
+		for e in arena.enemy_container.get_children():
+			if e is RootBoss and is_instance_valid(e) and e.mini:
+				last_mini = e
+				break
+		if last_mini != null:
+			last_mini.take_hit(last_mini.hp + 99, last_mini.global_position)
+			await _ticks(4)
+		_check(arena._patch_open or arena._patch_pending == 1, "root encounter gives one card after both minis")
+		if get_tree().paused:
+			get_tree().paused = false
+		if arena._patch_open:
+			arena._pick_patch(0)
 	await _ticks(4)
 	for e in get_tree().get_nodes_in_group("boss"):
 		if is_instance_valid(e):

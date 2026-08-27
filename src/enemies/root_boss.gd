@@ -98,6 +98,9 @@ func _move(delta: float) -> void:
 	act_t -= delta
 	if _exposed > 0.0:
 		_exposed -= delta
+	if mini:
+		_move_mini(delta)
+		return
 	var frac := float(hp) / float(max_hp)
 	var new_phase := Phase.ONE
 	if frac < 0.33:
@@ -191,7 +194,50 @@ func _move(delta: float) -> void:
 			Fx.sparks(position, col, 16, 380.0, 0.5, 3.5)
 			Sfx.play("hit", 0.5, -2.0)
 
+func _move_mini(delta: float) -> void:
+	_burst_cd -= delta
+	_lance_cd -= delta
+	match act:
+		Act.HOVER:
+			var to_p := aim_at_player()
+			var target := to_p * (speed * 2.0) + to_p.orthogonal() * sin(t * 2.0) * 55.0
+			_v = _v.move_toward(target, 520.0 * delta)
+			_try_attacks()
+		Act.BURST:
+			_v = _v.move_toward(Vector2.ZERO, 700.0 * delta)
+			if act_t <= 0.0:
+				act = Act.HOVER
+		Act.LANCE_WIND:
+			_v = _v.move_toward(Vector2.ZERO, 1000.0 * delta)
+			_lance_dir = aim_at_player()
+			if act_t <= 0.0:
+				act = Act.LANCE_GO
+				act_t = 0.28
+				_v = _lance_dir * 980.0
+				Sfx.play("dash", 0.55, -7.0)
+		Act.LANCE_GO:
+			if act_t <= 0.0:
+				act = Act.STAGGER
+				act_t = 0.35
+		Act.STAGGER:
+			_v = _v.move_toward(Vector2.ZERO, 800.0 * delta)
+			if act_t <= 0.0:
+				act = Act.HOVER
+
 func _try_attacks() -> void:
+	if mini:
+		if act != Act.HOVER:
+			return
+		if _burst_cd <= 0.0:
+			_burst_cd = 3.4
+			_do_burst(6, 180.0)
+		if _lance_cd <= 0.0:
+			_lance_cd = 5.0
+			act = Act.LANCE_WIND
+			act_t = 0.42
+			_lance_dir = aim_at_player()
+			Sfx.play("charge", 0.55, -7.0)
+		return
 	var mk := clampi(boss_index, 1, 8)
 	if act != Act.HOVER:
 		return
@@ -401,7 +447,7 @@ func take_hit(dmg: int, from: Vector2) -> void:
 		return
 	if _exposed > 0.0:
 		dmg *= 2
-	if kind == 1 and not mini and not split_done and dmg >= hp:
+	if kind == 1 and not mini and not split_done and hp > max_hp / 2 and hp - dmg <= max_hp / 2:
 		_split_into_minis()
 		return
 	super.take_hit(dmg, from)
@@ -446,7 +492,7 @@ func _warn_and_rebuild_shield() -> void:
 
 func _split_into_minis() -> void:
 	split_done = true
-	var remaining := maxi(hp, 1)
+	var fragment_hp := maxi(6, int(max_hp * 0.18))
 	Fx.flash(Color(1, 1, 1), 0.4, 0.4)
 	Fx.burst(global_position, col, 2.4, 12)
 	Fx.ring(global_position, col, 10.0, 220.0, 0.6, 5.0)
@@ -458,8 +504,8 @@ func _split_into_minis() -> void:
 		m.split_done = true
 		m.boss_index = boss_index
 		m.configure(1.0, false)
-		m.hp = int(remaining * 0.3)
-		m.max_hp = m.hp
+		m.hp = fragment_hp
+		m.max_hp = fragment_hp
 		m.position = global_position + Vector2(-40.0 + 80.0 * i, 20.0)
 		m.col = col.lerp(Color(1, 1, 1), 0.25)
 		get_parent().call_deferred("add_child", m)
@@ -539,9 +585,10 @@ func _draw_root(c: Color, r: float) -> void:
 		draw_circle(eye, r * 0.07, Color(1, 1, 1, 0.95))
 	var hp_frac := float(hp) / float(max_hp)
 	draw_arc(Vector2.ZERO, r + 10.0, -PI / 2, -PI / 2 + TAU * hp_frac, 48, Color(c.r, c.g, c.b, 0.55), 2.5, true)
-	if act == Act.CHARGE_WIND:
-		var a := 0.3 + 0.45 * absf(sin(t * 26.0))
-		draw_line(Vector2.ZERO, _charge_dir.rotated(-rotation) * 900.0, Color(1, 1, 1, a), 2.5)
+	if mini and act == Act.LANCE_WIND:
+		var la := 0.3 + 0.45 * absf(sin(t * 28.0))
+		draw_line(Vector2.ZERO, _lance_dir.rotated(-rotation) * 760.0, Color(1, 0.6, 0.24, la), 2.5)
+		draw_line(Vector2.ZERO, _lance_dir.rotated(-rotation) * 760.0, Color(1, 1, 1, la * 0.4), 1.0)
 
 func _draw_segfault(c: Color, r: float) -> void:
 	var off := _glitch_off
