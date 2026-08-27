@@ -42,6 +42,12 @@ func _ticks(n: int) -> void:
 	for i in n:
 		await get_tree().process_frame
 
+func _simulation_seconds(seconds: float) -> void:
+	var elapsed := 0.0
+	while elapsed < seconds:
+		await get_tree().physics_frame
+		elapsed += 1.0 / float(Engine.physics_ticks_per_second)
+
 func _until(fn: Callable, timeout_s: float, label: String) -> bool:
 	var t := 0.0
 	while t < timeout_s:
@@ -187,7 +193,10 @@ func _autotest() -> void:
 	player.hp = player.max_hp - 1
 	arena.mote_container.add_child(rp)
 	var hp_rec0 := player.hp
-	ok = await _until(func() -> bool: return player.hp == hp_rec0 + 1 or not is_instance_valid(rp), 4.0, "recover pickup collected")
+	for i in 240:
+		await get_tree().process_frame
+		if player.hp == hp_rec0 + 1 or not is_instance_valid(rp):
+			break
 	_check(player.hp == hp_rec0 + 1, "recover pickup heals on touch")
 	print("AT_STEP vampic")
 	Game.patch_levels = {"vampic": 1}
@@ -225,7 +234,10 @@ func _autotest() -> void:
 	arena.enemy_container.add_child(e2)
 	e2.configure(1.0, false)
 	player.invuln = 0.0
-	await _until(func() -> bool: return player.dead, 6.0, "player death")
+	for i in 360:
+		await get_tree().process_frame
+		if not is_instance_valid(player) or player.dead:
+			break
 	_check(player.dead, "player dies at 0 hp")
 	ok = await _until(func() -> bool: return Game.state == Game.State.GAME_OVER, 5.0, "game over state")
 	if not ok:
@@ -234,8 +246,13 @@ func _autotest() -> void:
 	var best_after := Game.best
 	_check(best_after >= Game.score, "best score saved")
 	Game.start_run()
-	ok = await _until(func() -> bool:
-		return get_tree().current_scene != null and get_tree().current_scene.name == "Arena" and get_tree().current_scene != arena, 6.0, "restart reloads arena")
+	ok = false
+	for i in 360:
+		await get_tree().process_frame
+		var next_scene := get_tree().current_scene
+		if next_scene != null and next_scene.name == "Arena" and next_scene != arena:
+			ok = true
+			break
 	if not ok:
 		return _finish()
 	_check(Game.score == 0, "score resets on restart")
@@ -276,6 +293,23 @@ func _autotest() -> void:
 		_check(int(cf_after.get_value("run", "best_classic", -1)) == 0 and Game.best == 0, "reset scores clears best_classic")
 	else:
 		_fail("menu exposes _reset_scores")
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if is_instance_valid(node):
+			node.queue_free()
+	for node in get_tree().get_nodes_in_group("enemy_orbs"):
+		if is_instance_valid(node):
+			node.queue_free()
+	for node in get_tree().get_nodes_in_group("corruption"):
+		if is_instance_valid(node):
+			node.queue_free()
+	for node in get_tree().get_nodes_in_group("page"):
+		if is_instance_valid(node):
+			node.queue_free()
+	await _ticks(4)
+	var final_scene := get_tree().current_scene
+	if final_scene != null and is_instance_valid(final_scene):
+		final_scene.queue_free()
+	await _ticks(4)
 	_finish()
 
 func _systems_test(arena: Arena) -> void:
@@ -846,7 +880,7 @@ func _systems_test(arena: Arena) -> void:
 	print("AT_STEP freeze")
 	player.apply_freeze(1.0)
 	_check(player.slow_factor < 1.0, "freeze slows player")
-	await _ticks(70)
+	await _simulation_seconds(1.1)
 	_check(absf(player.slow_factor - 1.0) < 0.01, "freeze expires")
 	print("AT_STEP wave1")
 	var sp := arena.spawner

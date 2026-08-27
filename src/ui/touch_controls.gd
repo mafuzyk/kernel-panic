@@ -58,8 +58,6 @@ func _input(event: InputEvent) -> void:
 				if player != null and is_instance_valid(player):
 					player.touch_aim = Vector2.ZERO
 					player.aim_assist_dir = Vector2.ZERO
-			elif t.index == _move_id:
-				pass
 	elif event is InputEventScreenDrag:
 		var d := event as InputEventScreenDrag
 		if d.index == _move_id:
