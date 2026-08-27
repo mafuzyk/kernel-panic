@@ -12,6 +12,8 @@ var _meter := 0.0
 var _oc_ready := false
 var _oc_active := false
 var _dash_frac := 1.0
+var _dash_available := 1
+var _dash_max := 1
 var _banner_t := 0.0
 var _banner_text := ""
 var _banner_sub := ""
@@ -110,7 +112,12 @@ func _process(delta: float) -> void:
 		_meter = player.meter
 		_oc_ready = player.oc_ready
 		_oc_active = player.overclock_active
-		_dash_frac = clampf(1.0 - player.dash_cd / Balance.DASH_CD, 0.0, 1.0)
+		_dash_available = player.available_dash_charges()
+		_dash_max = maxi(player.dash_charges, 1)
+		if _dash_available > 0:
+			_dash_frac = 1.0
+		else:
+			_dash_frac = clampf(1.0 - player.dash_cd / player.dash_cooldown_duration(), 0.0, 1.0)
 	if _build_label != null and Game.patch_level("vampic") > 0:
 		var on_cd := Game.vampic_cd > 0.0
 		var blink := 0.35 + 0.3 * absf(sin(Time.get_ticks_msec() / 180.0))
@@ -201,11 +208,12 @@ func _mult_chip(f: Font) -> void:
 	draw_rect(Rect2(bar.position, Vector2(bar.size.x * _combo_frac, 4)), hot)
 
 func _dash_pip(f: Font) -> void:
-	if DisplayServer.is_touchscreen_available():
+	if not Balance.is_desktop_display() or DisplayServer.is_touchscreen_available():
 		return
 	var col := Balance.COL_PLAYER if _dash_frac >= 1.0 else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.35)
 	draw_circle(Vector2(32, 688), 5.0, col)
-	draw_string(f, Vector2(46, 693), "DASH [SHIFT]", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, 0.7))
+	var dash_text := "DASH x%d [SHIFT]" % _dash_max if _dash_max > 1 else "DASH [SHIFT]"
+	draw_string(f, Vector2(46, 693), dash_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, 0.7))
 
 func _boss_bar(f: Font) -> void:
 	var w := 500.0

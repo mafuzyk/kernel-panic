@@ -82,3 +82,7 @@ static func elite_chance(wave: int) -> float:
 
 static func arena_rect() -> Rect2:
 	return Rect2(-ARENA_W * 0.5, -ARENA_H * 0.5, ARENA_W, ARENA_H)
+
+static func is_desktop_display(display_name: String = "") -> bool:
+	var name := display_name.to_lower() if display_name != "" else DisplayServer.get_name().to_lower()
+	return name in ["windows", "macos", "x11", "wayland", "embedded"]

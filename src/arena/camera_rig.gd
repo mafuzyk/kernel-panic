@@ -19,7 +19,7 @@ func zoom_punch(amount: float) -> void:
 
 func _process(delta: float) -> void:
 	trauma = maxf(trauma - delta * 1.9, 0.0)
-	var desktop := DisplayServer.get_name() == "windows" or DisplayServer.get_name() == "x11" or DisplayServer.get_name() == "macos"
+	var desktop := Balance.is_desktop_display()
 	var lean_target := Vector2.ZERO
 	if desktop and not DisplayServer.is_touchscreen_available():
 		var mouse := get_global_mouse_position()

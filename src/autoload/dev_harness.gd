@@ -762,6 +762,26 @@ func _systems_test(arena: Arena) -> void:
 	if arena.touch != null:
 		arena.touch.player = player
 	await _ticks(2)
+	player.invuln = 9999.0
+	player.hp = player.max_hp
+	print("AT_STEP desktop_dash_hud")
+	_check(Balance.is_desktop_display("wayland"), "wayland is a desktop display")
+	_check(Balance.is_desktop_display("embedded"), "embedded is a desktop display")
+	arena.hud.player = player
+	Game.patch_levels = {"dash": 1}
+	player.dash_charges = 1
+	player.dash_cd = Balance.DASH_CD * pow(0.82, Game.patch_level("dash"))
+	await _ticks(2)
+	_check(arena.hud._dash_frac < 0.1, "dash hud uses quick dash cooldown")
+	player.dash_charges = 2
+	player.dash_recharge_t = 0.5
+	player.dash_cd = 0.5
+	await _ticks(2)
+	_check(arena.hud._dash_frac > 0.99, "dash hud shows available extra charge")
+	player.dash_charges = 1
+	player.dash_recharge_t = 0.0
+	player.dash_cd = 0.0
+	Game.patch_levels = {}
 	print("AT_STEP newenemies")
 	var rec = load("res://src/enemies/recursor.gd").new()
 	rec.position = player.global_position + Vector2(300, 0)
@@ -829,13 +849,11 @@ func _systems_test(arena: Arena) -> void:
 		target_field.kill_slot(i)
 	var near_idx := target_field.spawn(oom.global_position + Vector2(12, 0))
 	var selected_idx := target_field.spawn(oom.global_position + Vector2(160, 0))
-	oom.set_physics_process(false)
 	oom._steal(selected_idx)
 	_check(target_field.is_stolen(selected_idx) and not target_field.is_stolen(near_idx), "OOM_KILLER steals selected mote slot")
 	target_field.free_all_stolen()
 	target_field.kill_slot(near_idx)
 	oom.carried_ids.clear()
-	oom.set_physics_process(true)
 	var steal_box := [-1]
 	arena.mote_field.spawn(oom.global_position + Vector2(12, 0))
 	await _until(func() -> bool:

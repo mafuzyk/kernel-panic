@@ -154,7 +154,7 @@ func _physics_process(delta: float) -> void:
 	position.x = clampf(position.x, r.position.x + Balance.PLAYER_RADIUS, r.end.x - Balance.PLAYER_RADIUS)
 	position.y = clampf(position.y, r.position.y + Balance.PLAYER_RADIUS, r.end.y - Balance.PLAYER_RADIUS)
 	var manual_touch_aim := touch_aim.length() > 0.2
-	var desktop := DisplayServer.get_name() == "windows" or DisplayServer.get_name() == "x11" or DisplayServer.get_name() == "macos"
+	var desktop := Balance.is_desktop_display()
 	if manual_touch_aim:
 		aim = touch_aim.normalized() * 100.0
 	elif lockon_active:
@@ -306,6 +306,14 @@ func _avail_charges() -> int:
 	else:
 		n = maxf(dash_charges - 1.0, 1.0)
 	return int(n)
+
+func available_dash_charges() -> int:
+	if dash_charges <= 1:
+		return 0 if dash_cd > 0.0 else 1
+	return _avail_charges()
+
+func dash_cooldown_duration() -> float:
+	return Balance.DASH_CD * pow(0.82, Game.patch_level("dash"))
 
 func notify_kill() -> void:
 	if Game.patch_level("turbo") > 0 and dash_cd > 0.0:
