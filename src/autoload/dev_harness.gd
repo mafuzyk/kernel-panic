@@ -1652,6 +1652,47 @@ func _systems_test(arena: Arena) -> void:
 	trojan_probe.position = Vector2(180, 0)
 	trojan_probe._move(0.1)
 	_check(absf(trojan_probe.vel().dot(Vector2.LEFT)) < trojan_probe.vel().length(), "trojan approaches with route offset")
+	print("AT_STEP teleports")
+	var flank_player := Player.new()
+	flank_player.position = Vector2.ZERO
+	flank_player.aim = Vector2.RIGHT * 100.0
+	flank_player.vel = Vector2.RIGHT * 100.0
+	arena.add_child(flank_player)
+	await _ticks(2)
+	flank_player.aim = Vector2.RIGHT * 100.0
+	flank_player.vel = Vector2.RIGHT * 100.0
+	var recursor_flank_probe: RecursorEnemy = load("res://src/enemies/recursor.gd").new()
+	recursor_flank_probe.radius = 13.0
+	var recursor_has_selector := recursor_flank_probe.has_method("select_teleport_candidate")
+	_check(recursor_has_selector, "recursor exposes deterministic teleport selector")
+	if recursor_has_selector:
+		var rec_rng_state := Game.rng.state
+		var rec_dest_a: Vector2 = recursor_flank_probe.select_teleport_candidate(flank_player.global_position, flank_player.aim, flank_player.vel)
+		var rec_dest_b: Vector2 = recursor_flank_probe.select_teleport_candidate(flank_player.global_position, flank_player.aim, flank_player.vel)
+		var rec_offset := (rec_dest_a - flank_player.global_position).normalized()
+		var rec_safe_rect := Balance.arena_rect().grow(-recursor_flank_probe.radius - 8.0)
+		_check(rec_dest_a.is_equal_approx(rec_dest_b), "recursor heading selection is deterministic")
+		_check(Game.rng.state == rec_rng_state, "recursor heading selection does not consume Game.rng")
+		_check(rec_offset.dot(Vector2.RIGHT) <= 0.2, "recursor teleport favors flank or behind player facing")
+		_check(rec_safe_rect.has_point(rec_dest_a) and rec_dest_a.distance_to(flank_player.global_position) > 90.0, "recursor teleport stays safe and inside arena")
+	recursor_flank_probe.free()
+	var ranged_boss_flank_probe: RootBoss = load("res://src/enemies/root_boss.gd").new()
+	ranged_boss_flank_probe.boss_index = 2
+	ranged_boss_flank_probe.configure(1.0, false)
+	var boss_has_selector := ranged_boss_flank_probe.has_method("select_teleport_candidate")
+	_check(boss_has_selector, "ranged boss exposes deterministic teleport selector")
+	if boss_has_selector:
+		var boss_rng_state := Game.rng.state
+		var boss_dest_a: Vector2 = ranged_boss_flank_probe.select_teleport_candidate(flank_player.global_position, flank_player.aim, flank_player.vel)
+		var boss_dest_b: Vector2 = ranged_boss_flank_probe.select_teleport_candidate(flank_player.global_position, flank_player.aim, flank_player.vel)
+		var boss_offset := (boss_dest_a - flank_player.global_position).normalized()
+		var boss_safe_rect := Balance.arena_rect().grow(-ranged_boss_flank_probe.radius - 8.0)
+		_check(boss_dest_a.is_equal_approx(boss_dest_b), "ranged boss heading selection is deterministic")
+		_check(Game.rng.state == boss_rng_state, "ranged boss heading selection does not consume Game.rng")
+		_check(boss_offset.dot(Vector2.RIGHT) <= 0.2, "ranged boss teleport favors flank or behind player facing")
+		_check(boss_safe_rect.has_point(boss_dest_a) and boss_dest_a.distance_to(flank_player.global_position) > 240.0, "ranged boss teleport stays safe and inside arena")
+	ranged_boss_flank_probe.free()
+	flank_player.free()
 	var recursor_probe: RecursorEnemy = load("res://src/enemies/recursor.gd").new()
 	recursor_probe.player = special_player
 	recursor_probe.position = Vector2(80, 0)

@@ -37,6 +37,7 @@ var split_done := false
 var kind := 1
 var _mini_side := 1.0
 var _glitch_off := Vector2.ZERO
+const TELEPORT_SAFE_DISTANCE := 240.0
 
 const MK_DATA := [
 	{"title": "ROOT.exe", "col": Color("ff3d81"), "quote": "you have 1 unread virus"},
@@ -346,12 +347,13 @@ func _start_spiral(shots: int, dur: float) -> void:
 	_spiral_angle = Game.rng.randf() * TAU
 
 func _do_teleport_in() -> void:
-	var r := Balance.arena_rect()
-	var p := position
-	for attempt in 12:
-		p = Vector2(Game.rng.randf_range(r.position.x + 120.0, r.end.x - 120.0), Game.rng.randf_range(r.position.y + 120.0, r.end.y - 120.0))
-		if player == null or not is_instance_valid(player) or p.distance_to(player.global_position) > 240.0:
-			break
+	var player_position := player.global_position if is_instance_valid(player) else Vector2.ZERO
+	var player_facing := Vector2.ZERO
+	var player_movement := Vector2.ZERO
+	if player is Player:
+		player_facing = player.aim
+		player_movement = player.vel
+	var p := select_teleport_candidate(player_position, player_facing, player_movement)
 	position = p
 	var z := CorruptionZone.new()
 	z.position = p
@@ -360,6 +362,83 @@ func _do_teleport_in() -> void:
 	Fx.sparks(p, col, 10, 240.0, 0.4, 3.0)
 	act = Act.TELEPORT_IN
 	act_t = 0.3
+
+func score_teleport_candidate(candidate: Vector2, player_position: Vector2, player_facing: Vector2, player_movement: Vector2) -> float:
+	var valid_rect := Balance.arena_rect().grow(-radius - 8.0)
+	var offset := candidate - player_position
+	var distance := offset.length()
+	if not valid_rect.has_point(candidate) or distance <= TELEPORT_SAFE_DISTANCE:
+		return -INF
+	var score := (distance - TELEPORT_SAFE_DISTANCE) * 0.02
+	var direction := offset / distance
+	if player_facing.length_squared() > 0.0001:
+		score += direction.dot(-player_facing.normalized()) * 100.0
+	if player_movement.length_squared() > 0.0001:
+		score += direction.dot(-player_movement.normalized()) * 30.0
+	return score
+
+func select_teleport_candidate(player_position: Vector2, player_facing: Vector2, player_movement: Vector2) -> Vector2:
+	var facing_available := player_facing.length_squared() > 0.0001
+	var movement_available := player_movement.length_squared() > 0.0001
+	if not facing_available and not movement_available:
+		return _random_teleport_candidate(player_position)
+	var anchors: Array[Vector2] = []
+	if facing_available:
+		anchors.append(-player_facing.normalized())
+	if movement_available:
+		anchors.append(-player_movement.normalized())
+	var turns := [0.0, PI * 0.5, -PI * 0.5]
+	var distances := [TELEPORT_SAFE_DISTANCE + 32.0, TELEPORT_SAFE_DISTANCE + 96.0, TELEPORT_SAFE_DISTANCE + 144.0]
+	var best := Vector2.ZERO
+	var best_score := -INF
+	for anchor: Vector2 in anchors:
+		for turn: float in turns:
+			var direction := anchor.rotated(turn)
+			for distance: float in distances:
+				var candidate := player_position + direction * distance
+				var score := score_teleport_candidate(candidate, player_position, player_facing, player_movement)
+				if score > best_score:
+					best_score = score
+					best = candidate
+	if best_score > -INF:
+		return best
+	for i in 16:
+		var candidate := player_position + Vector2.from_angle(TAU * float(i) / 16.0) * (TELEPORT_SAFE_DISTANCE + 30.0)
+		var score := score_teleport_candidate(candidate, player_position, player_facing, player_movement)
+		if score > best_score:
+			best_score = score
+			best = candidate
+	if best_score > -INF:
+		return best
+	var safe_rect := Balance.arena_rect().grow(-radius - 8.0)
+	for candidate in [
+		Vector2(safe_rect.position.x, safe_rect.position.y),
+		Vector2(safe_rect.end.x, safe_rect.position.y),
+		Vector2(safe_rect.position.x, safe_rect.end.y),
+		Vector2(safe_rect.end.x, safe_rect.end.y),
+	]:
+		var score := score_teleport_candidate(candidate, player_position, player_facing, player_movement)
+		if score > best_score:
+			best_score = score
+			best = candidate
+	return best
+
+func _random_teleport_candidate(player_position: Vector2) -> Vector2:
+	var r := Balance.arena_rect()
+	var best := Vector2.ZERO
+	var best_distance := -INF
+	for attempt in 12:
+		var candidate := Vector2(
+			Game.rng.randf_range(r.position.x + radius + 8.0, r.end.x - radius - 8.0),
+			Game.rng.randf_range(r.position.y + radius + 8.0, r.end.y - radius - 8.0)
+		)
+		var distance := candidate.distance_to(player_position)
+		if distance > best_distance:
+			best_distance = distance
+			best = candidate
+		if distance > TELEPORT_SAFE_DISTANCE:
+			return candidate
+	return best
 
 func _apply_freeze() -> void:
 	if player != null and is_instance_valid(player):
