@@ -233,8 +233,11 @@ func panel_scale_for_height(viewport_height: float = -1.0) -> float:
 func panel_control_rect(design_top: float, control_height: float, viewport_height: float = -1.0) -> Rect2:
 	var height := _panel_viewport_height() if viewport_height <= 0.0 else viewport_height
 	var scale := panel_scale_for_height(height)
+	var scaled_height := control_height * scale
 	var top := height * 0.5 + (design_top - PANEL_REFERENCE_HEIGHT * 0.5) * scale
-	return Rect2(0.0, top, 0.0, control_height * scale)
+	var max_top := maxf(PANEL_SAFE_MARGIN, height - PANEL_SAFE_MARGIN - scaled_height)
+	top = clampf(top, PANEL_SAFE_MARGIN, max_top)
+	return Rect2(0.0, top, 0.0, scaled_height)
 
 func patch_box_rect_for_viewport(viewport_size: Vector2) -> Rect2:
 	var horizontal_margin := clampf(viewport_size.x * 0.04, 16.0, 48.0)
@@ -271,14 +274,17 @@ func _layout_patch_box() -> void:
 			card.custom_minimum_size = Vector2(card_width, maxf(160.0, box.size.y - 20.0))
 			card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-func _refresh_responsive_layout() -> void:
+func _refresh_responsive_layout(viewport_height: float = -1.0) -> void:
 	for panel in [_pause_panel, _over_panel, _patch_panel]:
 		if panel == null or not is_instance_valid(panel):
 			continue
 		for control in panel.get_children():
 			if control is Control and control.has_meta("panel_design_top"):
-				_center_panel_control(control, float(control.get_meta("panel_design_top")), float(control.get_meta("panel_control_height")))
+				_center_panel_control(control, float(control.get_meta("panel_design_top")), float(control.get_meta("panel_control_height")), viewport_height)
 	_layout_patch_box()
+
+func _refresh_responsive_layout_for_height(viewport_height: float) -> void:
+	_refresh_responsive_layout(viewport_height)
 
 func _build_pause_panel() -> void:
 	_pause_panel = _make_panel()
@@ -406,12 +412,14 @@ func _make_label(txt: String, size: int, col: Color) -> Label:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
-func _center_panel_control(control: Control, design_top: float, control_height: float) -> void:
-	var scale := panel_scale_for_height()
+func _center_panel_control(control: Control, design_top: float, control_height: float, viewport_height: float = -1.0) -> void:
+	var height := _panel_viewport_height() if viewport_height <= 0.0 else viewport_height
+	var scale := panel_scale_for_height(height)
+	var rect := panel_control_rect(design_top, control_height, height)
 	control.anchor_top = 0.5
 	control.anchor_bottom = 0.5
-	control.offset_top = design_top - 360.0
-	control.offset_bottom = design_top + control_height - 360.0
+	control.offset_top = rect.position.y - height * 0.5
+	control.offset_bottom = control.offset_top + control_height
 	control.scale = Vector2(scale, scale)
 	control.set_meta("panel_design_top", design_top)
 	control.set_meta("panel_control_height", control_height)

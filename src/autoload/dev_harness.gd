@@ -1034,6 +1034,26 @@ func _task9_test(arena: Arena) -> void:
 			for design_top in [118.0, 150.0, 220.0, 500.0, 550.0]:
 				var panel_rect: Rect2 = arena.panel_control_rect(design_top, 62.0, viewport_height)
 				_check(panel_rect.position.y >= 0.0 and panel_rect.end.y <= viewport_height, "panel control fits viewport height %.0f" % viewport_height)
+		var real_refresh_ready := arena.has_method("_refresh_responsive_layout_for_height")
+		_check(real_refresh_ready, "responsive refresh accepts simulated viewport height")
+		for viewport_height in [360.0, 432.0]:
+			if not real_refresh_ready:
+				continue
+			arena._refresh_responsive_layout_for_height(viewport_height)
+			var real_controls_fit := true
+			for panel in [arena._pause_panel, arena._over_panel, arena._patch_panel]:
+				if panel == null or not is_instance_valid(panel):
+					continue
+				for control in panel.get_children():
+					if not control is Control or not control.has_meta("panel_design_top"):
+						continue
+					var scale := float(control.scale.y)
+					var control_top: float = viewport_height * 0.5 + float(control.offset_top)
+					var control_bottom: float = control_top + (float(control.offset_bottom) - float(control.offset_top)) * scale
+					if control_top < -0.01 or control_bottom > viewport_height + 0.01:
+						real_controls_fit = false
+			_check(real_controls_fit, "real panel controls stay inside simulated viewport height %.0f" % viewport_height)
+		arena._refresh_responsive_layout()
 
 	var touch_ui := TouchControls.new()
 	var saved_touch_scale := Sfx.touch_scale
