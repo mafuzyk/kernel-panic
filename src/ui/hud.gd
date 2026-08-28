@@ -17,6 +17,8 @@ var _dash_max := 1
 var _banner_t := 0.0
 var _banner_text := ""
 var _banner_sub := ""
+var _hint_queue: Array[Dictionary] = []
+var _hint_queue_ids := {}
 var _boss_frac := 1.0
 var _boss_name := ""
 var _boss_fragments: Array[RootBoss] = []
@@ -94,6 +96,19 @@ func show_banner(text: String, sub: String, dur := 2.0) -> void:
 	_banner.text = text
 	_banner_sub_l.text = sub
 
+func queue_hint(id: String, text: String, dur := 1.35) -> void:
+	if id.is_empty() or _hint_queue_ids.has(id):
+		return
+	_hint_queue_ids[id] = true
+	_hint_queue.append({"text": text, "dur": dur})
+	_show_next_hint()
+
+func _show_next_hint() -> void:
+	if _banner_t > 0.0 or _hint_queue.is_empty():
+		return
+	var hint: Dictionary = _hint_queue.pop_front()
+	show_banner(str(hint["text"]), "", float(hint["dur"]))
+
 func set_boss_fragments(minis: Array) -> void:
 	_boss_fragments.clear()
 	for mini in minis:
@@ -135,6 +150,7 @@ func _process(delta: float) -> void:
 	else:
 		_banner.modulate.a = 0.0
 		_banner_sub_l.modulate.a = 0.0
+		_show_next_hint()
 	if player != null and is_instance_valid(player):
 		_hp = player.hp
 		_max_hp = player.max_hp

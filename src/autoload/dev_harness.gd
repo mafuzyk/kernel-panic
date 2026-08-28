@@ -117,6 +117,7 @@ func _autotest() -> void:
 	var player: Player = arena.player
 	_check(player != null and is_instance_valid(player), "player exists")
 	_check(arena.spawner != null, "spawner exists")
+	await _onboarding_test(arena)
 	await _ticks(30)
 	_check(Game.wave == 1, "wave 1 started")
 	_check(arena.wave_signal_count >= 1, "wave_started signal received for wave 1")
@@ -394,6 +395,51 @@ func _autotest() -> void:
 		final_scene.queue_free()
 	await _ticks(4)
 	_finish()
+
+func _onboarding_test(arena: Arena) -> void:
+	print("AT_STEP onboarding")
+	var saved_bestiary: Dictionary = Game.bestiary.duplicate(true)
+	Game.bestiary.clear()
+	var sighting_unlocks := {}
+	var sighting_cb := func(id: String) -> void:
+		sighting_unlocks[id] = int(sighting_unlocks.get(id, 0)) + 1
+	Game.bestiary_unlocked.connect(sighting_cb)
+	var drone_a := DroneEnemy.new()
+	arena.enemy_container.add_child(drone_a)
+	await _ticks(1)
+	var drone_b := DroneEnemy.new()
+	arena.enemy_container.add_child(drone_b)
+	await _ticks(1)
+	_check(Game.bestiary_seen("drone"), "first sight unlocks regular enemy before death")
+	_check(int(sighting_unlocks.get("drone", 0)) == 1, "repeated regular sighting unlocks exactly once")
+	var boss := RootBoss.new()
+	boss.boss_index = 2
+	boss.configure(1.0, false)
+	arena.enemy_container.add_child(boss)
+	await _ticks(1)
+	_check(Game.bestiary_seen("segfault"), "first sight unlocks boss variant before death")
+	_check(int(sighting_unlocks.get("segfault", 0)) == 1, "repeated boss sighting unlocks exactly once")
+	Game.bestiary_unlocked.disconnect(sighting_cb)
+	for probe in [drone_a, drone_b, boss]:
+		if is_instance_valid(probe):
+			probe.queue_free()
+	await _ticks(2)
+	Game.bestiary = saved_bestiary
+	var restore_bestiary := ConfigFile.new()
+	restore_bestiary.load(Sfx.SAVE_PATH)
+	restore_bestiary.set_value("bestiary", "seen", Game.bestiary)
+	restore_bestiary.save(Sfx.SAVE_PATH)
+	_check(Game.has_method("show_hint_once"), "game exposes persisted hint helper")
+	if Game.has_method("show_hint_once"):
+		var saved_tutorial: Dictionary = Game.get("tutorial").duplicate(true)
+		Game.set("tutorial", {})
+		_check(bool(Game.call("show_hint_once", "move")), "first hint call is available")
+		var second_hint_available := bool(Game.call("show_hint_once", "move"))
+		_check(second_hint_available == (OS.get_environment("KP_HINTS") != ""), "second hint call is suppressed unless KP_HINTS is set")
+		if OS.get_environment("KP_HINTS") != "":
+			Game.set("tutorial", {"move": true})
+			_check(bool(Game.call("show_hint_once", "move")), "KP_HINTS forces an already-seen hint")
+		Game.set("tutorial", saved_tutorial)
 
 func _systems_test(arena: Arena) -> void:
 	var player: Player = arena.player

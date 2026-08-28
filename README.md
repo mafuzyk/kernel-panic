@@ -62,6 +62,8 @@ For a local export from this repository, the files are generated at `build/linux
 - Fight a different ROOT process every fifth cycle.
 - Learn enemy behavior in the built-in bestiary.
 
+Your first arena run introduces movement and dash timing, then surfaces a short tactical hint the first time key threats appear. Bestiary records unlock when a daemon enters the arena, so you can learn what you are facing before you purge it.
+
 Three run modes change the rules:
 
 - **Classic** is the full escalating run.

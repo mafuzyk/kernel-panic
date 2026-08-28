@@ -94,6 +94,8 @@ func _ready() -> void:
 	Game.bestiary_unlocked.connect(_on_bestiary_unlocked)
 	Sfx.play_music()
 	Fx.flash(Color(0, 0, 0), 1.0, 0.6)
+	_queue_hint("move", "MOVE // WASD OR TOUCH")
+	_queue_hint("dash", "DASH // SPACE / SHIFT")
 	if touch != null:
 		_maybe_show_touch_hints()
 
@@ -133,6 +135,24 @@ func _on_enemy_child(n: Node) -> void:
 		n.died.connect(_on_enemy_died)
 		if not enemy_list.has(n):
 			enemy_list.append(n)
+		Game.mark_bestiary_for_enemy(n)
+		_route_enemy_hint(n)
+
+func _queue_hint(id: String, text: String) -> void:
+	if hud != null and Game.show_hint_once(id):
+		hud.queue_hint(id, text)
+
+func _route_enemy_hint(enemy: EnemyBase) -> void:
+	if enemy is LancerEnemy:
+		_queue_hint("lancer", "SIDESTEP THE LINE")
+	elif enemy is SpewerEnemy:
+		_queue_hint("spewer", "SHOOT THE ORBS DOWN")
+	elif enemy is SplitterEnemy:
+		_queue_hint("splitter", "KILL IT AWAY FROM YOU")
+	elif enemy is BulwarkEnemy:
+		_queue_hint("dash", "DASH // SPACE / SHIFT")
+	elif enemy_list.size() == 1:
+		_queue_hint("move", "MOVE // WASD OR TOUCH")
 
 func _on_enemy_exit(n: Node) -> void:
 	enemy_list.erase(n)
@@ -696,9 +716,7 @@ func _heals_line(s: Dictionary) -> String:
 	return "HEALS +%d (%s)" % [total, ", ".join(parts)]
 
 func _on_enemy_died(e: EnemyBase) -> void:
-	Game.mark_bestiary(e.display_name)
-	if e is RootBoss and not e.mini:
-		Game.mark_bestiary(e.boss_title)
+	Game.mark_bestiary_for_enemy(e)
 	var was_split: bool = e is RootBoss and e.get("_split_silent") == true
 	var is_fragment: bool = e is RootBoss and e.mini
 	if e.elite:

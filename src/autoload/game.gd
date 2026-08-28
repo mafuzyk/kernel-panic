@@ -20,6 +20,7 @@ const VAMPIC_COOLDOWN := 10.0
 var unlocked_programs := {"kernel": true}
 var onehp_unlocked := false
 var bestiary := {}
+var tutorial := {}
 var rng := RandomNumberGenerator.new()
 var _max_chain_seen := 1
 
@@ -73,6 +74,7 @@ func _load_run_config() -> void:
 		best = cf.get_value("run", "best_classic", cf.get_value("run", "best", 0))
 		onehp_unlocked = cf.get_value("run", "onehp_unlocked", false)
 		bestiary = cf.get_value("bestiary", "seen", {})
+		tutorial = cf.get_value("tutorial", "hints", {})
 		mode = cf.get_value("game", "mode", "classic")
 		if mode == "onehp" and not onehp_unlocked:
 			mode = "classic"
@@ -151,6 +153,31 @@ func mark_bestiary(display: String) -> void:
 	cf.set_value("bestiary", "seen", bestiary)
 	cf.save(Sfx.SAVE_PATH)
 	bestiary_unlocked.emit(id)
+
+func mark_bestiary_for_enemy(enemy: EnemyBase) -> void:
+	if enemy == null or not is_instance_valid(enemy):
+		return
+	if enemy is RootBoss:
+		if enemy.mini:
+			return
+		mark_bestiary(enemy.display_name)
+		mark_bestiary(enemy.boss_title)
+		return
+	mark_bestiary(enemy.display_name)
+
+func show_hint_once(id: String) -> bool:
+	if id.is_empty():
+		return false
+	if OS.get_environment("KP_HINTS") != "":
+		return true
+	if tutorial.has(id):
+		return false
+	tutorial[id] = true
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("tutorial", "hints", tutorial)
+	cf.save(Sfx.SAVE_PATH)
+	return true
 
 func bestiary_seen(id: String) -> bool:
 	return bestiary.has(id)
