@@ -62,6 +62,24 @@ chmod +x ./kernel-panic
 The game has no in-game updater yet. Your local save data is kept separately
 by Godot, so replacing the executable does not remove the save.
 
+### Arch Linux / Artix Linux (AUR)
+
+For the prebuilt release, install `kernel-panic-bin` with an AUR helper:
+
+```sh
+paru -S kernel-panic-bin
+```
+
+For a local source build, use `kernel-panic-git` instead:
+
+```sh
+paru -S kernel-panic-git
+```
+
+Update an installed AUR package with your normal system upgrade command, for
+example `paru -Syu`. The package manager replaces the executable and keeps the
+game's separate local save data.
+
 ### Windows x86_64
 
 Download `kernel-panic.exe` from the latest release and double-click it to run the game. The project data is embedded in the executable. The Windows debug build is `kernel-panic-debug.exe` and is intended for testing.
