@@ -135,7 +135,7 @@ func _physics_process(delta: float) -> void:
 		_ghost_cd -= delta
 		if _ghost_cd <= 0.0:
 			_ghost_cd = 0.035
-			Fx.ghost(global_position, rotation, _ship_draw, Balance.COL_PLAYER, 0.26, 1.0)
+			Fx.ghost(global_position, rotation, _ship_draw, dash_ghost_color(), 0.26, 1.0)
 		if Game.patch_level("mdash") > 0 and get_tree() != null:
 			var field := get_tree().get_first_node_in_group("mote_field")
 			if field != null:
@@ -244,6 +244,9 @@ func visual_color() -> Color:
 func visual_silhouette_key() -> String:
 	var visual: Dictionary = prog.get("visual", {})
 	return str(visual.get("silhouette", "kernel_arrow"))
+
+func dash_ghost_color() -> Color:
+	return visual_color()
 
 func magnet_radius() -> float:
 	var base := Balance.MOTE_MAGNET_OC if overclock_active else Balance.MOTE_MAGNET

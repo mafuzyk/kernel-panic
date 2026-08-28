@@ -1126,6 +1126,68 @@ func _systems_test(arena: Arena) -> void:
 		selector_disk.load(Sfx.SAVE_PATH)
 		_check(selector_disk.get_value("run", "program", "") == "daemon", "program selection persists through run ConfigFile")
 		selector.free()
+	Game.unlocked_programs = {"kernel": true, "daemon": true, "rootlet": true}
+	Game.set_program("kernel")
+	var responsive_sizes := [Vector2(720, 720), Vector2(432, 720)]
+	for size_probe in responsive_sizes:
+		var responsive_panel = selector_script.new()
+		responsive_panel.size = size_probe
+		get_tree().current_scene.add_child(responsive_panel)
+		await _ticks(2)
+		responsive_panel._scroll_to(100000.0)
+		await _ticks(2)
+		var responsive_viewport: Rect2 = Rect2()
+		if responsive_panel.has_method("content_viewport_rect"):
+			responsive_viewport = responsive_panel.content_viewport_rect()
+		var rootlet_rect: Rect2 = responsive_panel._card_rects.get("rootlet", Rect2())
+		_check(responsive_panel.has_method("content_viewport_rect"), "program selector exposes consistent content viewport")
+		_check(rootlet_rect.size != Vector2.ZERO and responsive_viewport.encloses(rootlet_rect), "rootlet card is visible at max scroll (%dx%d)" % [int(size_probe.x), int(size_probe.y)])
+		var rootlet_center := rootlet_rect.get_center()
+		if size_probe.x >= 720.0:
+			var mouse_down := InputEventMouseButton.new()
+			mouse_down.button_index = MOUSE_BUTTON_LEFT
+			mouse_down.pressed = true
+			mouse_down.position = rootlet_center
+			responsive_panel._gui_input(mouse_down)
+			var mouse_up := InputEventMouseButton.new()
+			mouse_up.button_index = MOUSE_BUTTON_LEFT
+			mouse_up.position = rootlet_center
+			responsive_panel._gui_input(mouse_up)
+		else:
+			var touch_down := InputEventScreenTouch.new()
+			touch_down.index = 31
+			touch_down.pressed = true
+			touch_down.position = rootlet_center
+			responsive_panel._gui_input(touch_down)
+			var touch_up := InputEventScreenTouch.new()
+			touch_up.index = 31
+			touch_up.position = rootlet_center
+			responsive_panel._gui_input(touch_up)
+		_check(Game.program == "rootlet", "rootlet selects through panel input at %dx%d" % [int(size_probe.x), int(size_probe.y)])
+		Game.set_program("kernel")
+		responsive_panel.queue_free()
+		await _ticks(2)
+	Game.unlocked_programs = {"kernel": true, "daemon": true}
+	Game.set_program("kernel")
+	var locked_panel = selector_script.new()
+	locked_panel.size = Vector2(432, 720)
+	get_tree().current_scene.add_child(locked_panel)
+	await _ticks(2)
+	locked_panel._scroll_to(100000.0)
+	await _ticks(2)
+	var locked_rootlet_rect: Rect2 = locked_panel._card_rects.get("rootlet", Rect2())
+	var locked_touch_down := InputEventScreenTouch.new()
+	locked_touch_down.index = 32
+	locked_touch_down.pressed = true
+	locked_touch_down.position = locked_rootlet_rect.get_center()
+	locked_panel._gui_input(locked_touch_down)
+	var locked_touch_up := InputEventScreenTouch.new()
+	locked_touch_up.index = 32
+	locked_touch_up.position = locked_rootlet_rect.get_center()
+	locked_panel._gui_input(locked_touch_up)
+	_check(Game.program == "kernel", "locked rootlet rejects panel touch selection")
+	locked_panel.queue_free()
+	await _ticks(2)
 	Game.program = saved_program_selection
 	Game.unlocked_programs = saved_unlocked_programs
 	_restore_config_snapshot("run", "program", saved_program_disk)
@@ -1147,6 +1209,9 @@ func _systems_test(arena: Arena) -> void:
 	if p2.has_method("visual_color") and p2.has_method("visual_silhouette_key"):
 		_check(kernel_visual_color != p2.visual_color(), "kernel and daemon use different visual colors")
 		_check(kernel_silhouette_key != p2.visual_silhouette_key(), "kernel and daemon use different silhouettes")
+	_check(p2.has_method("dash_ghost_color"), "player exposes dash ghost color profile")
+	if p2.has_method("dash_ghost_color"):
+		_check(p2.dash_ghost_color() == p2.visual_color(), "dash ghosts use selected program color")
 	var p2_collision: CollisionShape2D = null
 	for child in p2.get_children():
 		if child is CollisionShape2D:

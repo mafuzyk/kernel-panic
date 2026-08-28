@@ -43,12 +43,19 @@ func _content_metrics() -> Dictionary:
 	var card_w: float = minf(390.0, (size.x - 48.0 - gap * float(cols - 1)) / float(cols))
 	var rows := ceili(float(Game.PROGRAM_DEFS.size()) / float(cols))
 	var content_h: float = rows * card_h + maxf(rows - 1, 0) * gap
-	var viewport_h: float = maxf(size.y - 270.0, 240.0)
-	return {"cols": cols, "gap": gap, "card_h": card_h, "card_w": card_w, "rows": rows, "content_h": content_h, "viewport_h": viewport_h}
+	var viewport_top := 140.0
+	var viewport_bottom: float = maxf(size.y - 130.0, viewport_top)
+	var viewport_h: float = viewport_bottom - viewport_top
+	return {"cols": cols, "gap": gap, "card_h": card_h, "card_w": card_w, "rows": rows, "content_h": content_h, "viewport_top": viewport_top, "viewport_bottom": viewport_bottom, "viewport_h": viewport_h}
+
+func content_viewport_rect() -> Rect2:
+	var metrics := _content_metrics()
+	return Rect2(0.0, float(metrics["viewport_top"]), size.x, float(metrics["viewport_h"]))
 
 func _scroll_to(value: float) -> void:
 	var metrics := _content_metrics()
-	var max_scroll: float = maxf(float(metrics["content_h"]) - float(metrics["viewport_h"]), 0.0)
+	var content_top := 150.0
+	var max_scroll: float = maxf(content_top + float(metrics["content_h"]) - float(metrics["viewport_bottom"]), 0.0)
 	scroll_y = clampf(value, 0.0, max_scroll)
 	queue_redraw()
 
@@ -112,8 +119,8 @@ func _draw() -> void:
 	var total_w: float = card_w * float(cols) + gap * float(cols - 1)
 	var x0 := (size.x - total_w) * 0.5
 	var y0 := 150.0 - scroll_y
-	var viewport_top := 140.0
-	var viewport_bottom: float = size.y - 130.0
+	var viewport_top: float = metrics["viewport_top"]
+	var viewport_bottom: float = metrics["viewport_bottom"]
 	_card_rects.clear()
 	var ids: Array = Game.PROGRAM_DEFS.keys()
 	for i in ids.size():
@@ -145,7 +152,7 @@ func _draw() -> void:
 		draw_string(mono, origin + Vector2(16.0, card_h - 14.0), footer, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 11, Color(footer_col.r, footer_col.g, footer_col.b, 0.8 if unlocked else 0.5))
 	var viewport_h: float = metrics["viewport_h"]
 	var content_h: float = metrics["content_h"]
-	var max_scroll: float = maxf(content_h - viewport_h, 0.0)
+	var max_scroll: float = maxf(150.0 + content_h - viewport_bottom, 0.0)
 	if max_scroll > 0.0:
 		var track := Rect2(size.x - 22.0, 150.0, 4.0, viewport_h)
 		var thumb_h: float = maxf(28.0, viewport_h * viewport_h / content_h)
