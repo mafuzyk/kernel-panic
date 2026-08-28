@@ -62,12 +62,12 @@ func _input(event: InputEvent) -> void:
 		var d := event as InputEventScreenDrag
 		if d.index == _move_id:
 			var off := d.position - _move_origin
-			if off.length() > 110.0:
-				_move_origin = d.position - off.normalized() * 110.0
-				off = off.normalized() * 110.0
-			_move_vec = off / 90.0
-			if _move_vec.length() > 1.0:
-				_move_vec = _move_vec.normalized()
+			var movement := movement_geometry()
+			var travel_radius: float = movement["travel_radius"]
+			if off.length() > travel_radius:
+				_move_origin = d.position - off.normalized() * travel_radius
+				off = off.normalized() * travel_radius
+			_move_vec = movement_vector_from_offset(off)
 		elif d.index == _aim_id:
 			_aim_pos = d.position
 			if player != null and is_instance_valid(player):
@@ -82,7 +82,21 @@ func _input(event: InputEvent) -> void:
 					player.touch_aim = raw if raw.length() > 14.0 else Vector2.ZERO
 
 func _sc() -> float:
-	return Sfx.touch_scale
+	return maxf(Sfx.touch_scale, 0.1)
+
+func movement_geometry() -> Dictionary:
+	var scale := _sc()
+	return {
+		"travel_radius": 110.0 * scale,
+		"normalization_divisor": 90.0 * scale,
+		"draw_radius": 64.0 * scale,
+		"knob_radius": 22.0 * scale,
+	}
+
+func movement_vector_from_offset(offset: Vector2) -> Vector2:
+	var geometry := movement_geometry()
+	var clamped_offset := offset.limit_length(float(geometry["travel_radius"]))
+	return (clamped_offset / float(geometry["normalization_divisor"])).limit_length(1.0)
 
 func _dash_btn() -> Rect2:
 	var s := 120.0 * _sc()
@@ -124,9 +138,13 @@ func _draw() -> void:
 	var psize := pb.size.y * 0.5
 	draw_texture_rect(_tex_pause, Rect2(pb.get_center() - Vector2(psize, psize) * 0.5, Vector2(psize, psize)), false, Color(1, 1, 1, 0.85))
 	if _move_id != -1:
-		draw_circle(_move_origin, 64.0, Color(c.r, c.g, c.b, 0.08))
-		draw_arc(_move_origin, 64.0, 0, TAU, 40, Color(c.r, c.g, c.b, 0.4), 2.0, true)
-		draw_circle(_move_origin + _move_vec * 48.0, 22.0, Color(c.r, c.g, c.b, 0.35))
+		var movement := movement_geometry()
+		var draw_radius: float = movement["draw_radius"]
+		var knob_radius: float = movement["knob_radius"]
+		var knob_offset: float = draw_radius * 0.75
+		draw_circle(_move_origin, draw_radius, Color(c.r, c.g, c.b, 0.08))
+		draw_arc(_move_origin, draw_radius, 0, TAU, 40, Color(c.r, c.g, c.b, 0.4), 2.0, true)
+		draw_circle(_move_origin + _move_vec * knob_offset, knob_radius, Color(c.r, c.g, c.b, 0.35))
 	if not _aim_active:
 		return
 	var draw_mode := Game.effective_aim_mode()

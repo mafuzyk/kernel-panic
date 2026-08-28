@@ -119,6 +119,7 @@ func _maybe_show_touch_hints() -> void:
 	var hint_layer := CanvasLayer.new()
 	hint_layer.layer = 40
 	add_child(hint_layer)
+	var hint_y := maxf(90.0, get_viewport_rect().size.y - 160.0)
 	var texts := [
 		["LEFT THUMB // MOVE", Vector2(0, 560)],
 		["RIGHT THUMB // AIM + FIRE", Vector2(640, 560)],
@@ -132,8 +133,8 @@ func _maybe_show_touch_hints() -> void:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.anchor_left = h[1].x / 1280.0
 		l.anchor_right = h[1].x / 1280.0 + 0.5
-		l.offset_top = h[1].y
-		l.offset_bottom = h[1].y + 30.0
+		l.offset_top = hint_y
+		l.offset_bottom = hint_y + 30.0
 		hint_layer.add_child(l)
 		var tw := create_tween()
 		tw.tween_interval(5.0)
@@ -220,16 +221,13 @@ func _build_background() -> void:
 func _build_pause_panel() -> void:
 	_pause_panel = _make_panel()
 	var title := _make_label("PAUSED", 42, Balance.COL_TEXT)
-	title.offset_top = 220
-	title.offset_bottom = 280
+	_center_panel_control(title, 220.0, 60.0)
 	_pause_panel.add_child(title)
 	_pause_info = _make_label(PAUSE_INFO_DEFAULT, 13, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	_pause_info.offset_top = 470
-	_pause_info.offset_bottom = 500
+	_center_panel_control(_pause_info, 470.0, 30.0)
 	_pause_panel.add_child(_pause_info)
 	_pause_stats = _make_label("", 14, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.85))
-	_pause_stats.offset_top = 180
-	_pause_stats.offset_bottom = 210
+	_center_panel_control(_pause_stats, 180.0, 30.0)
 	_pause_panel.add_child(_pause_stats)
 	var b_resume := _make_button("RESUME", 320)
 	b_resume.pressed.connect(func() -> void:
@@ -256,10 +254,12 @@ func _make_volume_row(label_text: String, value: float, y: float, on_change: Cal
 	var row := HBoxContainer.new()
 	row.anchor_left = 0.5
 	row.anchor_right = 0.5
+	row.anchor_top = 0.5
+	row.anchor_bottom = 0.5
 	row.offset_left = -190.0
 	row.offset_right = 190.0
-	row.offset_top = y
-	row.offset_bottom = y + 36.0
+	row.offset_top = y - 360.0
+	row.offset_bottom = y + 36.0 - 360.0
 	row.add_theme_constant_override("separation", 14)
 	var l := Label.new()
 	l.text = label_text
@@ -284,16 +284,13 @@ func _make_volume_row(label_text: String, value: float, y: float, on_change: Cal
 func _build_game_over_panel() -> void:
 	_over_panel = _make_panel()
 	_over_title = _make_label("PROCESS TERMINATED", 44, Balance.COL_DANGER)
-	_over_title.offset_top = 150
-	_over_title.offset_bottom = 212
+	_center_panel_control(_over_title, 150.0, 62.0)
 	_over_panel.add_child(_over_title)
 	_over_sub = _make_label("", 14, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	_over_sub.offset_top = 216
-	_over_sub.offset_bottom = 242
+	_center_panel_control(_over_sub, 216.0, 26.0)
 	_over_panel.add_child(_over_sub)
 	_over_stats = _make_label("", 17, Balance.COL_TEXT)
-	_over_stats.offset_top = 252
-	_over_stats.offset_bottom = 470
+	_center_panel_control(_over_stats, 252.0, 218.0)
 	_over_panel.add_child(_over_stats)
 	var b_reboot := _make_button("REBOOT  [ENTER]", 500)
 	b_reboot.pressed.connect(Game.start_run)
@@ -331,8 +328,10 @@ func _make_button(txt: String, y: float) -> Button:
 	b.add_theme_color_override("font_focus_color", Balance.COL_TEXT)
 	b.anchor_left = 0.0
 	b.anchor_right = 1.0
-	b.offset_top = y
-	b.offset_bottom = y + 40
+	b.anchor_top = 0.5
+	b.anchor_bottom = 0.5
+	b.offset_top = y - 360.0
+	b.offset_bottom = y + 40.0 - 360.0
 	b.mouse_filter = Control.MOUSE_FILTER_STOP
 	return b
 
@@ -351,6 +350,12 @@ func _make_label(txt: String, size: int, col: Color) -> Label:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
+func _center_panel_control(control: Control, design_top: float, control_height: float) -> void:
+	control.anchor_top = 0.5
+	control.anchor_bottom = 0.5
+	control.offset_top = design_top - 360.0
+	control.offset_bottom = design_top + control_height - 360.0
+
 func _build_intro() -> void:
 	for i in 2:
 		var bar := ColorRect.new()
@@ -362,15 +367,13 @@ func _build_intro() -> void:
 		cl.add_child(bar)
 		add_child(cl)
 		bar.scale.y = 0.001
-		bar.pivot_offset = Vector2(0, 0) if i == 0 else Vector2(0, 720)
+		bar.pivot_offset = Vector2(0, 0) if i == 0 else Vector2(0, get_viewport_rect().size.y)
 		_intro_bars.append(bar)
 	_intro_label = _make_label("", 30, Balance.COL_DANGER)
-	_intro_label.offset_top = 290
-	_intro_label.offset_bottom = 338
+	_center_panel_control(_intro_label, 290.0, 48.0)
 	_intro_label.modulate.a = 0.0
 	_intro_quote = _make_label("", 15, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.8))
-	_intro_quote.offset_top = 344
-	_intro_quote.offset_bottom = 372
+	_center_panel_control(_intro_quote, 344.0, 28.0)
 	_intro_quote.modulate.a = 0.0
 	var il_layer := CanvasLayer.new()
 	il_layer.layer = 56
@@ -451,8 +454,7 @@ func _on_wave_cleared(wave: int) -> void:
 func _show_tip() -> void:
 	if _tip_label == null:
 		_tip_label = _make_label("", 13, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.0))
-		_tip_label.offset_top = 612
-		_tip_label.offset_bottom = 640
+		_center_panel_control(_tip_label, 612.0, 28.0)
 		var tl := CanvasLayer.new()
 		tl.layer = 45
 		tl.add_child(_tip_label)
@@ -482,8 +484,7 @@ func _build_patch_ui() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.anchor_left = 0.0
 	title.anchor_right = 1.0
-	title.offset_top = 130.0
-	title.offset_bottom = 180.0
+	_center_panel_control(title, 130.0, 50.0)
 	_patch_panel.add_child(title)
 	var sub := Label.new()
 	sub.text = "SELECT ONE // [1] [2] [3]"
@@ -493,8 +494,7 @@ func _build_patch_ui() -> void:
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.anchor_left = 0.0
 	sub.anchor_right = 1.0
-	sub.offset_top = 182.0
-	sub.offset_bottom = 206.0
+	_center_panel_control(sub, 182.0, 24.0)
 	_patch_panel.add_child(sub)
 	_patch_box = HBoxContainer.new()
 	_patch_box.anchor_left = 0.5
@@ -704,8 +704,7 @@ func _show_game_over() -> void:
 			c.queue_free()
 	if Game.new_best:
 		var nb := _make_label("NEW RECORD", 20, Balance.COL_MOTE)
-		nb.offset_top = 118
-		nb.offset_bottom = 148
+		_center_panel_control(nb, 118.0, 30.0)
 		_over_panel.add_child(nb)
 		var ntw := nb.create_tween()
 		ntw.set_loops()
@@ -910,6 +909,8 @@ func _notification(what: int) -> void:
 			_set_paused(true)
 
 func _process(delta: float) -> void:
+	if _intro_bars.size() > 1 and is_instance_valid(_intro_bars[1]):
+		_intro_bars[1].pivot_offset.y = get_viewport_rect().size.y
 	if _abandon_armed and get_tree().paused:
 		_abandon_t = maxf(_abandon_t - delta, 0.0)
 		if _abandon_t <= 0.0:

@@ -380,6 +380,7 @@ func _autotest() -> void:
 	await _task2_test(arena2)
 	await _task5_test(arena2)
 	await _task6_test(arena2)
+	await _task9_test(arena2)
 	await _systems_test(arena2)
 	await _touch_test()
 	Game.to_menu()
@@ -1001,6 +1002,42 @@ func _task5_test(arena: Arena) -> void:
 	if is_instance_valid(oom):
 		oom.queue_free()
 	await _ticks(2)
+
+func _task9_test(arena: Arena) -> void:
+	print("AT_STEP task9")
+	var hud: Hud = arena.hud
+	var saved_hud_size := hud.size
+	hud.size = Vector2(1280, 720)
+	var layout_helpers_ready := hud.has_method("boss_bar_baseline") and hud.has_method("dash_baseline")
+	_check(layout_helpers_ready, "HUD exposes responsive bottom layout helpers")
+	if layout_helpers_ready:
+		var boss_y_720: float = hud.boss_bar_baseline()
+		var dash_y_720: float = hud.dash_baseline()
+		hud.size = Vector2(1280, 900)
+		_check(hud.boss_bar_baseline() > boss_y_720, "boss bar baseline follows viewport height")
+		_check(hud.dash_baseline() > dash_y_720, "dash baseline follows viewport height")
+	hud.size = saved_hud_size
+
+	var touch_ui := TouchControls.new()
+	var saved_touch_scale := Sfx.touch_scale
+	var touch_helpers_ready := touch_ui.has_method("movement_geometry") and touch_ui.has_method("movement_vector_from_offset")
+	_check(touch_helpers_ready, "touch controls expose scaled movement geometry")
+	if touch_helpers_ready:
+		var reference_vector := Vector2.ZERO
+		for scale in [0.85, 1.0, 1.2]:
+			Sfx.touch_scale = scale
+			var geometry: Dictionary = touch_ui.movement_geometry()
+			_check(absf(float(geometry["travel_radius"]) - 110.0 * scale) < 0.01, "movement travel radius scales at %.2f" % scale)
+			_check(absf(float(geometry["normalization_divisor"]) - 90.0 * scale) < 0.01, "movement divisor scales at %.2f" % scale)
+			_check(absf(float(geometry["draw_radius"]) - 64.0 * scale) < 0.01, "movement draw radius scales at %.2f" % scale)
+			_check(absf(float(geometry["knob_radius"]) - 22.0 * scale) < 0.01, "movement knob radius scales at %.2f" % scale)
+			var normalized: Vector2 = touch_ui.movement_vector_from_offset(Vector2(45.0, 27.0) * scale)
+			if reference_vector == Vector2.ZERO:
+				reference_vector = normalized
+			else:
+				_check(normalized.distance_to(reference_vector) < 0.001, "movement vector stays normalized at %.2f" % scale)
+	Sfx.touch_scale = saved_touch_scale
+	touch_ui.free()
 
 func _task6_test(arena: Arena) -> void:
 	print("AT_STEP task6")

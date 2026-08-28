@@ -51,8 +51,12 @@ func _ready() -> void:
 	_build_label = _mk_label(12, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5), Vector2(14, 690))
 	_build_label.anchor_left = 0.0
 	_build_label.anchor_right = 0.6
+	_build_label.anchor_top = 1.0
+	_build_label.anchor_bottom = 1.0
 	_build_label.offset_left = 14.0
 	_build_label.offset_right = 0.0
+	_build_label.offset_top = -30.0
+	_build_label.offset_bottom = -6.0
 	_build_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_build_label.text = Game.build_string()
 	Game.score_changed.connect(_on_score)
@@ -75,6 +79,33 @@ func _mk_label(size: int, col: Color, pos: Vector2) -> Label:
 	l.offset_bottom = pos.y + size + 12
 	add_child(l)
 	return l
+
+func _layout_height() -> float:
+	return size.y if size.y > 0.0 else get_viewport_rect().size.y
+
+func _safe_top_margin() -> float:
+	return clampf(_layout_height() * 0.025, 18.0, 28.0)
+
+func _safe_bottom_margin() -> float:
+	return clampf(_layout_height() * 0.025, 18.0, 28.0)
+
+func _safe_side_margin() -> float:
+	return clampf(size.x * 0.01875, 16.0, 24.0)
+
+func hud_top_y(gap: float) -> float:
+	return _safe_top_margin() + gap
+
+func hud_bottom_y(gap: float) -> float:
+	return _layout_height() - _safe_bottom_margin() - gap
+
+func dash_baseline() -> float:
+	return hud_bottom_y(14.0)
+
+func boss_bar_baseline() -> float:
+	return hud_bottom_y(26.0)
+
+func boss_title_baseline() -> float:
+	return hud_bottom_y(34.0)
 
 func _on_score(score: int, mult: int) -> void:
 	if score > _score:
@@ -189,7 +220,7 @@ func _draw() -> void:
 		_boss_bar(f)
 
 func _hp_pips(f: Font) -> void:
-	var base := Vector2(24, 30)
+	var base := Vector2(_safe_side_margin(), hud_top_y(12.0))
 	for i in _max_hp:
 		var p := base + Vector2(i * 30.0, 0)
 		var on := i < _hp
@@ -205,7 +236,9 @@ func _hp_pips(f: Font) -> void:
 			draw_circle(p, 2.5, col)
 
 func _oc_bar(f: Font) -> void:
-	var r := Rect2(24, 52, 150, 8)
+	var x := _safe_side_margin()
+	var y := hud_top_y(34.0)
+	var r := Rect2(x, y, 150, 8)
 	var col := Balance.COL_PLAYER_HOT if _oc_active else Balance.COL_PLAYER
 	if _oc_ready and not _oc_active:
 		var pulse := 0.5 + 0.5 * absf(sin(Time.get_ticks_msec() / 90.0))
@@ -221,28 +254,30 @@ func _oc_bar(f: Font) -> void:
 		label += "  READY [E]"
 	if _oc_active:
 		label += " ACTIVE"
-	draw_string(f, Vector2(24, 78), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(txt_col.r, txt_col.g, txt_col.b, 0.85))
+	draw_string(f, Vector2(x, hud_top_y(60.0)), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(txt_col.r, txt_col.g, txt_col.b, 0.85))
 	if Game.patch_level("scrapdiet") > 0 and player != null and is_instance_valid(player):
 		var thr: int = player._scrap_threshold()
 		var sc := Color(1.0, 0.75, 0.4, 0.9)
-		draw_rect(Rect2(190, 52, 86, 8), Color(sc.r, sc.g, sc.b, 0.14))
+		var sx := x + 166.0
+		draw_rect(Rect2(sx, y, 86, 8), Color(sc.r, sc.g, sc.b, 0.14))
 		var sfrac: float = clampf(float(player.scrap_count) / float(thr), 0.0, 1.0)
-		draw_rect(Rect2(190, 52, 86.0 * sfrac, 8), Color(sc.r, sc.g, sc.b, 0.8))
-		draw_string(f, Vector2(190, 78), "SCRAP %d/%d" % [player.scrap_count, thr], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, sc)
+		draw_rect(Rect2(sx, y, 86.0 * sfrac, 8), Color(sc.r, sc.g, sc.b, 0.8))
+		draw_string(f, Vector2(sx, hud_top_y(60.0)), "SCRAP %d/%d" % [player.scrap_count, thr], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, sc)
 	_patch_chips(f)
 
 func _patch_chips(f: Font) -> void:
 	if Game.patch_levels.is_empty():
 		return
-	var x := 24.0
+	var x := _safe_side_margin()
+	var y := hud_top_y(68.0)
 	for id in Game.patch_levels:
 		var code: String = Game.PATCH_CODES.get(id, id.substr(0, 2).to_upper())
 		var lvl := int(Game.patch_levels[id])
 		var txt := "%s%d" % [code, lvl]
 		var w := 30.0
-		draw_rect(Rect2(x, 86, w, 15), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.10))
-		draw_rect(Rect2(x, 86, w, 15), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.35), false, 1.0)
-		draw_string(f, Vector2(x + 4, 97.5), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.75))
+		draw_rect(Rect2(x, y, w, 15), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.10))
+		draw_rect(Rect2(x, y, w, 15), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.35), false, 1.0)
+		draw_string(f, Vector2(x + 4, y + 11.5), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.75))
 		x += w + 5.0
 
 func _mult_chip(f: Font) -> void:
@@ -250,9 +285,10 @@ func _mult_chip(f: Font) -> void:
 		return
 	var c := Balance.COL_MOTE
 	var pop := 1.0 + 0.25 * _score_pop
-	var rx := size.x - 24.0
-	draw_string(f, Vector2(rx - 140.0, 84), "COMBO x%d" % _mult, HORIZONTAL_ALIGNMENT_LEFT, -1, int(16 * pop), c)
-	var bar := Rect2(rx - 140.0, 90, 140, 4)
+	var rx := size.x - _safe_side_margin()
+	var combo_y := hud_top_y(66.0)
+	draw_string(f, Vector2(rx - 140.0, combo_y), "COMBO x%d" % _mult, HORIZONTAL_ALIGNMENT_LEFT, -1, int(16 * pop), c)
+	var bar := Rect2(rx - 140.0, combo_y + 6.0, 140, 4)
 	draw_rect(bar, Color(c.r, c.g, c.b, 0.15))
 	var hot := Color(Balance.COL_DANGER.r, Balance.COL_DANGER.g, Balance.COL_DANGER.b).lerp(c, _combo_frac)
 	draw_rect(Rect2(bar.position, Vector2(bar.size.x * _combo_frac, 4)), hot)
@@ -261,14 +297,16 @@ func _dash_pip(f: Font) -> void:
 	if not Balance.is_desktop_display() or DisplayServer.is_touchscreen_available():
 		return
 	var col := Balance.COL_PLAYER if _dash_frac >= 1.0 else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.35)
-	draw_circle(Vector2(32, 688), 5.0, col)
+	var baseline := dash_baseline()
+	draw_circle(Vector2(_safe_side_margin() + 8.0, baseline), 5.0, col)
 	var dash_text := "DASH x%d [SHIFT]" % _dash_max if _dash_max > 1 else "DASH [SHIFT]"
-	draw_string(f, Vector2(46, 693), dash_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, 0.7))
+	draw_string(f, Vector2(_safe_side_margin() + 22.0, baseline + 5.0), dash_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, 0.7))
 
 func _boss_bar(f: Font) -> void:
-	var w := 500.0
+	var w := minf(500.0, maxf(160.0, size.x - _safe_side_margin() * 2.0))
 	var x0 := (size.x - w) * 0.5
-	var r := Rect2(x0, 676, w, 10)
+	var baseline := boss_bar_baseline()
+	var r := Rect2(x0, baseline, w, 10)
 	var col := Balance.COL_DANGER
 	draw_rect(r, Color(col.r, col.g, col.b, 0.15))
 	var segs := 20
@@ -279,17 +317,17 @@ func _boss_bar(f: Font) -> void:
 			draw_rect(seg, Color(col.r, col.g, col.b, 0.9))
 		else:
 			draw_rect(seg, Color(col.r, col.g, col.b, 0.12))
-	draw_string(f, Vector2(x0, 668), _boss_name, HORIZONTAL_ALIGNMENT_CENTER, w, 12, Color(col.r, col.g, col.b, 0.9))
+	draw_string(f, Vector2(x0, boss_title_baseline()), _boss_name, HORIZONTAL_ALIGNMENT_CENTER, w, 12, Color(col.r, col.g, col.b, 0.9))
 
 func _boss_split_bar(f: Font) -> void:
-	var w := 500.0
+	var w := minf(500.0, maxf(160.0, size.x - _safe_side_margin() * 2.0))
 	var x0 := (size.x - w) * 0.5
 	var row_h := 7.0
 	var row_gap := 3.0
 	var bar_x := x0 + 64.0
 	var bar_w := w - 64.0
 	var col := Balance.COL_DANGER
-	var container := Rect2(x0, 676, w, row_h * 2.0 + row_gap)
+	var container := Rect2(x0, boss_bar_baseline(), w, row_h * 2.0 + row_gap)
 	draw_rect(container, Color(col.r, col.g, col.b, 0.08))
 	draw_rect(container, Color(col.r, col.g, col.b, 0.42), false, 1.0)
 	for fragment in _boss_fragments:
@@ -310,4 +348,4 @@ func _boss_split_bar(f: Font) -> void:
 				draw_rect(seg, Color(col.r, col.g, col.b, 0.9))
 			else:
 				draw_rect(seg, Color(col.r, col.g, col.b, 0.12))
-	draw_string(f, Vector2(x0, 668), _boss_name, HORIZONTAL_ALIGNMENT_CENTER, w, 12, Color(col.r, col.g, col.b, 0.9))
+	draw_string(f, Vector2(x0, boss_title_baseline()), _boss_name, HORIZONTAL_ALIGNMENT_CENTER, w, 12, Color(col.r, col.g, col.b, 0.9))
