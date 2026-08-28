@@ -415,7 +415,9 @@ func _autotest() -> void:
 		_check(int(cf_after.get_value("run", "best_classic", -1)) == 0 and Game.best == 0, "reset scores clears best_classic")
 	else:
 		_fail("menu exposes _reset_scores")
+	var run_before_task10 := _config_section_snapshot("run")
 	await _task10_test(menu_scene)
+	_check(_config_sections_equal(run_before_task10, _config_section_snapshot("run")), "task10 restores run config section")
 	for node in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(node):
 			node.queue_free()
@@ -557,8 +559,12 @@ func _restore_config_section(section: String, snapshot: Dictionary) -> void:
 			cf.set_value(section, key, snapshot["values"][key])
 	cf.save(Sfx.SAVE_PATH)
 
+func _config_sections_equal(a: Dictionary, b: Dictionary) -> bool:
+	return bool(a.get("has_section", false)) == bool(b.get("has_section", false)) and a.get("values", {}) == b.get("values", {})
+
 func _task10_test(menu: Node) -> void:
 	print("AT_STEP task10")
+	var run_snapshot := _config_section_snapshot("run")
 	var expected_defaults := {
 		"move_up": KEY_W,
 		"move_down": KEY_S,
@@ -632,6 +638,21 @@ func _task10_test(menu: Node) -> void:
 			_check(str(menu.get("_capture_action")) == "dash", "echo key does not capture")
 			menu._handle_keybind_capture(_key_event(KEY_H))
 			_check(str(menu.get("_capture_action")) == "" and int(Game.get_keybind("dash")) == KEY_H, "valid key ends capture and assigns")
+	if menu != null and menu.has_method("_open_settings"):
+		menu._open_settings()
+		var settings_scrolls := menu.find_children("*", "ScrollContainer", true, false)
+		_check(not settings_scrolls.is_empty(), "settings content is scrollable")
+		var desktop_keybinds := Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
+		if not settings_scrolls.is_empty() and desktop_keybinds:
+			var settings_scroll: ScrollContainer = settings_scrolls[0]
+			var reset_button: Button = null
+			for node in settings_scroll.find_children("*", "Button", true, false):
+				if node is Button and node.text == "RESET KEYBINDS":
+					reset_button = node
+					break
+			_check(reset_button != null, "keybind reset remains reachable inside settings scroll")
+		menu._close_settings()
+	_restore_config_section("run", run_snapshot)
 
 func _color_assist_test() -> void:
 	print("AT_STEP color_assist")

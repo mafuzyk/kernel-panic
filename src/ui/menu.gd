@@ -426,17 +426,27 @@ func _build_settings() -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.color = Color(0.01, 0.012, 0.03, 0.88)
 	_settings_panel.add_child(dim)
+	var scroll := ScrollContainer.new()
+	scroll.name = "SettingsScroll"
+	scroll.anchor_left = 0.5
+	scroll.anchor_right = 0.5
+	scroll.anchor_top = 0.5
+	scroll.anchor_bottom = 0.5
+	var panel_width := minf(520.0, maxf(size.x - 48.0, 280.0))
+	var panel_height := minf(600.0, maxf(size.y - 48.0, 240.0))
+	scroll.offset_left = -panel_width * 0.5
+	scroll.offset_right = panel_width * 0.5
+	scroll.offset_top = -panel_height * 0.5
+	scroll.offset_bottom = panel_height * 0.5
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	_settings_panel.add_child(scroll)
 	var box := VBoxContainer.new()
-	box.anchor_left = 0.5
-	box.anchor_right = 0.5
-	box.anchor_top = 0.5
-	box.anchor_bottom = 0.5
-	box.offset_left = -240.0
-	box.offset_right = 240.0
-	box.offset_top = -180.0
-	box.offset_bottom = 180.0
+	box.custom_minimum_size.x = panel_width - 20.0
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_theme_constant_override("separation", 20)
-	_settings_panel.add_child(box)
+	scroll.add_child(box)
 	var title := Label.new()
 	title.text = "SETTINGS"
 	title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
