@@ -28,8 +28,9 @@ func die() -> void:
 	for i in 2:
 		var m := DroneEnemy.new()
 		m.setup_mini()
+		m.elite = false
+		m.elite_kind = ""
 		m.position = global_position + Vector2.from_angle(TAU * 0.5 * i + Game.rng.randf()) * 14.0
-		m.elite = elite
 		get_parent().call_deferred("add_child", m)
 	Fx.ring(global_position, col, 6.0, 60.0, 0.3, 2.5)
 	super.die()

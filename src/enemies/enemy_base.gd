@@ -230,6 +230,44 @@ func steer_open_space(to_target: Vector2, min_distance: float, lateral_sign: flo
 			best = candidate
 	return best.normalized() if best.length_squared() > 0.0001 else Vector2.ZERO
 
+func find_bulwark_cover(player_position: Vector2) -> Vector2:
+	var player_to_self := global_position - player_position
+	if player_to_self.length_squared() <= 0.0001:
+		return Vector2.ZERO
+	var forward := player_to_self.normalized()
+	var lateral := forward.orthogonal()
+	var self_distance := player_to_self.length()
+	var valid_rect := Balance.arena_rect().grow(-radius)
+	var best := Vector2.ZERO
+	var best_score := INF
+	for raw_ally in shared_list:
+		if not (raw_ally is EnemyBase):
+			continue
+		var ally: EnemyBase = raw_ally
+		if ally == self or not is_instance_valid(ally) or ally.display_name != "BULWARK":
+			continue
+		var player_to_ally := ally.global_position - player_position
+		var projection := player_to_ally.dot(forward)
+		if projection <= ally.radius or projection >= self_distance:
+			continue
+		var lateral_gap := absf(player_to_ally.dot(lateral))
+		if lateral_gap > ally.radius + radius + 96.0:
+			continue
+		var offset := ally.radius + radius + 18.0
+		var candidates: Array[Vector2] = [
+				ally.global_position + forward * offset,
+				ally.global_position + forward * offset + lateral * offset * 0.9,
+				ally.global_position + forward * offset - lateral * offset * 0.9,
+		]
+		for candidate in candidates:
+			if not valid_rect.has_point(candidate):
+				continue
+			var score := candidate.distance_to(global_position)
+			if score < best_score:
+				best_score = score
+				best = candidate
+	return best
+
 func _flash_col(base: Color) -> Color:
 	if hit_flash > 0.0:
 		return base.lerp(Color(1, 1, 1, 1), clampf(hit_flash, 0.0, 1.0))

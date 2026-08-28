@@ -35,6 +35,11 @@ func _move(delta: float) -> void:
 	desired += steer_separation(2.2) * 0.65
 	if _telegraph <= 0.0 and player != null and is_instance_valid(player):
 		desired += steer_open_space(to_p, BAND_MIN, _strafe_dir) * 0.85
+		if d >= BAND_MIN:
+			var cover_position := find_bulwark_cover(player.global_position)
+			var cover_delta := cover_position - global_position
+			if cover_position != Vector2.ZERO and cover_delta.length_squared() > 0.0001:
+				desired += cover_delta.normalized() * 0.75
 	_v = _v.move_toward(desired.limit_length(1.0) * speed, 420.0 * delta)
 	_fire_t -= delta
 	if _fire_t <= 0.0 and _telegraph <= 0.0 and d < 620.0:

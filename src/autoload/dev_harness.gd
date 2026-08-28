@@ -378,6 +378,7 @@ func _autotest() -> void:
 	_check(arena2.player != null and not arena2.player.dead, "fresh player alive")
 	await _task2_test(arena2)
 	await _task5_test(arena2)
+	await _task6_test(arena2)
 	await _systems_test(arena2)
 	await _touch_test()
 	Game.to_menu()
@@ -925,6 +926,83 @@ func _task5_test(arena: Arena) -> void:
 	_check(oom.carried_ids.is_empty() and oom.is_queued_for_deletion(), "OOM_KILLER escapes fully at clamped arena edge")
 	if is_instance_valid(oom):
 		oom.queue_free()
+	await _ticks(2)
+
+func _task6_test(arena: Arena) -> void:
+	print("AT_STEP task6")
+	var cover_player := Node2D.new()
+	cover_player.position = Vector2.ZERO
+	arena.add_child(cover_player)
+	var spewer := SpewerEnemy.new()
+	spewer.player = cover_player
+	spewer.position = Vector2(320, 0)
+	var bulwark := BulwarkEnemy.new()
+	bulwark.position = Vector2(150, 0)
+	EnemyBase.shared_list = [spewer, bulwark]
+	var cover_position: Vector2 = spewer.find_bulwark_cover(cover_player.global_position)
+	var cover_safe := Balance.arena_rect().grow(-spewer.radius).has_point(cover_position)
+	_check(cover_position != Vector2.ZERO and cover_safe, "ranged cover returns an arena-safe position")
+	_check(cover_position.x > bulwark.global_position.x and cover_position.distance_to(bulwark.global_position) > bulwark.radius + spewer.radius, "ranged cover prefers a point behind the BULWARK")
+	spewer._strafe_dir = 1.0
+	spewer._telegraph = 0.0
+	spewer._fire_t = 99.0
+	spewer._v = Vector2.ZERO
+	spewer._move(0.1)
+	var cover_seek := (cover_position - spewer.global_position).normalized()
+	_check(spewer.vel().dot(cover_seek) > 0.0, "Spewer steers toward valid BULWARK cover")
+	EnemyBase.shared_list = [spewer]
+	spewer.position = Vector2(100, 0)
+	spewer._v = Vector2.ZERO
+	spewer._telegraph = 0.0
+	spewer._fire_t = 99.0
+	spewer._move(0.1)
+	_check(spewer.vel().dot(Vector2.RIGHT) > 0.0, "Spewer retreat is not overridden by cover")
+	EnemyBase.shared_list = [spewer, bulwark]
+	spewer.position = Vector2(320, 0)
+	spewer._v = Vector2(100, 0)
+	spewer._telegraph = 0.2
+	spewer._fire_t = 99.0
+	spewer._move(0.1)
+	_check(spewer.vel().length() < 100.0, "Spewer telegraph braking is not overridden by cover")
+	EnemyBase.shared_list = [spewer]
+	spewer.position = Vector2(320, 0)
+	spewer._v = Vector2.ZERO
+	var no_cover: Vector2 = spewer.find_bulwark_cover(cover_player.global_position)
+	_check(no_cover == Vector2.ZERO, "ranged cover returns zero without a BULWARK")
+	spewer._telegraph = 0.0
+	spewer._fire_t = 99.0
+	spewer._move(0.1)
+	_check(spewer.vel().length() > 0.0, "Spewer keeps distance-band fallback without cover")
+	spewer.free()
+	bulwark.free()
+	cover_player.free()
+	await _ticks(2)
+
+	var split_parent := Node2D.new()
+	arena.add_child(split_parent)
+	var elite_splitter := SplitterEnemy.new()
+	elite_splitter.configure(1.0, true)
+	elite_splitter.elite = true
+	elite_splitter.elite_kind = "volatile"
+	elite_splitter.position = Vector2(200, 0)
+	split_parent.add_child(elite_splitter)
+	await _ticks(1)
+	elite_splitter.die()
+	await _ticks(2)
+	var mini_children: Array[DroneEnemy] = []
+	for child in split_parent.get_children():
+		if child is DroneEnemy and child.mini:
+			mini_children.append(child)
+	_check(mini_children.size() == 2, "elite Splitter still creates two mini drones")
+	var minis_non_elite := true
+	for mini in mini_children:
+		if mini.elite or mini.elite_kind != "":
+			minis_non_elite = false
+	_check(minis_non_elite, "Splitter mini drones never inherit elite state")
+	for mini in mini_children:
+		mini.queue_free()
+	split_parent.queue_free()
+	EnemyBase.shared_list = arena.enemy_list
 	await _ticks(2)
 
 func _systems_test(arena: Arena) -> void:
