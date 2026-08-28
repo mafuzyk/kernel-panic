@@ -153,6 +153,7 @@ func _spawn_boss() -> void:
 		_awaiting_boss = false
 		_boss = RootBoss.new()
 		_boss.boss_index = idx
+		_boss.threat_wave = wave
 		_boss.configure(Balance.wave_scale(wave), false)
 		_boss.position = _edge_point(140.0)
 		container.add_child(_boss)
@@ -229,9 +230,13 @@ func _telegraph_spawn(pos: Vector2, kind: String, generation: int) -> void:
 		if kind == "drone" and wave_event == "swarm":
 			e.setup_mini()
 		e.position = pos
-		e.configure(Balance.wave_scale(wave), Game.rng.randf() < Balance.elite_chance(wave))
+		_configure_enemy(e, Game.rng.randf() < Balance.elite_chance(wave))
 		container.add_child(e)
 	)
+
+func _configure_enemy(e: EnemyBase, is_elite: bool) -> void:
+	e.threat_wave = wave
+	e.configure(Balance.wave_scale(wave), is_elite)
 
 func _make_enemy(kind: String) -> EnemyBase:
 	match kind:

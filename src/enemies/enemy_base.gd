@@ -16,7 +16,9 @@ var t := 0.0
 var hit_flash := 0.0
 var elite := false
 var elite_kind := ""
+var threat_wave := 1
 var _swift_ghost_cd := 0.0
+var _volatile_pulse_t := 0.0
 var spawn_t := 0.0
 var mote_count := -1
 var display_name := "DAEMON"
@@ -34,6 +36,22 @@ func configure(wave_scale_f: float, is_elite: bool) -> void:
 		elite_kind = "volatile" if Game.rng.randf() < 0.5 else "swift"
 		if elite_kind == "swift":
 			speed *= 1.3
+		else:
+			_volatile_pulse_t = 0.15
+
+func elite_steering(to_target: Vector2, lateral_sign: float = 1.0) -> Vector2:
+	var lateral_weight := 0.35
+	if elite and elite_kind == "swift":
+		lateral_weight = 0.9
+	return steer_approach(to_target, lateral_sign, lateral_weight)
+
+func elite_reacquire_interval(base_interval: float) -> float:
+	if elite and elite_kind == "swift":
+		return maxf(base_interval * Balance.attack_cadence_factor(threat_wave) * 0.82, 0.35)
+	return base_interval * Balance.attack_cadence_factor(threat_wave)
+
+func volatile_burst_count() -> int:
+	return 6 if elite and elite_kind == "volatile" else 0
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -70,6 +88,11 @@ func _physics_process(delta: float) -> void:
 	var r := Balance.arena_rect()
 	position.x = clampf(position.x, r.position.x + radius, r.end.x - radius)
 	position.y = clampf(position.y, r.position.y + radius, r.end.y - radius)
+	if is_in_group("oom") and get("st") == 1 and has_method("_escape"):
+		var at_edge := position.x <= r.position.x + radius + 0.1 or position.x >= r.end.x - radius - 0.1 or position.y <= r.position.y + radius + 0.1 or position.y >= r.end.y - radius - 0.1
+		if at_edge:
+			call("_escape")
+			return
 	if glow != null:
 		glow.modulate.a = 0.4 + 0.12 * sin(t * 6.0) + hit_flash
 	var k: float = clampf(spawn_t / 0.32, 0.0, 1.0)
@@ -80,6 +103,11 @@ func _physics_process(delta: float) -> void:
 		if _swift_ghost_cd <= 0.0:
 			_swift_ghost_cd = 0.09
 			Fx.ghost_dot(global_position, radius * 0.8, col, 0.22)
+	if elite and elite_kind == "volatile":
+		_volatile_pulse_t -= delta
+		if _volatile_pulse_t <= 0.0:
+			_volatile_pulse_t = 0.6
+			Fx.ring(global_position, col, radius + 4.0, radius + 14.0, 0.22, 1.8)
 	queue_redraw()
 
 func vel() -> Vector2:
@@ -111,8 +139,8 @@ func take_hit(dmg: int, from: Vector2) -> void:
 
 func die() -> void:
 	died.emit(self)
-	if elite and elite_kind == "volatile":
-		for i in 6:
+	if volatile_burst_count() > 0:
+		for i in volatile_burst_count():
 			var orb := EnemyOrb.new()
 			orb.setup(global_position, Vector2.from_angle(TAU * i / 6.0 + Game.rng.randf() * 0.4), 230.0, col)
 			get_parent().call_deferred("add_child", orb)

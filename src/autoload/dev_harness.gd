@@ -377,6 +377,7 @@ func _autotest() -> void:
 	var arena2: Arena = get_tree().current_scene
 	_check(arena2.player != null and not arena2.player.dead, "fresh player alive")
 	await _task2_test(arena2)
+	await _task5_test(arena2)
 	await _systems_test(arena2)
 	await _touch_test()
 	Game.to_menu()
@@ -766,6 +767,129 @@ func _task2_test(arena: Arena) -> void:
 			e.queue_free()
 	if is_instance_valid(phase_boss):
 		phase_boss.queue_free()
+	await _ticks(2)
+
+func _task5_test(arena: Arena) -> void:
+	print("AT_STEP task5")
+	var balance_script: Script = load("res://src/autoload/balance.gd")
+	var cadence_ready := balance_script != null and balance_script.has_method("attack_cadence_factor")
+	_check(cadence_ready, "wave attack cadence helper exists")
+	if cadence_ready:
+		_check(absf(float(balance_script.call("attack_cadence_factor", 1)) - 1.0) < 0.001, "wave 1 cadence is unchanged")
+		_check(absf(float(balance_script.call("attack_cadence_factor", 5)) - 1.0) < 0.001, "wave 5 cadence is unchanged")
+		_check(absf(float(balance_script.call("attack_cadence_factor", 6)) - 0.985) < 0.001, "wave 6 cadence tightens slightly")
+		_check(absf(float(balance_script.call("attack_cadence_factor", 30)) - 0.78) < 0.001, "wave 30 cadence respects floor")
+	_check(Balance.max_alive(1) == 8, "wave 1 alive ceiling preserves ramp")
+	_check(Balance.max_alive(2) == 10, "wave 2 alive ceiling preserves ramp")
+	_check(Balance.max_alive(30) == 10, "late wave alive ceiling is 10")
+
+	var threat_probe := EnemyBase.new()
+	var threat_context_ready := arena.spawner.has_method("_configure_enemy")
+	_check(threat_context_ready, "spawner exposes threat wave configuration")
+	if threat_context_ready:
+		arena.spawner.wave = 30
+		arena.spawner.call("_configure_enemy", threat_probe, false)
+	_check(threat_probe.get("threat_wave") == 30, "enemy threat wave context exists")
+	arena.spawner.wave = 1
+	threat_probe.queue_free()
+	var swift := DroneEnemy.new()
+	var volatile := DroneEnemy.new()
+	Game.rng.seed = 5150
+	swift.configure(1.0, true)
+	volatile.configure(1.0, true)
+	swift.elite_kind = "swift"
+	volatile.elite_kind = "volatile"
+	var elite_profiles_ready := swift.has_method("elite_steering") and swift.has_method("elite_reacquire_interval") and volatile.has_method("volatile_burst_count")
+	_check(elite_profiles_ready, "elite profile hooks exist")
+	if elite_profiles_ready:
+		var swift_dir: Vector2 = swift.call("elite_steering", Vector2.RIGHT, 1.0)
+		var volatile_dir: Vector2 = volatile.call("elite_steering", Vector2.RIGHT, 1.0)
+		_check(absf(swift_dir.y) > absf(volatile_dir.y) + 0.1, "swift elite adds lateral steering")
+		_check(float(swift.call("elite_reacquire_interval", 1.0)) < 1.0, "swift elite reacquires on a bounded shorter interval")
+		_check(int(volatile.call("volatile_burst_count")) == 6, "volatile elite keeps six-orb death burst")
+	swift.free()
+	volatile.free()
+
+	var lancer := LancerEnemy.new()
+	var spewer := SpewerEnemy.new()
+	if lancer.get("threat_wave") != null:
+		lancer.set("threat_wave", 30)
+	if spewer.get("threat_wave") != null:
+		spewer.set("threat_wave", 30)
+	var cadence_hooks_ready := lancer.has_method("phase_reentry_interval") and spewer.has_method("repeated_fire_interval")
+	_check(cadence_hooks_ready, "lancer and spewer expose repeated cadence hooks")
+	if cadence_hooks_ready:
+		_check(float(lancer.call("phase_reentry_interval", 1.0)) < 1.0, "lancer repeated phase interval scales with wave")
+		_check(float(spewer.call("repeated_fire_interval", 2.0)) < 2.0, "spewer repeated fire interval scales with wave")
+	_check(lancer.has_method("telegraph_duration") and spewer.has_method("telegraph_duration"), "lancer and spewer preserve telegraph hooks")
+	if lancer.has_method("telegraph_duration") and spewer.has_method("telegraph_duration"):
+		_check(float(lancer.call("telegraph_duration")) >= 0.5, "lancer telegraph stays readable")
+		_check(float(spewer.call("telegraph_duration")) >= 0.4, "spewer telegraph stays readable")
+	lancer.free()
+	spewer.free()
+
+	var boss_player := Node2D.new()
+	boss_player.position = Vector2.ZERO
+	arena.add_child(boss_player)
+	var root := RootBoss.new()
+	root.boss_index = 1
+	root.player = boss_player
+	root.position = Vector2(220, 0)
+	root.configure(1.0, false)
+	var ranged := RootBoss.new()
+	ranged.boss_index = 2
+	ranged.player = boss_player
+	ranged.position = Vector2(80, 0)
+	ranged.configure(1.0, false)
+	_check(root.has_method("hover_direction") and ranged.has_method("hover_direction"), "boss distance profiles exist")
+	if root.has_method("hover_direction") and ranged.has_method("hover_direction"):
+		_check(root.call("hover_direction", Vector2(-220, 0)).dot(Vector2.LEFT) > 0.9, "melee ROOT approaches the player")
+		_check(ranged.call("hover_direction", Vector2(-80, 0)).dot(Vector2.RIGHT) > 0.0, "ranged boss retreats from close player")
+	var corruption_script: Script = load("res://src/enemies/corruption_shot.gd")
+	_check(corruption_script != null, "corruption shot script loads")
+	if corruption_script != null:
+		var shot: Node = corruption_script.new()
+		shot.setup_corruption(Vector2(200, 0), Vector2.ZERO, 1, Balance.COL_DANGER)
+		arena.enemy_container.add_child(shot)
+		_check(float(shot.get("midpoint_distance")) > 0.0, "corruption shot tracks midpoint")
+		_check(shot.has_method("pop") and shot.has_method("burst_into_zone"), "corruption shot has direct and missed paths")
+		if shot.has_method("pop") and shot.has_method("burst_into_zone"):
+			shot._physics_process(0.1)
+			_check(float(shot.get("travelled")) > 0.0 and float(shot.get("travelled")) < float(shot.get("midpoint_distance")), "corruption shot travels before midpoint")
+			shot._physics_process(0.3)
+			await _ticks(1)
+			_check(get_tree().get_nodes_in_group("corruption").size() > 0, "missed corruption shot creates a bounded zone")
+			if is_instance_valid(shot):
+				shot.queue_free()
+			for zone in get_tree().get_nodes_in_group("corruption"):
+				if is_instance_valid(zone):
+					zone.queue_free()
+			await _ticks(1)
+		var direct_shot: Node = corruption_script.new()
+		direct_shot.setup_corruption(Vector2(200, 0), Vector2.ZERO, 1, Balance.COL_DANGER)
+		arena.enemy_container.add_child(direct_shot)
+		direct_shot.pop()
+		_check(get_tree().get_nodes_in_group("corruption").is_empty(), "intercepted corruption shot creates no zone")
+		if is_instance_valid(direct_shot):
+			direct_shot.queue_free()
+	root.free()
+	ranged.free()
+	boss_player.free()
+	for zone in get_tree().get_nodes_in_group("corruption"):
+		if is_instance_valid(zone):
+			zone.queue_free()
+
+	var oom: OomKiller = arena.spawner._make_enemy("oom")
+	oom.position = Vector2(Balance.arena_rect().end.x - oom.radius, 0.0)
+	arena.enemy_container.add_child(oom)
+	await _ticks(1)
+	var mote_idx := arena.mote_field.spawn(oom.global_position)
+	oom._steal(mote_idx)
+	oom.st = OomKiller.St.FLEE
+	oom._physics_process(0.1)
+	_check(oom.carried_ids.is_empty() and oom.is_queued_for_deletion(), "OOM_KILLER escapes fully at clamped arena edge")
+	if is_instance_valid(oom):
+		oom.queue_free()
 	await _ticks(2)
 
 func _systems_test(arena: Arena) -> void:

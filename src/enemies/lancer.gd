@@ -24,7 +24,7 @@ func _move(delta: float) -> void:
 	phase_t -= delta
 	match phase:
 		Phase.APPROACH:
-			var desired := steer_approach(aim_at_player(), 1.0, 0.35)
+			var desired := elite_steering(aim_at_player(), 1.0)
 			desired += steer_separation(2.2) * 0.7
 			_v = _v.move_toward(desired.limit_length(1.0) * speed, 500.0 * delta)
 			if phase_t <= 0.0 and dist_to_player() < 520.0:
@@ -48,12 +48,18 @@ func _move(delta: float) -> void:
 				phase = Phase.RECOVER
 				phase_t = 0.85
 		Phase.RECOVER:
-			var desired := steer_approach(aim_at_player(), 1.0, 0.35)
+			var desired := elite_steering(aim_at_player(), 1.0)
 			desired += steer_separation(2.2) * 0.7
 			_v = _v.move_toward(desired.limit_length(1.0) * speed * 0.4, 400.0 * delta)
 			if phase_t <= 0.0:
 				phase = Phase.APPROACH
-				phase_t = Game.rng.randf_range(0.5, 0.9)
+				phase_t = phase_reentry_interval(Game.rng.randf_range(0.5, 0.9))
+
+func phase_reentry_interval(base_interval: float) -> float:
+	return elite_reacquire_interval(base_interval)
+
+func telegraph_duration() -> float:
+	return 0.6
 
 func _ghost_draw(node: Node2D, c: Color) -> void:
 	var r := radius

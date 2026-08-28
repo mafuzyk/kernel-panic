@@ -30,7 +30,8 @@ func _move(delta: float) -> void:
 			_strafe_dir *= -1.0
 	var to_p := player.global_position - global_position if player != null else Vector2.ZERO
 	var d := to_p.length()
-	var desired := steer_distance_band(to_p, BAND_MIN, BAND_MAX, _strafe_dir, 0.85)
+	var lateral_weight := 1.15 if elite and elite_kind == "swift" else 0.85
+	var desired := steer_distance_band(to_p, BAND_MIN, BAND_MAX, _strafe_dir, lateral_weight)
 	desired += steer_separation(2.2) * 0.65
 	if _telegraph <= 0.0 and player != null and is_instance_valid(player):
 		desired += steer_open_space(to_p, BAND_MIN, _strafe_dir) * 0.85
@@ -48,14 +49,20 @@ func _fire() -> void:
 	if player == null or not is_instance_valid(player):
 		return
 	if not EnemyOrb.can_spawn(self):
-		_fire_t = 0.8
+		_fire_t = repeated_fire_interval(0.8)
 		return
 	var orb := EnemyOrb.new()
 	orb.setup(global_position + aim_at_player() * (radius + 10.0), aim_at_player(), 265.0, col)
 	get_parent().add_child(orb)
 	Sfx.play("shoot", 0.55, -7.0, 0.08)
 	Fx.sparks(global_position + aim_at_player() * radius, col, 5, 120.0, 0.3, 2.4)
-	_fire_t = Game.rng.randf_range(1.9, 2.5)
+	_fire_t = repeated_fire_interval(Game.rng.randf_range(1.9, 2.5))
+
+func repeated_fire_interval(base_interval: float) -> float:
+	return maxf(base_interval * Balance.attack_cadence_factor(threat_wave), 0.5)
+
+func telegraph_duration() -> float:
+	return 0.42
 
 func vel() -> Vector2:
 	return _v

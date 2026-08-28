@@ -19,6 +19,7 @@ var _freeze_cd := 5.0
 var _lance_cd := 6.0
 var _lance_dir := Vector2.RIGHT
 var _fan_cd := 4.5
+var _corruption_cd := 3.2
 var _shield_rebuilt := false
 var _rebuild_warning_t := 0.0
 var _spiral_angle := 0.0
@@ -124,19 +125,13 @@ func _move(delta: float) -> void:
 	_freeze_cd -= delta
 	_lance_cd -= delta
 	_fan_cd -= delta
+	_corruption_cd -= delta
 	match act:
 		Act.HOVER:
 			var to_p := player.global_position - global_position if player != null and is_instance_valid(player) else Vector2.ZERO
-			var target: Vector2
-			if kind == 1:
-				var approach := steer_approach(to_p)
-				target = approach * speed + approach.orthogonal() * sin(t * 1.3) * 40.0
-			else:
-				var lateral_sign := -1.0 if kind % 2 == 0 else 1.0
-				var desired := steer_distance_band(to_p, 190.0, 360.0, lateral_sign, 0.7)
-				if player != null and is_instance_valid(player):
-					desired += steer_open_space(to_p, 190.0, lateral_sign) * 0.85
-				target = desired.limit_length(1.0) * speed
+			var target := hover_direction(to_p) * speed
+			if not is_ranged_profile():
+				target += hover_direction(to_p).orthogonal() * sin(t * 1.3) * 40.0
 			_v = _v.move_toward(target, 300.0 * delta)
 			_try_attacks()
 		Act.BURST:
@@ -264,60 +259,63 @@ func _try_attacks() -> void:
 			if phase >= Phase.THREE and _charge_cd <= 0.0:
 				_start_charge()
 		2:
+			if _corruption_cd <= 0.0:
+				_corruption_cd = repeated_cooldown(4.2)
+				_corruption_volley(3)
 			if _teleport_cd <= 0.0:
-				_teleport_cd = maxf(2.6, 4.0 - 0.3 * phase)
+				_teleport_cd = repeated_cooldown(maxf(2.6, 4.0 - 0.3 * phase))
 				act = Act.TELEPORT_OUT
 				act_t = 0.35
 				Sfx.play("charge", 1.6, -8.0)
 			if _burst_cd <= 0.0:
-				_burst_cd = 2.4
+				_burst_cd = repeated_cooldown(2.4)
 				_do_burst(8, 240.0)
 			if phase >= Phase.TWO and _lance_cd <= 0.0:
-				_lance_cd = maxf(4.5, 7.0 - phase)
+				_lance_cd = repeated_cooldown(maxf(4.5, 7.0 - phase))
 				act = Act.LANCE_WIND
 				act_t = 0.5
 				Sfx.play("charge", 1.2, -8.0)
 			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summons_alive() < 6:
-				_summon_cd = 9.0
+				_summon_cd = repeated_cooldown(9.0)
 				_do_summon("lancer")
 		3:
 			if _freeze_cd <= 0.0:
-				_freeze_cd = maxf(4.5, 7.0 - 0.5 * phase)
+				_freeze_cd = repeated_cooldown(maxf(4.5, 7.0 - 0.5 * phase))
 				act = Act.FREEZE_WIND
 				act_t = 0.7
 				Sfx.play("charge", 0.8, -6.0)
 			if _spiral_cd <= 0.0:
 				_start_spiral(18 + 4 * phase, 1.8)
 			if phase >= Phase.TWO and _fan_cd <= 0.0:
-				_fan_cd = maxf(3.8, 6.0 - phase * 0.7)
+				_fan_cd = repeated_cooldown(maxf(3.8, 6.0 - phase * 0.7))
 				_volley(5)
 				Fx.ring(global_position, col, radius, radius + 90.0, 0.35, 2.5)
 			if _burst_cd <= 0.0:
-				_burst_cd = 2.6
+				_burst_cd = repeated_cooldown(2.6)
 				_do_burst(10, 220.0)
 			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summons_alive() < 4:
-				_summon_cd = 10.0
+				_summon_cd = repeated_cooldown(10.0)
 				_do_summon("spewer")
 		4:
 			var pages := _pages_alive()
 			if pages < 4 and _summon_cd <= 0.0:
-				_summon_cd = 6.0
+				_summon_cd = repeated_cooldown(6.0)
 				_do_pages()
 			if pages == 0:
 				if _burst_cd <= 0.0:
-					_burst_cd = 1.9
+					_burst_cd = repeated_cooldown(1.9)
 					_do_burst(16, 230.0)
 				if _charge_cd <= 0.0 and phase >= Phase.TWO:
 					_start_charge()
 			if phase >= Phase.TWO and _summon_cd <= 0.0 and _summons_alive() < 4:
-				_summon_cd = 11.0
+				_summon_cd = repeated_cooldown(11.0)
 				_do_summon("trojan")
 	if mk >= 4 and phase >= Phase.THREE and _charge_cd <= 0.0 and act == Act.HOVER and kind != 4:
 		_charge_cd = 5.2
 		_start_charge()
 
 func _start_charge() -> void:
-	_charge_cd = 5.2
+	_charge_cd = repeated_cooldown(5.2)
 	act = Act.CHARGE_WIND
 	act_t = 0.55
 	Sfx.play("charge", 0.7, -4.0)
@@ -325,8 +323,23 @@ func _start_charge() -> void:
 func vel() -> Vector2:
 	return _v
 
+func is_ranged_profile() -> bool:
+	return kind != 1
+
+func hover_direction(to_target: Vector2) -> Vector2:
+	if not is_ranged_profile():
+		return steer_approach(to_target)
+	var lateral_sign := -1.0 if kind % 2 == 0 else 1.0
+	var desired := steer_distance_band(to_target, 190.0, 360.0, lateral_sign, 0.7)
+	if player != null and is_instance_valid(player):
+		desired += steer_open_space(to_target, 190.0, lateral_sign) * 0.85
+	return desired.limit_length(1.0)
+
+func repeated_cooldown(base_interval: float) -> float:
+	return base_interval * Balance.attack_cadence_factor(threat_wave) if is_ranged_profile() else base_interval
+
 func _start_spiral(shots: int, dur: float) -> void:
-	_spiral_cd = 5.5
+	_spiral_cd = repeated_cooldown(5.5)
 	act = Act.SPIRAL
 	act_t = dur
 	_spiral_shots = shots
@@ -365,6 +378,21 @@ func _volley(n: int) -> void:
 		_spawn_orb(Vector2.from_angle(base + (i - (n - 1) * 0.5) * 0.22), 260.0)
 	Sfx.play("shoot", 0.5, -6.0)
 
+func _corruption_volley(n: int) -> void:
+	if player == null or not is_instance_valid(player) or get_parent() == null:
+		return
+	var shot_script: Script = load("res://src/enemies/corruption_shot.gd")
+	if shot_script == null:
+		return
+	var target := player.global_position
+	var base := aim_at_player().angle()
+	for i in n:
+		var shot: Node = shot_script.new()
+		var dir := Vector2.from_angle(base + (i - (n - 1) * 0.5) * 0.16)
+		shot.call("setup_corruption", global_position + dir * (radius + 8.0), target + dir * 620.0, 1, col)
+		get_parent().call_deferred("add_child", shot)
+	Sfx.play("shoot", 0.6, -5.0)
+
 func _pages_alive() -> int:
 	var count := 0
 	for p in get_tree().get_nodes_in_group("page"):
@@ -390,7 +418,7 @@ func _process(delta: float) -> void:
 	if act == Act.SPIRAL and _spiral_shots > 0:
 		var fire_acc: float = get_meta("sp_acc", 0.0) + delta
 		while fire_acc >= 0.085 and _spiral_shots > 0:
-			fire_acc -= 0.085
+			fire_acc -= 0.085 * Balance.attack_cadence_factor(threat_wave)
 			_spiral_shots -= 1
 			_spiral_angle += 0.47
 			_spawn_orb(Vector2.from_angle(_spiral_angle), 235.0)

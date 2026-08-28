@@ -75,7 +75,12 @@ static func wave_budget(wave: int) -> int:
 	return 8 + (wave - 1) * 5 + maxi(0, wave - 4) * 2
 
 static func max_alive(wave: int) -> int:
-	return mini(6 + wave * 2, 16)
+	return mini(6 + wave * 2, 10)
+
+static func attack_cadence_factor(wave: int) -> float:
+	if wave <= 5:
+		return 1.0
+	return maxf(0.78, 1.0 - float(wave - 5) * 0.015)
 
 static func elite_chance(wave: int) -> float:
 	return clampf(float(wave - 7) * 0.045, 0.0, 0.4)
