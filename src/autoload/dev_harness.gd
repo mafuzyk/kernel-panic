@@ -117,7 +117,17 @@ func _autotest() -> void:
 	var player: Player = arena.player
 	_check(player != null and is_instance_valid(player), "player exists")
 	_check(arena.spawner != null, "spawner exists")
+	var onboarding_bestiary_before: Dictionary = Game.bestiary.duplicate(true)
+	var onboarding_tutorial_before: Dictionary = Game.get("tutorial").duplicate(true)
+	var onboarding_bestiary_disk_before := _config_snapshot("bestiary", "seen", {})
+	var onboarding_tutorial_disk_before := _config_snapshot("tutorial", "hints", {})
 	await _onboarding_test(arena)
+	if OS.get_environment("KP_ONBOARDING_EARLY_EXIT") != "":
+		_check(_config_snapshot_matches(onboarding_tutorial_disk_before, _config_snapshot("tutorial", "hints", {})), "early onboarding exit restores tutorial hints ConfigFile section")
+		Game.bestiary = onboarding_bestiary_before
+		Game.tutorial = onboarding_tutorial_before
+		_restore_config_snapshot("bestiary", "seen", onboarding_bestiary_disk_before)
+		_restore_config_snapshot("tutorial", "hints", onboarding_tutorial_disk_before)
 	await _ticks(30)
 	_check(Game.wave == 1, "wave 1 started")
 	_check(arena.wave_signal_count >= 1, "wave_started signal received for wave 1")
@@ -470,11 +480,17 @@ func _onboarding_test(arena: Arena) -> void:
 	hud._banner_sub = saved_banner_sub
 	hud._hint_queue = saved_hint_queue
 	hud._hint_queue_ids = saved_hint_queue_ids
+	var onboarding_exit_early := OS.get_environment("KP_ONBOARDING_EARLY_EXIT") != ""
+	_restore_onboarding_fixture(saved_bestiary, saved_tutorial, saved_bestiary_disk, saved_tutorial_disk)
+	if onboarding_exit_early:
+		return
+	_check(_config_snapshot_matches(saved_tutorial_disk, _config_snapshot("tutorial", "hints", {})), "onboarding probe restores tutorial hints ConfigFile section")
+
+func _restore_onboarding_fixture(saved_bestiary: Dictionary, saved_tutorial: Dictionary, saved_bestiary_disk: Dictionary, saved_tutorial_disk: Dictionary) -> void:
 	Game.bestiary = saved_bestiary
 	Game.tutorial = saved_tutorial
 	_restore_config_snapshot("bestiary", "seen", saved_bestiary_disk)
 	_restore_config_snapshot("tutorial", "hints", saved_tutorial_disk)
-	_check(_config_snapshot_matches(saved_tutorial_disk, _config_snapshot("tutorial", "hints", {})), "onboarding probe restores tutorial hints ConfigFile section")
 
 func _config_snapshot(section: String, key: String, default_value) -> Dictionary:
 	var cf := ConfigFile.new()
