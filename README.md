@@ -77,6 +77,30 @@ The console also has buttons for each regular enemy and all four boss
 variants. It is intended for movement, AI, boss, and HUD observation without
 waiting through a full run.
 
+### Pause terminal and speedrun tools
+
+Open **OPEN TERMINAL** from the pause screen. It accepts:
+
+```text
+help                 list commands
+top                  show current run stats
+man <enemy>          inspect a bestiary entry
+dmesg                show the current run event log
+sudo heal            restore one integrity per run (not in One-HP)
+rm -rf /             intentionally trigger a kernel panic
+```
+
+Enable **SPEEDRUN HUD** in settings to show the timer, deterministic run seed,
+and the hold-to-restart hint. Achievements appear as terminal-style toasts
+and are recorded in `dmesg`; deaths include a short core-dump recap.
+
+### Move a save between phone and PC
+
+In **SETTINGS**, use **COPY EXPORT** on the old device, then paste the string
+into the save field on the new device and choose **IMPORT PASTE**. The transfer
+contains records, bestiary progress, playable programs, and achievements while
+leaving audio, controls, and other local settings alone.
+
 ### Arch Linux / Artix Linux (AUR)
 
 For the prebuilt release, install `kernel-panic-bin` with an AUR helper:
