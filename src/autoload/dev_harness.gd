@@ -848,8 +848,34 @@ func _task5_test(arena: Arena) -> void:
 	var corruption_script: Script = load("res://src/enemies/corruption_shot.gd")
 	_check(corruption_script != null, "corruption shot script loads")
 	if corruption_script != null:
+		arena.enemy_container.add_child(ranged)
+		await _ticks(1)
+		ranged._corruption_volley(1)
+		await _ticks(1)
+		var boss_shots := get_tree().get_nodes_in_group("corruption_shots")
+		_check(boss_shots.size() == 1 and boss_shots[0].get("target_point") == boss_player.global_position, "SEGFAULT corruption shot targets the player position")
+		for boss_shot in boss_shots:
+			if is_instance_valid(boss_shot):
+				boss_shot.queue_free()
+		await _ticks(1)
+		var impact_player := Player.new()
+		impact_player.position = Vector2(200, 0)
+		arena.add_child(impact_player)
+		await _ticks(1)
+		impact_player.invuln = 0.0
+		impact_player.hp = impact_player.max_hp
+		var impact_shot: Node = corruption_script.new()
+		impact_shot.setup_corruption(Vector2(220, 0), impact_player.global_position, 1, Balance.COL_DANGER)
+		arena.enemy_container.add_child(impact_shot)
+		var impact_hp_before := impact_player.hp
+		var impact_ok := await _until(func() -> bool:
+			return impact_player.hp < impact_hp_before
+		, 1.0, "corruption shot direct impact")
+		_check(impact_ok and impact_player.hp == impact_hp_before - 1, "intercepted corruption shot damages a real player before midpoint")
+		_check(get_tree().get_nodes_in_group("corruption").is_empty(), "direct corruption impact creates no zone")
+		impact_player.position = Vector2(0, 200)
 		var shot: Node = corruption_script.new()
-		shot.setup_corruption(Vector2(200, 0), Vector2.ZERO, 1, Balance.COL_DANGER)
+		shot.setup_corruption(Vector2(220, 0), arena.player.global_position, 1, Balance.COL_DANGER)
 		arena.enemy_container.add_child(shot)
 		_check(float(shot.get("midpoint_distance")) > 0.0, "corruption shot tracks midpoint")
 		_check(shot.has_method("pop") and shot.has_method("burst_into_zone"), "corruption shot has direct and missed paths")
@@ -859,6 +885,8 @@ func _task5_test(arena: Arena) -> void:
 			shot._physics_process(0.3)
 			await _ticks(1)
 			_check(get_tree().get_nodes_in_group("corruption").size() > 0, "missed corruption shot creates a bounded zone")
+			if not get_tree().get_nodes_in_group("corruption").is_empty():
+				_check(float(get_tree().get_nodes_in_group("corruption")[0].get("radius")) <= 38.0, "missed corruption zone stays bounded")
 			if is_instance_valid(shot):
 				shot.queue_free()
 			for zone in get_tree().get_nodes_in_group("corruption"):
@@ -872,8 +900,10 @@ func _task5_test(arena: Arena) -> void:
 		_check(get_tree().get_nodes_in_group("corruption").is_empty(), "intercepted corruption shot creates no zone")
 		if is_instance_valid(direct_shot):
 			direct_shot.queue_free()
+		impact_player.queue_free()
 	root.free()
-	ranged.free()
+	if is_instance_valid(ranged):
+		ranged.queue_free()
 	boss_player.free()
 	for zone in get_tree().get_nodes_in_group("corruption"):
 		if is_instance_valid(zone):

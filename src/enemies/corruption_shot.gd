@@ -2,25 +2,30 @@ class_name CorruptionShot
 extends EnemyOrb
 
 var direction := Vector2.RIGHT
+var target_point := Vector2.ZERO
 var midpoint_distance := 0.0
 var travelled := 0.0
 var shot_speed := 280.0
 var damage := 1
 var resolved := false
 
-func setup_corruption(pos: Vector2, target: Vector2, direct_damage: int, color: Color) -> void:
+func setup_corruption(pos: Vector2, target: Vector2, direct_damage: int, color: Color, forced_direction := Vector2.ZERO) -> void:
 	position = pos
-	direction = (target - pos).normalized()
+	target_point = target
+	direction = forced_direction.normalized() if forced_direction.length_squared() > 0.0001 else (target - pos).normalized()
 	if direction.length_squared() <= 0.0001:
 		direction = Vector2.RIGHT
 	vel = direction * shot_speed
 	damage = direct_damage
 	col = color
 	midpoint_distance = pos.distance_to(target) * 0.5
+	travelled = 0.0
+	resolved = false
 	life = 3.0
 
 func _ready() -> void:
 	super._ready()
+	add_to_group("corruption_shots")
 	collision_mask = Balance.LAYER_PLAYER
 	monitoring = true
 	area_entered.connect(_on_area_entered)
@@ -44,9 +49,12 @@ func _on_area_entered(area: Area2D) -> void:
 	if resolved:
 		return
 	if area is Player:
-		resolved = true
-		area.take_damage(global_position, "CORRUPTION SHOT")
-		queue_free()
+		if travelled < midpoint_distance:
+			resolved = true
+			area.take_damage(global_position, "CORRUPTION SHOT")
+			queue_free()
+		else:
+			burst_into_zone()
 
 func pop() -> void:
 	resolved = true
