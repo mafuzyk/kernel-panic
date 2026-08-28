@@ -28,13 +28,13 @@ Somehow, it worked.
 
 ## Play it
 
-Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v2.4.0`.
+Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v2.4.5`.
 
 ## Install the game
 
 ### Android
 
-1. Download `KERNEL-PANIC-v2.4.0-release.apk` from the latest release and open it from your browser or file manager.
+1. Download `KERNEL-PANIC-v2.4.5-release.apk` from the latest release and open it from your browser or file manager.
 2. If Android blocks the installation, allow that app to **Install unknown apps** in the system settings, then open the APK again.
 3. Confirm **Install**. The current export targets 64-bit ARM devices (`arm64-v8a`).
 
@@ -42,18 +42,18 @@ KERNEL PANIC does not request network access and stores progress locally.
 
 ### Linux x86_64
 
-Download both `kernel-panic` and `kernel-panic.pck` from the same release and keep them in the same directory. Then run:
+Download the single `kernel-panic` executable from the latest release. The project data is embedded in the binary, so no separate `.pck` file is required. Then run:
 
 ```sh
 chmod +x kernel-panic
 ./kernel-panic
 ```
 
-For a local export from this repository, the files are generated at `build/linux-x86_64/`. The executable and its `.pck` must remain together.
+For a local export from this repository, the executable is generated at `build/linux-x86_64/kernel-panic`.
 
 ### Windows x86_64
 
-Download `kernel-panic.exe` and `kernel-panic.pck` from the same release and keep them in the same directory. Double-click `kernel-panic.exe` to run the game. The Windows debug build uses the matching `kernel-panic-debug.exe` and `kernel-panic-debug.pck` pair and is intended for testing.
+Download `kernel-panic.exe` from the latest release and double-click it to run the game. The project data is embedded in the executable. The Windows debug build is `kernel-panic-debug.exe` and is intended for testing.
 
 ## How it plays
 
@@ -112,7 +112,7 @@ mkdir -p build/linux-x86_64
 godot --headless --path . --export-release "Linux x86_64" build/linux-x86_64/kernel-panic
 ```
 
-Keep `kernel-panic` and `kernel-panic.pck` together when distributing the build. The project includes an automated harness that can be run with:
+The project data is embedded in the exported Linux executable. The project includes an automated harness that can be run with:
 
 ```sh
 godot --headless --path . -- --autotest
