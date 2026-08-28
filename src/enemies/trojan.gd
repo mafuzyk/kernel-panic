@@ -14,7 +14,11 @@ func _init() -> void:
 	mote_count = 3
 
 func _move(delta: float) -> void:
-	_v = _v.move_toward(aim_at_player() * speed, 240.0 * delta)
+	var to_player := player.global_position - global_position if is_instance_valid(player) else Vector2.ZERO
+	var route_sign := -1.0 if is_instance_valid(player) and global_position.y >= player.global_position.y else 1.0
+	var desired := steer_approach(to_player, route_sign, 0.6)
+	desired += steer_separation(2.4) * 0.7
+	_v = _v.move_toward(desired.limit_length(1.0) * speed, 240.0 * delta)
 	_drop_t -= delta
 	if _drop_t <= 0.0:
 		_drop_t = 2.4

@@ -19,6 +19,8 @@ var _banner_text := ""
 var _banner_sub := ""
 var _boss_frac := 1.0
 var _boss_name := ""
+var _boss_fragments: Array[RootBoss] = []
+var _boss_split := false
 var _score_font: Font
 var _mono: Font
 var _score_label: Label
@@ -92,6 +94,33 @@ func show_banner(text: String, sub: String, dur := 2.0) -> void:
 	_banner.text = text
 	_banner_sub_l.text = sub
 
+func set_boss_fragments(minis: Array) -> void:
+	_boss_fragments.clear()
+	for mini in minis:
+		if mini is RootBoss and is_instance_valid(mini):
+			_boss_fragments.append(mini)
+	_boss_fragments.sort_custom(func(a: RootBoss, b: RootBoss) -> bool:
+		return int(a.get_meta("mini_slot", 0)) < int(b.get_meta("mini_slot", 0))
+	)
+	_boss_split = _boss_fragments.size() > 0
+	if _boss_split:
+		_boss_name = "ROOT.exe // FORKED"
+
+func clear_boss_encounter() -> void:
+	boss = null
+	_boss_fragments.clear()
+	_boss_split = false
+	_boss_frac = -1.0
+	_boss_name = ""
+
+func _prune_boss_fragments() -> void:
+	var valid_fragments: Array[RootBoss] = []
+	for fragment in _boss_fragments:
+		if is_instance_valid(fragment):
+			valid_fragments.append(fragment)
+	_boss_fragments = valid_fragments
+	_boss_split = _boss_fragments.size() > 0
+
 func _process(delta: float) -> void:
 	_score_pop = maxf(_score_pop - delta * 4.0, 0.0)
 	if _banner_t > 0.0:
@@ -122,7 +151,10 @@ func _process(delta: float) -> void:
 		var on_cd := Game.vampic_cd > 0.0
 		var blink := 0.35 + 0.3 * absf(sin(Time.get_ticks_msec() / 180.0))
 		_build_label.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, blink if on_cd else 0.5))
-	if boss != null and is_instance_valid(boss):
+	_prune_boss_fragments()
+	if _boss_split:
+		_boss_frac = -1.0
+	elif boss != null and is_instance_valid(boss):
 		_boss_frac = float(boss.hp) / float(boss.max_hp)
 		_boss_name = boss.boss_title + " // KERNEL DAEMON"
 	else:
@@ -135,7 +167,9 @@ func _draw() -> void:
 	_oc_bar(f)
 	_mult_chip(f)
 	_dash_pip(f)
-	if _boss_frac >= 0.0:
+	if _boss_split:
+		_boss_split_bar(f)
+	elif _boss_frac >= 0.0:
 		_boss_bar(f)
 
 func _hp_pips(f: Font) -> void:
@@ -229,4 +263,35 @@ func _boss_bar(f: Font) -> void:
 			draw_rect(seg, Color(col.r, col.g, col.b, 0.9))
 		else:
 			draw_rect(seg, Color(col.r, col.g, col.b, 0.12))
+	draw_string(f, Vector2(x0, 668), _boss_name, HORIZONTAL_ALIGNMENT_CENTER, w, 12, Color(col.r, col.g, col.b, 0.9))
+
+func _boss_split_bar(f: Font) -> void:
+	var w := 500.0
+	var x0 := (size.x - w) * 0.5
+	var row_h := 7.0
+	var row_gap := 3.0
+	var bar_x := x0 + 64.0
+	var bar_w := w - 64.0
+	var col := Balance.COL_DANGER
+	var container := Rect2(x0, 676, w, row_h * 2.0 + row_gap)
+	draw_rect(container, Color(col.r, col.g, col.b, 0.08))
+	draw_rect(container, Color(col.r, col.g, col.b, 0.42), false, 1.0)
+	for fragment in _boss_fragments:
+		if not is_instance_valid(fragment):
+			continue
+		var slot := clampi(int(fragment.get_meta("mini_slot", 0)), 0, 1)
+		var y := container.position.y + slot * (row_h + row_gap)
+		var label := "MINI-A" if slot == 0 else "MINI-B"
+		draw_string(f, Vector2(x0, y + row_h), label, HORIZONTAL_ALIGNMENT_LEFT, 58.0, 10, Color(col.r, col.g, col.b, 0.9))
+		var row := Rect2(bar_x, y, bar_w, row_h)
+		draw_rect(row, Color(col.r, col.g, col.b, 0.12))
+		var max_hp := maxf(float(fragment.max_hp), 1.0)
+		var frac := clampf(float(fragment.hp) / max_hp, 0.0, 1.0)
+		var filled := clampi(int(ceilf(frac * 20.0)), 0, 20)
+		for i in 20:
+			var seg := Rect2(row.position.x + i * (row.size.x / 20.0) + 1.0, row.position.y, row.size.x / 20.0 - 2.0, row.size.y)
+			if i < filled:
+				draw_rect(seg, Color(col.r, col.g, col.b, 0.9))
+			else:
+				draw_rect(seg, Color(col.r, col.g, col.b, 0.12))
 	draw_string(f, Vector2(x0, 668), _boss_name, HORIZONTAL_ALIGNMENT_CENTER, w, 12, Color(col.r, col.g, col.b, 0.9))

@@ -10,6 +10,10 @@ const ENTRIES := [
 	{"id": "trojan", "name": "TROJAN", "desc": "leaves corruption pools. do not swim.", "threat": 140, "bugs": "leaves pools. calls them 'features'."},
 	{"id": "oom", "name": "OOM_KILLER", "desc": "steals your motes and runs. hunt it first.", "threat": 150, "bugs": "steals motes. returns nothing. ever."},
 	{"id": "boss", "name": "ROOT DAEMON", "desc": "every variant has a tell. learn it. respect it.", "threat": 2500, "bugs": "segfaults reproduce. two of them."},
+	{"id": "root", "name": "ROOT.exe", "desc": "splits at half integrity. track both processes.", "threat": 2500, "bugs": "forks once. both children are real."},
+	{"id": "segfault", "name": "SEGFAULT", "desc": "glitches, teleports, then opens a lance line.", "threat": 5000, "bugs": "address is invalid. movement is not."},
+	{"id": "bluescreen", "name": "BLUE SCREEN", "desc": "freezes systems and floods the arena with fan shots.", "threat": 7500, "bugs": "the error is blue. the projectiles are not."},
+	{"id": "pagefault", "name": "PAGE FAULT", "desc": "pages shield it until the orbiting nodes are purged.", "threat": 10000, "bugs": "read protection enabled. delete the pages."},
 	{"id": "recursor", "name": "RECURSOR", "desc": "teleports and leaves corruption. pools mark where it was. keep moving.", "threat": 140, "bugs": "leaves corruption where it *was*. check behind you."},
 	{"id": "firewall", "name": "FIREWALL", "desc": "rotating wall of orbs. kill the wall to drop the wall.", "threat": 180, "bugs": "wall persists after death of nearby processes."},
 ]
@@ -30,6 +34,10 @@ func _entry_color(id: String) -> Color:
 		"trojan": return Color("c23a5e")
 		"oom": return Color("9a4dff")
 		"boss": return Color("ff3d81")
+		"root": return Color("ff3d81")
+		"segfault": return Color("ff9a3d")
+		"bluescreen": return Color("4f8cff")
+		"pagefault": return Color("b46bff")
 		"recursor": return Color("52ff7a")
 		"firewall": return Color("37d8ff")
 		_: return Balance.COL_TEXT
@@ -181,6 +189,26 @@ func _draw_glyph(id: String, c: Color) -> void:
 			for i in 6:
 				var a0 := TAU * i / 6.0
 				draw_arc(Vector2.ZERO, 17, a0, a0 + TAU / 6.0 * 0.6, 8, c, 2.0, true)
+		"root":
+			for i in 6:
+				var a0 := TAU * i / 6.0
+				draw_arc(Vector2.ZERO, 17, a0, a0 + TAU / 6.0 * 0.6, 8, c, 2.0, true)
+			draw_line(Vector2(-8, 0), Vector2(8, 0), c, 1.5)
+		"segfault":
+			draw_line(Vector2(-16, -12), Vector2(16, 12), c, 2.0)
+			draw_line(Vector2(-16, 12), Vector2(-3, 0), c, 2.0)
+			draw_line(Vector2(3, 0), Vector2(16, -12), c, 2.0)
+		"bluescreen":
+			draw_rect(Rect2(-15, -13, 30, 26), Color(c.r, c.g, c.b, 0.18))
+			draw_rect(Rect2(-15, -13, 30, 26), c, false, 1.5)
+			draw_line(Vector2(-8, -3), Vector2(8, -3), c, 1.5)
+			draw_line(Vector2(-8, 4), Vector2(4, 4), c, 1.5)
+		"pagefault":
+			var page := PackedVector2Array([Vector2(-14, -15), Vector2(8, -15), Vector2(15, -8), Vector2(15, 15), Vector2(-14, 15)])
+			draw_colored_polygon(page, Color(c.r, c.g, c.b, 0.18))
+			draw_polyline(page + PackedVector2Array([page[0]]), c, 1.5, true)
+			draw_line(Vector2(-8, -3), Vector2(8, -3), c, 1.5)
+			draw_line(Vector2(-8, 5), Vector2(5, 5), c, 1.5)
 		"recursor":
 			draw_colored_polygon(PackedVector2Array([Vector2(0, -15), Vector2(15, 0), Vector2(0, 15), Vector2(-15, 0)]), Color(c.r, c.g, c.b, 0.25))
 			draw_polyline(PackedVector2Array([Vector2(0, -15), Vector2(15, 0), Vector2(0, 15), Vector2(-15, 0), Vector2(0, -15)]), c, 1.5, true)

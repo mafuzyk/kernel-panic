@@ -33,10 +33,9 @@ func _on_ready() -> void:
 
 func _move(delta: float) -> void:
 	_wob += delta * 5.0
-	var dir := aim_at_player()
-	var side := dir.orthogonal() * sin(_wob) * 0.45
-	var target := (dir + side).normalized() * speed
-	_v = _v.move_toward(target, 620.0 * delta)
+	var desired := steer_approach(aim_at_player(), 1.0, 0.35)
+	desired += steer_separation(2.2) * 0.7
+	_v = _v.move_toward(desired.limit_length(1.0) * speed, 620.0 * delta)
 
 func vel() -> Vector2:
 	return _v

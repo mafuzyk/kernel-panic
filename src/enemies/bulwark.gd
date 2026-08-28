@@ -13,7 +13,9 @@ func _init() -> void:
 	col = Balance.COL_BULWARK
 
 func _move(delta: float) -> void:
-	_v = _v.move_toward(aim_at_player() * speed, 200.0 * delta)
+	var desired := steer_approach(aim_at_player(), 1.0, 0.35)
+	desired += steer_separation(2.2) * 0.7
+	_v = _v.move_toward(desired.limit_length(1.0) * speed, 200.0 * delta)
 
 func vel() -> Vector2:
 	return _v

@@ -68,11 +68,19 @@ func _autotest() -> void:
 	_check(get_tree().current_scene != null and get_tree().current_scene.name == "Menu", "menu is main scene")
 	_check(Balance.is_desktop_display() == (DisplayServer.get_name() in ["windows", "macos", "x11", "wayland", "embedded"]), "is_desktop_display matches display server")
 	_check(get_tree().current_scene.find_children("*", "BootOverlay", true, false).is_empty(), "boot overlay skipped in headless")
-	var entries_ok := true
-	for e in BestiaryPanel.ENTRIES:
-		if not (e.has("threat") and e.has("bugs")):
-			entries_ok = false
-	_check(entries_ok, "bestiary entries carry threat and bugs fields")
+	var required_bestiary_ids := ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "boss", "recursor", "firewall", "root", "segfault", "bluescreen", "pagefault"]
+	var entry_ids := {}
+	for entry in BestiaryPanel.ENTRIES:
+		entry_ids[entry["id"]] = true
+	var bestiary_complete := true
+	for id in required_bestiary_ids:
+		if not entry_ids.has(id):
+			bestiary_complete = false
+	_check(bestiary_complete, "bestiary lists every current enemy and boss variant")
+	_check(Game.BESTIARY_MAP.get("ROOT.exe", "") == "root", "root boss variant maps to bestiary")
+	_check(Game.BESTIARY_MAP.get("SEGFAULT", "") == "segfault", "segfault maps to bestiary")
+	_check(Game.BESTIARY_MAP.get("BLUE SCREEN", "") == "bluescreen", "blue screen maps to bestiary")
+	_check(Game.BESTIARY_MAP.get("PAGE FAULT", "") == "pagefault", "page fault maps to bestiary")
 	Fx.stacktrace(Vector2.ZERO, "TEST_CRASH")
 	await _ticks(2)
 	_check(true, "stacktrace renders without error")
@@ -122,6 +130,63 @@ func _autotest() -> void:
 		if c is PlayerBullet:
 			bullet_found = true
 	_check(bullet_found or Game.stats["shots"] > shots_before + 2, "bullets spawned")
+	var steering_probe := EnemyBase.new()
+	var retreat_dir := steering_probe.steer_distance_band(Vector2(40, 0), 150.0, 300.0, 1.0)
+	_check(retreat_dir.dot(Vector2.LEFT) > 0.7, "distance band retreats when target is too close")
+	var hold_dir := steering_probe.steer_distance_band(Vector2(220, 0), 150.0, 300.0, 1.0)
+	_check(absf(hold_dir.dot(Vector2.RIGHT)) < 0.8 and hold_dir.length() > 0.9, "distance band strafes inside the band")
+	var approach_dir := steering_probe.steer_approach(Vector2(220, 0), 0.0, 0.0)
+	_check(approach_dir.dot(Vector2.RIGHT) > 0.99, "approach steering points at target")
+	EnemyBase.shared_list = [steering_probe]
+	var neighbor := EnemyBase.new()
+	neighbor.position = Vector2(24, 0)
+	steering_probe.position = Vector2.ZERO
+	EnemyBase.shared_list.append(neighbor)
+	_check(steering_probe.steer_separation(3.0).dot(Vector2.LEFT) > 0.7, "separation pushes away from nearby enemy")
+	EnemyBase.shared_list = arena.enemy_list
+	steering_probe.free()
+	neighbor.free()
+	var open_space_probe := EnemyBase.new()
+	open_space_probe.radius = 14.0
+	var open_space_rect := Balance.arena_rect()
+	open_space_probe.position = Vector2(open_space_rect.position.x + open_space_probe.radius + 6.0, 0.0)
+	var upper_blocker := EnemyBase.new()
+	upper_blocker.radius = 18.0
+	upper_blocker.position = open_space_probe.position + Vector2(0, -96)
+	var lower_blocker := EnemyBase.new()
+	lower_blocker.radius = 18.0
+	lower_blocker.position = open_space_probe.position + Vector2(0, 96)
+	EnemyBase.shared_list = [open_space_probe, upper_blocker, lower_blocker]
+	var open_space_dir: Vector2 = open_space_probe.steer_open_space(Vector2(60, 0), 150.0, 1.0)
+	_check(open_space_dir.length() > 0.9 and open_space_dir.x > 0.7, "open space picks the less congested valid side")
+	EnemyBase.shared_list = arena.enemy_list
+	open_space_probe.free()
+	upper_blocker.free()
+	lower_blocker.free()
+	var ai_player := Node2D.new()
+	ai_player.position = Vector2.ZERO
+	arena.add_child(ai_player)
+	var ranged_probe := PageNode.new()
+	ranged_probe.player = ai_player
+	ranged_probe.position = Vector2(80, 0)
+	ranged_probe._fire_t = 99.0
+	ranged_probe._move(0.1)
+	_check(ranged_probe._v.dot(Vector2.RIGHT) > 0.0, "page node retreats inside minimum range")
+	var melee_a := DroneEnemy.new()
+	var melee_b := DroneEnemy.new()
+	melee_a.player = ai_player
+	melee_b.player = ai_player
+	melee_a.position = Vector2(80, 0)
+	melee_b.position = Vector2(80, 16)
+	melee_a._wob = -0.5
+	EnemyBase.shared_list = [melee_a, melee_b]
+	melee_a._move(0.1)
+	_check(absf(melee_a.vel().y) > 0.01, "melee steering separates from a nearby ally")
+	EnemyBase.shared_list = arena.enemy_list
+	ranged_probe.free()
+	melee_a.free()
+	melee_b.free()
+	ai_player.free()
 	var e := DroneEnemy.new()
 	e.position = player.global_position + Vector2(240, 0)
 	arena.enemy_container.add_child(e)
@@ -348,6 +413,47 @@ func _systems_test(arena: Arena) -> void:
 	f2.configure(1.0, false)
 	_check(f1.max_hp == 120, "boss hp formula mk1=120")
 	_check(f2.max_hp == 162, "boss hp formula mk2=162")
+	var ranged_boss := RootBoss.new()
+	ranged_boss.boss_index = 3
+	ranged_boss.configure(1.0, false)
+	ranged_boss.player = player
+	ranged_boss.position = player.global_position + Vector2(70, 0)
+	ranged_boss._move(0.1)
+	_check(ranged_boss.vel().dot(Vector2.RIGHT) > 0.0, "ranged boss backs away when player is too close")
+	var split_seen := []
+	var split_signal_boss := RootBoss.new()
+	split_signal_boss.boss_index = 1
+	split_signal_boss.configure(1.0, false)
+	split_signal_boss.split_started.connect(func(minis: Array) -> void:
+		split_seen.append_array(minis)
+	)
+	split_signal_boss.player = player
+	split_signal_boss.position = player.global_position + Vector2(220, 0)
+	var split_probe_position := split_signal_boss.position
+	arena.enemy_container.add_child(split_signal_boss)
+	await _ticks(1)
+	arena._on_boss_spawned(split_signal_boss)
+	_check(arena.hud.boss != null, "boss hud tracks root before split")
+	split_signal_boss._split_into_minis()
+	await _ticks(2)
+	_check(arena.hud._boss_fragments.size() == 2, "boss hud tracks both root minis")
+	_check(arena.hud._boss_split, "boss hud enters forked layout")
+	_check(arena.hud._boss_name == "ROOT.exe // FORKED", "boss hud labels the forked root")
+	_check(arena.hud._boss_split, "forked boss hud survives original root cleanup")
+	_check(split_seen.size() == 2, "root split reports both mini instances")
+	if split_seen.size() == 2:
+		_check(split_seen[0].position.distance_to(split_seen[1].position) > 52.0, "root minis start separated")
+	await _ticks(1)
+	for mini_node in split_seen:
+		if is_instance_valid(mini_node):
+			mini_node.queue_free()
+	for mote_idx in range(arena.mote_field.count() - 1, -1, -1):
+		if arena.mote_field.pos_of(mote_idx).distance_to(split_probe_position) < 32.0:
+			arena.mote_field.kill_slot(mote_idx)
+	EnemyBase.shared_list = arena.enemy_list
+	ranged_boss.free()
+	if is_instance_valid(split_signal_boss):
+		split_signal_boss.free()
 	f1.queue_free()
 	f2.queue_free()
 	await _ticks(2)
@@ -364,6 +470,8 @@ func _systems_test(arena: Arena) -> void:
 	rb.position = player.global_position + Vector2(300, -80)
 	arena.enemy_container.add_child(rb)
 	await _ticks(2)
+	arena._on_boss_spawned(rb)
+	_check(arena.hud.boss != null, "boss hud tracks root before split lifecycle")
 	rb.hp = int(rb.max_hp * 0.51) + 1
 	rb.take_hit(2, rb.global_position + Vector2(6, 0))
 	await _ticks(5)
@@ -372,6 +480,8 @@ func _systems_test(arena: Arena) -> void:
 		if e is RootBoss and is_instance_valid(e) and e.mini:
 			minis_found += 1
 	_check(minis_found == 2, "root splits into two minis (%d)" % minis_found)
+	_check(arena.hud._boss_fragments.size() == 2, "boss hud tracks both lifecycle minis")
+	_check(arena.hud._boss_split, "boss hud stays forked during lifecycle")
 	var mini_hp_ok := true
 	var mini_positions: Array[Vector2] = []
 	for e in arena.enemy_container.get_children():
@@ -405,6 +515,8 @@ func _systems_test(arena: Arena) -> void:
 		get_tree().paused = false
 		probe_mini.take_hit(probe_mini.hp + 99, probe_mini.global_position)
 		await _ticks(4)
+		_check(arena.hud._boss_fragments.size() == 1, "boss hud removes first dead mini")
+		_check(arena.hud._boss_split, "boss hud stays forked while one mini lives")
 		_check(arena._patch_pending == 0 and not arena._patch_open, "first root mini gives no boss card")
 		if get_tree().paused:
 			get_tree().paused = false
@@ -424,6 +536,11 @@ func _systems_test(arena: Arena) -> void:
 		if last_mini != null:
 			last_mini.take_hit(last_mini.hp + 99, last_mini.global_position)
 			await _ticks(4)
+		_check(arena.hud.boss == null, "boss hud clears root after final reward")
+		_check(arena.hud._boss_fragments.is_empty(), "boss hud clears all minis after final reward")
+		_check(not arena.hud._boss_split, "boss hud exits forked layout after final reward")
+		_check(arena.hud._boss_name == "", "boss hud clears forked title after final reward")
+		_check(arena.hud._boss_frac == -1.0, "boss hud clears boss fraction after final reward")
 		_check(arena._patch_open or arena._patch_pending == 1, "root encounter gives one card after both minis")
 		_check(int(Game.stats["heals"].get("boss", 0)) == 1 and player.hp == player.max_hp - 1, "root encounter gives one boss heal")
 		var final_recover_count := 0
@@ -801,6 +918,24 @@ func _systems_test(arena: Arena) -> void:
 	player.dash_cd = 0.0
 	Game.patch_levels = {}
 	print("AT_STEP newenemies")
+	var special_player := Node2D.new()
+	special_player.position = Vector2.ZERO
+	arena.add_child(special_player)
+	var trojan_probe := TrojanEnemy.new()
+	trojan_probe.player = special_player
+	trojan_probe.position = Vector2(180, 0)
+	trojan_probe._move(0.1)
+	_check(absf(trojan_probe.vel().dot(Vector2.LEFT)) < trojan_probe.vel().length(), "trojan approaches with route offset")
+	var recursor_probe: RecursorEnemy = load("res://src/enemies/recursor.gd").new()
+	recursor_probe.player = special_player
+	recursor_probe.position = Vector2(80, 0)
+	recursor_probe.phase_t = 99.0
+	recursor_probe._move(0.1)
+	_check(recursor_probe.vel().dot(Vector2.LEFT) <= 0.0, "recursor does not blindly converge at close range")
+	EnemyBase.shared_list = arena.enemy_list
+	trojan_probe.free()
+	recursor_probe.free()
+	special_player.free()
 	var rec = load("res://src/enemies/recursor.gd").new()
 	rec.position = player.global_position + Vector2(300, 0)
 	arena.enemy_container.add_child(rec)

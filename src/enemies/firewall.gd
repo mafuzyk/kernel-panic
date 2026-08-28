@@ -50,8 +50,9 @@ func _move(delta: float) -> void:
 func vel() -> Vector2:
 	if _settled:
 		return Vector2.ZERO
-	var to_anchor := (_anchor - global_position)
-	return to_anchor.limit_length(speed)
+	var desired := (_anchor - global_position).normalized()
+	desired += steer_separation(2.4) * 0.7
+	return desired.limit_length(1.0) * speed
 
 func _refresh_wall() -> void:
 	for i in WALL_ARMS:

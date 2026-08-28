@@ -30,14 +30,11 @@ func _move(delta: float) -> void:
 			_strafe_dir *= -1.0
 	var to_p := player.global_position - global_position if player != null else Vector2.ZERO
 	var d := to_p.length()
-	var dir := to_p.normalized() if d > 1.0 else Vector2.ZERO
-	var radial := 0.0
-	if d > BAND_MAX:
-		radial = 1.0
-	elif d < BAND_MIN:
-		radial = -1.0
-	var move_dir := (dir * radial + dir.orthogonal() * _strafe_dir * 0.85).normalized()
-	_v = _v.move_toward(move_dir * speed, 420.0 * delta)
+	var desired := steer_distance_band(to_p, BAND_MIN, BAND_MAX, _strafe_dir, 0.85)
+	desired += steer_separation(2.2) * 0.65
+	if _telegraph <= 0.0 and player != null and is_instance_valid(player):
+		desired += steer_open_space(to_p, BAND_MIN, _strafe_dir) * 0.85
+	_v = _v.move_toward(desired.limit_length(1.0) * speed, 420.0 * delta)
 	_fire_t -= delta
 	if _fire_t <= 0.0 and _telegraph <= 0.0 and d < 620.0:
 		_telegraph = 0.42

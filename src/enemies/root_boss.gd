@@ -2,6 +2,7 @@ class_name RootBoss
 extends EnemyBase
 
 signal boss_hp_changed(frac: float)
+signal split_started(minis: Array)
 
 enum Phase { ONE = 1, TWO = 2, THREE = 3 }
 enum Act { HOVER, BURST, SPIRAL, CHARGE_WIND, CHARGE_GO, STAGGER, TELEPORT_OUT, TELEPORT_IN, FREEZE_WIND, LANCE_WIND, LANCE_GO }
@@ -33,6 +34,7 @@ var _recover_half_dropped := false
 var mini := false
 var split_done := false
 var kind := 1
+var _mini_side := 1.0
 var _glitch_off := Vector2.ZERO
 
 const MK_DATA := [
@@ -124,8 +126,17 @@ func _move(delta: float) -> void:
 	_fan_cd -= delta
 	match act:
 		Act.HOVER:
-			var to_p := aim_at_player()
-			var target := to_p * speed + to_p.orthogonal() * sin(t * 1.3) * 40.0
+			var to_p := player.global_position - global_position if player != null and is_instance_valid(player) else Vector2.ZERO
+			var target: Vector2
+			if kind == 1:
+				var approach := steer_approach(to_p)
+				target = approach * speed + approach.orthogonal() * sin(t * 1.3) * 40.0
+			else:
+				var lateral_sign := -1.0 if kind % 2 == 0 else 1.0
+				var desired := steer_distance_band(to_p, 190.0, 360.0, lateral_sign, 0.7)
+				if player != null and is_instance_valid(player):
+					desired += steer_open_space(to_p, 190.0, lateral_sign) * 0.85
+				target = desired.limit_length(1.0) * speed
 			_v = _v.move_toward(target, 300.0 * delta)
 			_try_attacks()
 		Act.BURST:
@@ -199,9 +210,10 @@ func _move_mini(delta: float) -> void:
 	_lance_cd -= delta
 	match act:
 		Act.HOVER:
-			var to_p := aim_at_player()
-			var target := to_p * (speed * 2.0) + to_p.orthogonal() * sin(t * 2.0) * 55.0
-			_v = _v.move_toward(target, 520.0 * delta)
+			var to_player := player.global_position - global_position if player != null else Vector2.ZERO
+			var desired := steer_distance_band(to_player, 150.0, 300.0, _mini_side, 0.8)
+			desired += steer_separation(3.0) * 0.95
+			_v = _v.move_toward(desired.limit_length(1.0) * speed * 2.0, 520.0 * delta)
 			_try_attacks()
 		Act.BURST:
 			_v = _v.move_toward(Vector2.ZERO, 700.0 * delta)
@@ -498,9 +510,12 @@ func _split_into_minis() -> void:
 	Fx.ring(global_position, col, 10.0, 220.0, 0.6, 5.0)
 	Fx.shake(0.7)
 	Sfx.play("explode_big", 0.9, -2.0)
+	var minis: Array = []
 	for i in 2:
 		var m := RootBoss.new()
 		m.mini = true
+		m._mini_side = -1.0 if i == 0 else 1.0
+		m.set_meta("mini_slot", i)
 		m.split_done = true
 		m.boss_index = boss_index
 		m.configure(1.0, false)
@@ -508,7 +523,9 @@ func _split_into_minis() -> void:
 		m.max_hp = fragment_hp
 		m.position = global_position + Vector2(-40.0 + 80.0 * i, 20.0)
 		m.col = col.lerp(Color(1, 1, 1), 0.25)
+		minis.append(m)
 		get_parent().call_deferred("add_child", m)
+	split_started.emit(minis)
 	var arena_node: Node = null
 	if get_tree() != null:
 		arena_node = get_tree().get_first_node_in_group("arena")

@@ -24,7 +24,9 @@ func _move(delta: float) -> void:
 	phase_t -= delta
 	match phase:
 		Phase.APPROACH:
-			_v = _v.move_toward(aim_at_player() * speed, 500.0 * delta)
+			var desired := steer_approach(aim_at_player(), 1.0, 0.35)
+			desired += steer_separation(2.2) * 0.7
+			_v = _v.move_toward(desired.limit_length(1.0) * speed, 500.0 * delta)
 			if phase_t <= 0.0 and dist_to_player() < 520.0:
 				phase = Phase.AIM
 				phase_t = 0.6
@@ -46,7 +48,9 @@ func _move(delta: float) -> void:
 				phase = Phase.RECOVER
 				phase_t = 0.85
 		Phase.RECOVER:
-			_v = _v.move_toward(aim_at_player() * speed * 0.4, 400.0 * delta)
+			var desired := steer_approach(aim_at_player(), 1.0, 0.35)
+			desired += steer_separation(2.2) * 0.7
+			_v = _v.move_toward(desired.limit_length(1.0) * speed * 0.4, 400.0 * delta)
 			if phase_t <= 0.0:
 				phase = Phase.APPROACH
 				phase_t = Game.rng.randf_range(0.5, 0.9)

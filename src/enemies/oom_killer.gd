@@ -30,7 +30,9 @@ func _move(delta: float) -> void:
 			var target_idx: int = _nearest_free_mote()
 			if target_idx >= 0:
 				var tp := _field().pos_of(target_idx)
-				_v = _v.move_toward((tp - global_position).normalized() * speed, 500.0 * delta)
+				var desired := (tp - global_position).normalized()
+				desired += steer_separation(2.4) * 0.7
+				_v = _v.move_toward(desired.limit_length(1.0) * speed, 500.0 * delta)
 				if global_position.distance_to(tp) < 18.0:
 					_steal(target_idx)
 			else:
@@ -40,7 +42,9 @@ func _move(delta: float) -> void:
 		St.FLEE:
 			var r := Balance.arena_rect()
 			var edge := _nearest_edge_point()
-			_v = _v.move_toward((edge - global_position).normalized() * 245.0, 600.0 * delta)
+			var escape_dir := (edge - global_position).normalized()
+			escape_dir += steer_separation(2.4) * 0.7
+			_v = _v.move_toward(escape_dir.limit_length(1.0) * 245.0, 600.0 * delta)
 			if not r.grow(26.0).has_point(global_position):
 				_escape()
 	_v = _v.limit_length(400.0)

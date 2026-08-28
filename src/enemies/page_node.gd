@@ -21,8 +21,11 @@ func _ready() -> void:
 
 func _move(delta: float) -> void:
 	if boss == null or not is_instance_valid(boss):
-		var drift := aim_at_player() * 60.0
-		_v = _v.move_toward(drift, 200.0 * delta)
+		var to_player := player.global_position - global_position if player != null and is_instance_valid(player) else Vector2.ZERO
+		var desired := steer_distance_band(to_player, 170.0, 300.0, 1.0, 0.65)
+		if player != null and is_instance_valid(player):
+			desired += steer_open_space(to_player, 170.0, 1.0) * 0.85
+		_v = _v.move_toward(desired.limit_length(1.0) * 60.0, 200.0 * delta)
 		position += _v * delta
 		return
 	var anchor: Vector2 = boss.global_position

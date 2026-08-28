@@ -26,7 +26,10 @@ func _move(delta: float) -> void:
 	phase_t -= delta
 	match phase:
 		Phase.STALK:
-			_v = _v.move_toward(aim_at_player() * speed * 0.8 + aim_at_player().orthogonal() * speed * 0.5, 500.0 * delta)
+			var to_player := player.global_position - global_position if is_instance_valid(player) else Vector2.ZERO
+			var desired := steer_distance_band(to_player, 170.0, 330.0, 1.0, 0.55)
+			desired += steer_separation(2.4) * 0.7
+			_v = _v.move_toward(desired.limit_length(1.0) * speed * 0.8, 500.0 * delta)
 			if phase_t <= 0.0 and dist_to_player() < 520.0:
 				phase = Phase.WIND
 				phase_t = 0.35

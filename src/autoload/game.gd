@@ -123,10 +123,26 @@ func effective_aim_mode() -> String:
 func score_mult() -> int:
 	return 3 if mode == "onehp" else 1
 
-const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall"}
+const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault"}
+
+func _bestiary_id_for_display(display: String) -> String:
+	var normalized := display.strip_edges()
+	var direct_id: String = BESTIARY_MAP.get(normalized, "")
+	if direct_id != "":
+		return direct_id
+	var longest_prefix := ""
+	for raw_key in BESTIARY_MAP.keys():
+		var key := String(raw_key)
+		var suffix_prefix := key + " MK-"
+		if not normalized.begins_with(suffix_prefix):
+			continue
+		var suffix := normalized.substr(suffix_prefix.length())
+		if suffix.is_valid_int() and key.length() > longest_prefix.length():
+			longest_prefix = key
+	return BESTIARY_MAP.get(longest_prefix, "")
 
 func mark_bestiary(display: String) -> void:
-	var id: String = BESTIARY_MAP.get(display, "")
+	var id: String = _bestiary_id_for_display(display)
 	if id == "" or bestiary.has(id):
 		return
 	bestiary[id] = true

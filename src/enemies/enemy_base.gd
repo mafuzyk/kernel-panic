@@ -132,6 +132,76 @@ func dist_to_player() -> float:
 		return 99999.0
 	return global_position.distance_to(player.global_position)
 
+func steer_approach(to_target: Vector2, lateral_sign: float = 0.0, lateral_weight: float = 0.0) -> Vector2:
+	if to_target.length_squared() <= 0.0001:
+		return Vector2.ZERO
+	var radial := to_target.normalized()
+	return (radial + radial.orthogonal() * lateral_sign * lateral_weight).normalized()
+
+func steer_distance_band(to_target: Vector2, min_distance: float, max_distance: float, lateral_sign: float, lateral_weight: float = 0.85) -> Vector2:
+	if to_target.length_squared() <= 0.0001:
+		return Vector2.ZERO
+	var radial := to_target.normalized()
+	var distance := to_target.length()
+	if distance < min_distance:
+		radial = -radial
+	elif distance <= max_distance:
+		radial = Vector2.ZERO
+	return (radial + to_target.normalized().orthogonal() * lateral_sign * lateral_weight).normalized()
+
+func steer_separation(radius_scale: float = 2.0) -> Vector2:
+	var push := Vector2.ZERO
+	for other in shared_list:
+		if other == self or not is_instance_valid(other):
+			continue
+		var delta: Vector2 = global_position - other.global_position
+		var distance: float = delta.length()
+		var safe_radius: float = radius + other.radius
+		var threshold: float = safe_radius * radius_scale
+		if distance > 0.01 and distance < threshold:
+			push += delta / distance * (1.0 - distance / threshold)
+	return push.normalized() if push.length_squared() > 0.0001 else Vector2.ZERO
+
+func steer_open_space(to_target: Vector2, min_distance: float, lateral_sign: float = 1.0) -> Vector2:
+	var nearby_count := 0
+	for other in shared_list:
+		if other == self or not is_instance_valid(other):
+			continue
+		var delta: Vector2 = other.global_position - global_position
+		var threshold: float = radius + other.radius + 80.0
+		if delta.length_squared() < threshold * threshold:
+			nearby_count += 1
+	var too_close := to_target.length_squared() > 0.0001 and to_target.length() < min_distance
+	if not too_close and nearby_count < 2:
+		return Vector2.ZERO
+
+	var retreat := -to_target.normalized() if to_target.length_squared() > 0.0001 else Vector2.ZERO
+	var lateral := retreat.orthogonal() * (1.0 if lateral_sign >= 0.0 else -1.0)
+	if lateral.length_squared() <= 0.0001:
+		lateral = Vector2.RIGHT * (1.0 if lateral_sign >= 0.0 else -1.0)
+	var candidates: Array[Vector2] = [lateral, -lateral, retreat, -retreat]
+	var valid_rect := Balance.arena_rect().grow(-radius)
+	var best := Vector2.ZERO
+	var best_score := INF
+	for candidate: Vector2 in candidates:
+		if candidate.length_squared() <= 0.0001:
+			continue
+		var probe_position: Vector2 = global_position + candidate * 96.0
+		if not valid_rect.has_point(probe_position):
+			continue
+		var congestion := 0.0
+		for other in shared_list:
+			if other == self or not is_instance_valid(other):
+				continue
+			var distance: float = probe_position.distance_to(other.global_position)
+			var crowd_radius: float = radius + other.radius + 96.0
+			if distance < crowd_radius:
+				congestion += 1.0 - distance / crowd_radius
+		if congestion < best_score:
+			best_score = congestion
+			best = candidate
+	return best.normalized() if best.length_squared() > 0.0001 else Vector2.ZERO
+
 func _flash_col(base: Color) -> Color:
 	if hit_flash > 0.0:
 		return base.lerp(Color(1, 1, 1, 1), clampf(hit_flash, 0.0, 1.0))

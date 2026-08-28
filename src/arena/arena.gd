@@ -619,7 +619,12 @@ var _boss_dmg_snapshot := 0
 
 func _on_boss_spawned(boss: RootBoss) -> void:
 	hud.boss = boss
+	if not boss.split_started.is_connected(_on_boss_split):
+		boss.split_started.connect(_on_boss_split)
 	_boss_dmg_snapshot = int(Game.stats.get("damage", 0))
+
+func _on_boss_split(minis: Array) -> void:
+	hud.set_boss_fragments(minis)
 
 func show_event_banner(txt: String) -> void:
 	hud.show_banner("CYCLE %02d // %s" % [Game.wave, txt], "", 1.8)
@@ -692,6 +697,8 @@ func _heals_line(s: Dictionary) -> String:
 
 func _on_enemy_died(e: EnemyBase) -> void:
 	Game.mark_bestiary(e.display_name)
+	if e is RootBoss and not e.mini:
+		Game.mark_bestiary(e.boss_title)
 	var was_split: bool = e is RootBoss and e.get("_split_silent") == true
 	var is_fragment: bool = e is RootBoss and e.mini
 	if e.elite:
@@ -702,6 +709,8 @@ func _on_enemy_died(e: EnemyBase) -> void:
 		_boss_fragments_pending = 2
 	elif is_fragment:
 		_boss_fragments_pending = maxi(_boss_fragments_pending - 1, 0)
+	if is_fragment:
+		hud._boss_fragments.erase(e)
 	var boss_reward: bool = e is RootBoss and not was_split and (not is_fragment or _boss_fragments_pending == 0)
 	Game.register_kill(0 if was_split else e.pts, boss_reward)
 	player.add_kill_mote_bonus()
@@ -732,7 +741,7 @@ func _on_enemy_died(e: EnemyBase) -> void:
 			Game.unlock_program("rootlet")
 			hud.show_banner("PROGRAM UNLOCKED", "ROOTLET AVAILABLE IN SETTINGS", 2.4)
 			Sfx.play("ready", 1.2, -4.0)
-		hud.boss = null
+		hud.clear_boss_encounter()
 		overlay.aberrate(1.2)
 		hud.show_banner("ROOT PURGED", "INTEGRITY +1  SCORE +250", 2.0)
 		Game.add_score(250)
