@@ -28,13 +28,13 @@ Somehow, it worked.
 
 ## Play it
 
-Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v2.4.5`.
+Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v2.4.7`.
 
 ## Install the game
 
 ### Android
 
-1. Download `KERNEL-PANIC-v2.4.5-release.apk` from the latest release and open it from your browser or file manager.
+1. Download `KERNEL-PANIC-v2.4.7-release.apk` from the latest release and open it from your browser or file manager.
 2. If Android blocks the installation, allow that app to **Install unknown apps** in the system settings, then open the APK again.
 3. Confirm **Install**. The current export targets 64-bit ARM devices (`arm64-v8a`).
 
@@ -50,6 +50,17 @@ chmod +x kernel-panic
 ```
 
 For a local export from this repository, the executable is generated at `build/linux-x86_64/kernel-panic`.
+
+To update an installed release, download the newer `kernel-panic` executable,
+replace the old file in the same directory, and keep its execute permission:
+
+```sh
+cp ~/Downloads/kernel-panic ./kernel-panic
+chmod +x ./kernel-panic
+```
+
+The game has no in-game updater yet. Your local save data is kept separately
+by Godot, so replacing the executable does not remove the save.
 
 ### Windows x86_64
 

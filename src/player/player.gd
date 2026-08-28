@@ -41,6 +41,7 @@ var _static_tick := 0.0
 var _ext_count := 0
 var prog: Dictionary = {}
 var dash_charges := 1
+var dash_available := 1
 var dash_recharge_t := 0.0
 var shield_ready := false
 var shield_meter := 0.0
@@ -68,6 +69,7 @@ func _ready() -> void:
 	touch_mode = DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
 	prog = Game.program_def()
 	dash_charges = int(prog.get("dash_charges", 1))
+	dash_available = dash_charges
 	shield_ready = bool(prog.get("shield_mode", false))
 	max_hp = 1 if Game.mode == "onehp" else int(prog.get("hp", Balance.PLAYER_MAX_HP))
 	hp = max_hp
@@ -181,6 +183,8 @@ func _physics_process(delta: float) -> void:
 		dash_cd -= delta
 	if dash_charges > 1 and dash_recharge_t > 0.0:
 		dash_recharge_t -= delta
+		if dash_recharge_t <= 0.0 and dash_available < dash_charges:
+			dash_available += 1
 	if thorns_cd > 0.0:
 		thorns_cd -= delta
 	if invuln > 0.0:
@@ -307,18 +311,14 @@ func request_dash(input_vec: Vector2) -> void:
 	dash_cd = Balance.DASH_CD * pow(0.82, Game.patch_level("dash"))
 	invuln = maxf(invuln, Balance.DASH_IFRAMES)
 	if dash_charges > 1:
+		dash_available = maxi(dash_available - 1, 0)
 		dash_recharge_t = Balance.DASH_CD
 	Sfx.play("dash", 1.0, -6.0)
 	Fx.ring(global_position, Balance.COL_PLAYER, 6.0, 30.0, 0.25, 2.0)
 	Fx.shake(0.08)
 
 func _avail_charges() -> int:
-	var n := 1
-	if dash_recharge_t <= 0.0:
-		n = dash_charges
-	else:
-		n = maxf(dash_charges - 1.0, 1.0)
-	return int(n)
+	return clampi(dash_available, 0, dash_charges)
 
 func available_dash_charges() -> int:
 	if dash_charges <= 1:

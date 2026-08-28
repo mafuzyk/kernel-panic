@@ -1887,6 +1887,18 @@ func _systems_test(arena: Arena) -> void:
 	await _ticks(2)
 	_check(p2.max_hp == 3, "daemon hp 3")
 	_check(p2.dash_charges == 2, "daemon two dash charges")
+	p2.dash_cd = 0.0
+	p2.dash_recharge_t = 0.0
+	p2.dash_t = 0.0
+	var daemon_dash_id := p2.dash_id
+	p2.request_dash(Vector2.RIGHT)
+	p2.dash_t = 0.0
+	p2.request_dash(Vector2.RIGHT)
+	p2.dash_t = 0.0
+	p2.request_dash(Vector2.RIGHT)
+	_check(p2.dash_id == daemon_dash_id + 2, "daemon dash is capped at two consecutive charges")
+	p2._physics_process(Balance.DASH_CD)
+	_check(p2.available_dash_charges() == 1, "daemon dash recharges one charge after cooldown")
 	_check(p2.has_method("visual_color") and p2.has_method("visual_silhouette_key"), "player exposes program visual profile")
 	if p2.has_method("visual_color") and p2.has_method("visual_silhouette_key"):
 		_check(kernel_visual_color != p2.visual_color(), "kernel and daemon use different visual colors")
