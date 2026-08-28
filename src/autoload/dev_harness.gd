@@ -382,6 +382,7 @@ func _autotest() -> void:
 	await _task6_test(arena2)
 	await _task9_test(arena2)
 	await _systems_test(arena2)
+	await _debug_controls_test(arena2)
 	await _touch_test()
 	Game.to_menu()
 	ok = await _until(func() -> bool:
@@ -2293,6 +2294,41 @@ func _systems_test(arena: Arena) -> void:
 	Sfx.set_intensity(2)
 	Sfx.set_intensity(0)
 	await _ticks(2)
+
+func _debug_controls_test(arena: Arena) -> void:
+	print("AT_STEP debug_controls")
+	var debug_panel_script := load("res://src/ui/debug_panel.gd")
+	_check(debug_panel_script != null, "debug panel script loads")
+	_check(arena.has_method("debug_controls_enabled"), "arena exposes debug controls gate")
+	if arena.has_method("debug_controls_enabled"):
+		_check(not bool(arena.call("debug_controls_enabled")), "headless run keeps debug controls disabled")
+	var sp: Spawner = arena.spawner
+	var debug_api_ready := sp.has_method("debug_skip_to_wave") and sp.has_method("debug_spawn_enemy") and sp.has_method("debug_spawn_boss") and sp.has_method("debug_spawn_root_split")
+	_check(debug_api_ready, "spawner exposes debug wave and spawn controls")
+	if not debug_api_ready:
+		return
+	sp.start(arena, arena.enemy_container, 1)
+	for child in arena.enemy_container.get_children():
+		child.queue_free()
+	await _ticks(3)
+	var skip_ok := bool(sp.call("debug_skip_to_wave", 7))
+	_check(skip_ok and sp.wave == 7 and not sp._queue.is_empty(), "debug skip starts the requested wave")
+	var spawned = sp.call("debug_spawn_enemy", "oom")
+	await _ticks(2)
+	_check(spawned is OomKiller and is_instance_valid(spawned) and spawned.threat_wave == 7, "debug spawn creates the selected enemy at current wave")
+	var boss = sp.call("debug_spawn_boss", 2)
+	await _ticks(2)
+	_check(boss is RootBoss and is_instance_valid(boss) and boss.boss_index == 2 and sp._boss == boss, "debug spawn creates the selected boss")
+	var split_ok := bool(sp.call("debug_spawn_root_split"))
+	await _ticks(4)
+	var mini_count := 0
+	for candidate in get_tree().get_nodes_in_group("boss"):
+		if is_instance_valid(candidate) and candidate.get("mini") == true:
+			mini_count += 1
+	_check(split_ok and mini_count == 2, "debug root split creates two mini bosses")
+	for child in arena.enemy_container.get_children():
+		child.queue_free()
+	await _ticks(3)
 
 func _touch_test() -> void:
 	var arena: Arena = get_tree().current_scene

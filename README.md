@@ -62,6 +62,21 @@ chmod +x ./kernel-panic
 The game has no in-game updater yet. Your local save data is kept separately
 by Godot, so replacing the executable does not remove the save.
 
+### Desktop debug console
+
+Run the project from the Godot editor or use the Linux debug export to open
+the QA console with `F1`. It is available only in debug desktop builds and is
+disabled on release builds and touch devices:
+
+- `F1`: open or close the console
+- `F2`: skip to the next wave
+- `F3`: spawn the ROOT split state
+- `F4`: clear current combatants
+
+The console also has buttons for each regular enemy and all four boss
+variants. It is intended for movement, AI, boss, and HUD observation without
+waiting through a full run.
+
 ### Arch Linux / Artix Linux (AUR)
 
 For the prebuilt release, install `kernel-panic-bin` with an AUR helper:

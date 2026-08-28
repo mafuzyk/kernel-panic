@@ -16,6 +16,7 @@ var _boss: RootBoss
 var _boss_trickle_t := 0.0
 var _awaiting_boss := false
 var _spawn_generation := 0
+var _debug_spawn_index := 0
 var wave_event := ""
 var arena_ref: Node2D
 
@@ -282,3 +283,74 @@ func _edge_point(min_player_dist := 250.0) -> Vector2:
 
 func force_clear() -> void:
 	_queue.clear()
+
+func debug_clear_encounter() -> void:
+	_spawn_generation += 1
+	_queue.clear()
+	_pending = 0
+	_intermission = 0.0
+	_awaiting_boss = false
+	_boss = null
+	_boss_trickle_t = 0.0
+	if container == null or not is_instance_valid(container):
+		return
+	for child in container.get_children():
+		if is_instance_valid(child):
+			child.queue_free()
+
+func debug_skip_to_wave(target_wave: int) -> bool:
+	if not _running or container == null or not is_instance_valid(container):
+		return false
+	debug_clear_encounter()
+	wave = maxi(target_wave, 1)
+	_next_event = ""
+	_next_event_rolled_for = -1
+	_begin_wave()
+	return true
+
+func debug_spawn_enemy(kind: String) -> EnemyBase:
+	if not _running or container == null or not is_instance_valid(container):
+		return null
+	var enemy := _make_enemy(kind)
+	if enemy == null:
+		return null
+	enemy.position = _debug_spawn_point()
+	_configure_enemy(enemy, false)
+	container.add_child(enemy)
+	return enemy
+
+func debug_spawn_boss(index: int) -> RootBoss:
+	if not _running or container == null or not is_instance_valid(container):
+		return null
+	for existing in get_tree().get_nodes_in_group("boss"):
+		if is_instance_valid(existing):
+			existing.queue_free()
+	_boss = null
+	var boss := RootBoss.new()
+	boss.boss_index = clampi(index, 1, RootBoss.MK_DATA.size() if RootBoss.MK_DATA.size() > 0 else 4)
+	boss.threat_wave = wave
+	boss.configure(Balance.wave_scale(wave), false)
+	boss.position = _debug_spawn_point()
+	_boss = boss
+	_awaiting_boss = false
+	container.add_child(boss)
+	boss_spawned.emit(boss)
+	return boss
+
+func debug_spawn_root_split() -> bool:
+	var boss := debug_spawn_boss(1)
+	if boss == null:
+		return false
+	boss.call_deferred("_split_into_minis")
+	return true
+
+func _debug_spawn_point() -> Vector2:
+	var angle := float(_debug_spawn_index % 8) * TAU / 8.0 + 0.3
+	_debug_spawn_index += 1
+	var center := Balance.arena_rect().get_center()
+	var players := get_tree().get_nodes_in_group("player")
+	if not players.is_empty() and is_instance_valid(players[0]):
+		center = players[0].global_position
+	var point := center + Vector2.from_angle(angle) * 290.0
+	var safe_rect := Balance.arena_rect().grow(-70.0)
+	return Vector2(clampf(point.x, safe_rect.position.x, safe_rect.end.x), clampf(point.y, safe_rect.position.y, safe_rect.end.y))

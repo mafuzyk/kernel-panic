@@ -48,6 +48,7 @@ var _abandon_t := 0.0
 var _abandon_timer: SceneTreeTimer
 var _abandon_generation := 0
 var _pause_info: Label
+var _debug_panel: Control
 
 func _ready() -> void:
 	add_to_group("arena")
@@ -80,6 +81,15 @@ func _ready() -> void:
 	_build_pause_panel()
 	_build_game_over_panel()
 	_build_intro()
+	if debug_controls_enabled():
+		var debug_panel = load("res://src/ui/debug_panel.gd").new()
+		debug_panel.arena = self
+		_debug_panel = debug_panel
+		var debug_layer := CanvasLayer.new()
+		debug_layer.layer = 80
+		debug_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+		debug_layer.add_child(_debug_panel)
+		add_child(debug_layer)
 	if DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != "":
 		touch = TouchControls.new()
 		touch.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -175,6 +185,35 @@ func _on_enemy_exit(n: Node) -> void:
 
 func _physics_process(_delta: float) -> void:
 	EnemyBase.shared_list = enemy_list
+
+func debug_controls_enabled() -> bool:
+	return OS.is_debug_build() and Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
+
+func debug_skip_to_wave(target_wave: int) -> bool:
+	if not debug_controls_enabled() or spawner == null:
+		return false
+	return spawner.debug_skip_to_wave(target_wave)
+
+func debug_spawn_enemy(kind: String) -> EnemyBase:
+	if not debug_controls_enabled() or spawner == null:
+		return null
+	return spawner.debug_spawn_enemy(kind)
+
+func debug_spawn_boss(index: int) -> RootBoss:
+	if not debug_controls_enabled() or spawner == null:
+		return null
+	return spawner.debug_spawn_boss(index)
+
+func debug_spawn_root_split() -> bool:
+	if not debug_controls_enabled() or spawner == null:
+		return false
+	return spawner.debug_spawn_root_split()
+
+func debug_clear_combatants() -> bool:
+	if not debug_controls_enabled() or spawner == null:
+		return false
+	spawner.debug_clear_encounter()
+	return true
 
 func _update_quality(delta: float) -> void:
 	var fps := Engine.get_frames_per_second()
@@ -899,6 +938,26 @@ func _on_combo_milestone(m: int) -> void:
 	Sfx.haptic(15)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if debug_controls_enabled() and event is InputEventKey and event.pressed and not event.echo:
+		match event.physical_keycode:
+			KEY_F1:
+				if _debug_panel != null and _debug_panel.has_method("toggle"):
+					_debug_panel.call("toggle")
+					_update_debug_cursor()
+				get_viewport().set_input_as_handled()
+				return
+			KEY_F2:
+				debug_skip_to_wave(Game.wave + 1)
+				get_viewport().set_input_as_handled()
+				return
+			KEY_F3:
+				debug_spawn_root_split()
+				get_viewport().set_input_as_handled()
+				return
+			KEY_F4:
+				debug_clear_combatants()
+				get_viewport().set_input_as_handled()
+				return
 	if _patch_open:
 		if event is InputEventKey and event.pressed and not event.echo:
 			var k: int = event.physical_keycode
@@ -986,7 +1045,8 @@ func _process(delta: float) -> void:
 		_abandon_t = maxf(_abandon_t - delta, 0.0)
 		if _abandon_t <= 0.0:
 			_clear_abandon_confirmation()
-	var want_hidden := _state == "play" and not get_tree().paused and reticle != null
+	var debug_open: bool = _debug_panel != null and _debug_panel.visible
+	var want_hidden: bool = _state == "play" and not get_tree().paused and reticle != null and not debug_open
 	var target_mouse := Input.MOUSE_MODE_HIDDEN if want_hidden else Input.MOUSE_MODE_VISIBLE
 	if Input.mouse_mode != target_mouse:
 		Input.mouse_mode = target_mouse
@@ -1004,6 +1064,13 @@ func _process(delta: float) -> void:
 			level = 1
 		Sfx.set_intensity(level)
 		_update_quality(delta)
+
+func _update_debug_cursor() -> void:
+	var debug_open: bool = _debug_panel != null and _debug_panel.visible
+	if debug_open:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif _state == "play" and not get_tree().paused and reticle != null:
+		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 
 func _exit_tree() -> void:
 	_clear_abandon_confirmation()
