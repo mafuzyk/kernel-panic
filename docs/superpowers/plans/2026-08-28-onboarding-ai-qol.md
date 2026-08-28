@@ -171,17 +171,18 @@ git commit -m "fix: require confirmation before abandoning a run"
 - Modify: `src/enemies/lancer.gd`
 - Modify: `src/enemies/spewer.gd`
 - Modify: `src/enemies/root_boss.gd`
+- Add: `src/enemies/corruption_shot.gd`
 - Modify: `src/autoload/dev_harness.gd`
 
 **Interfaces:**
 - Produces `Balance.attack_cadence_factor(wave: int) -> float`, equal to `1.0` through wave 5, then decreasing by `0.015` per wave with floor `0.78`.
 - Produces `EnemyBase.threat_wave: int` set by `Spawner` before enemy configuration.
 - Produces explicit elite profile hooks for `swift` and `volatile`; no elite roll or base stat formula changes.
-- Produces explicit boss distance profiles: ROOT/melee closes distance while SEGFAULT, BLUE SCREEN, and PAGE FAULT/ranged variants maintain a readable retreating distance band. SEGFAULT gains a bounded corruption-pool volley with a visible landing telegraph.
+- Produces explicit boss distance profiles: ROOT/melee closes distance while SEGFAULT, BLUE SCREEN, and PAGE FAULT/ranged variants maintain a readable retreating distance band. SEGFAULT gains a bounded corruption-shot volley whose projectiles burst mid-path into pools, without a separate telegraph.
 
 - [ ] **Step 1: Write the failing tests**
 
-Add assertions for cadence values at waves 1, 5, 6, and 30, including the `0.78` floor. Add an elite probe that configures one `swift` and one `volatile` enemy with a deterministic test RNG state and asserts the profile hooks expose different movement/tempo behavior and the volatile death hazard remains present. Add a LANCER/SPEWER probe showing the cadence factor is applied to repeated intervals while their telegraph durations remain readable. Add boss probes showing melee ROOT approaches while ranged variants retreat/hold distance, and SEGFAULT's attack path creates bounded corruption zones with a visible telegraph without changing its existing attack contract.
+Add assertions for cadence values at waves 1, 5, 6, and 30, including the `0.78` floor. Add an elite probe that configures one `swift` and one `volatile` enemy with a deterministic test RNG state and asserts the profile hooks expose different movement/tempo behavior and the volatile death hazard remains present. Add a LANCER/SPEWER probe showing the cadence factor is applied to repeated intervals while their telegraph durations remain readable. Add boss probes showing melee ROOT approaches while ranged variants retreat/hold distance, and SEGFAULT's corruption shots travel then burst mid-path into bounded corruption zones without changing its existing attack contract.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -189,7 +190,7 @@ Run the full autotest. Expected: `AT_FAIL` for the missing cadence function/cont
 
 - [ ] **Step 3: Write the minimal implementation**
 
-Add the exact capped factor to `Balance`. Pass `wave` through `Spawner` as `threat_wave` without changing queue composition. Refactor elite behavior behind small base hooks: `swift` retains its current speed/ghost identity but gets stronger lateral steering and bounded attack reacquisition; `volatile` retains the existing six-orb death burst and gets an explicit arming/pulse visual. Make the boss HOVER steering choose approach for the melee ROOT profile and a retreating distance band for all ranged variants. Add SEGFAULT's limited corruption-pool volley at predicted landing points with short code-drawn telegraphs and the existing corruption damage contract. Scale LANCER phase re-entry, SPEWER firing intervals, and repeated ranged-boss cooldowns by the factor; do not shorten attack wind-up telegraphs.
+Add the exact capped factor to `Balance`. Pass `wave` through `Spawner` as `threat_wave` without changing queue composition. Refactor elite behavior behind small base hooks: `swift` retains its current speed/ghost identity but gets stronger lateral steering and bounded attack reacquisition; `volatile` retains the existing six-orb death burst and gets an explicit arming/pulse visual. Make the boss HOVER steering choose approach for the melee ROOT profile and a retreating distance band for all ranged variants. Add a code-drawn SEGFAULT corruption-shot projectile that travels toward the player, bursts around the middle of its path, and creates a bounded `CorruptionZone`; do not add a separate pre-telegraph. Scale LANCER phase re-entry, SPEWER firing intervals, and repeated ranged-boss cooldowns by the factor; do not shorten attack wind-up telegraphs.
 
 - [ ] **Step 4: Run the full verification**
 
@@ -199,7 +200,8 @@ Run the exact autotest command. Expected: `AUTOTEST_ALL_PASS`, zero `AT_FAIL`.
 
 ```sh
 git add src/autoload/balance.gd src/arena/spawner.gd src/enemies/enemy_base.gd \
-  src/enemies/lancer.gd src/enemies/spewer.gd src/enemies/root_boss.gd src/autoload/dev_harness.gd
+  src/enemies/lancer.gd src/enemies/spewer.gd src/enemies/root_boss.gd \
+  src/enemies/corruption_shot.gd src/autoload/dev_harness.gd
 git commit -m "feat: scale enemy cadence and elite behavior by wave"
 ```
 
