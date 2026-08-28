@@ -1088,6 +1088,47 @@ func _systems_test(arena: Arena) -> void:
 	await _ticks(2)
 	Game.patch_levels = {}
 	print("AT_STEP programs")
+	var selector_script = load("res://src/ui/program_panel.gd")
+	_check(selector_script != null, "program selector script loads")
+	var program_details_ok := true
+	var silhouette_keys := {}
+	for pid in Game.PROGRAM_DEFS:
+		var pdef: Dictionary = Game.PROGRAM_DEFS[pid]
+		var detail_fields := ["role", "integrity", "speed", "fire", "range", "dash_shield"]
+		for field in detail_fields:
+			if str(pdef.get(field, "")).strip_edges().is_empty():
+				program_details_ok = false
+		if str(pdef.get("summary", "")).strip_edges().is_empty():
+			program_details_ok = false
+		var visual: Dictionary = pdef.get("visual", {})
+		var silhouette := str(visual.get("silhouette", ""))
+		if visual.is_empty() or silhouette.is_empty():
+			program_details_ok = false
+		silhouette_keys[silhouette] = true
+	_check(program_details_ok, "playable programs expose detailed comparison summaries")
+	_check(silhouette_keys.size() == Game.PROGRAM_DEFS.size(), "playable programs expose distinct visual profiles")
+	var saved_program_selection := Game.program
+	var saved_unlocked_programs: Dictionary = Game.unlocked_programs.duplicate(true)
+	var saved_program_disk := _config_snapshot("run", "program", "kernel")
+	Game.unlocked_programs = {"kernel": true, "daemon": true}
+	Game.set_program("kernel")
+	var kernel_visual_color = player.visual_color() if player.has_method("visual_color") else Color.BLACK
+	var kernel_silhouette_key := str(player.visual_silhouette_key()) if player.has_method("visual_silhouette_key") else ""
+	var selector = selector_script.new() if selector_script != null else null
+	if selector != null:
+		var available: Array = selector.available_program_ids() if selector.has_method("available_program_ids") else []
+		_check(available.has("kernel") and available.has("daemon") and not available.has("rootlet"), "program selector lists unlocked programs only")
+		var locked_selected := bool(selector.select_program("rootlet")) if selector.has_method("select_program") else true
+		_check(not locked_selected and Game.program == "kernel", "program selector cannot select locked rootlet")
+		var daemon_selected := bool(selector.select_program("daemon")) if selector.has_method("select_program") else false
+		_check(daemon_selected and Game.program == "daemon", "program selector selects unlocked daemon")
+		var selector_disk := ConfigFile.new()
+		selector_disk.load(Sfx.SAVE_PATH)
+		_check(selector_disk.get_value("run", "program", "") == "daemon", "program selection persists through run ConfigFile")
+		selector.free()
+	Game.program = saved_program_selection
+	Game.unlocked_programs = saved_unlocked_programs
+	_restore_config_snapshot("run", "program", saved_program_disk)
 	Game.unlocked_programs["kernel"] = true
 	Game.unlocked_programs["daemon"] = true
 	Game.unlocked_programs["rootlet"] = true
@@ -1102,6 +1143,16 @@ func _systems_test(arena: Arena) -> void:
 	await _ticks(2)
 	_check(p2.max_hp == 3, "daemon hp 3")
 	_check(p2.dash_charges == 2, "daemon two dash charges")
+	_check(p2.has_method("visual_color") and p2.has_method("visual_silhouette_key"), "player exposes program visual profile")
+	if p2.has_method("visual_color") and p2.has_method("visual_silhouette_key"):
+		_check(kernel_visual_color != p2.visual_color(), "kernel and daemon use different visual colors")
+		_check(kernel_silhouette_key != p2.visual_silhouette_key(), "kernel and daemon use different silhouettes")
+	var p2_collision: CollisionShape2D = null
+	for child in p2.get_children():
+		if child is CollisionShape2D:
+			p2_collision = child
+			break
+	_check(p2_collision != null and absf(p2_collision.shape.radius - Balance.PLAYER_RADIUS) < 0.001, "program silhouettes preserve player collision radius")
 	for leftover in get_tree().get_nodes_in_group("enemies"):
 		leftover.queue_free()
 	await _ticks(2)

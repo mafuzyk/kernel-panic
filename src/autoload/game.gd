@@ -43,9 +43,21 @@ func _ready() -> void:
 	_load_run_config()
 
 const PROGRAM_DEFS := {
-	"kernel": {"name": "KERNEL", "desc": "balanced standard process", "hp": 4, "speed_mul": 1.0, "dmg_bonus": 0, "rate_mul": 1.0, "range_mul": 1.0, "dash_charges": 1},
-	"daemon": {"name": "DAEMON", "desc": "3 HP. short range. hot close fire rate. kills recharge dash. 2 dash charges.", "hp": 3, "speed_mul": 1.0, "dmg_bonus": 0, "rate_mul": 1.0, "range_mul": 0.72, "dash_charges": 2, "close_rate_mul": 1.6, "close_range": 160.0, "kill_dash_refund": 0.7},
-	"rootlet": {"name": "ROOTLET", "desc": "5 HP. slow. heavy shots. shield instead of overclock.", "hp": 5, "speed_mul": 0.85, "dmg_bonus": 1, "rate_mul": 0.8, "range_mul": 1.0, "dash_charges": 1, "shield_mode": true},
+	"kernel": {
+		"name": "KERNEL", "desc": "balanced standard process", "hp": 4, "speed_mul": 1.0, "dmg_bonus": 0, "rate_mul": 1.0, "range_mul": 1.0, "dash_charges": 1,
+		"summary": "Reliable all-round process for learning the purge loop.", "role": "BALANCED CORE", "integrity": "4 HP", "speed": "100% MOVE", "fire": "STANDARD FIRE", "range": "MEDIUM RANGE", "dash_shield": "1 DASH // OVERCLOCK",
+		"visual": {"color": Color("4ff2ff"), "silhouette": "kernel_arrow"}
+	},
+	"daemon": {
+		"name": "DAEMON", "desc": "3 HP. short range. hot close fire rate. kills recharge dash. 2 dash charges.", "hp": 3, "speed_mul": 1.0, "dmg_bonus": 0, "rate_mul": 1.0, "range_mul": 0.72, "dash_charges": 2, "close_rate_mul": 1.6, "close_range": 160.0, "kill_dash_refund": 0.7,
+		"summary": "Aggressive close-range process that snowballs through kills.", "role": "CLOSE-RANGE HUNTER", "integrity": "3 HP", "speed": "100% MOVE", "fire": "HOT FIRE <160PX", "range": "72% RANGE", "dash_shield": "2 DASH // KILL RECHARGE",
+		"visual": {"color": Color("ff5b88"), "silhouette": "daemon_fork"}
+	},
+	"rootlet": {
+		"name": "ROOTLET", "desc": "5 HP. slow. heavy shots. shield instead of overclock.", "hp": 5, "speed_mul": 0.85, "dmg_bonus": 1, "rate_mul": 0.8, "range_mul": 1.0, "dash_charges": 1, "shield_mode": true,
+		"summary": "Armored heavy process with a mote-powered shield.", "role": "ARMORED ANCHOR", "integrity": "5 HP", "speed": "85% MOVE", "fire": "HEAVY FIRE // +1 DMG", "range": "MEDIUM RANGE", "dash_shield": "1 DASH // SHIELD",
+		"visual": {"color": Color("9dff72"), "silhouette": "rootlet_block"}
+	},
 }
 
 func program_def() -> Dictionary:

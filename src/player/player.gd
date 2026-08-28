@@ -81,7 +81,7 @@ func _ready() -> void:
 	sh.radius = Balance.PLAYER_RADIUS
 	cs.shape = sh
 	add_child(cs)
-	var glow := Fx.make_glow(16.0, Balance.COL_PLAYER)
+	var glow := Fx.make_glow(16.0, visual_color())
 	glow.modulate.a = 0.62
 	add_child(glow)
 	_aura = AuraRing.new()
@@ -97,7 +97,7 @@ func _ready() -> void:
 	_trail.scale_amount_min = 1.5
 	_trail.scale_amount_max = 3.2
 	_trail.scale_amount_curve = _fade_curve()
-	_trail.color = Balance.COL_PLAYER
+	_trail.color = visual_color()
 	_trail.material = Fx.add_material()
 	_trail.emitting = false
 	add_child(_trail)
@@ -234,8 +234,16 @@ func _physics_process(delta: float) -> void:
 			take_damage(z.global_position, "CORRUPTION")
 			break
 	_trail.emitting = vel.length() > 120.0 or dash_t > 0.0
-	_trail.color = Balance.COL_PLAYER_HOT if overclock_active else Balance.COL_PLAYER
+	_trail.color = Balance.COL_PLAYER_HOT if overclock_active else visual_color()
 	queue_redraw()
+
+func visual_color() -> Color:
+	var visual: Dictionary = prog.get("visual", {})
+	return visual.get("color", Balance.COL_PLAYER)
+
+func visual_silhouette_key() -> String:
+	var visual: Dictionary = prog.get("visual", {})
+	return str(visual.get("silhouette", "kernel_arrow"))
 
 func magnet_radius() -> float:
 	var base := Balance.MOTE_MAGNET_OC if overclock_active else Balance.MOTE_MAGNET
@@ -509,15 +517,32 @@ func _die() -> void:
 
 func _ship_draw(node: Node2D, c: Color) -> void:
 	var r := Balance.PLAYER_RADIUS
-	var pts := PackedVector2Array([
-		Vector2(r * 1.5, 0), Vector2(-r, r), Vector2(-r * 0.45, 0), Vector2(-r, -r)
-	])
-	node.draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.3))
-	node.draw_polyline(pts + PackedVector2Array([pts[0]]), c, 2.2, true)
-	node.draw_circle(Vector2(r * 0.25, 0), r * 0.32, c)
+	match visual_silhouette_key():
+		"daemon_fork":
+			var body := PackedVector2Array([Vector2(r * 1.35, 0), Vector2(r * 0.1, r * 0.34), Vector2(-r * 0.95, r * 0.82), Vector2(-r * 0.55, 0), Vector2(-r * 0.95, -r * 0.82), Vector2(r * 0.1, -r * 0.34)])
+			node.draw_colored_polygon(body, Color(c.r, c.g, c.b, 0.28))
+			node.draw_polyline(body + PackedVector2Array([body[0]]), c, 2.2, true)
+			node.draw_line(Vector2(-r * 0.25, -r * 0.2), Vector2(r * 0.55, -r * 0.58), c, 1.7)
+			node.draw_line(Vector2(-r * 0.25, r * 0.2), Vector2(r * 0.55, r * 0.58), c, 1.7)
+			node.draw_circle(Vector2(r * 0.25, 0), r * 0.28, c)
+		"rootlet_block":
+			var block := Rect2(-r * 0.82, -r * 0.82, r * 1.64, r * 1.64)
+			node.draw_rect(block, Color(c.r, c.g, c.b, 0.28))
+			node.draw_rect(block, c, false, 2.2)
+			node.draw_line(Vector2(-r * 0.48, 0), Vector2(r * 0.48, 0), c, 1.7)
+			node.draw_line(Vector2(0, -r * 0.48), Vector2(0, r * 0.48), c, 1.7)
+			node.draw_arc(Vector2.ZERO, r * 1.22, -PI * 0.82, PI * 0.82, 24, Color(c.r, c.g, c.b, 0.85), 2.0, true)
+			# Keep the block compact and centered inside the existing collision radius.
+		"kernel_arrow":
+			var pts := PackedVector2Array([
+				Vector2(r * 1.5, 0), Vector2(-r, r), Vector2(-r * 0.45, 0), Vector2(-r, -r)
+			])
+			node.draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.3))
+			node.draw_polyline(pts + PackedVector2Array([pts[0]]), c, 2.2, true)
+			node.draw_circle(Vector2(r * 0.25, 0), r * 0.32, c)
 
 func _draw() -> void:
-	var c := Balance.COL_PLAYER_HOT if overclock_active else Balance.COL_PLAYER
+	var c := Balance.COL_PLAYER_HOT if overclock_active else visual_color()
 	_ship_draw(self, c)
 	if touch_mode and aim_assist_dir.length() > 0.5 and not dead:
 		var a := aim_assist_dir

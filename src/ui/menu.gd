@@ -16,6 +16,8 @@ var _klog: Label
 var _klog_t := 0.0
 var _esc_armed := 0.0
 var _bestiary_panel: BestiaryPanel
+var _program_panel: ProgramPanel
+var _program_btn: Button
 var _aim_btn_ref: Button
 var _boot: BootOverlay
 
@@ -219,20 +221,11 @@ func _build_button_row() -> void:
 	_mode_btn.text = "MODE: CLASSIC"
 	_mode_btn.pressed.connect(_cycle_mode)
 	row.add_child(_mode_btn)
-	var prog_btn := Button.new()
-	_style_card_button(prog_btn, Color(0.6, 1.0, 0.8), Vector2(button_w, button_h))
-	prog_btn.text = "PROGRAM: %s" % Game.program_def()["name"]
-	prog_btn.pressed.connect(func() -> void:
-		var ids: Array = []
-		for pid in Game.PROGRAM_DEFS:
-			if Game.unlocked_programs.has(pid):
-				ids.append(pid)
-		var idx := ids.find(Game.program)
-		Game.set_program(ids[(idx + 1) % ids.size()])
-		prog_btn.text = "PROGRAM: %s" % Game.program_def()["name"]
-		Sfx.play("ui", 1.1, -8.0)
-	)
-	row.add_child(prog_btn)
+	_program_btn = Button.new()
+	_style_card_button(_program_btn, Color(0.6, 1.0, 0.8), Vector2(button_w, button_h))
+	_refresh_program_label()
+	_program_btn.pressed.connect(_open_program_selector)
+	row.add_child(_program_btn)
 	var settings_btn := Button.new()
 	_style_card_button(settings_btn, Balance.COL_TEXT, Vector2(button_w, button_h))
 	settings_btn.text = "SETTINGS"
@@ -258,6 +251,70 @@ func _build_button_row() -> void:
 	_mode_info.offset_bottom = 482.0
 	add_child(_mode_info)
 	_refresh_mode_ui()
+
+func _refresh_program_label() -> void:
+	if _program_btn != null:
+		_program_btn.text = "PROGRAM: %s" % Game.program_def()["name"]
+
+func _open_program_selector() -> void:
+	if _program_panel == null:
+		_program_panel = ProgramPanel.new()
+		_program_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_program_panel.selection_changed.connect(func(_id: String) -> void:
+			_refresh_program_label()
+		)
+		var title := Label.new()
+		title.text = "PROGRAM SELECT // LOADOUT"
+		title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
+		title.add_theme_font_size_override("font_size", 28)
+		title.add_theme_color_override("font_color", Balance.COL_TEXT)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.anchor_left = 0.0
+		title.anchor_right = 1.0
+		title.offset_top = 60.0
+		title.offset_bottom = 110.0
+		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_program_panel.add_child(title)
+		var hint := Label.new()
+		hint.text = "COMPARE CORE BEHAVIOR // TAP A READY PROGRAM // SWIPE TO SCROLL"
+		hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+		hint.add_theme_font_size_override("font_size", 13)
+		hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.anchor_left = 0.0
+		hint.anchor_right = 1.0
+		hint.offset_top = 112.0
+		hint.offset_bottom = 136.0
+		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_program_panel.add_child(hint)
+		var back := Button.new()
+		back.text = "BACK"
+		back.flat = true
+		back.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+		back.add_theme_font_size_override("font_size", 18)
+		back.add_theme_color_override("font_color", Balance.COL_PLAYER)
+		back.anchor_left = 0.5
+		back.anchor_right = 0.5
+		back.anchor_top = 1.0
+		back.anchor_bottom = 1.0
+		back.offset_left = -70.0
+		back.offset_right = 70.0
+		back.offset_top = -90.0
+		back.offset_bottom = -50.0
+		back.pressed.connect(_close_program_selector)
+		_program_panel.add_child(back)
+		var layer := CanvasLayer.new()
+		layer.layer = 70
+		layer.add_child(_program_panel)
+		add_child(layer)
+	_program_panel.visible = true
+	_program_panel.scroll_y = 0.0
+	_program_panel.queue_redraw()
+	Sfx.play("ui", 1.1, -8.0)
+
+func _close_program_selector() -> void:
+	_program_panel.visible = false
+	Sfx.play("ui", 0.9, -8.0)
 
 func _open_bestiary() -> void:
 	if _bestiary_panel == null:
@@ -670,6 +727,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _settings_panel != null and _settings_panel.visible:
 		if event.is_action_pressed("pause"):
 			_close_settings()
+			get_viewport().set_input_as_handled()
+		return
+	if _program_panel != null and _program_panel.visible:
+		if event.is_action_pressed("pause"):
+			_close_program_selector()
 			get_viewport().set_input_as_handled()
 		return
 	if _bestiary_panel != null and _bestiary_panel.visible:
