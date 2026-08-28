@@ -15,6 +15,7 @@ var _running := false
 var _boss: RootBoss
 var _boss_trickle_t := 0.0
 var _awaiting_boss := false
+var _spawn_generation := 0
 var wave_event := ""
 var arena_ref: Node2D
 
@@ -27,6 +28,14 @@ func start(arena_node: Node2D, container_node: Node2D, first_wave: int) -> void:
 
 func stop() -> void:
 	_running = false
+
+func cancel_boss_phase_spawns() -> void:
+	_spawn_generation += 1
+	_queue.clear()
+	_pending = 0
+	_awaiting_boss = false
+	_boss = null
+	_boss_trickle_t = 0.0
 
 func _begin_wave() -> void:
 	var is_boss := wave % Balance.BOSS_EVERY == 0
@@ -136,9 +145,10 @@ func _build_queue() -> void:
 
 func _spawn_boss() -> void:
 	var idx := int(wave / float(Balance.BOSS_EVERY))
+	var generation := _spawn_generation
 	var t := get_tree().create_timer(1.5)
 	t.timeout.connect(func() -> void:
-		if not _running or not is_instance_valid(container):
+		if generation != _spawn_generation or not _running or not is_instance_valid(container):
 			return
 		_awaiting_boss = false
 		_boss = RootBoss.new()
@@ -193,18 +203,21 @@ func _physics_process(delta: float) -> void:
 
 func _spawn_group(names: Array) -> void:
 	var pos := _edge_point()
+	var generation := _spawn_generation
 	for n in names:
 		_pending += 1
-		_telegraph_spawn(pos, n)
+		_telegraph_spawn(pos, n, generation)
 		pos = _edge_point()
 
-func _telegraph_spawn(pos: Vector2, kind: String) -> void:
+func _telegraph_spawn(pos: Vector2, kind: String, generation: int) -> void:
 	var col := Balance.COL_DANGER
 	Fx.ring(pos, col, 30.0, 6.0, 0.55, 2.0, true)
 	Fx.sparks(pos, col, 4, 60.0, 0.5, 2.0)
 	var t := get_tree().create_timer(0.55)
 	t.timeout.connect(func() -> void:
-		_pending -= 1
+		if generation != _spawn_generation:
+			return
+		_pending = maxi(_pending - 1, 0)
 		if not _running or not is_instance_valid(container):
 			return
 		var e := _make_enemy(kind)

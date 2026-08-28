@@ -33,6 +33,7 @@ var _patch_open := false
 var _patch_pending := 0
 var _boss_fragments_pending := 0
 var _boss_phase_clear_done := false
+var _boss_rewards_claimed := {}
 var wave_signal_count := 0
 
 func _ready() -> void:
@@ -645,6 +646,7 @@ var _boss_dmg_snapshot := 0
 func _on_boss_spawned(boss: RootBoss) -> void:
 	hud.boss = boss
 	_boss_phase_clear_done = false
+	_boss_rewards_claimed.clear()
 	if not boss.split_started.is_connected(_on_boss_split):
 		boss.split_started.connect(_on_boss_split)
 	_boss_dmg_snapshot = int(Game.stats.get("damage", 0))
@@ -722,20 +724,25 @@ func _heals_line(s: Dictionary) -> String:
 	return "HEALS +%d (%s)" % [total, ", ".join(parts)]
 
 func _on_enemy_died(e: EnemyBase) -> void:
-	Game.mark_bestiary_for_enemy(e)
 	var was_split: bool = e is RootBoss and e.get("_split_silent") == true
 	var is_fragment: bool = e is RootBoss and e.mini
-	if e.elite:
-		Fx.stacktrace(e.global_position, e.display_name)
-	elif e is RootBoss and not was_split:
-		Fx.stacktrace(e.global_position, e.display_name, true)
 	if was_split:
 		_boss_fragments_pending = 2
 	elif is_fragment:
 		_boss_fragments_pending = maxi(_boss_fragments_pending - 1, 0)
+	var boss_reward: bool = e is RootBoss and not was_split and (not is_fragment or _boss_fragments_pending == 0)
+	if boss_reward:
+		var reward_key := e.get_instance_id()
+		if _boss_rewards_claimed.has(reward_key):
+			return
+		_boss_rewards_claimed[reward_key] = true
+	Game.mark_bestiary_for_enemy(e)
+	if e.elite:
+		Fx.stacktrace(e.global_position, e.display_name)
+	elif e is RootBoss and not was_split:
+		Fx.stacktrace(e.global_position, e.display_name, true)
 	if is_fragment:
 		hud._boss_fragments.erase(e)
-	var boss_reward: bool = e is RootBoss and not was_split and (not is_fragment or _boss_fragments_pending == 0)
 	Game.register_kill(0 if was_split else e.pts, boss_reward)
 	player.add_kill_mote_bonus()
 	player.notify_kill()
@@ -779,6 +786,8 @@ func _clear_boss_phase_enemies() -> void:
 	if _boss_phase_clear_done:
 		return
 	_boss_phase_clear_done = true
+	if spawner != null and is_instance_valid(spawner):
+		spawner.cancel_boss_phase_spawns()
 	for phase_enemy in enemy_list.duplicate():
 		if is_instance_valid(phase_enemy) and not phase_enemy.is_in_group("boss"):
 			phase_enemy.queue_free()

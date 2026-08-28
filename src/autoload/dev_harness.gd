@@ -558,8 +558,8 @@ func _task2_test(arena: Arena) -> void:
 	Game.mode = "onehp"
 	Game.patch_levels = {}
 	var onehp_ids := {}
-	for i in 30:
-		for d in Game.roll_patch_offer():
+	if Game.has_method("onehp_patch_pool"):
+		for d in Game.call("onehp_patch_pool"):
 			onehp_ids[d["id"]] = true
 	var forbidden_onehp := ["hp", "restore", "vampic", "recycler", "dataleech", "secondwind", "scrapdiet"]
 	var forbidden_found := []
@@ -613,13 +613,28 @@ func _task2_test(arena: Arena) -> void:
 	phase_boss.position = Vector2(360, 0)
 	arena.enemy_container.add_child(phase_boss)
 	arena._on_boss_spawned(phase_boss)
+	arena.spawner._boss = phase_boss
+	arena.spawner._spawn_group(["drone"])
 	await _ticks(2)
 	var kills_before := int(Game.stats["kills"])
 	var boss_kills_before := int(Game.stats["boss_kills"])
+	var score_before := Game.score
+	var boss_heals_before := int(Game.stats["heals"].get("boss", 0))
 	var patch_pending_before := arena._patch_pending
 	var patch_open_before := arena._patch_open
+	var boss_mult_before := Game.mult
+	Game.mode = "onehp"
+	var expected_boss_score := phase_boss.pts * mini(boss_mult_before + 1, Balance.COMBO_MAX) * Game.score_mult() + 250 * Game.score_mult()
+	var boss_player_hp_before := arena.player.hp
+	arena.player.hp = arena.player.max_hp - 1
 	phase_boss.die()
+	phase_boss.died.emit(phase_boss)
+	_check(int(Game.stats["kills"]) == kills_before + 1 and int(Game.stats["boss_kills"]) == boss_kills_before + 1, "repeated boss death signals add one kill and one boss reward")
+	_check(Game.score == score_before + expected_boss_score, "repeated boss death signals add one boss score (%d -> %d, expected %d)" % [score_before, Game.score, score_before + expected_boss_score])
+	_check(int(Game.stats["heals"].get("boss", 0)) == boss_heals_before + 1, "repeated boss death signals add one boss heal")
 	await _ticks(3)
+	await _ticks(35)
+	arena.spawner.stop()
 	var phase_enemies_left := 0
 	for e in arena.enemy_list:
 		if is_instance_valid(e) and not e.is_in_group("boss"):
@@ -627,11 +642,12 @@ func _task2_test(arena: Arena) -> void:
 	_check(phase_enemies_left == 0, "boss reward clears remaining phase enemies")
 	_check(phase_died == 0, "boss cleanup does not emit phase enemy deaths")
 	_check(get_tree().get_nodes_in_group("boss_summon").is_empty(), "boss cleanup does not leave phase summons")
-	_check(int(Game.stats["kills"]) == kills_before + 1 and int(Game.stats["boss_kills"]) == boss_kills_before + 1, "boss cleanup adds one kill and one boss reward")
+	_check(arena.spawner._pending == 0 and arena.spawner._queue.is_empty() and not arena.spawner._awaiting_boss and arena.spawner._boss == null, "boss cleanup cancels pending spawner callbacks")
 	_check(arena._patch_pending == patch_pending_before and arena._patch_open == patch_open_before, "boss death does not queue a duplicate patch reward")
 
 	Game.mode = saved_mode
 	Game.patch_levels = saved_patch_levels
+	arena.player.hp = boss_player_hp_before
 	for e in arena.enemy_list.duplicate():
 		if is_instance_valid(e) and not e.is_in_group("boss"):
 			e.queue_free()

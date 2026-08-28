@@ -243,6 +243,13 @@ const PATCH_DEFS := [
 
 const ONEHP_PATCH_EXCLUDED := ["hp", "restore", "vampic", "recycler", "dataleech", "secondwind", "scrapdiet"]
 
+func onehp_patch_pool() -> Array:
+	var pool: Array = []
+	for d in PATCH_DEFS:
+		if d["id"] not in ONEHP_PATCH_EXCLUDED:
+			pool.append(d)
+	return pool
+
 func start_run() -> void:
 	state = State.PLAYING
 	score = 0
@@ -296,9 +303,8 @@ func patch_level(id: String) -> int:
 
 func roll_patch_offer() -> Array:
 	var pool: Array = []
-	for d in PATCH_DEFS:
-		if mode == "onehp" and d["id"] in ONEHP_PATCH_EXCLUDED:
-			continue
+	var definitions: Array = onehp_patch_pool() if mode == "onehp" else PATCH_DEFS
+	for d in definitions:
 		if patch_level(d["id"]) < int(d["max"]):
 			pool.append(d)
 	var picks: Array = []
