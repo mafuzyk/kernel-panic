@@ -383,6 +383,7 @@ func _autotest() -> void:
 	await _task9_test(arena2)
 	await _systems_test(arena2)
 	await _debug_controls_test(arena2)
+	await _story_test(arena2)
 	await _charm_terminal_test(arena2)
 	await _charm_speedrun_test(arena2)
 	await _touch_test()
@@ -411,6 +412,7 @@ func _autotest() -> void:
 		if c is Label and c.text.begins_with("KERNEL PANIC v" + expected_ver):
 			ver_ok = true
 	_check(ver_ok, "menu version matches project setting (%s)" % expected_ver)
+	await _story_menu_test(menu_scene)
 	await _charm_save_transfer_test(menu_scene)
 	if menu_scene.has_method("_reset_scores"):
 		menu_scene._reset_scores()
@@ -423,6 +425,7 @@ func _autotest() -> void:
 	await _task10_test(menu_scene)
 	_check(_config_sections_equal(run_before_task10, _config_section_snapshot("run")), "task10 restores run config section")
 	await _task11_test(menu_scene)
+	await _story_scene_test()
 	for node in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(node):
 			node.queue_free()
@@ -2333,6 +2336,60 @@ func _debug_controls_test(arena: Arena) -> void:
 		child.queue_free()
 	await _ticks(3)
 
+func _story_test(arena: Arena) -> void:
+	print("AT_STEP story")
+	var story_script: Script = load("res://src/story/story_data.gd")
+	_check(story_script != null, "story stage data script loads")
+	_check(Game.has_method("story_stage_count") and Game.has_method("story_stage_def"), "game exposes story stage data")
+	_check(Game.has_method("story_stage_unlocked"), "game exposes story unlock progression")
+	_check(arena.spawner.has_method("start_story"), "spawner exposes fixed story queue")
+	if story_script == null or not Game.has_method("story_stage_count") or not Game.has_method("story_stage_def") or not arena.spawner.has_method("start_story"):
+		return
+	var count := int(Game.story_stage_count())
+	_check(count == 6, "act 1 contains six UNIX stages")
+	var expected_ids := ["boot", "var_log", "net", "mem", "quarantine", "kernel"]
+	var expected_paths := ["/boot", "/var/log", "/net", "/mem", "/quarantine", "/kernel"]
+	for i in mini(count, expected_ids.size()):
+		var stage: Dictionary = Game.story_stage_def(i)
+		_check(str(stage.get("id", "")) == expected_ids[i] and str(stage.get("path", "")) == expected_paths[i], "story stage %d has the expected UNIX path" % (i + 1))
+	_check(Game.story_stage_def(0).get("waves", []).size() > 0, "story stages declare fixed waves")
+	_check("boss" in Game.story_stage_def(5), "kernel stage declares its boss")
+	var saved_mode := Game.mode
+	var saved_state := Game.state
+	var saved_stage := int(Game.get("story_stage_index")) if Game.get("story_stage_index") != null else 0
+	var saved_cleared: Dictionary = Game.story_cleared.duplicate(true) if Game.get("story_cleared") is Dictionary else {}
+	Game.story_cleared = {}
+	_check(bool(Game.story_stage_unlocked(0)), "first story stage is unlocked")
+	_check(not bool(Game.story_stage_unlocked(1)), "next story stage stays locked")
+	Game.story_cleared["boot"] = true
+	_check(bool(Game.story_stage_unlocked(1)) and not bool(Game.story_stage_unlocked(2)), "clearing one stage unlocks only the next stage")
+	Game.mode = "story"
+	Game.state = Game.State.PLAYING
+	var sp: Spawner = arena.spawner
+	sp.stop()
+	sp.debug_clear_encounter()
+	for child in arena.enemy_container.get_children():
+		child.queue_free()
+	await _ticks(2)
+	var boot_stage: Dictionary = Game.story_stage_def(0)
+	sp.start_story(arena, arena.enemy_container, boot_stage)
+	_check(bool(sp.get("story_mode")), "story spawner enters scripted mode")
+	var fixed_queue: Array = sp.get("_queue")
+	_check(not fixed_queue.is_empty(), "story spawner loads a fixed queue")
+	var fixed_only := true
+	for kind in fixed_queue:
+		if str(kind) != "drone":
+			fixed_only = false
+	_check(fixed_only, "boot queue contains only its declared enemy type")
+	sp.stop()
+	sp.debug_clear_encounter()
+	Game.mode = saved_mode
+	Game.state = saved_state
+	Game.story_stage_index = saved_stage
+	Game.story_cleared = saved_cleared
+	sp.start(arena, arena.enemy_container, 1)
+	await _ticks(3)
+
 func _charm_terminal_test(arena: Arena) -> void:
 	print("AT_STEP charm_terminal")
 	var terminal_script: Script = load("res://src/ui/terminal_panel.gd")
@@ -2423,6 +2480,60 @@ func _charm_speedrun_test(arena: Arena) -> void:
 	Game.run_seed = saved_seed
 	_restore_config_section("achievements", achievement_disk)
 
+func _story_menu_test(menu: Node) -> void:
+	print("AT_STEP story_menu")
+	var story_panel_script: Script = load("res://src/ui/story_panel.gd")
+	_check(story_panel_script != null, "story selector script loads")
+	_check(menu.has_method("_open_story_selector") and menu.get("_story_btn") != null, "menu exposes a separate Story entry")
+	if story_panel_script == null or not menu.has_method("_open_story_selector"):
+		return
+	menu.call("_open_story_selector")
+	await _ticks(2)
+	var panel = menu.get("_story_panel")
+	_check(panel != null and panel.visible, "story selector opens without changing endless mode")
+	if panel != null:
+		_check(panel.has_method("available_stage_indices") and panel.has_method("select_stage"), "story selector exposes stage interaction API")
+		_check(panel.available_stage_indices().has(0), "first Story stage is selectable")
+	menu.call("_close_story_selector")
+	await _ticks(1)
+	_check(not panel.visible, "story selector closes cleanly")
+
+func _story_scene_test() -> void:
+	print("AT_STEP story_scene")
+	var saved_mode := Game.mode
+	var saved_state := Game.state
+	var saved_stage := Game.story_stage_index
+	var saved_cleared: Dictionary = Game.story_cleared.duplicate(true)
+	var saved_best: Dictionary = Game.story_best.duplicate(true)
+	var story_disk := _config_section_snapshot("story")
+	Game.story_cleared = {}
+	Game.story_best = {}
+	_check(bool(Game.start_story(0)), "story start accepts the first unlocked stage")
+	var loaded := await _until(func() -> bool:
+		return get_tree().current_scene != null and get_tree().current_scene.name == "Arena", 6.0, "story arena")
+	if not loaded:
+		return
+	var story_arena: Arena = get_tree().current_scene
+	await _ticks(3)
+	_check(Game.mode == "story" and story_arena.spawner.story_mode, "story arena uses the scripted spawner")
+	_check(str(story_arena.get("_story_stage").get("path", "")) == "/boot", "story arena loads the selected stage")
+	_check(story_arena.get("_story_intro_panel") != null, "story arena builds an intro card")
+	story_arena.spawner.stop()
+	story_arena.spawner.debug_clear_encounter()
+	story_arena.spawner.story_cleared.emit("boot")
+	await _ticks(3)
+	_check(Game.state == Game.State.GAME_OVER and bool(Game.story_cleared.get("boot", false)), "story victory saves the cleared stage")
+	_check(bool(story_arena.get("_story_victory")), "story victory screen is shown")
+	Game.story_cleared = saved_cleared
+	Game.story_best = saved_best
+	_restore_config_section("story", story_disk)
+	Game.mode = saved_mode
+	Game.state = saved_state
+	Game.story_stage_index = saved_stage
+	Game.to_menu()
+	await _until(func() -> bool:
+		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 6.0, "story menu return")
+
 func _charm_save_transfer_test(menu: Node) -> void:
 	print("AT_STEP charm_save_transfer")
 	_check(Game.has_method("export_save_string") and Game.has_method("import_save_string"), "game exposes save transfer API")
@@ -2430,7 +2541,7 @@ func _charm_save_transfer_test(menu: Node) -> void:
 	if not Game.has_method("export_save_string") or not Game.has_method("import_save_string"):
 		return
 	var saved_sections := {}
-	for section in ["run", "weekly", "bestiary", "programs", "achievements"]:
+	for section in ["run", "weekly", "story", "bestiary", "programs", "achievements"]:
 		saved_sections[section] = _config_section_snapshot(section)
 	var saved_state := Game.state
 	var saved_stats: Dictionary = Game.stats.duplicate(true)
@@ -2439,6 +2550,8 @@ func _charm_save_transfer_test(menu: Node) -> void:
 	var saved_bestiary: Dictionary = Game.bestiary.duplicate(true)
 	var saved_unlocked: Dictionary = Game.unlocked_programs.duplicate(true)
 	var saved_achievements: Dictionary = Game.achievements.duplicate(true)
+	var saved_story_cleared: Dictionary = Game.story_cleared.duplicate(true)
+	var saved_story_best: Dictionary = Game.story_best.duplicate(true)
 	var fixture := ConfigFile.new()
 	fixture.load(Sfx.SAVE_PATH)
 	fixture.set_value("run", "best_classic", 24680)
@@ -2468,6 +2581,8 @@ func _charm_save_transfer_test(menu: Node) -> void:
 	Game.bestiary = saved_bestiary
 	Game.unlocked_programs = saved_unlocked
 	Game.achievements = saved_achievements
+	Game.story_cleared = saved_story_cleared
+	Game.story_best = saved_story_best
 
 func _touch_test() -> void:
 	var arena: Arena = get_tree().current_scene

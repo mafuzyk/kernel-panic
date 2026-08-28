@@ -17,7 +17,9 @@ var _klog_t := 0.0
 var _esc_armed := 0.0
 var _bestiary_panel: BestiaryPanel
 var _program_panel: ProgramPanel
+var _story_panel: StoryPanel
 var _program_btn: Button
+var _story_btn: Button
 var _aim_btn_ref: Button
 var _color_assist_btn: Button
 var _boot: BootOverlay
@@ -94,8 +96,8 @@ func _ready() -> void:
 	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_prompt.anchor_left = 0.0
 	_prompt.anchor_right = 1.0
-	_prompt.offset_top = 400.0
-	_prompt.offset_bottom = 430.0
+	_prompt.offset_top = 422.0
+	_prompt.offset_bottom = 452.0
 	if DisplayServer.is_touchscreen_available():
 		_prompt.text = "[TAP] TO PURGE"
 	add_child(_prompt)
@@ -260,6 +262,20 @@ func _build_button_row() -> void:
 	_mode_info.offset_top = 458.0
 	_mode_info.offset_bottom = 482.0
 	add_child(_mode_info)
+	_story_btn = Button.new()
+	_style_card_button(_story_btn, Balance.COL_PLAYER, Vector2(300.0, 48.0))
+	_story_btn.text = "STORY // UNIX ACT 1"
+	_story_btn.anchor_left = 0.5
+	_story_btn.anchor_right = 0.5
+	_story_btn.anchor_top = 0.0
+	_story_btn.anchor_bottom = 0.0
+	_story_btn.offset_left = -150.0
+	_story_btn.offset_right = 150.0
+	_story_btn.offset_top = 366.0
+	_story_btn.offset_bottom = 414.0
+	_story_btn.add_theme_font_size_override("font_size", 16)
+	_story_btn.pressed.connect(_open_story_selector)
+	add_child(_story_btn)
 	_refresh_mode_ui()
 
 func _refresh_program_label() -> void:
@@ -325,6 +341,77 @@ func _open_program_selector() -> void:
 func _close_program_selector() -> void:
 	_program_panel.visible = false
 	Sfx.play("ui", 0.9, -8.0)
+
+func _open_story_selector() -> void:
+	if _story_panel == null:
+		var story_script: Script = load("res://src/ui/story_panel.gd")
+		if story_script == null:
+			return
+		_story_panel = story_script.new()
+		_story_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_story_panel.stage_selected.connect(_start_story)
+		var title := Label.new()
+		title.text = "STORY // UNIX RECOVERY"
+		title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
+		title.add_theme_font_size_override("font_size", 28)
+		title.add_theme_color_override("font_color", Balance.COL_TEXT)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.anchor_left = 0.0
+		title.anchor_right = 1.0
+		title.offset_top = 60.0
+		title.offset_bottom = 110.0
+		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_story_panel.add_child(title)
+		var hint := Label.new()
+		hint.text = "CLEAR A STAGE TO MOUNT THE NEXT PATH // FIXED WAVES // SWIPE TO SCROLL"
+		hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+		hint.add_theme_font_size_override("font_size", 13)
+		hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.anchor_left = 0.0
+		hint.anchor_right = 1.0
+		hint.offset_top = 112.0
+		hint.offset_bottom = 136.0
+		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_story_panel.add_child(hint)
+		var back := Button.new()
+		back.text = "BACK"
+		back.flat = true
+		back.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+		back.add_theme_font_size_override("font_size", 18)
+		back.add_theme_color_override("font_color", Balance.COL_PLAYER)
+		back.anchor_left = 0.5
+		back.anchor_right = 0.5
+		back.anchor_top = 1.0
+		back.anchor_bottom = 1.0
+		back.offset_left = -70.0
+		back.offset_right = 70.0
+		back.offset_top = -90.0
+		back.offset_bottom = -50.0
+		back.pressed.connect(_close_story_selector)
+		_story_panel.add_child(back)
+		var layer := CanvasLayer.new()
+		layer.layer = 70
+		layer.process_mode = Node.PROCESS_MODE_ALWAYS
+		layer.add_child(_story_panel)
+		add_child(layer)
+	_story_panel.visible = true
+	_story_panel.scroll_y = 0.0
+	_story_panel.queue_redraw()
+	Sfx.play("ui", 1.1, -8.0)
+
+func _close_story_selector() -> void:
+	if _story_panel != null:
+		_story_panel.visible = false
+	Sfx.play("ui", 0.9, -8.0)
+
+func _start_story(index: int) -> void:
+	if _starting or not Game.story_stage_unlocked(index):
+		return
+	_starting = true
+	Sfx.play("ui", 1.2, -4.0)
+	Fx.flash(Balance.COL_PLAYER, 0.18, 0.4)
+	Game.start_story(index)
 
 func _open_bestiary() -> void:
 	if _bestiary_panel == null:
@@ -403,6 +490,10 @@ func _refresh_mode_ui() -> void:
 	var cf := ConfigFile.new()
 	cf.load(Sfx.SAVE_PATH)
 	match Game.mode:
+		"story":
+			_mode_btn.text = "MODE: STORY"
+			var story_path: String = str(Game.story_stage_def(Game.story_stage_index).get("path", "/boot"))
+			_mode_info.text = "UNIX ACT 1 // CURRENT %s // %d/%d STAGES CLEAR" % [story_path, Game.story_cleared.size(), Game.story_stage_count()]
 		"weekly":
 			_mode_btn.text = "MODE: WEEKLY RUN"
 			var cur := int(cf.get_value("weekly", "best", 0)) if cf.get_value("weekly", "id", "") == Game.week_id() else 0
@@ -972,6 +1063,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _program_panel != null and _program_panel.visible:
 		if event.is_action_pressed("pause"):
 			_close_program_selector()
+			get_viewport().set_input_as_handled()
+			return
+	if _story_panel != null and _story_panel.visible:
+		if event.is_action_pressed("pause"):
+			_close_story_selector()
 			get_viewport().set_input_as_handled()
 		return
 	if _bestiary_panel != null and _bestiary_panel.visible:

@@ -98,8 +98,8 @@ and are recorded in `dmesg`; deaths include a short core-dump recap.
 
 In **SETTINGS**, use **COPY EXPORT** on the old device, then paste the string
 into the save field on the new device and choose **IMPORT PASTE**. The transfer
-contains records, bestiary progress, playable programs, and achievements while
-leaving audio, controls, and other local settings alone.
+contains records, Story stage progress, bestiary progress, playable programs,
+and achievements while leaving audio, controls, and other local settings alone.
 
 ### Arch Linux / Artix Linux (AUR)
 
@@ -141,6 +141,11 @@ Three run modes change the rules:
 - **Classic** is the full escalating run.
 - **Weekly Run** uses a shared local deterministic seed; your selected aim mode, including lock-on, remains active.
 - **One-HP** gives you one mistake and no excuses.
+
+The separate **STORY // UNIX ACT 1** entry contains six fixed stages: `/boot`,
+`/var/log`, `/net`, `/mem`, `/quarantine`, and `/kernel`. Each stage has
+hand-authored waves, an intro log, and its own best score. Clearing a stage
+mounts the next one; clearing `/mem` unlocks the ROOTLET program.
 
 ## Controls
 

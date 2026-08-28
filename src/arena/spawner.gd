@@ -4,6 +4,7 @@ extends Node
 signal wave_started(wave: int, is_boss: bool)
 signal wave_cleared(wave: int)
 signal boss_spawned(boss: RootBoss)
+signal story_cleared(stage_id: String)
 
 var container: Node2D
 var wave := 1
@@ -19,13 +20,45 @@ var _spawn_generation := 0
 var _debug_spawn_index := 0
 var wave_event := ""
 var arena_ref: Node2D
+var story_mode := false
+var story_stage: Dictionary = {}
+var story_wave_index := -1
+var _story_wave_scale := 1.0
 
 func start(arena_node: Node2D, container_node: Node2D, first_wave: int) -> void:
 	arena_ref = arena_node
 	container = container_node
+	_spawn_generation += 1
+	_queue.clear()
+	_pending = 0
+	_intermission = 0.0
+	_awaiting_boss = false
+	_boss = null
+	story_mode = false
+	story_stage = {}
+	story_wave_index = -1
 	wave = first_wave
 	_running = true
 	_begin_wave()
+
+func start_story(arena_node: Node2D, container_node: Node2D, stage_def: Dictionary) -> bool:
+	if stage_def.is_empty() or stage_def.get("waves", []).is_empty():
+		return false
+	arena_ref = arena_node
+	container = container_node
+	_spawn_generation += 1
+	_queue.clear()
+	_pending = 0
+	_intermission = 0.0
+	_awaiting_boss = false
+	_boss = null
+	story_mode = true
+	story_stage = stage_def.duplicate(true)
+	story_wave_index = 0
+	wave = 1
+	_running = true
+	_begin_story_wave()
+	return true
 
 func stop() -> void:
 	_running = false
@@ -39,6 +72,9 @@ func cancel_boss_phase_spawns() -> void:
 	_boss_trickle_t = 0.0
 
 func _begin_wave() -> void:
+	if story_mode:
+		_begin_story_wave()
+		return
 	var is_boss := wave % Balance.BOSS_EVERY == 0
 	wave_started.emit(wave, is_boss)
 	if _next_event_rolled_for != wave:
@@ -52,6 +88,26 @@ func _begin_wave() -> void:
 	else:
 		_build_queue()
 	_spawn_t = 1.1
+
+func _begin_story_wave() -> void:
+	var waves: Array = story_stage.get("waves", [])
+	if story_wave_index < 0 or story_wave_index >= waves.size():
+		_running = false
+		story_cleared.emit(str(story_stage.get("id", "")))
+		return
+	wave = story_wave_index + 1
+	var wave_def: Array = waves[story_wave_index]
+	_queue.clear()
+	for raw_kind in wave_def:
+		_queue.append(str(raw_kind))
+	_story_wave_scale = float(story_stage.get("scale", 1.0))
+	wave_started.emit(wave, _queue.has("boss"))
+	if _queue.has("boss"):
+		_queue.clear()
+		_awaiting_boss = true
+		_spawn_story_boss()
+	else:
+		_spawn_t = 1.1
 
 var _next_event := ""
 var _next_event_rolled_for := -1
@@ -159,6 +215,23 @@ func _spawn_boss() -> void:
 		_boss.position = _edge_point(140.0)
 		container.add_child(_boss)
 		boss_spawned.emit(_boss)
+		)
+
+func _spawn_story_boss() -> void:
+	var idx := int(story_stage.get("boss_index", 1))
+	var generation := _spawn_generation
+	var t := get_tree().create_timer(1.5)
+	t.timeout.connect(func() -> void:
+		if generation != _spawn_generation or not _running or not is_instance_valid(container):
+			return
+		_awaiting_boss = false
+		_boss = RootBoss.new()
+		_boss.boss_index = idx
+		_boss.threat_wave = wave
+		_boss.configure(float(story_stage.get("boss_scale", _story_wave_scale)), false)
+		_boss.position = _edge_point(140.0)
+		container.add_child(_boss)
+		boss_spawned.emit(_boss)
 	)
 
 func _physics_process(delta: float) -> void:
@@ -167,11 +240,21 @@ func _physics_process(delta: float) -> void:
 	if _intermission > 0.0:
 		_intermission -= delta
 		if _intermission <= 0.0:
-			wave += 1
-			_begin_wave()
+			if story_mode:
+				story_wave_index += 1
+				if story_wave_index >= story_stage.get("waves", []).size():
+					_running = false
+					story_cleared.emit(str(story_stage.get("id", "")))
+				else:
+					_begin_story_wave()
+			else:
+				wave += 1
+				_begin_wave()
 		return
 	var alive := EnemyBase.shared_list.size()
 	if _boss != null and is_instance_valid(_boss):
+		if story_mode:
+			return
 		_boss_trickle_t -= delta
 		if _boss_trickle_t <= 0.0 and alive < 8:
 			_boss_trickle_t = 4.0
@@ -231,13 +314,20 @@ func _telegraph_spawn(pos: Vector2, kind: String, generation: int) -> void:
 		if kind == "drone" and wave_event == "swarm":
 			e.setup_mini()
 		e.position = pos
-		_configure_enemy(e, Game.rng.randf() < Balance.elite_chance(wave))
+		if story_mode:
+			_configure_story_enemy(e)
+		else:
+			_configure_enemy(e, Game.rng.randf() < Balance.elite_chance(wave))
 		container.add_child(e)
 	)
 
 func _configure_enemy(e: EnemyBase, is_elite: bool) -> void:
 	e.threat_wave = wave
 	e.configure(Balance.wave_scale(wave), is_elite)
+
+func _configure_story_enemy(e: EnemyBase) -> void:
+	e.threat_wave = wave
+	e.configure(_story_wave_scale, false)
 
 func _make_enemy(kind: String) -> EnemyBase:
 	match kind:

@@ -21,6 +21,15 @@ var _over_panel: Control
 var _over_stats: Label
 var _over_title: Label
 var _over_sub: Label
+var _over_primary: Button
+var _over_menu: Button
+var _story_stage: Dictionary = {}
+var _story_intro_panel: Control
+var _story_intro_path: Label
+var _story_intro_title: Label
+var _story_intro_text: Label
+var _story_victory := false
+var _story_next_stage := -1
 var _intro_bars: Array[ColorRect] = []
 var _intro_label: Label
 var _intro_quote: Label
@@ -50,6 +59,7 @@ var _abandon_generation := 0
 var _pause_info: Label
 var _debug_panel: Control
 var _terminal_panel: Control
+var _dust: CPUParticles2D
 var _restart_hold_t := 0.0
 var _restart_triggered := false
 const RESTART_HOLD_DURATION := 0.75
@@ -86,6 +96,10 @@ func _ready() -> void:
 	_build_terminal_panel()
 	_build_game_over_panel()
 	_build_intro()
+	if Game.mode == "story":
+		_story_stage = Game.story_stage_def(Game.story_stage_index)
+		_build_story_intro()
+		_apply_story_theme(_story_stage.get("theme", {}))
 	if debug_controls_enabled():
 		var debug_panel = load("res://src/ui/debug_panel.gd").new()
 		debug_panel.arena = self
@@ -114,7 +128,12 @@ func _ready() -> void:
 	spawner.wave_started.connect(_on_wave_started)
 	spawner.wave_cleared.connect(_on_wave_cleared)
 	spawner.boss_spawned.connect(_on_boss_spawned)
-	spawner.start(self, enemy_container, 1)
+	spawner.story_cleared.connect(_on_story_cleared)
+	if Game.mode == "story":
+		spawner.start_story(self, enemy_container, _story_stage)
+		call_deferred("_show_story_intro")
+	else:
+		spawner.start(self, enemy_container, 1)
 	enemy_container.child_entered_tree.connect(_on_enemy_child)
 	enemy_container.child_exiting_tree.connect(_on_enemy_exit)
 	player.hp_changed.connect(_on_player_hp)
@@ -253,19 +272,19 @@ func _build_background() -> void:
 	rect.material = _bg_mat
 	layer.add_child(rect)
 	add_child(layer)
-	var dust := CPUParticles2D.new()
-	dust.amount = 36
-	dust.lifetime = 7.0
-	dust.preprocess = 7.0
-	dust.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	dust.emission_rect_extents = Vector2(700, 400)
-	dust.gravity = Vector2.ZERO
-	dust.initial_velocity_min = 6.0
-	dust.initial_velocity_max = 22.0
-	dust.scale_amount_min = 1.0
-	dust.scale_amount_max = 2.4
-	dust.color = Color(0.4, 0.55, 0.75, 0.22)
-	add_child(dust)
+	_dust = CPUParticles2D.new()
+	_dust.amount = 36
+	_dust.lifetime = 7.0
+	_dust.preprocess = 7.0
+	_dust.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	_dust.emission_rect_extents = Vector2(700, 400)
+	_dust.gravity = Vector2.ZERO
+	_dust.initial_velocity_min = 6.0
+	_dust.initial_velocity_max = 22.0
+	_dust.scale_amount_min = 1.0
+	_dust.scale_amount_max = 2.4
+	_dust.color = Color(0.4, 0.55, 0.75, 0.22)
+	add_child(_dust)
 
 func _panel_viewport_height() -> float:
 	return maxf(get_viewport_rect().size.y, 1.0)
@@ -349,7 +368,7 @@ func _build_pause_panel() -> void:
 	var b_restart := _make_button("RESTART", 370)
 	b_restart.pressed.connect(func() -> void:
 		_set_paused(false)
-		Game.start_run()
+		_restart_current_run()
 	)
 	_pause_panel.add_child(b_restart)
 	var b_menu := _make_button("ABANDON PROCESS", 420)
@@ -432,12 +451,12 @@ func _build_game_over_panel() -> void:
 	_over_stats = _make_label("", 17, Balance.COL_TEXT)
 	_center_panel_control(_over_stats, 252.0, 218.0)
 	_over_panel.add_child(_over_stats)
-	var b_reboot := _make_button("REBOOT  [ENTER]", 500)
-	b_reboot.pressed.connect(Game.start_run)
-	_over_panel.add_child(b_reboot)
-	var b_menu := _make_button("ABANDON PROCESS  [ESC]", 550)
-	b_menu.pressed.connect(Game.to_menu)
-	_over_panel.add_child(b_menu)
+	_over_primary = _make_button("REBOOT  [ENTER]", 500)
+	_over_primary.pressed.connect(_handle_over_primary)
+	_over_panel.add_child(_over_primary)
+	_over_menu = _make_button("ABANDON PROCESS  [ESC]", 550)
+	_over_menu.pressed.connect(Game.to_menu)
+	_over_panel.add_child(_over_menu)
 
 func _make_panel() -> Control:
 	var p := Control.new()
@@ -523,7 +542,62 @@ func _build_intro() -> void:
 	il_layer.add_child(_intro_label)
 	add_child(il_layer)
 
+func _build_story_intro() -> void:
+	_story_intro_panel = _make_panel()
+	_story_intro_path = _make_label("", 16, Balance.COL_PLAYER)
+	_center_panel_control(_story_intro_path, 238.0, 30.0)
+	_story_intro_panel.add_child(_story_intro_path)
+	_story_intro_title = _make_label("", 34, Balance.COL_TEXT)
+	_center_panel_control(_story_intro_title, 278.0, 52.0)
+	_story_intro_panel.add_child(_story_intro_title)
+	_story_intro_text = _make_label("", 15, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.75))
+	_center_panel_control(_story_intro_text, 344.0, 54.0)
+	_story_intro_panel.add_child(_story_intro_text)
+	var footer := _make_label("ACT 1 // UNIX RECOVERY LOG", 12, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.7))
+	_center_panel_control(footer, 418.0, 24.0)
+	_story_intro_panel.add_child(footer)
+
+func _show_story_intro() -> void:
+	if _story_intro_panel == null or _story_stage.is_empty():
+		return
+	_story_intro_path.text = str(_story_stage.get("path", ""))
+	_story_intro_title.text = str(_story_stage.get("title", "STORY STAGE"))
+	_story_intro_text.text = str(_story_stage.get("intro", ""))
+	_story_intro_panel.modulate.a = 0.0
+	_story_intro_panel.visible = true
+	var tw := create_tween()
+	tw.tween_property(_story_intro_panel, "modulate:a", 1.0, 0.35)
+	tw.tween_interval(2.4)
+	tw.tween_property(_story_intro_panel, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(func() -> void:
+		if _story_intro_panel != null and is_instance_valid(_story_intro_panel):
+			_story_intro_panel.visible = false
+	)
+
+func _apply_story_theme(theme: Dictionary) -> void:
+	if theme.is_empty():
+		return
+	var base_col: Color = theme.get("base_col", Color("080b18"))
+	var grid_col: Color = theme.get("grid_col", Balance.COL_GRID)
+	var glow_col: Color = theme.get("glow_col", Color("0d4160"))
+	var accent: Color = theme.get("accent", Balance.COL_PLAYER)
+	_era_color = accent
+	if _bg_mat != null:
+		_bg_mat.set_shader_parameter("base_col", base_col)
+		_bg_mat.set_shader_parameter("grid_col", grid_col)
+		_bg_mat.set_shader_parameter("glow_col", glow_col)
+		_bg_mat.set_shader_parameter("era_tint", Vector3(accent.r, accent.g, accent.b))
+		_bg_mat.set_shader_parameter("era_mix", 0.28)
+		_bg_mat.set_shader_parameter("corruption", 0.0)
+	if walls != null:
+		walls.set_tint(accent)
+	if _dust != null:
+		_dust.color = Color(accent.r, accent.g, accent.b, 0.18)
+
 func _on_wave_started(wave: int, is_boss: bool) -> void:
+	if Game.mode == "story":
+		_on_story_wave_started(wave, is_boss)
+		return
 	wave_signal_count += 1
 	Game.wave = wave
 	Game.stats["wave"] = wave
@@ -548,6 +622,25 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 	if wave > 1 and (wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
 		player.heal(1)
 		Game.register_heal("cycle")
+		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
+
+func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
+	wave_signal_count += 1
+	Game.wave = current_wave
+	Game.stats["wave"] = current_wave
+	walls.pulse()
+	_apply_story_theme(_story_stage.get("theme", {}))
+	Game.log_event("STORY // %s // WAVE %02d START" % [_story_stage.get("path", ""), current_wave])
+	if is_boss:
+		Game.log_event("STORY BOSS INBOUND // %s" % _story_stage.get("boss", "ROOT DAEMON"))
+		hud.show_banner("%s // FINAL WAVE" % _story_stage.get("path", ""), str(_story_stage.get("boss", "ROOT DAEMON")), 2.2)
+		Sfx.play("boss", 1.0, 0.0)
+	else:
+		hud.show_banner("%s // WAVE %02d" % [_story_stage.get("path", ""), current_wave], "PURGE THE DAEMONS", 1.8)
+		Sfx.play("wave", 1.0 + current_wave * 0.01, -6.0)
+	if current_wave > 1 and (current_wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
+		player.heal(1)
+		Game.register_heal("story")
 		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
 
 func _run_boss_intro() -> void:
@@ -589,6 +682,9 @@ var _tip_label: Label
 var _tip_index := 0
 
 func _on_wave_cleared(wave: int) -> void:
+	if Game.mode == "story":
+		_on_story_wave_cleared(wave)
+		return
 	hud.show_banner("CYCLE %02d CLEAR" % wave, "+%d // NEXT: %s" % [wave * 25, spawner.preview_next()], 2.2)
 	Game.add_score(wave * 25)
 	Sfx.play("ui", 1.3, -6.0)
@@ -597,6 +693,25 @@ func _on_wave_cleared(wave: int) -> void:
 	_show_tip()
 	if Game.should_offer_patch(wave):
 		offer_patch()
+
+func _on_story_wave_cleared(current_wave: int) -> void:
+	var klog: Array = _story_stage.get("klog", [])
+	var line := str(klog[(current_wave - 1) % klog.size()]) if not klog.is_empty() else "wave complete"
+	hud.show_banner("%s // WAVE %02d CLEAR" % [_story_stage.get("path", ""), current_wave], "KLOG // " + line, 2.2)
+	Game.log_event("KLOG // " + line)
+	Game.add_score(current_wave * 50)
+	Sfx.play("ui", 1.3, -6.0)
+	if mote_field != null and is_instance_valid(mote_field):
+		mote_field.collect_all()
+	_show_tip()
+
+func _on_story_cleared(stage_id: String) -> void:
+	if Game.mode != "story" or _state != "play":
+		return
+	_state = "story_complete"
+	if not Game.complete_story_stage():
+		return
+	_show_story_victory(stage_id)
 
 func _show_tip() -> void:
 	if _tip_label == null:
@@ -830,6 +945,12 @@ func _on_player_died() -> void:
 
 func _show_game_over() -> void:
 	_clear_abandon_confirmation()
+	_story_victory = false
+	_story_next_stage = -1
+	_over_title.text = "PROCESS TERMINATED"
+	_over_title.add_theme_color_override("font_color", Balance.COL_DANGER)
+	_over_primary.text = "REBOOT  [ENTER]"
+	_over_menu.text = "ABANDON PROCESS  [ESC]"
 	Game.end_run()
 	var s := Game.stats
 	var acc := 0.0
@@ -840,7 +961,7 @@ func _show_game_over() -> void:
 		"PROGRAM       %s" % Game.program_def()["name"],
 		"BUILD         %s" % Game.build_string(),
 		"FINAL SCORE   %07d" % Game.score,
-		"BEST          %07d" % Game.best,
+			"BEST          %07d" % Game.best_for_mode(),
 		"",
 		"CYCLES        %d" % s["wave"],
 		"DAEMONS PURGED %d" % s["kills"],
@@ -869,6 +990,40 @@ func _show_game_over() -> void:
 	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
 	Sfx.play("gameover", 0.9, 0.0)
 	Sfx.duck_music(-8.0, 2.0)
+
+func _restart_current_run() -> void:
+	if Game.mode == "story":
+		Game.start_story(Game.story_stage_index)
+	else:
+		Game.start_run()
+
+func _handle_over_primary() -> void:
+	if _story_victory:
+		if _story_next_stage >= 0 and Game.story_stage_unlocked(_story_next_stage):
+			Game.start_story(_story_next_stage)
+		else:
+			Game.to_menu()
+	else:
+		_restart_current_run()
+
+func _show_story_victory(stage_id: String) -> void:
+	var index := Game.story_stage_index
+	_story_next_stage = index + 1 if index + 1 < Game.story_stage_count() and Game.story_stage_unlocked(index + 1) else -1
+	_story_victory = true
+	_over_title.text = "STAGE CLEARED"
+	_over_title.add_theme_color_override("font_color", _story_stage.get("theme", {}).get("accent", Balance.COL_PLAYER))
+	_over_sub.text = "%s // %s" % [_story_stage.get("path", ""), _story_stage.get("title", "")]
+	var next_line := "NEXT // %s" % Game.story_stage_def(_story_next_stage).get("path", "") if _story_next_stage >= 0 else "ACT 1 // UNIX RECOVERY COMPLETE"
+	var best_value := Game.story_stage_best(index)
+	_over_stats.text = "STAGE SCORE   %07d\nBEST          %07d\n\n%s\n\nDAEMONS PURGED %d\nUPTIME        %02d:%02d" % [Game.score, best_value, next_line, int(Game.stats.get("kills", 0)), int(float(Game.stats.get("time", 0.0)) / 60.0), int(float(Game.stats.get("time", 0.0))) % 60]
+	_over_primary.text = "NEXT STAGE  [ENTER]" if _story_next_stage >= 0 else "RETURN TO MENU  [ENTER]"
+	_over_menu.text = "STORY SELECT  [ESC]"
+	_over_panel.modulate.a = 0.0
+	_over_panel.visible = true
+	var tw := create_tween()
+	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
+	Sfx.play("ready", 1.2, -2.0)
+	Sfx.duck_music(-6.0, 2.0)
 
 func _heals_line(s: Dictionary) -> String:
 	var heals: Dictionary = s.get("heals", {})
@@ -1030,10 +1185,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("restart") and get_tree().paused and _state == "play":
 		_set_paused(false)
-		Game.start_run()
+		_restart_current_run()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("confirm") and _state == "dead":
-		Game.start_run()
+		_restart_current_run()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("abandon") and get_tree().paused and _state == "play":
 		if event is InputEventKey and event.echo:
@@ -1201,8 +1356,8 @@ func _process(delta: float) -> void:
 		var c := _era_color
 		if OS.get_environment("KP_NOTINT") == "":
 			_bg_mat.set_shader_parameter("era_tint", Vector3(c.r, c.g, c.b))
-		_bg_mat.set_shader_parameter("era_mix", 0.75)
-		_bg_mat.set_shader_parameter("corruption", background_corruption_for_wave(Game.wave))
+		_bg_mat.set_shader_parameter("era_mix", 0.28 if Game.mode == "story" else 0.75)
+		_bg_mat.set_shader_parameter("corruption", 0.0 if Game.mode == "story" else background_corruption_for_wave(Game.wave))
 	if _state == "play":
 		Game.stats["time"] += delta
 		var level := 0

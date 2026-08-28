@@ -1,5 +1,7 @@
 extends Node
 
+const STORY_DATA = preload("res://src/story/story_data.gd")
+
 signal score_changed(score: int, mult: int)
 signal combo_changed(mult: int, frac: float)
 signal run_ended(stats: Dictionary)
@@ -16,6 +18,9 @@ var combo_window := Balance.COMBO_WINDOW
 var patch_levels := {}
 var mode := "classic"
 var program := "kernel"
+var story_stage_index := 0
+var story_cleared: Dictionary = {}
+var story_best: Dictionary = {}
 var vampic_cd := 0.0
 const VAMPIC_COOLDOWN := 10.0
 var unlocked_programs := {"kernel": true}
@@ -138,6 +143,12 @@ func _load_run_config() -> void:
 		var saved_prog: String = cf.get_value("run", "program", "kernel")
 		if unlocked_programs.has(saved_prog):
 			program = saved_prog
+		story_cleared = cf.get_value("story", "cleared", {})
+		story_best = cf.get_value("story", "best", {})
+		if not story_cleared is Dictionary:
+			story_cleared = {}
+		if not story_best is Dictionary:
+			story_best = {}
 	rng.randomize()
 
 func week_number() -> int:
@@ -149,6 +160,8 @@ func week_id() -> String:
 
 func best_for_mode() -> int:
 	match mode:
+		"story":
+			return story_stage_best(story_stage_index)
 		"weekly":
 			var cf := ConfigFile.new()
 			cf.load(Sfx.SAVE_PATH)
@@ -176,6 +189,53 @@ func effective_aim_mode() -> String:
 
 func score_mult() -> int:
 	return 3 if mode == "onehp" else 1
+
+func story_stage_count() -> int:
+	return STORY_DATA.stage_count()
+
+func story_stage_def(index: int) -> Dictionary:
+	return STORY_DATA.stage_at(index)
+
+func story_stage_id(index: int) -> String:
+	return str(story_stage_def(index).get("id", ""))
+
+func story_stage_best(index: int) -> int:
+	return int(story_best.get(story_stage_id(index), 0))
+
+func story_stage_unlocked(index: int) -> bool:
+	if index < 0 or index >= story_stage_count():
+		return false
+	if index == 0:
+		return true
+	return bool(story_cleared.get(story_stage_id(index - 1), false))
+
+func start_story(index: int = 0) -> bool:
+	if not story_stage_unlocked(index):
+		return false
+	var stage := story_stage_def(index)
+	if stage.is_empty():
+		return false
+	mode = "story"
+	story_stage_index = index
+	state = State.PLAYING
+	score = 0
+	mult = 1
+	combo_left = 0.0
+	combo_window = Balance.COMBO_WINDOW
+	patch_levels = {}
+	wave = 1
+	_max_chain_seen = 1
+	event_log.clear()
+	terminal_heal_used = false
+	rng.randomize()
+	run_seed = int(rng.seed)
+	new_best = false
+	stats = {"kills": 0, "shots": 0, "hits": 0, "damage": 0, "time": 0.0, "wave": 1, "boss_kills": 0, "heals": {}}
+	log_event("STORY // %s // %s" % [stage.get("path", ""), stage.get("title", "")])
+	Engine.time_scale = 1.0
+	get_tree().paused = false
+	get_tree().call_deferred("change_scene_to_file", "res://src/arena/arena.tscn")
+	return true
 
 func should_offer_patch(cleared_wave: int) -> bool:
 	if mode == "onehp":
@@ -334,6 +394,7 @@ func onehp_patch_pool() -> Array:
 	return pool
 
 func start_run() -> void:
+	mode = mode if mode != "story" else "classic"
 	state = State.PLAYING
 	score = 0
 	mult = 1
@@ -464,6 +525,10 @@ func export_save_string() -> String:
 			"last_id": str(cf.get_value("weekly", "last_id", "")),
 			"last_best": int(cf.get_value("weekly", "last_best", 0)),
 		},
+		"story": {
+			"cleared": _known_bool_map(story_cleared, STORY_DATA.stage_ids()),
+			"best": story_best.duplicate(true),
+		},
 		"bestiary": _known_bool_map(bestiary, BESTIARY_MAP.values()),
 		"programs": _known_bool_map(unlocked_programs, PROGRAM_DEFS.keys()),
 		"achievements": _known_bool_map(achievements, ACHIEVEMENT_DEFS.keys()),
@@ -499,6 +564,15 @@ func import_save_string(encoded: String) -> bool:
 	cf.set_value("weekly", "best", maxi(int(weekly_data.get("best", 0)), 0))
 	cf.set_value("weekly", "last_id", str(weekly_data.get("last_id", "")))
 	cf.set_value("weekly", "last_best", maxi(int(weekly_data.get("last_best", 0)), 0))
+	var imported_story: Dictionary = parsed.get("story", {})
+	if imported_story is Dictionary:
+		cf.set_value("story", "cleared", _known_bool_map(imported_story.get("cleared", {}), STORY_DATA.stage_ids()))
+		var imported_story_best: Dictionary = imported_story.get("best", {})
+		var clean_story_best := {}
+		if imported_story_best is Dictionary:
+			for stage_id in STORY_DATA.stage_ids():
+				clean_story_best[stage_id] = maxi(int(imported_story_best.get(stage_id, 0)), 0)
+		cf.set_value("story", "best", clean_story_best)
 	cf.set_value("bestiary", "seen", _known_bool_map(parsed.get("bestiary", {}), BESTIARY_MAP.values()))
 	var imported_programs := _known_bool_map(parsed.get("programs", {}), PROGRAM_DEFS.keys())
 	imported_programs["kernel"] = true
@@ -573,6 +647,8 @@ func end_run() -> void:
 	var cf := ConfigFile.new()
 	cf.load(Sfx.SAVE_PATH)
 	match mode:
+		"story":
+			new_best = false
 		"weekly":
 			var wid := week_id()
 			if cf.get_value("weekly", "id", "") != wid:
@@ -605,6 +681,29 @@ func end_run() -> void:
 	kd[kname] = int(kd.get(kname, 0)) + 1
 	lf.set_value("lifetime", "killers", kd)
 	lf.save(Sfx.SAVE_PATH)
+
+func complete_story_stage() -> bool:
+	if mode != "story" or state != State.PLAYING:
+		return false
+	var index := story_stage_index
+	var id := story_stage_id(index)
+	end_run()
+	if id.is_empty():
+		return false
+	story_cleared[id] = true
+	var previous_best := story_stage_best(index)
+	if score > previous_best:
+		story_best[id] = score
+		new_best = true
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("story", "cleared", story_cleared)
+	cf.set_value("story", "best", story_best)
+	cf.save(Sfx.SAVE_PATH)
+	if id == "mem" and not unlocked_programs.has("rootlet"):
+		unlock_program("rootlet")
+	log_event("STORY CLEAR // %s" % id.to_upper())
+	return true
 
 func to_menu() -> void:
 	state = State.MENU
