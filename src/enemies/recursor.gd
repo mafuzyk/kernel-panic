@@ -145,8 +145,18 @@ func _random_teleport_candidate(player_position: Vector2) -> Vector2:
 		if distance > best_distance:
 			best_distance = distance
 			best = candidate
-		if distance > TELEPORT_SAFE_DISTANCE:
-			return candidate
+	var safe_rect := Balance.arena_rect().grow(-radius - 8.0)
+	if safe_rect.size.x >= 0.0 and safe_rect.size.y >= 0.0:
+		for candidate in [
+			Vector2(safe_rect.position.x, safe_rect.position.y),
+			Vector2(safe_rect.end.x, safe_rect.position.y),
+			Vector2(safe_rect.position.x, safe_rect.end.y),
+			Vector2(safe_rect.end.x, safe_rect.end.y),
+		]:
+			var distance: float = candidate.distance_to(player_position)
+			if distance > best_distance:
+				best_distance = distance
+				best = candidate
 	return best
 
 func _leave_zone(pos: Vector2) -> void:

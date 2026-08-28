@@ -1693,6 +1693,33 @@ func _systems_test(arena: Arena) -> void:
 		_check(boss_safe_rect.has_point(boss_dest_a) and boss_dest_a.distance_to(flank_player.global_position) > 240.0, "ranged boss teleport stays safe and inside arena")
 	ranged_boss_flank_probe.free()
 	flank_player.free()
+	var fallback_rng_state := Game.rng.state
+	var recursor_fallback_probe: RecursorEnemy = load("res://src/enemies/recursor.gd").new()
+	Game.rng.seed = 1
+	var recursor_fallback_rng_before := Game.rng.state
+	var recursor_fallback_dest: Vector2 = recursor_fallback_probe.select_teleport_candidate(Vector2.ZERO, Vector2.ZERO, Vector2.ZERO)
+	var recursor_fallback_rect := Balance.arena_rect().grow(-recursor_fallback_probe.radius - 8.0)
+	_check(recursor_fallback_rect.has_point(recursor_fallback_dest) and recursor_fallback_dest.length() > 90.0, "recursor random fallback preserves arena inset and safety distance")
+	_check(Game.rng.state != recursor_fallback_rng_before, "recursor random fallback consumes Game.rng")
+	recursor_fallback_probe.free()
+	var boss_fallback_probe: RootBoss = load("res://src/enemies/root_boss.gd").new()
+	boss_fallback_probe.radius = 300.0
+	Game.rng.seed = 1
+	var boss_fallback_rng_before := Game.rng.state
+	var boss_fallback_dest: Vector2 = boss_fallback_probe.select_teleport_candidate(Vector2.ZERO, Vector2.ZERO, Vector2.ZERO)
+	var boss_fallback_rect := Balance.arena_rect().grow(-boss_fallback_probe.radius - 8.0)
+	_check(boss_fallback_rect.has_point(boss_fallback_dest) and boss_fallback_dest.length() > 240.0, "ranged boss random fallback preserves arena inset and safety distance")
+	_check(Game.rng.state != boss_fallback_rng_before, "ranged boss random fallback consumes Game.rng")
+	var unsafe_fallback_found := false
+	for seed in 256:
+		Game.rng.seed = seed + 1
+		var candidate: Vector2 = boss_fallback_probe.select_teleport_candidate(Vector2.ZERO, Vector2.ZERO, Vector2.ZERO)
+		if candidate.length() <= 240.0:
+			unsafe_fallback_found = true
+			break
+	_check(not unsafe_fallback_found, "ranged boss fallback never returns an unsafe best sample")
+	boss_fallback_probe.free()
+	Game.rng.state = fallback_rng_state
 	var recursor_probe: RecursorEnemy = load("res://src/enemies/recursor.gd").new()
 	recursor_probe.player = special_player
 	recursor_probe.position = Vector2(80, 0)
