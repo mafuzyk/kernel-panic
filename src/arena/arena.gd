@@ -35,6 +35,13 @@ var _boss_fragments_pending := 0
 var _boss_phase_clear_done := false
 var _boss_rewards_claimed := {}
 var wave_signal_count := 0
+const ABANDON_CONFIRM_WINDOW := 2.0
+const PAUSE_INFO_DEFAULT := "[ESC] RESUME      [R] RESTART      [Q] ARM ABANDON PROCESS"
+const PAUSE_INFO_CONFIRM := "[ESC] RESUME      [R] RESTART      [Q] PRESS Q AGAIN // ABANDON PROCESS"
+var _abandon_armed := false
+var _abandon_t := 0.0
+var _abandon_timer: SceneTreeTimer
+var _pause_info: Label
 
 func _ready() -> void:
 	add_to_group("arena")
@@ -215,10 +222,10 @@ func _build_pause_panel() -> void:
 	title.offset_top = 220
 	title.offset_bottom = 280
 	_pause_panel.add_child(title)
-	var info := _make_label("[ESC] RESUME      [R] RESTART      [Q] ABANDON PROCESS", 13, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	info.offset_top = 470
-	info.offset_bottom = 500
-	_pause_panel.add_child(info)
+	_pause_info = _make_label(PAUSE_INFO_DEFAULT, 13, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
+	_pause_info.offset_top = 470
+	_pause_info.offset_bottom = 500
+	_pause_panel.add_child(_pause_info)
 	_pause_stats = _make_label("", 14, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.85))
 	_pause_stats.offset_top = 180
 	_pause_stats.offset_bottom = 210
@@ -664,6 +671,7 @@ func _on_player_hp(hp: int, _max_hp: int) -> void:
 func _on_player_died() -> void:
 	if _state != "play":
 		return
+	_clear_abandon_confirmation()
 	_state = "dead"
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	spawner.stop()
@@ -672,6 +680,7 @@ func _on_player_died() -> void:
 	t.timeout.connect(_show_game_over)
 
 func _show_game_over() -> void:
+	_clear_abandon_confirmation()
 	Game.end_run()
 	var s := Game.stats
 	var acc := 0.0
@@ -849,11 +858,22 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("confirm") and _state == "dead":
 		Game.start_run()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("overclock") and get_tree().paused:
-		Game.to_menu()
+	elif event.is_action_pressed("abandon") and get_tree().paused and _state == "play":
+		if _abandon_armed and _abandon_t > 0.0:
+			_clear_abandon_confirmation()
+			_set_paused(false)
+			Game.to_menu()
+		else:
+			_abandon_armed = true
+			_abandon_t = ABANDON_CONFIRM_WINDOW
+			_pause_info.text = PAUSE_INFO_CONFIRM
+			_abandon_timer = get_tree().create_timer(ABANDON_CONFIRM_WINDOW, true, false, true)
+			_abandon_timer.timeout.connect(_on_abandon_timeout)
 		get_viewport().set_input_as_handled()
 
 func _set_paused(v: bool) -> void:
+	if not v:
+		_clear_abandon_confirmation()
 	get_tree().paused = v
 	_pause_panel.visible = v
 	if v:
@@ -864,12 +884,27 @@ func _set_paused(v: bool) -> void:
 	if not v:
 		_try_show_patch()
 
+func _on_abandon_timeout() -> void:
+	if _abandon_armed:
+		_clear_abandon_confirmation()
+
+func _clear_abandon_confirmation() -> void:
+	_abandon_armed = false
+	_abandon_t = 0.0
+	_abandon_timer = null
+	if _pause_info != null and is_instance_valid(_pause_info):
+		_pause_info.text = PAUSE_INFO_DEFAULT
+
 func _notification(what: int) -> void:
 	if is_inside_tree() and _state == "play" and not get_tree().paused:
 		if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
 			_set_paused(true)
 
 func _process(delta: float) -> void:
+	if _abandon_armed and get_tree().paused:
+		_abandon_t = maxf(_abandon_t - delta, 0.0)
+		if _abandon_t <= 0.0:
+			_clear_abandon_confirmation()
 	var want_hidden := _state == "play" and not get_tree().paused and reticle != null
 	var target_mouse := Input.MOUSE_MODE_HIDDEN if want_hidden else Input.MOUSE_MODE_VISIBLE
 	if Input.mouse_mode != target_mouse:
@@ -890,4 +925,5 @@ func _process(delta: float) -> void:
 		_update_quality(delta)
 
 func _exit_tree() -> void:
+	_clear_abandon_confirmation()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

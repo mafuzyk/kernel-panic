@@ -141,6 +141,16 @@ func _autotest() -> void:
 	var onboarding_abort_path := OS.get_environment("KP_ONBOARDING_ABORT") != ""
 	var onboarding_restore_label := "aborted onboarding probe restores tutorial hints ConfigFile section" if onboarding_abort_path else "onboarding probe restores tutorial hints ConfigFile section"
 	_check(_config_snapshot_matches(onboarding_tutorial_disk_before, _config_snapshot("tutorial", "hints", {})), onboarding_restore_label)
+	await _input_safety_test(arena)
+	Game.state = Game.State.PLAYING
+	get_tree().paused = false
+	Game.start_run()
+	ok = await _until(func() -> bool:
+		return get_tree().current_scene != null and get_tree().current_scene.name == "Arena" and get_tree().current_scene != arena, 6.0, "input safety arena reset")
+	if not ok:
+		return _finish()
+	arena = get_tree().current_scene
+	player = arena.player
 	await _ticks(30)
 	_check(Game.wave == 1, "wave 1 started")
 	_check(arena.wave_signal_count >= 1, "wave_started signal received for wave 1")
@@ -522,6 +532,75 @@ func _config_snapshot(section: String, key: String, default_value) -> Dictionary
 
 func _config_snapshot_matches(a: Dictionary, b: Dictionary) -> bool:
 	return bool(a["has_section"]) == bool(b["has_section"]) and bool(a["has_key"]) == bool(b["has_key"]) and a["value"] == b["value"]
+
+func _key_event(physical_key: int) -> InputEventKey:
+	var ev := InputEventKey.new()
+	ev.physical_keycode = physical_key
+	ev.keycode = physical_key
+	ev.pressed = true
+	return ev
+
+func _has_physical_key(action: String, physical_key: int) -> bool:
+	if not InputMap.has_action(action):
+		return false
+	for ev in InputMap.action_get_events(action):
+		if ev is InputEventKey and ev.physical_keycode == physical_key:
+			return true
+	return false
+
+func _input_safety_test(arena: Arena) -> void:
+	print("AT_STEP input_safety")
+	var overclock_events: Array = []
+	var abandon_events: Array = []
+	if InputMap.has_action("overclock"):
+		overclock_events = InputMap.action_get_events("overclock")
+	if InputMap.has_action("abandon"):
+		abandon_events = InputMap.action_get_events("abandon")
+	_check(overclock_events.size() == 1 and _has_physical_key("overclock", KEY_E) and not _has_physical_key("overclock", KEY_Q), "overclock is bound to E only")
+	_check(InputMap.has_action("abandon") and abandon_events.size() == 1 and _has_physical_key("abandon", KEY_Q) and not _has_physical_key("abandon", KEY_E), "abandon is bound to Q only")
+	Game.state = Game.State.PLAYING
+	arena._state = "play"
+	arena._set_paused(true)
+	arena._unhandled_input(_key_event(KEY_E))
+	_check(Game.state == Game.State.PLAYING, "E has no effect while paused")
+	Game.state = Game.State.PLAYING
+	arena._set_paused(true)
+	arena._unhandled_input(_key_event(KEY_Q))
+	_check(Game.state == Game.State.PLAYING and arena.get("_abandon_armed") == true, "first Q arms abandon confirmation without leaving run")
+	_check(arena._pause_info.text.contains("PRESS Q AGAIN // ABANDON PROCESS"), "pause explains two-step abandon confirmation")
+	arena._unhandled_input(_key_event(KEY_Q))
+	_check(Game.state == Game.State.MENU, "second Q within confirmation window returns to menu")
+	Game.state = Game.State.PLAYING
+	arena._set_paused(true)
+	arena._unhandled_input(_key_event(KEY_Q))
+	arena._set_paused(false)
+	_check(arena.get("_abandon_armed") != true, "resume clears abandon confirmation")
+	Game.state = Game.State.PLAYING
+	arena._set_paused(true)
+	arena._unhandled_input(_key_event(KEY_Q))
+	arena._unhandled_input(_key_event(KEY_R))
+	_check(arena.get("_abandon_armed") != true, "restart clears abandon confirmation")
+	Game.state = Game.State.PLAYING
+	get_tree().paused = false
+	arena._state = "play"
+	arena._set_paused(true)
+	arena._unhandled_input(_key_event(KEY_Q))
+	arena._process(2.1)
+	_check(arena.get("_abandon_armed") != true, "confirmation expires after two seconds")
+	Game.state = Game.State.PLAYING
+	arena._set_paused(true)
+	arena._unhandled_input(_key_event(KEY_Q))
+	arena._on_player_died()
+	_check(arena.get("_abandon_armed") != true, "game over clears abandon confirmation")
+	Game.state = Game.State.PLAYING
+	arena._state = "play"
+	get_tree().paused = false
+	arena._set_paused(true)
+	arena._unhandled_input(_key_event(KEY_Q))
+	arena._exit_tree()
+	_check(arena.get("_abandon_armed") != true, "arena teardown clears abandon confirmation")
+	arena._state = "play"
+	get_tree().paused = false
 
 func _restore_config_snapshot(section: String, key: String, snapshot: Dictionary) -> void:
 	var cf := ConfigFile.new()

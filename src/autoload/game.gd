@@ -410,7 +410,10 @@ func _setup_input() -> void:
 	_add_key_action("move_left", [KEY_A, KEY_LEFT])
 	_add_key_action("move_right", [KEY_D, KEY_RIGHT])
 	_add_key_action("dash", [KEY_SPACE, KEY_SHIFT])
-	_add_key_action("overclock", [KEY_E, KEY_Q])
+	_clear_key_events("overclock")
+	_add_key_action("overclock", [KEY_E])
+	_clear_key_events("abandon")
+	_add_key_action("abandon", [KEY_Q])
 	_add_key_action("pause", [KEY_ESCAPE, KEY_P])
 	_add_key_action("mute", [KEY_M])
 	_add_key_action("confirm", [KEY_ENTER, KEY_KP_ENTER])
@@ -425,6 +428,13 @@ func _add_key_action(action: String, keys: Array) -> void:
 		var ev := InputEventKey.new()
 		ev.physical_keycode = k
 		InputMap.action_add_event(action, ev)
+
+func _clear_key_events(action: String) -> void:
+	if not InputMap.has_action(action):
+		return
+	for ev in InputMap.action_get_events(action):
+		if ev is InputEventKey:
+			InputMap.action_erase_event(action, ev)
 
 func _add_mouse_action(action: String, btn: int) -> void:
 	if not InputMap.has_action(action):

@@ -85,6 +85,7 @@ Three run modes change the rules:
 - `Shift`: dash
 - `E`: overclock
 - `Esc`: pause
+- `Q` while paused: press twice within 2 seconds to abandon the run
 - `M`: mute
 
 ## Run and build from source on Linux
