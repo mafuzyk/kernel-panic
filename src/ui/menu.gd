@@ -540,6 +540,20 @@ func _build_settings() -> void:
 		Sfx.save_settings()
 	)
 	box.add_child(shake_btn)
+	var run_info := Button.new()
+	run_info.flat = true
+	run_info.text = "SPEEDRUN HUD: %s" % ("ON" if Sfx.show_run_info else "OFF")
+	run_info.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	run_info.add_theme_font_size_override("font_size", 17)
+	run_info.add_theme_color_override("font_color", Balance.COL_TEXT)
+	run_info.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+	run_info.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	run_info.pressed.connect(func() -> void:
+		Sfx.show_run_info = not Sfx.show_run_info
+		run_info.text = "SPEEDRUN HUD: %s" % ("ON" if Sfx.show_run_info else "OFF")
+		Sfx.save_settings()
+	)
+	box.add_child(run_info)
 	var reset := Button.new()
 	reset.flat = true
 	reset.text = "RESET HIGH SCORE"

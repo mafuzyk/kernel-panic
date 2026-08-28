@@ -479,6 +479,7 @@ func take_damage(from: Vector2, killer := "DAEMON") -> void:
 	hp -= 1
 	Game.stats["damage"] += 1
 	Game.stats["killer"] = killer
+	Game.log_event("HIT // %s" % killer)
 	Sfx.haptic(45)
 	Game.break_combo()
 	invuln = Balance.HURT_IFRAMES

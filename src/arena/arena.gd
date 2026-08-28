@@ -50,6 +50,9 @@ var _abandon_generation := 0
 var _pause_info: Label
 var _debug_panel: Control
 var _terminal_panel: Control
+var _restart_hold_t := 0.0
+var _restart_triggered := false
+const RESTART_HOLD_DURATION := 0.75
 
 func _ready() -> void:
 	add_to_group("arena")
@@ -527,6 +530,8 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 	walls.pulse()
 	_era_color = Balance.era_color(wave)
 	walls.set_tint(_era_color)
+	if _bg_mat != null:
+		_bg_mat.set_shader_parameter("corruption", background_corruption_for_wave(wave))
 	Game.log_event("CYCLE %02d START" % wave)
 	if is_boss:
 		Game.log_event("ANOMALY INBOUND // %s" % RootBoss.title_for_index(int(Game.wave / float(Balance.BOSS_EVERY))))
@@ -843,6 +848,8 @@ func _show_game_over() -> void:
 		"ACCURACY      %d%%" % int(acc),
 		"UPTIME        %02d:%02d" % [int(s["time"] / 60.0), int(s["time"]) % 60],
 	]
+	for dump_line in Game.core_dump_text().split("\n"):
+		lines.append(dump_line)
 	_over_sub.text = ["segmentation fault (core dumped)", "process has stopped responding", "kernel oops", "the daemons send their regards"][randi() % 4]
 	_over_stats.text = "\n".join(lines)
 	for c in _over_panel.get_children():
@@ -1125,6 +1132,12 @@ func _terminal_rm_rf() -> String:
 		player.call("_die")
 	return "rm: deleting / ...\nKERNEL PANIC // PROCESS TERMINATED"
 
+func restart_hold_duration() -> float:
+	return RESTART_HOLD_DURATION
+
+func background_corruption_for_wave(target_wave: int) -> float:
+	return clampf(float(maxi(target_wave - 1, 0)) / 40.0, 0.0, 0.8)
+
 func _request_abandon_confirmation() -> void:
 	if not get_tree().paused or _state != "play":
 		return
@@ -1171,11 +1184,25 @@ func _process(delta: float) -> void:
 	var target_mouse := Input.MOUSE_MODE_HIDDEN if want_hidden else Input.MOUSE_MODE_VISIBLE
 	if Input.mouse_mode != target_mouse:
 		Input.mouse_mode = target_mouse
+	if _state == "play" and not get_tree().paused and Game.state == Game.State.PLAYING:
+		if Input.is_action_pressed("restart"):
+			_restart_hold_t += delta
+			if _restart_hold_t >= RESTART_HOLD_DURATION and not _restart_triggered:
+				_restart_triggered = true
+				Game.log_event("SPEEDRUN RESTART // HOLD R")
+				Game.start_run()
+		else:
+			_restart_hold_t = 0.0
+			_restart_triggered = false
+	else:
+		_restart_hold_t = 0.0
+		_restart_triggered = false
 	if _bg_mat != null:
 		var c := _era_color
 		if OS.get_environment("KP_NOTINT") == "":
 			_bg_mat.set_shader_parameter("era_tint", Vector3(c.r, c.g, c.b))
 		_bg_mat.set_shader_parameter("era_mix", 0.75)
+		_bg_mat.set_shader_parameter("corruption", background_corruption_for_wave(Game.wave))
 	if _state == "play":
 		Game.stats["time"] += delta
 		var level := 0

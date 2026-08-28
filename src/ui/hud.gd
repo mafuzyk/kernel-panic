@@ -31,6 +31,9 @@ var _banner: Label
 var _banner_sub_l: Label
 var _score_pop := 0.0
 var _build_label: Label
+var _run_info_label: Label
+var _achievement_label: Label
+var _achievement_t := 0.0
 const PATCH_TOOLTIP_HOLD_TIME := 0.45
 var _patch_chip_rects: Dictionary = {}
 var _tooltip_patch_id := ""
@@ -66,8 +69,33 @@ func _ready() -> void:
 	_build_label.offset_bottom = -6.0
 	_build_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_build_label.text = Game.build_string()
+	_run_info_label = Label.new()
+	_run_info_label.anchor_left = 1.0
+	_run_info_label.anchor_right = 1.0
+	_run_info_label.offset_left = -310.0
+	_run_info_label.offset_right = -24.0
+	_run_info_label.offset_top = 14.0
+	_run_info_label.offset_bottom = 36.0
+	_run_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_run_info_label.add_theme_font_override("font", _mono)
+	_run_info_label.add_theme_font_size_override("font_size", 12)
+	_run_info_label.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.62))
+	add_child(_run_info_label)
+	_achievement_label = Label.new()
+	_achievement_label.anchor_left = 0.0
+	_achievement_label.anchor_right = 0.0
+	_achievement_label.offset_left = _safe_side_margin()
+	_achievement_label.offset_right = 430.0
+	_achievement_label.offset_top = 112.0
+	_achievement_label.offset_bottom = 136.0
+	_achievement_label.add_theme_font_override("font", _mono)
+	_achievement_label.add_theme_font_size_override("font_size", 12)
+	_achievement_label.add_theme_color_override("font_color", Balance.COL_MOTE)
+	_achievement_label.modulate.a = 0.0
+	add_child(_achievement_label)
 	Game.score_changed.connect(_on_score)
 	Game.combo_changed.connect(_on_combo)
+	Game.achievement_unlocked.connect(_on_achievement_unlocked)
 	Game.patch_picked.connect(func(_id: String) -> void:
 		_build_label.text = Game.build_string()
 	)
@@ -127,6 +155,23 @@ func _on_combo(mult: int, frac: float) -> void:
 	_mult = mult
 	_combo_frac = frac
 
+func run_info_text() -> String:
+	var total_seconds := maxf(float(Game.stats.get("time", 0.0)), 0.0)
+	var minutes := int(total_seconds / 60.0)
+	var seconds := int(total_seconds) % 60
+	var deciseconds := int(total_seconds * 10.0) % 10
+	return "TIME %02d:%02d.%d // %s // HOLD R" % [minutes, seconds, deciseconds, Game.run_seed_text()]
+
+func _on_achievement_unlocked(_id: String, label: String) -> void:
+	show_achievement(label)
+
+func show_achievement(label: String) -> void:
+	if _achievement_label == null or not is_instance_valid(_achievement_label):
+		return
+	_achievement_label.text = "[ %07.3f ] achievement: %s enabled" % [float(Game.stats.get("time", 0.0)), label]
+	_achievement_t = 4.0
+	_achievement_label.modulate.a = 1.0
+
 func show_banner(text: String, sub: String, dur := 2.0) -> void:
 	_banner_text = text
 	_banner_sub = sub
@@ -176,6 +221,9 @@ func _prune_boss_fragments() -> void:
 
 func _process(delta: float) -> void:
 	_score_pop = maxf(_score_pop - delta * 4.0, 0.0)
+	if _achievement_t > 0.0:
+		_achievement_t = maxf(_achievement_t - delta, 0.0)
+		_achievement_label.modulate.a = clampf(minf(_achievement_t, 1.0) * 2.0, 0.0, 1.0)
 	if _tooltip_touch_index >= 0:
 		_tooltip_hold_t += delta
 		if _tooltip_hold_t >= PATCH_TOOLTIP_HOLD_TIME and not _tooltip_visible:
@@ -209,6 +257,8 @@ func _process(delta: float) -> void:
 		var on_cd := Game.vampic_cd > 0.0
 		var blink := 0.35 + 0.3 * absf(sin(Time.get_ticks_msec() / 180.0))
 		_build_label.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, blink if on_cd else 0.5))
+	if _run_info_label != null and is_instance_valid(_run_info_label):
+		_run_info_label.text = run_info_text() if Sfx.show_run_info and Game.state == Game.State.PLAYING else ""
 	_prune_boss_fragments()
 	if _boss_split:
 		_boss_frac = -1.0

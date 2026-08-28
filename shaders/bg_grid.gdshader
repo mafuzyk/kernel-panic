@@ -6,6 +6,7 @@ uniform vec3 glow_col : source_color = vec3(0.05, 0.13, 0.2);
 uniform vec3 era_tint = vec3(1.0, 0.0, 0.0);
 uniform float era_mix = 0.0;
 uniform float pulse = 0.0;
+uniform float corruption = 0.0;
 
 float grid(vec2 c) {
 	vec2 f = abs(fract(c) - 0.5);
@@ -30,5 +31,11 @@ void fragment() {
 		float ring = exp(-abs(r - pulse * 1.5) * 16.0) * (1.0 - pulse);
 		col += grid_col * 2.4 * ring;
 	}
+	vec2 corruption_cell = floor(UV * vec2(22.0, 13.0));
+	float corruption_hash = fract(sin(dot(corruption_cell, vec2(12.9898, 78.233))) * 43758.5453);
+	float corruption_patch = step(0.76, corruption_hash) * smoothstep(0.0, 0.18, corruption);
+	float corruption_flicker = 0.72 + 0.28 * sin(TIME * 2.7 + corruption_hash * 12.0);
+	vec3 corruption_col = vec3(0.85, 0.08, 0.28) + era_tint * 0.25;
+	col = mix(col, corruption_col, corruption_patch * corruption_flicker * 0.32);
 	COLOR = vec4(col, 1.0);
 }

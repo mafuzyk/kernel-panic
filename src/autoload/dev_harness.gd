@@ -384,6 +384,7 @@ func _autotest() -> void:
 	await _systems_test(arena2)
 	await _debug_controls_test(arena2)
 	await _charm_terminal_test(arena2)
+	await _charm_speedrun_test(arena2)
 	await _touch_test()
 	Game.to_menu()
 	ok = await _until(func() -> bool:
@@ -2383,6 +2384,43 @@ func _charm_terminal_test(arena: Arena) -> void:
 	Game.event_log = saved_events
 	Game.terminal_heal_used = saved_terminal_heal_used
 	Game.patch_levels = saved_patch_levels
+
+func _charm_speedrun_test(arena: Arena) -> void:
+	print("AT_STEP charm_speedrun")
+	_check(Game.has_method("unlock_achievement") and Game.has_method("core_dump_text"), "game exposes achievements and core dump data")
+	_check(Game.has_method("run_seed_text"), "game exposes visible run seed")
+	_check(arena.hud != null and arena.hud.has_method("run_info_text"), "hud exposes speedrun info text")
+	_check(arena.has_method("background_corruption_for_wave"), "arena exposes permanent grid corruption curve")
+	_check(arena.has_method("restart_hold_duration"), "arena exposes hold-to-restart timing")
+	if not Game.has_method("unlock_achievement"):
+		return
+	var achievement_disk := _config_section_snapshot("achievements")
+	var saved_achievements: Dictionary = Game.achievements.duplicate(true) if Game.get("achievements") is Dictionary else {}
+	var saved_stats: Dictionary = Game.stats.duplicate(true)
+	var saved_events: Array = Game.event_log.duplicate(true) if Game.get("event_log") is Array else []
+	var saved_seed := Game.run_seed
+	Game.achievements = {}
+	Game.stats = {"time": 42.25, "kills": 1, "shots": 8, "hits": 4, "damage": 2, "wave": 4, "boss_kills": 0, "heals": {}}
+	Game.event_log = []
+	Game.run_seed = 123456
+	var unlocked := bool(Game.unlock_achievement("first_blood"))
+	_check(unlocked and Game.achievements.has("first_blood"), "first achievement unlocks once")
+	_check(not bool(Game.unlock_achievement("first_blood")), "duplicate achievement stays silent")
+	_check(str(Game.dmesg_lines(8)).contains("achievement: FIRST_BLOOD enabled"), "achievement is recorded in dmesg")
+	_check(str(Game.core_dump_text()).contains("SEGFAULT AT player.hp=0") and str(Game.core_dump_text()).contains("123456"), "core dump includes death marker and build seed")
+	_check(Game.run_seed_text() == "SEED 123456", "run seed has compact HUD text")
+	var old_info: bool = bool(Sfx.show_run_info)
+	Sfx.show_run_info = true
+	_check(str(arena.hud.run_info_text()).contains("SEED 123456") and str(arena.hud.run_info_text()).contains("00:42"), "speedrun HUD exposes seed and timer")
+	Sfx.show_run_info = old_info
+	_check(float(arena.call("background_corruption_for_wave", 1)) == 0.0, "grid starts uncorrupted")
+	_check(float(arena.call("background_corruption_for_wave", 20)) > 0.0, "grid corruption advances with waves")
+	_check(float(arena.call("restart_hold_duration")) > 0.0, "hold-to-restart uses a positive safety delay")
+	Game.achievements = saved_achievements
+	Game.stats = saved_stats
+	Game.event_log = saved_events
+	Game.run_seed = saved_seed
+	_restore_config_section("achievements", achievement_disk)
 
 func _touch_test() -> void:
 	var arena: Arena = get_tree().current_scene

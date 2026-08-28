@@ -8,6 +8,7 @@ signal patch_offered
 signal patch_picked(id: String)
 signal combo_milestone(mult: int)
 signal bestiary_unlocked(id: String)
+signal achievement_unlocked(id: String, label: String)
 
 enum State { MENU, PLAYING, GAME_OVER }
 
@@ -27,6 +28,15 @@ const EVENT_LOG_MAX := 64
 var event_log: Array[Dictionary] = []
 var run_seed := 0
 var terminal_heal_used := false
+var achievements: Dictionary = {}
+
+const ACHIEVEMENT_DEFS := {
+	"first_blood": "FIRST_BLOOD",
+	"boss_purge": "ROOT_ACCESS",
+	"chain_max": "CHAIN_REACTION",
+	"terminal_operator": "TERMINAL_OPERATOR",
+	"integrity_restored": "INTEGRITY_RESTORED",
+}
 
 const COMBO_WINDOW := Balance.COMBO_WINDOW
 
@@ -116,6 +126,7 @@ func _load_run_config() -> void:
 		onehp_unlocked = cf.get_value("run", "onehp_unlocked", false)
 		bestiary = cf.get_value("bestiary", "seen", {})
 		tutorial = cf.get_value("tutorial", "hints", {})
+		achievements = cf.get_value("achievements", "unlocked", {})
 		mode = cf.get_value("game", "mode", "classic")
 		if mode == "onehp" and not onehp_unlocked:
 			mode = "classic"
@@ -353,14 +364,18 @@ func register_kill(base_pts: int, is_boss := false) -> void:
 	stats["kills"] += 1
 	if int(stats["kills"]) == 1:
 		log_event("FIRST BLOOD // daemon purged")
+		unlock_achievement("first_blood")
 	if is_boss:
 		stats["boss_kills"] += 1
 		log_event("BOSS PURGED // cycle %02d" % wave)
+		unlock_achievement("boss_purge")
 	_max_chain_seen = maxi(_max_chain_seen, mult)
 	score_changed.emit(score, mult)
 	combo_changed.emit(mult, 1.0)
 	if mult == 4 or mult == Balance.COMBO_MAX:
 		combo_milestone.emit(mult)
+	if mult == Balance.COMBO_MAX:
+		unlock_achievement("chain_max")
 
 func recover_chance(is_elite: bool) -> float:
 	if mode == "onehp":
@@ -398,7 +413,36 @@ func consume_terminal_heal() -> bool:
 		return false
 	terminal_heal_used = true
 	log_event("sudo: heal permission granted")
+	unlock_achievement("terminal_operator")
 	return true
+
+func unlock_achievement(id: String) -> bool:
+	if not ACHIEVEMENT_DEFS.has(id) or achievements.has(id):
+		return false
+	var label := str(ACHIEVEMENT_DEFS[id])
+	achievements[id] = true
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("achievements", "unlocked", achievements)
+	cf.save(Sfx.SAVE_PATH)
+	log_event("achievement: %s enabled" % label)
+	achievement_unlocked.emit(id, label)
+	return true
+
+func run_seed_text() -> String:
+	return "SEED %d" % run_seed
+
+func core_dump_text() -> String:
+	var now := float(stats.get("time", 0.0))
+	var tail: Array[String] = []
+	for entry in event_log:
+		var stamp := float(entry.get("time", 0.0))
+		if stamp >= maxf(now - 5.0, 0.0):
+			tail.append(str(entry.get("text", "")))
+	var tail_text := " // ".join(tail.slice(maxi(tail.size() - 4, 0), tail.size()))
+	if tail_text.is_empty():
+		tail_text = "no recent events"
+	return "SEGFAULT AT player.hp=0 // state dumped\nKILLER %s // HITS %d\nBUILD %s // %s // %s" % [str(stats.get("killer", "DAEMON")), int(stats.get("damage", 0)), build_string(), run_seed_text(), tail_text]
 
 func patch_level(id: String) -> int:
 	return int(patch_levels.get(id, 0))

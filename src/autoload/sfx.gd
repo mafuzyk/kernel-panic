@@ -20,6 +20,7 @@ var target_fps := 60
 var touch_scale := 1.0
 var aim_mode := "drag"
 var color_assist := false
+var show_run_info := false
 
 func haptic(ms: int) -> void:
 	if not haptics_enabled:
@@ -184,6 +185,7 @@ func _load_settings() -> void:
 	touch_scale = cf.get_value("feel", "touch_scale", 1.0)
 	aim_mode = cf.get_value("feel", "aim_mode", "drag")
 	color_assist = bool(cf.get_value("feel", "color_assist", false))
+	show_run_info = bool(cf.get_value("feel", "show_run_info", false))
 
 func save_settings() -> void:
 	var cf := ConfigFile.new()
@@ -197,6 +199,7 @@ func save_settings() -> void:
 	cf.set_value("feel", "touch_scale", touch_scale)
 	cf.set_value("feel", "aim_mode", aim_mode)
 	cf.set_value("feel", "color_assist", color_assist)
+	cf.set_value("feel", "show_run_info", show_run_info)
 	cf.save(SAVE_PATH)
 
 func set_aim_mode(v: String) -> void:
