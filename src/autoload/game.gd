@@ -125,6 +125,11 @@ func effective_aim_mode() -> String:
 func score_mult() -> int:
 	return 3 if mode == "onehp" else 1
 
+func should_offer_patch(cleared_wave: int) -> bool:
+	if mode == "onehp":
+		return cleared_wave > 0 and cleared_wave % 3 == 0
+	return cleared_wave > 0 and (cleared_wave + 1) % Balance.BOSS_EVERY == 0
+
 const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault"}
 
 func _bestiary_id_for_display(display: String) -> String:
@@ -182,7 +187,7 @@ func show_hint_once(id: String) -> bool:
 func bestiary_seen(id: String) -> bool:
 	return bestiary.has(id)
 
-const PATCH_CODES := {"rapid": "RP", "cell": "OC", "magnet": "MG", "hp": "HP", "dash": "PH", "frag": "FR", "threads": "TH", "chain": "CH", "core": "HC", "restore": "SR", "light": "LF", "mdash": "MD", "heavy": "HV", "ricochet": "RC", "pdash": "PD", "staticf": "SF", "vampic": "VP", "recycler": "RY", "dataleech": "DL", "splitshot": "SP", "secondwind": "SW", "thorns": "TN", "turbo": "TD", "scrapdiet": "SD"}
+const PATCH_CODES := {"rapid": "RP", "cell": "OC", "magnet": "MG", "hp": "HP", "dash": "PH", "frag": "FR", "threads": "TH", "chain": "CH", "core": "HC", "restore": "SR", "light": "LF", "mdash": "MD", "heavy": "HV", "ricochet": "RC", "pdash": "PD", "staticf": "SF", "vampic": "VP", "recycler": "RY", "dataleech": "DL", "splitshot": "SP", "secondwind": "SW", "thorns": "TN", "turbo": "TD", "scrapdiet": "SD", "shield": "SH", "absorb": "AB"}
 
 func build_string() -> String:
 	if patch_levels.is_empty():
@@ -225,6 +230,8 @@ const PATCH_DEFS := [
 	{"id": "pdash", "title": "PHASE DASH", "desc": "DASH DEALS 2 DAMAGE", "max": 1, "rare": true, "legend": true},
 	{"id": "staticf", "title": "STATIC FIELD", "desc": "BURNS ENEMIES WITHIN 70PX", "max": 2, "legend": true, "rare": true},
 	{"id": "vampic", "title": "VAMPIC PROTOCOL", "desc": "CHAIN x4 HEALS 1 INTEGRITY", "max": 1, "rare": true, "legend": true},
+	{"id": "shield", "title": "BUFFER SHIELD", "desc": "BLOCKS ONE INCOMING HIT", "max": 3, "rare": true, "legend": false},
+	{"id": "absorb", "title": "DAMAGE ABSORBER", "desc": "ABSORBS ONE HIT, +1 MOTE CHARGE", "max": 3, "rare": true, "legend": false},
 	{"id": "recycler", "title": "RECYCLER", "desc": "+6% RECOVER CHANCE PER LEVEL", "max": 3, "rare": false, "legend": false},
 	{"id": "dataleech", "title": "DATA LEECH", "desc": "ELITES ALWAYS DROP RECOVER", "max": 1, "rare": true, "legend": false},
 	{"id": "splitshot", "title": "SPLITSHOT", "desc": "+1 ANGLED PROJECTILE, -10% FIRE RATE", "max": 2, "rare": true, "legend": false},
@@ -233,6 +240,8 @@ const PATCH_DEFS := [
 	{"id": "turbo", "title": "TURBO DASH", "desc": "+12% DASH SPEED, KILLS SPEED RECHARGE", "max": 2, "rare": true, "legend": false},
 	{"id": "scrapdiet", "title": "SCRAP DIET", "desc": "25 OVERFLOW MOTES HEAL 1 INTEGRITY", "max": 2, "rare": true, "legend": false},
 ]
+
+const ONEHP_PATCH_EXCLUDED := ["hp", "restore", "vampic", "recycler", "dataleech", "secondwind", "scrapdiet"]
 
 func start_run() -> void:
 	state = State.PLAYING
@@ -288,7 +297,7 @@ func patch_level(id: String) -> int:
 func roll_patch_offer() -> Array:
 	var pool: Array = []
 	for d in PATCH_DEFS:
-		if mode == "onehp" and (d["id"] == "dataleech" or d["id"] == "recycler" or d["id"] == "secondwind" or d["id"] == "scrapdiet"):
+		if mode == "onehp" and d["id"] in ONEHP_PATCH_EXCLUDED:
 			continue
 		if patch_level(d["id"]) < int(d["max"]):
 			pool.append(d)

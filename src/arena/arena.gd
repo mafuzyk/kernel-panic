@@ -32,6 +32,7 @@ var _patch_offers: Array = []
 var _patch_open := false
 var _patch_pending := 0
 var _boss_fragments_pending := 0
+var _boss_phase_clear_done := false
 var wave_signal_count := 0
 
 func _ready() -> void:
@@ -438,7 +439,7 @@ func _on_wave_cleared(wave: int) -> void:
 	if mote_field != null and is_instance_valid(mote_field):
 		mote_field.collect_all()
 	_show_tip()
-	if wave % 3 == 0:
+	if Game.should_offer_patch(wave):
 		offer_patch()
 
 func _show_tip() -> void:
@@ -613,6 +614,10 @@ func _apply_patch_effects(id: String) -> void:
 	match id:
 		"hp":
 			player.add_max_hp(1)
+		"shield":
+			player.add_shield_charge()
+		"absorb":
+			player.add_absorb_charge()
 		"restore":
 			for o in get_tree().get_nodes_in_group("enemy_orbs"):
 				o.pop()
@@ -639,6 +644,7 @@ var _boss_dmg_snapshot := 0
 
 func _on_boss_spawned(boss: RootBoss) -> void:
 	hud.boss = boss
+	_boss_phase_clear_done = false
 	if not boss.split_started.is_connected(_on_boss_split):
 		boss.split_started.connect(_on_boss_split)
 	_boss_dmg_snapshot = int(Game.stats.get("damage", 0))
@@ -766,8 +772,16 @@ func _on_enemy_died(e: EnemyBase) -> void:
 		Sfx.haptic(90)
 		if e.boss_index >= 2:
 			Game.unlock_onehp()
-		offer_patch()
+		_clear_boss_phase_enemies()
 	Sfx.haptic(12)
+
+func _clear_boss_phase_enemies() -> void:
+	if _boss_phase_clear_done:
+		return
+	_boss_phase_clear_done = true
+	for phase_enemy in enemy_list.duplicate():
+		if is_instance_valid(phase_enemy) and not phase_enemy.is_in_group("boss"):
+			phase_enemy.queue_free()
 
 func spawn_boss_recover(pos: Vector2) -> void:
 	if Game.mode != "onehp":

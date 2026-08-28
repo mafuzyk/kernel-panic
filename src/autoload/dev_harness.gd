@@ -366,6 +366,7 @@ func _autotest() -> void:
 	_check(Engine.time_scale == 1.0, "time scale restored")
 	var arena2: Arena = get_tree().current_scene
 	_check(arena2.player != null and not arena2.player.dead, "fresh player alive")
+	await _task2_test(arena2)
 	await _systems_test(arena2)
 	await _touch_test()
 	Game.to_menu()
@@ -533,6 +534,111 @@ func _restore_config_snapshot(section: String, key: String, snapshot: Dictionary
 		cf.erase_section(section)
 	cf.save(Sfx.SAVE_PATH)
 
+func _task2_should_offer_patch(cleared_wave: int) -> bool:
+	if not Game.has_method("should_offer_patch"):
+		return false
+	return bool(Game.call("should_offer_patch", cleared_wave))
+
+func _task2_test(arena: Arena) -> void:
+	print("AT_STEP task2")
+	var saved_mode := Game.mode
+	var saved_patch_levels: Dictionary = Game.patch_levels.duplicate(true)
+	var cadence_waves := [3, 4, 6, 9, 10]
+	var cadence_expected := {
+		"classic": [false, true, false, true, false],
+		"weekly": [false, true, false, true, false],
+		"onehp": [true, false, true, true, false],
+	}
+	_check(Game.has_method("should_offer_patch"), "patch cadence helper exists")
+	for mode_name in ["classic", "weekly", "onehp"]:
+		Game.mode = mode_name
+		for i in cadence_waves.size():
+			_check(_task2_should_offer_patch(cadence_waves[i]) == cadence_expected[mode_name][i], "%s patch cadence wave %d" % [mode_name, cadence_waves[i]])
+
+	Game.mode = "onehp"
+	Game.patch_levels = {}
+	var onehp_ids := {}
+	for i in 30:
+		for d in Game.roll_patch_offer():
+			onehp_ids[d["id"]] = true
+	var forbidden_onehp := ["hp", "restore", "vampic", "recycler", "dataleech", "secondwind", "scrapdiet"]
+	var forbidden_found := []
+	for id in forbidden_onehp:
+		if onehp_ids.has(id):
+			forbidden_found.append(id)
+	_check(forbidden_found.is_empty(), "onehp offers exclude health, healing, recover, and death-save patches (%s)" % ",".join(forbidden_found))
+	_check(onehp_ids.has("shield"), "onehp offers include shield patch")
+	_check(onehp_ids.has("absorb"), "onehp offers include absorption patch")
+
+	var saved_player: Player = arena.player
+	var onehp_player := Player.new()
+	onehp_player.position = Vector2(220, 0)
+	arena.add_child(onehp_player)
+	arena.player = onehp_player
+	await _ticks(2)
+	_check(onehp_player.max_hp == 1 and onehp_player.hp == 1, "onehp replacement patch probes keep one-integrity starting rule")
+	onehp_player.invuln = 0.0
+	Game.patch_levels = {}
+	Game.apply_patch("shield")
+	onehp_player.take_damage(onehp_player.global_position + Vector2(10, 0), "TASK2 SHIELD")
+	_check(onehp_player.hp == 1 and not onehp_player.dead, "shield charge prevents one incoming hit")
+	onehp_player.invuln = 0.0
+	Game.patch_levels = {}
+	onehp_player.meter = 0.0
+	Game.apply_patch("absorb")
+	onehp_player.take_damage(onehp_player.global_position + Vector2(10, 0), "TASK2 ABSORB")
+	_check(onehp_player.hp == 1 and not onehp_player.dead and onehp_player.meter > 0.0, "absorption charge prevents hit and grants meter")
+	onehp_player.queue_free()
+	arena.player = saved_player
+	await _ticks(2)
+
+	Game.mode = "classic"
+	Game.patch_levels = {}
+	for e in arena.enemy_list.duplicate():
+		if is_instance_valid(e) and not e.is_in_group("boss"):
+			e.queue_free()
+	await _ticks(2)
+	var phase_died := 0
+	var phase_regular := DroneEnemy.new()
+	phase_regular.position = Vector2(260, 0)
+	phase_regular.died.connect(func(_e: EnemyBase) -> void: phase_died += 1)
+	arena.enemy_container.add_child(phase_regular)
+	var phase_splitter := SplitterEnemy.new()
+	phase_splitter.position = Vector2(300, 0)
+	phase_splitter.died.connect(func(_e: EnemyBase) -> void: phase_died += 1)
+	arena.enemy_container.add_child(phase_splitter)
+	var phase_boss := RootBoss.new()
+	phase_boss.boss_index = 2
+	phase_boss.configure(1.0, false)
+	phase_boss.position = Vector2(360, 0)
+	arena.enemy_container.add_child(phase_boss)
+	arena._on_boss_spawned(phase_boss)
+	await _ticks(2)
+	var kills_before := int(Game.stats["kills"])
+	var boss_kills_before := int(Game.stats["boss_kills"])
+	var patch_pending_before := arena._patch_pending
+	var patch_open_before := arena._patch_open
+	phase_boss.die()
+	await _ticks(3)
+	var phase_enemies_left := 0
+	for e in arena.enemy_list:
+		if is_instance_valid(e) and not e.is_in_group("boss"):
+			phase_enemies_left += 1
+	_check(phase_enemies_left == 0, "boss reward clears remaining phase enemies")
+	_check(phase_died == 0, "boss cleanup does not emit phase enemy deaths")
+	_check(get_tree().get_nodes_in_group("boss_summon").is_empty(), "boss cleanup does not leave phase summons")
+	_check(int(Game.stats["kills"]) == kills_before + 1 and int(Game.stats["boss_kills"]) == boss_kills_before + 1, "boss cleanup adds one kill and one boss reward")
+	_check(arena._patch_pending == patch_pending_before and arena._patch_open == patch_open_before, "boss death does not queue a duplicate patch reward")
+
+	Game.mode = saved_mode
+	Game.patch_levels = saved_patch_levels
+	for e in arena.enemy_list.duplicate():
+		if is_instance_valid(e) and not e.is_in_group("boss"):
+			e.queue_free()
+	if is_instance_valid(phase_boss):
+		phase_boss.queue_free()
+	await _ticks(2)
+
 func _systems_test(arena: Arena) -> void:
 	var player: Player = arena.player
 	print("AT_STEP mk2")
@@ -679,7 +785,7 @@ func _systems_test(arena: Arena) -> void:
 		_check(not arena.hud._boss_split, "boss hud exits forked layout after final reward")
 		_check(arena.hud._boss_name == "", "boss hud clears forked title after final reward")
 		_check(arena.hud._boss_frac == -1.0, "boss hud clears boss fraction after final reward")
-		_check(arena._patch_open or arena._patch_pending == 1, "root encounter gives one card after both minis")
+		_check(not arena._patch_open and arena._patch_pending == 0, "root encounter does not queue boss-death patch")
 		_check(int(Game.stats["heals"].get("boss", 0)) == 1 and player.hp == player.max_hp - 1, "root encounter gives one boss heal")
 		var final_recover_count := 0
 		for c in arena.mote_container.get_children():

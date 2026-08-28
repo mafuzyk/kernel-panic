@@ -44,6 +44,8 @@ var dash_charges := 1
 var dash_recharge_t := 0.0
 var shield_ready := false
 var shield_meter := 0.0
+var shield_charges := 0
+var absorb_charges := 0
 var second_wind_used := false
 var thorns_cd := 0.0
 var scrap_count := 0
@@ -391,6 +393,12 @@ func add_max_hp(n: int) -> void:
 	max_hp += n
 	heal(n)
 
+func add_shield_charge() -> void:
+	shield_charges += 1
+
+func add_absorb_charge() -> void:
+	absorb_charges += 1
+
 func add_kill_mote_bonus() -> void:
 	if shield_ready:
 		if not shield_ready_full():
@@ -438,6 +446,24 @@ func take_damage(from: Vector2, killer := "DAEMON") -> void:
 		Fx.text(global_position + Vector2(0, -26), "SHIELD DOWN", Color(0.6, 1.0, 0.8), 13)
 		Sfx.haptic(30)
 		meter_changed.emit(0.0, false)
+		return
+	if shield_charges > 0:
+		shield_charges -= 1
+		invuln = maxf(invuln, Balance.HURT_IFRAMES)
+		Sfx.play("hit", 1.2, -4.0)
+		Fx.ring(global_position, Color(0.6, 1.0, 0.8), 8.0, 60.0, 0.35, 3.0)
+		Fx.text(global_position + Vector2(0, -26), "BUFFER DOWN", Color(0.6, 1.0, 0.8), 13)
+		Sfx.haptic(30)
+		return
+	if absorb_charges > 0:
+		absorb_charges -= 1
+		meter = minf(meter + Balance.MOTE_VALUE, Balance.OC_METER_MAX)
+		invuln = maxf(invuln, Balance.HURT_IFRAMES)
+		meter_changed.emit(meter, meter >= Balance.OC_METER_MAX)
+		Sfx.play("hit", 1.1, -5.0)
+		Fx.ring(global_position, Color(0.6, 0.85, 1.0), 8.0, 58.0, 0.35, 3.0)
+		Fx.text(global_position + Vector2(0, -26), "DAMAGE ABSORBED", Color(0.6, 0.85, 1.0), 13)
+		Sfx.haptic(30)
 		return
 	hp -= 1
 	Game.stats["damage"] += 1
