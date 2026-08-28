@@ -227,46 +227,57 @@ func _charge() -> PackedFloat32Array:
 func _music_base() -> PackedFloat32Array:
 	var bpm := 116.0
 	var beat := 60.0 / bpm
-	var bars := 8
+	var bars := 16
 	var total := beat * 4.0 * bars
 	var b := _buf(total)
+	var roots := [55.0, 55.0, 65.41, 49.0, 55.0, 73.42, 65.41, 49.0, 61.74, 55.0, 73.42, 49.0, 55.0, 55.0, 65.41, 49.0]
+	var bass_shapes := [
+		[1.0, 1.0, 1.5, 2.0, 1.0, 1.0, 2.0, 1.5],
+		[1.0, 1.5, 2.0, 1.5, 1.0, 2.0, 1.5, 1.0],
+		[1.0, 2.0, 1.0, 1.5, 1.5, 1.0, 2.0, 1.0],
+		[1.0, 1.0, 2.0, 1.5, 1.0, 1.5, 2.0, 1.0],
+	]
 	for bar in bars:
 		var t0 := bar * beat * 4.0
+		var root: float = roots[bar]
+		var shape: Array = bass_shapes[(bar / 4) % bass_shapes.size()]
 		for beat_i in 4:
-			_mix(b, _tone(0.14, 150, 44, 0.85, 0.001, 2.8, 0), t0 + beat_i * beat)
-			if beat_i % 2 == 1:
-				_mix(b, _noise(0.04, 0.2, 0.001, 4.0, 8500), t0 + beat_i * beat)
-		for sb in [1, 3]:
-			_mix(b, _noise(0.12, 0.42, 0.002, 3.2, 3200), t0 + sb * beat)
-		var roots := [55.0, 55.0, 65.41, 49.0]
-		var root: float = roots[bar % 4]
+			_mix(b, _tone(0.16, 150.0, 44.0, 0.72, 0.001, 2.8, 0), t0 + beat_i * beat)
+			if beat_i % 2 == 1 or bar % 4 == 3:
+				_mix(b, _noise(0.045, 0.16, 0.001, 4.0, 8500), t0 + beat_i * beat)
 		for e in 8:
-			var f := root
-			if e % 4 == 3:
-				f = root * 2.0
-			if bar >= 4 and e == 6:
-				f = root * 1.5
-			_mix(b, _tone(beat * 0.42, f, f, 0.42, 0.004, 1.6, 1, 340), t0 + e * beat * 0.5)
-	var swell := _noise(beat * 4.0, 0.16, 0.85, 0.6, 6000)
-	_mix(b, swell, total - beat * 4.0)
+			var f: float = root * float(shape[e])
+			if bar >= 8 and e % 4 == 3:
+				f *= 0.5
+			_mix(b, _tone(beat * 0.42, f, f, 0.38, 0.004, 1.6, 1, 340), t0 + e * beat * 0.5)
+		if bar % 4 == 2:
+			_mix(b, _tone(beat * 0.7, root * 2.0, root * 1.5, 0.12, 0.04, 1.4, 2, 1200), t0 + beat * 2.0)
+		if bar % 4 == 3:
+			_mix(b, _noise(beat * 0.5, 0.08, 0.2, 1.4, 5200), t0 + beat * 3.0)
 	return _normalize(b, 0.72)
 
 func _music_chain() -> PackedFloat32Array:
 	var bpm := 116.0
 	var beat := 60.0 / bpm
-	var bars := 8
+	var bars := 16
 	var total := beat * 4.0 * bars
 	var b := _buf(total)
+	var arps := [
+		[220.0, 261.6, 329.6, 392.0, 440.0, 392.0, 329.6, 261.6],
+		[246.9, 293.7, 349.2, 415.3, 493.9, 415.3, 349.2, 293.7],
+		[196.0, 246.9, 293.7, 369.9, 392.0, 369.9, 293.7, 246.9],
+		[261.6, 311.1, 392.0, 466.2, 523.3, 466.2, 392.0, 311.1],
+	]
 	for bar in bars:
 		var t0 := bar * beat * 4.0
-		var arp := [220.0, 261.6, 329.6, 392.0, 440.0, 392.0, 329.6, 261.6]
-		var arp2 := [246.9, 293.7, 349.2, 415.3, 493.9, 415.3, 349.2, 293.7]
-		var seq := arp if bar % 4 < 2 else arp2
+		var seq: Array = arps[(bar / 4) % arps.size()]
 		for e in 8:
 			var t := t0 + e * beat * 0.5
-			_mix(b, _tone(0.14, seq[e], seq[e], 0.2, 0.003, 2.2, 3), t)
-			_mix(b, _tone(0.14, seq[e] * 2.0, seq[e] * 2.0, 0.08, 0.003, 2.6, 3), t)
-			_mix(b, _tone(0.12, seq[e], seq[e], 0.08, 0.003, 2.8, 3), t + beat * 0.25)
+			var accent := 0.2 if e % 2 == 0 else 0.13
+			_mix(b, _tone(0.14, seq[e], seq[e], accent, 0.003, 2.2, 3), t)
+			_mix(b, _tone(0.13, seq[e] * 2.0, seq[e] * 2.0, accent * 0.36, 0.003, 2.6, 3), t)
+			if bar % 4 == 1 or bar % 4 == 3:
+				_mix(b, _tone(0.09, seq[(e + 3) % 8] * 2.0, seq[(e + 3) % 8] * 2.0, 0.06, 0.002, 2.8, 1, 2800), t + beat * 0.25)
 		if bar % 4 == 3:
 			_mix(b, _tone(beat * 2.0, seq[0] * 2.0, seq[7] * 2.0, 0.12, 0.05, 1.2, 2, 4000), t0 + beat * 2.0)
 	return _normalize(b, 0.5)
@@ -274,17 +285,22 @@ func _music_chain() -> PackedFloat32Array:
 func _music_boss() -> PackedFloat32Array:
 	var bpm := 116.0
 	var beat := 60.0 / bpm
-	var bars := 8
+	var bars := 16
 	var total := beat * 4.0 * bars
 	var b := _buf(total)
+	var sub_roots := [36.7, 36.7, 41.2, 32.7, 36.7, 43.7, 41.2, 32.7, 38.9, 36.7, 43.7, 32.7, 36.7, 36.7, 41.2, 32.7]
 	for bar in bars:
 		var t0 := bar * beat * 4.0
-		_mix(b, _tone(beat * 3.6, 36.7, 36.0, 0.5, 0.05, 0.8, 2, 200), t0)
-		_mix(b, _tone(0.3, 110.0, 108.0, 0.3, 0.01, 1.6, 1, 700), t0)
-		_mix(b, _tone(0.3, 116.5, 114.5, 0.22, 0.01, 1.6, 1, 700), t0 + beat * 2.0)
+		var sub: float = sub_roots[bar]
+		_mix(b, _tone(beat * 3.6, sub, sub * 0.98, 0.46, 0.05, 0.8, 2, 200), t0)
+		_mix(b, _tone(0.3, sub * 3.0, sub * 2.94, 0.28, 0.01, 1.6, 1, 700), t0)
+		if bar % 4 == 1 or bar % 4 == 3:
+			_mix(b, _tone(0.3, sub * 3.17, sub * 3.08, 0.2, 0.01, 1.6, 1, 700), t0 + beat * 2.0)
 		for beat_i in 4:
 			if beat_i % 2 == 0:
-				_mix(b, _tone(0.1, 90, 40, 0.5, 0.001, 3.0, 0), t0 + beat_i * beat)
-		if bar % 2 == 1:
-			_mix(b, _noise(beat * 2.0, 0.14, 0.7, 1.0, 2400), t0 + beat * 2.0)
+				_mix(b, _tone(0.1, 90.0 + bar * 1.5, 40.0, 0.42, 0.001, 3.0, 0), t0 + beat_i * beat)
+		if bar % 4 == 2:
+			_mix(b, _noise(beat * 2.0, 0.12, 0.7, 1.0, 2400), t0 + beat * 2.0)
+		if bar % 4 == 3:
+			_mix(b, _tone(beat * 0.8, sub * 6.0, sub * 3.0, 0.16, 0.04, 1.6, 2, 1600), t0 + beat * 3.0)
 	return _normalize(b, 0.6)

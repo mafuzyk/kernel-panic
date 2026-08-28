@@ -54,7 +54,10 @@ func _load_all() -> void:
 			var stream: AudioStreamWAV = _streams["music_" + stem]
 			stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 			stream.loop_begin = 0
-			stream.loop_end = stream.data.size() / 2
+			var loop_frames := int(round(stream.get_length() * stream.mix_rate))
+			if loop_frames <= 0:
+				loop_frames = stream.data.size() / 2
+			stream.loop_end = loop_frames
 			var p := AudioStreamPlayer.new()
 			p.stream = stream
 			p.bus = "Music"

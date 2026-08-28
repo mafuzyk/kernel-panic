@@ -1006,13 +1006,15 @@ func _systems_test(arena: Arena) -> void:
 	_check(music_streams.size() == 3, "three music streams expose WAV data")
 	if music_streams.size() == 3:
 		var first := music_streams[0]
-		var min_frames := int(first.mix_rate * 30.0)
-		_check(first.data.size() / 2 >= min_frames, "music stems are at least 30 seconds")
+		_check(first.get_length() >= 30.0, "music stems are at least 30 seconds")
+		var expected_loop_end := int(round(first.get_length() * first.mix_rate))
+		_check(absf(float(first.loop_end - expected_loop_end)) <= 1.0, "music loop covers the full imported duration")
 		for i in music_streams.size():
 			var stream := music_streams[i]
 			_check(stream.loop_mode == AudioStreamWAV.LOOP_FORWARD, "music stem %d loops forward" % i)
 			_check(stream.mix_rate == first.mix_rate, "music stem %d sample rate matches" % i)
 			_check(stream.stereo == first.stereo, "music stem %d channel layout matches" % i)
+			_check(absf(stream.get_length() - first.get_length()) < 0.001, "music stem %d duration matches" % i)
 			_check(stream.data.size() == first.data.size(), "music stem %d length matches" % i)
 			_check(stream.loop_end == first.loop_end, "music stem %d loop end matches" % i)
 	Sfx.set_intensity(2)
