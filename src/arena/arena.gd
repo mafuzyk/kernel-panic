@@ -38,6 +38,11 @@ var wave_signal_count := 0
 const ABANDON_CONFIRM_WINDOW := 2.0
 const PAUSE_INFO_DEFAULT := "[ESC] RESUME      [R] RESTART      [Q] ARM ABANDON PROCESS"
 const PAUSE_INFO_CONFIRM := "[ESC] RESUME      [R] RESTART      [Q] PRESS Q AGAIN // ABANDON PROCESS"
+const PANEL_REFERENCE_HEIGHT := 720.0
+const PANEL_CONTENT_HEIGHT := 500.0
+const PANEL_SAFE_MARGIN := 16.0
+const PATCH_MAX_WIDTH := 930.0
+const PATCH_BOX_HEIGHT := 240.0
 var _abandon_armed := false
 var _abandon_t := 0.0
 var _abandon_timer: SceneTreeTimer
@@ -218,6 +223,63 @@ func _build_background() -> void:
 	dust.color = Color(0.4, 0.55, 0.75, 0.22)
 	add_child(dust)
 
+func _panel_viewport_height() -> float:
+	return maxf(get_viewport_rect().size.y, 1.0)
+
+func panel_scale_for_height(viewport_height: float = -1.0) -> float:
+	var height := _panel_viewport_height() if viewport_height <= 0.0 else viewport_height
+	return clampf((height - PANEL_SAFE_MARGIN * 2.0) / PANEL_CONTENT_HEIGHT, 0.45, 1.0)
+
+func panel_control_rect(design_top: float, control_height: float, viewport_height: float = -1.0) -> Rect2:
+	var height := _panel_viewport_height() if viewport_height <= 0.0 else viewport_height
+	var scale := panel_scale_for_height(height)
+	var top := height * 0.5 + (design_top - PANEL_REFERENCE_HEIGHT * 0.5) * scale
+	return Rect2(0.0, top, 0.0, control_height * scale)
+
+func patch_box_rect_for_viewport(viewport_size: Vector2) -> Rect2:
+	var horizontal_margin := clampf(viewport_size.x * 0.04, 16.0, 48.0)
+	var width := minf(PATCH_MAX_WIDTH, maxf(0.0, viewport_size.x - horizontal_margin * 2.0))
+	var height := minf(PATCH_BOX_HEIGHT, maxf(180.0, viewport_size.y - 2.0 * PANEL_SAFE_MARGIN))
+	return Rect2((viewport_size.x - width) * 0.5, (viewport_size.y - height) * 0.5, width, height)
+
+func patch_card_rects_for_viewport(viewport_size: Vector2) -> Array[Rect2]:
+	var box := patch_box_rect_for_viewport(viewport_size)
+	var separation := clampf(box.size.x * 0.026, 10.0, 24.0)
+	var card_width := maxf(0.0, (box.size.x - separation * 2.0) / 3.0)
+	var rects: Array[Rect2] = []
+	for i in 3:
+		rects.append(Rect2(box.position.x + i * (card_width + separation), box.position.y, card_width, box.size.y))
+	return rects
+
+func _layout_patch_box() -> void:
+	if _patch_box == null or not is_instance_valid(_patch_box):
+		return
+	var box := patch_box_rect_for_viewport(get_viewport_rect().size)
+	_patch_box.anchor_left = 0.5
+	_patch_box.anchor_right = 0.5
+	_patch_box.anchor_top = 0.5
+	_patch_box.anchor_bottom = 0.5
+	_patch_box.offset_left = -box.size.x * 0.5
+	_patch_box.offset_right = box.size.x * 0.5
+	_patch_box.offset_top = -box.size.y * 0.5
+	_patch_box.offset_bottom = box.size.y * 0.5
+	var separation := clampf(box.size.x * 0.026, 10.0, 24.0)
+	_patch_box.add_theme_constant_override("separation", separation)
+	var card_width := maxf(0.0, (box.size.x - separation * 2.0) / 3.0)
+	for card in _patch_box.get_children():
+		if card is Control:
+			card.custom_minimum_size = Vector2(card_width, maxf(160.0, box.size.y - 20.0))
+			card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+func _refresh_responsive_layout() -> void:
+	for panel in [_pause_panel, _over_panel, _patch_panel]:
+		if panel == null or not is_instance_valid(panel):
+			continue
+		for control in panel.get_children():
+			if control is Control and control.has_meta("panel_design_top"):
+				_center_panel_control(control, float(control.get_meta("panel_design_top")), float(control.get_meta("panel_control_height")))
+	_layout_patch_box()
+
 func _build_pause_panel() -> void:
 	_pause_panel = _make_panel()
 	var title := _make_label("PAUSED", 42, Balance.COL_TEXT)
@@ -254,12 +316,9 @@ func _make_volume_row(label_text: String, value: float, y: float, on_change: Cal
 	var row := HBoxContainer.new()
 	row.anchor_left = 0.5
 	row.anchor_right = 0.5
-	row.anchor_top = 0.5
-	row.anchor_bottom = 0.5
 	row.offset_left = -190.0
 	row.offset_right = 190.0
-	row.offset_top = y - 360.0
-	row.offset_bottom = y + 36.0 - 360.0
+	_center_panel_control(row, y, 36.0)
 	row.add_theme_constant_override("separation", 14)
 	var l := Label.new()
 	l.text = label_text
@@ -328,10 +387,7 @@ func _make_button(txt: String, y: float) -> Button:
 	b.add_theme_color_override("font_focus_color", Balance.COL_TEXT)
 	b.anchor_left = 0.0
 	b.anchor_right = 1.0
-	b.anchor_top = 0.5
-	b.anchor_bottom = 0.5
-	b.offset_top = y - 360.0
-	b.offset_bottom = y + 40.0 - 360.0
+	_center_panel_control(b, y, 40.0)
 	b.mouse_filter = Control.MOUSE_FILTER_STOP
 	return b
 
@@ -351,10 +407,14 @@ func _make_label(txt: String, size: int, col: Color) -> Label:
 	return l
 
 func _center_panel_control(control: Control, design_top: float, control_height: float) -> void:
+	var scale := panel_scale_for_height()
 	control.anchor_top = 0.5
 	control.anchor_bottom = 0.5
 	control.offset_top = design_top - 360.0
 	control.offset_bottom = design_top + control_height - 360.0
+	control.scale = Vector2(scale, scale)
+	control.set_meta("panel_design_top", design_top)
+	control.set_meta("panel_control_height", control_height)
 
 func _build_intro() -> void:
 	for i in 2:
@@ -508,6 +568,7 @@ func _build_patch_ui() -> void:
 	_patch_box.add_theme_constant_override("separation", 24)
 	_patch_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	_patch_panel.add_child(_patch_box)
+	_layout_patch_box()
 	var layer := CanvasLayer.new()
 	layer.layer = 65
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -535,6 +596,7 @@ func _try_show_patch() -> void:
 		c.queue_free()
 	for i in _patch_offers.size():
 		_patch_box.add_child(_make_patch_card(_patch_offers[i], i))
+	_layout_patch_box()
 	_patch_panel.modulate.a = 1.0
 	_patch_panel.visible = true
 	var cards := _patch_box.get_children()
@@ -909,6 +971,7 @@ func _notification(what: int) -> void:
 			_set_paused(true)
 
 func _process(delta: float) -> void:
+	_refresh_responsive_layout()
 	if _intro_bars.size() > 1 and is_instance_valid(_intro_bars[1]):
 		_intro_bars[1].pivot_offset.y = get_viewport_rect().size.y
 	if _abandon_armed and get_tree().paused:

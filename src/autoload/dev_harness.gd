@@ -1017,6 +1017,23 @@ func _task9_test(arena: Arena) -> void:
 		_check(hud.boss_bar_baseline() > boss_y_720, "boss bar baseline follows viewport height")
 		_check(hud.dash_baseline() > dash_y_720, "dash baseline follows viewport height")
 	hud.size = saved_hud_size
+	var patch_layout_ready := arena.has_method("patch_box_rect_for_viewport") and arena.has_method("patch_card_rects_for_viewport")
+	_check(patch_layout_ready, "patch panel exposes narrow viewport layout helpers")
+	if patch_layout_ready:
+		for viewport_size in [Vector2(432, 720), Vector2(720, 720)]:
+			var patch_box: Rect2 = arena.patch_box_rect_for_viewport(viewport_size)
+			_check(patch_box.position.x >= 0.0 and patch_box.end.x <= viewport_size.x, "patch box fits viewport width %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			var card_rects: Array[Rect2] = arena.patch_card_rects_for_viewport(viewport_size)
+			_check(card_rects.size() == 3, "patch layout keeps three cards at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			for card_rect in card_rects:
+				_check(card_rect.position.x >= 0.0 and card_rect.end.x <= viewport_size.x, "patch card stays inside viewport at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+	var panel_layout_ready := arena.has_method("panel_control_rect")
+	_check(panel_layout_ready, "combat panels expose responsive vertical layout helper")
+	if panel_layout_ready:
+		for viewport_height in [360.0, 432.0, 720.0, 900.0]:
+			for design_top in [118.0, 150.0, 220.0, 500.0, 550.0]:
+				var panel_rect: Rect2 = arena.panel_control_rect(design_top, 62.0, viewport_height)
+				_check(panel_rect.position.y >= 0.0 and panel_rect.end.y <= viewport_height, "panel control fits viewport height %.0f" % viewport_height)
 
 	var touch_ui := TouchControls.new()
 	var saved_touch_scale := Sfx.touch_scale
