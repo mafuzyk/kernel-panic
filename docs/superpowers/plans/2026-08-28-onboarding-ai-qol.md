@@ -125,7 +125,47 @@ git commit -m "feat: tune patch cadence and boss clear flow"
 
 ---
 
-### Task 3: Separate overclock from pause-abandon and add confirmation
+### Task 3: Add a readable playable-program selector and distinct silhouettes
+
+**Files:**
+- Modify: `src/autoload/game.gd`
+- Modify: `src/ui/menu.gd`
+- Add: `src/ui/program_panel.gd`
+- Modify: `src/player/player.gd`
+- Modify: `src/autoload/dev_harness.gd`
+
+**Interfaces:**
+- Produces a code-drawn program selection panel in the same interaction style as the Bestiary, with one detailed card per playable program and locked-state handling.
+- Produces explicit program summaries for role, integrity, speed, fire behavior, range, and dash/shield identity so KERNEL, DAEMON, and ROOTLET are meaningfully comparable before a run.
+- Produces distinct code-drawn player visual profiles for unlocked programs without changing hitboxes or program mechanics.
+
+- [ ] **Step 1: Write the failing tests**
+
+Add harness checks that every `PROGRAM_DEFS` entry exposes a non-empty detailed summary and distinct visual profile, that the selector lists unlocked programs and does not select a locked ROOTLET, and that selecting an unlocked program persists through the existing run ConfigFile path. Add a player probe asserting KERNEL and DAEMON use different visual colors/silhouette keys while preserving the same player collision radius.
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run `godot --headless --path . -- --autotest`. Expected: current program definitions have only terse descriptions, the menu cycles programs without a comparison window, and the player draw path is shared.
+
+- [ ] **Step 3: Write the minimal implementation**
+
+Extend `Game.PROGRAM_DEFS` with static role/stat/display metadata and add `ProgramPanel` as a code-drawn, touch-safe selection overlay modeled on `BestiaryPanel`. Replace the menu's one-tap cycling behavior with opening the selector; card selection calls `Game.set_program()` only for unlocked entries and refreshes the button label. Route the player's draw helper through program-specific colors and compact geometric silhouettes (KERNEL arrow, DAEMON fork/heat profile, ROOTLET shielded block), leaving movement, collision, aim, and all gameplay numbers unchanged.
+
+- [ ] **Step 4: Run the full verification**
+
+Run the exact autotest command and require `AUTOTEST_ALL_PASS`, zero `AT_FAIL`, and no new parse errors.
+
+- [ ] **Step 5: Commit**
+
+```sh
+git add src/autoload/game.gd src/ui/menu.gd src/ui/program_panel.gd \
+  src/player/player.gd src/autoload/dev_harness.gd
+git commit -m "feat: add playable program selection panel"
+```
+
+---
+
+### Task 4: Separate overclock from pause-abandon and add confirmation
 
 **Files:**
 - Modify: `src/autoload/game.gd`
@@ -162,7 +202,7 @@ git commit -m "fix: require confirmation before abandoning a run"
 
 ---
 
-### Task 4: Add bounded cadence and qualitative elite behavior
+### Task 5: Add bounded cadence and qualitative elite behavior
 
 **Files:**
 - Modify: `src/autoload/balance.gd`
@@ -207,7 +247,7 @@ git commit -m "feat: scale enemy cadence and elite behavior by wave"
 
 ---
 
-### Task 5: Add ranged cover cooperation and contain Splitter elite propagation
+### Task 6: Add ranged cover cooperation and contain Splitter elite propagation
 
 **Files:**
 - Modify: `src/enemies/enemy_base.gd`
@@ -244,7 +284,7 @@ git commit -m "feat: coordinate ranged cover and cap splitter elites"
 
 ---
 
-### Task 6: Make Recursor and boss teleports favor flanking destinations
+### Task 7: Make Recursor and boss teleports favor flanking destinations
 
 **Files:**
 - Modify: `src/enemies/recursor.gd`
@@ -280,7 +320,7 @@ git commit -m "feat: make enemy teleports flank the player"
 
 ---
 
-### Task 7: Add color assist and redundant Splitter/Bulwark identifiers
+### Task 8: Add color assist and redundant Splitter/Bulwark identifiers
 
 **Files:**
 - Modify: `src/autoload/balance.gd`
@@ -321,7 +361,7 @@ git commit -m "feat: add color assist threat markers"
 
 ---
 
-### Task 8: Make HUD/panels responsive and scale the movement stick
+### Task 9: Make HUD/panels responsive and scale the movement stick
 
 **Files:**
 - Modify: `src/ui/hud.gd`
@@ -358,7 +398,7 @@ git commit -m "fix: make combat ui follow viewport and touch scale"
 
 ---
 
-### Task 9: Add desktop key remapping with conflict-safe persistence
+### Task 10: Add desktop key remapping with conflict-safe persistence
 
 **Files:**
 - Modify: `src/autoload/game.gd`
@@ -395,7 +435,7 @@ git commit -m "feat: add desktop key remapping"
 
 ---
 
-### Task 10: Add patch tooltips and remove the obsolete Weekly lock-on block
+### Task 11: Add patch tooltips and remove the obsolete Weekly lock-on block
 
 **Files:**
 - Modify: `src/autoload/game.gd`
@@ -434,11 +474,11 @@ git commit -m "feat: explain active patches and allow weekly lockon"
 
 ---
 
-### Task 11: Run final desktop smoke, regression, and scope review
+### Task 12: Run final desktop smoke, regression, and scope review
 
 **Files:**
 - Modify: none unless a test-only assertion is demonstrably unstable; then only `src/autoload/dev_harness.gd`.
-- Verify: all files from Tasks 1–10 and the existing `KP_DEMO` harness.
+- Verify: all files from Tasks 1–11 and the existing `KP_DEMO` harness.
 
 **Interfaces:**
 - Consumes all new persistence, AI, UI, and settings contracts.
