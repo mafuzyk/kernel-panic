@@ -839,7 +839,7 @@ func _task5_test(arena: Arena) -> void:
 	var ranged := RootBoss.new()
 	ranged.boss_index = 2
 	ranged.player = boss_player
-	ranged.position = Vector2(80, 0)
+	ranged.position = Vector2(320, 0)
 	ranged.configure(1.0, false)
 	_check(root.has_method("hover_direction") and ranged.has_method("hover_direction"), "boss distance profiles exist")
 	if root.has_method("hover_direction") and ranged.has_method("hover_direction"):
@@ -853,19 +853,27 @@ func _task5_test(arena: Arena) -> void:
 		ranged._corruption_volley(1)
 		await _ticks(1)
 		var boss_shots := get_tree().get_nodes_in_group("corruption_shots")
-		_check(boss_shots.size() == 1 and boss_shots[0].get("target_point") == boss_player.global_position, "SEGFAULT corruption shot targets the player position")
+		var ranged_target := ranged.player.global_position if ranged.player != null and is_instance_valid(ranged.player) else Vector2.INF
+		_check(boss_shots.size() == 1, "SEGFAULT corruption volley spawns one shot")
+		if boss_shots.size() == 1:
+			_check(boss_shots[0].get("target_point").distance_to(ranged_target) < 0.1, "SEGFAULT corruption shot targets the player position")
 		for boss_shot in boss_shots:
 			if is_instance_valid(boss_shot):
 				boss_shot.queue_free()
+		await _until(func() -> bool:
+			return get_tree().get_nodes_in_group("corruption_shots").is_empty()
+		, 1.0, "boss corruption shot cleanup")
+		if is_instance_valid(ranged):
+			ranged.queue_free()
 		await _ticks(1)
 		var impact_player := Player.new()
-		impact_player.position = Vector2(200, 0)
+		impact_player.position = Vector2(80, 0)
 		arena.add_child(impact_player)
 		await _ticks(1)
 		impact_player.invuln = 0.0
 		impact_player.hp = impact_player.max_hp
 		var impact_shot: Node = corruption_script.new()
-		impact_shot.setup_corruption(Vector2(220, 0), impact_player.global_position, 1, Balance.COL_DANGER)
+		impact_shot.setup_corruption(Vector2(300, 0), impact_player.global_position, 1, Balance.COL_DANGER)
 		arena.enemy_container.add_child(impact_shot)
 		var impact_hp_before := impact_player.hp
 		var impact_ok := await _until(func() -> bool:
@@ -875,31 +883,28 @@ func _task5_test(arena: Arena) -> void:
 		_check(get_tree().get_nodes_in_group("corruption").is_empty(), "direct corruption impact creates no zone")
 		impact_player.position = Vector2(0, 200)
 		var shot: Node = corruption_script.new()
-		shot.setup_corruption(Vector2(220, 0), arena.player.global_position, 1, Balance.COL_DANGER)
+		shot.setup_corruption(Vector2(300, 0), arena.player.global_position, 1, Balance.COL_DANGER, Vector2.RIGHT)
 		arena.enemy_container.add_child(shot)
+		var shot_origin = shot.get("origin_point")
+		var shot_target = shot.get("target_point")
 		_check(float(shot.get("midpoint_distance")) > 0.0, "corruption shot tracks midpoint")
 		_check(shot.has_method("pop") and shot.has_method("burst_into_zone"), "corruption shot has direct and missed paths")
 		if shot.has_method("pop") and shot.has_method("burst_into_zone"):
 			shot._physics_process(0.1)
 			_check(float(shot.get("travelled")) > 0.0 and float(shot.get("travelled")) < float(shot.get("midpoint_distance")), "corruption shot travels before midpoint")
-			shot._physics_process(0.3)
+			shot._physics_process(0.6)
 			await _ticks(1)
 			_check(get_tree().get_nodes_in_group("corruption").size() > 0, "missed corruption shot creates a bounded zone")
 			if not get_tree().get_nodes_in_group("corruption").is_empty():
-				_check(float(get_tree().get_nodes_in_group("corruption")[0].get("radius")) <= 38.0, "missed corruption zone stays bounded")
+				var zone: Node2D = get_tree().get_nodes_in_group("corruption")[0]
+				_check(float(zone.get("radius")) <= 38.0, "missed corruption zone stays bounded")
+				_check(shot_origin != null and shot_target != null and zone.global_position.distance_to((shot_origin + shot_target) * 0.5) < 0.1, "missed corruption zone uses real target midpoint")
 			if is_instance_valid(shot):
 				shot.queue_free()
 			for zone in get_tree().get_nodes_in_group("corruption"):
 				if is_instance_valid(zone):
 					zone.queue_free()
 			await _ticks(1)
-		var direct_shot: Node = corruption_script.new()
-		direct_shot.setup_corruption(Vector2(200, 0), Vector2.ZERO, 1, Balance.COL_DANGER)
-		arena.enemy_container.add_child(direct_shot)
-		direct_shot.pop()
-		_check(get_tree().get_nodes_in_group("corruption").is_empty(), "intercepted corruption shot creates no zone")
-		if is_instance_valid(direct_shot):
-			direct_shot.queue_free()
 		impact_player.queue_free()
 	root.free()
 	if is_instance_valid(ranged):

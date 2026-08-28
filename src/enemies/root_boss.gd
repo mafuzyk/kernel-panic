@@ -389,7 +389,7 @@ func _corruption_volley(n: int) -> void:
 	for i in n:
 		var shot: Node = shot_script.new()
 		var dir := Vector2.from_angle(base + (i - (n - 1) * 0.5) * 0.16)
-		shot.call("setup_corruption", global_position + dir * (radius + 8.0), target, 1, col, dir)
+		shot.call("setup_corruption", global_position + dir * (radius + 8.0), target, 1, col, dir, player)
 		get_parent().call_deferred("add_child", shot)
 	Sfx.play("shoot", 0.6, -5.0)
 
