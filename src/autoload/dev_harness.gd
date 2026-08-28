@@ -399,6 +399,10 @@ func _autotest() -> void:
 func _onboarding_test(arena: Arena) -> void:
 	print("AT_STEP onboarding")
 	var saved_bestiary: Dictionary = Game.bestiary.duplicate(true)
+	var saved_bestiary_disk := _config_snapshot("bestiary", "seen", {})
+	var saved_tutorial: Dictionary = Game.get("tutorial").duplicate(true)
+	var saved_tutorial_disk := _config_snapshot("tutorial", "hints", {})
+	var saved_run_best_disk := _config_snapshot("run", "best_classic", 0)
 	Game.bestiary.clear()
 	var sighting_unlocks := {}
 	var sighting_cb := func(id: String) -> void:
@@ -424,14 +428,8 @@ func _onboarding_test(arena: Arena) -> void:
 		if is_instance_valid(probe):
 			probe.queue_free()
 	await _ticks(2)
-	Game.bestiary = saved_bestiary
-	var restore_bestiary := ConfigFile.new()
-	restore_bestiary.load(Sfx.SAVE_PATH)
-	restore_bestiary.set_value("bestiary", "seen", Game.bestiary)
-	restore_bestiary.save(Sfx.SAVE_PATH)
 	_check(Game.has_method("show_hint_once"), "game exposes persisted hint helper")
 	if Game.has_method("show_hint_once"):
-		var saved_tutorial: Dictionary = Game.get("tutorial").duplicate(true)
 		Game.set("tutorial", {})
 		_check(bool(Game.call("show_hint_once", "move")), "first hint call is available")
 		var second_hint_available := bool(Game.call("show_hint_once", "move"))
@@ -439,7 +437,67 @@ func _onboarding_test(arena: Arena) -> void:
 		if OS.get_environment("KP_HINTS") != "":
 			Game.set("tutorial", {"move": true})
 			_check(bool(Game.call("show_hint_once", "move")), "KP_HINTS forces an already-seen hint")
-		Game.set("tutorial", saved_tutorial)
+		if OS.get_environment("KP_HINTS") == "":
+			Game.set("tutorial", {})
+			_check(bool(Game.call("show_hint_once", "round1_reload_hint")), "hint persists before reload")
+			Game._load_run_config()
+			_check(Game.tutorial.has("round1_reload_hint"), "hint survives ConfigFile reload")
+			Game.bestiary.clear()
+			Game.mark_bestiary("DRONE")
+			Game._load_run_config()
+			_check(Game.bestiary_seen("drone"), "bestiary survives ConfigFile reload")
+		_check(_config_snapshot_matches(saved_run_best_disk, _config_snapshot("run", "best_classic", 0)), "hint probe preserves unrelated run save section")
+	var hud: Hud = arena.hud
+	var saved_banner_t: float = hud._banner_t
+	var saved_banner_text: String = hud._banner_text
+	var saved_banner_sub: String = hud._banner_sub
+	var saved_hint_queue: Array[Dictionary] = hud._hint_queue.duplicate(true)
+	var saved_hint_queue_ids: Dictionary = hud._hint_queue_ids.duplicate(true)
+	hud._hint_queue.clear()
+	hud._hint_queue_ids.clear()
+	hud.show_banner("BLOCKING BANNER", "EVENT", 1.0)
+	hud.queue_hint("round1_queue", "QUEUED HINT", 0.1)
+	hud.queue_hint("round1_queue", "DUPLICATE HINT", 0.1)
+	_check(hud._banner_text == "BLOCKING BANNER", "active banner is not replaced by queued hint")
+	_check(hud._hint_queue.size() == 1, "duplicate hint is rate-limited")
+	hud._process(0.5)
+	_check(hud._banner_text == "BLOCKING BANNER", "queued hint waits during active banner")
+	hud._process(0.6)
+	hud._process(0.01)
+	_check(hud._banner_text == "QUEUED HINT" and hud._hint_queue.is_empty(), "queued hint drains after active banner")
+	hud._banner_t = saved_banner_t
+	hud._banner_text = saved_banner_text
+	hud._banner_sub = saved_banner_sub
+	hud._hint_queue = saved_hint_queue
+	hud._hint_queue_ids = saved_hint_queue_ids
+	Game.bestiary = saved_bestiary
+	Game.tutorial = saved_tutorial
+	_restore_config_snapshot("bestiary", "seen", saved_bestiary_disk)
+	_restore_config_snapshot("tutorial", "hints", saved_tutorial_disk)
+	_check(_config_snapshot_matches(saved_tutorial_disk, _config_snapshot("tutorial", "hints", {})), "onboarding probe restores tutorial hints ConfigFile section")
+
+func _config_snapshot(section: String, key: String, default_value) -> Dictionary:
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	return {
+		"has_section": cf.has_section(section),
+		"has_key": cf.has_section_key(section, key),
+		"value": cf.get_value(section, key, default_value),
+	}
+
+func _config_snapshot_matches(a: Dictionary, b: Dictionary) -> bool:
+	return bool(a["has_section"]) == bool(b["has_section"]) and bool(a["has_key"]) == bool(b["has_key"]) and a["value"] == b["value"]
+
+func _restore_config_snapshot(section: String, key: String, snapshot: Dictionary) -> void:
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	if bool(snapshot["has_key"]):
+		cf.set_value(section, key, snapshot["value"])
+	elif cf.has_section_key(section, key):
+		cf.erase_section_key(section, key)
+	if not bool(snapshot["has_section"]) and cf.has_section(section) and cf.get_section_keys(section).is_empty():
+		cf.erase_section(section)
+	cf.save(Sfx.SAVE_PATH)
 
 func _systems_test(arena: Arena) -> void:
 	var player: Player = arena.player
