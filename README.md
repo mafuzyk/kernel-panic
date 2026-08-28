@@ -150,6 +150,11 @@ waves, an intro log, and an individual best score. Act 1 covers the UNIX paths
 the reinstalling `UPDATE_LOOP`, the fat `BLOATWARE` process, and destructible
 static POPUP orbs. Clearing a stage mounts the next path.
 
+The bonus TempleOS act adds `TempleOS::BOOT` and `TempleOS::GOD`. Its arena is
+deliberately compact (640×640), cycles through a rainbow palette, and uses a
+golden/coral “holy CRT” treatment. GOD is an oracle boss: every attack is
+chosen by the run RNG, so the encounter is intentionally unpredictable.
+
 ## Controls
 
 ### Android

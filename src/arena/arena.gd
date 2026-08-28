@@ -32,6 +32,7 @@ var _story_victory := false
 var _story_next_stage := -1
 var _crt_overlay: CrtOverlay
 var _windows_watermark: Label
+var _temple_mode := false
 var _intro_bars: Array[ColorRect] = []
 var _intro_label: Label
 var _intro_quote: Label
@@ -68,6 +69,11 @@ const RESTART_HOLD_DURATION := 0.75
 
 func _ready() -> void:
 	add_to_group("arena")
+	if Game.mode == "story":
+		var opening_stage := Game.story_stage_def(Game.story_stage_index)
+		var opening_size = opening_stage.get("arena_size", Vector2.ZERO)
+		if opening_size is Vector2 and opening_size.x > 0.0 and opening_size.y > 0.0:
+			Balance.set_arena_size_override(opening_size)
 	_build_background()
 	walls = ArenaWalls.new()
 	add_child(walls)
@@ -103,6 +109,7 @@ func _ready() -> void:
 		_build_story_intro()
 		_apply_story_theme(_story_stage.get("theme", {}))
 		_build_windows_visuals()
+		_build_temple_visuals()
 	if debug_controls_enabled():
 		var debug_panel = load("res://src/ui/debug_panel.gd").new()
 		debug_panel.arena = self
@@ -556,7 +563,12 @@ func _build_story_intro() -> void:
 	_story_intro_text = _make_label("", 15, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.75))
 	_center_panel_control(_story_intro_text, 344.0, 54.0)
 	_story_intro_panel.add_child(_story_intro_text)
-	var footer := _make_label("ACT 1 // UNIX RECOVERY LOG", 12, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.7))
+	var act_label := "ACT 1 // UNIX RECOVERY LOG"
+	if str(_story_stage.get("act", "")) == "windows":
+		act_label = "ACT 2 // WINDOWS RECOVERY LOG"
+	elif str(_story_stage.get("act", "")) == "templeos":
+		act_label = "BONUS ACT // TEMPLEOS ORACLE LOG"
+	var footer := _make_label(act_label, 12, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.7))
 	_center_panel_control(footer, 418.0, 24.0)
 	_story_intro_panel.add_child(footer)
 
@@ -603,6 +615,8 @@ func windows_stage_profile() -> Dictionary:
 	return {"id": _story_stage.get("id", ""), "path": _story_stage.get("path", ""), "grid_style": _story_stage.get("theme", {}).get("grid_style", "clean"), "crt": _story_stage.get("theme", {}).get("crt", {})}
 
 func _build_windows_visuals() -> void:
+	if str(_story_stage.get("act", "")) != "windows":
+		return
 	var theme: Dictionary = _story_stage.get("theme", {})
 	var style := str(theme.get("grid_style", "clean"))
 	Sfx.set_music_variant(style)
@@ -628,6 +642,20 @@ func _build_windows_visuals() -> void:
 		_windows_watermark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		watermark_layer.add_child(_windows_watermark)
 		add_child(watermark_layer)
+
+func temple_stage_profile() -> Dictionary:
+	if str(_story_stage.get("act", "")) != "templeos":
+		return {}
+	return {"id": _story_stage.get("id", ""), "path": _story_stage.get("path", ""), "arena_size": _story_stage.get("arena_size", Vector2.ZERO), "grid_style": _story_stage.get("theme", {}).get("grid_style", "holy"), "crt": _story_stage.get("theme", {}).get("crt", {})}
+
+func _build_temple_visuals() -> void:
+	if str(_story_stage.get("act", "")) != "templeos":
+		return
+	_temple_mode = true
+	Sfx.set_music_variant("holy")
+	_crt_overlay = CrtOverlay.new()
+	add_child(_crt_overlay)
+	_crt_overlay.configure(_story_stage.get("theme", {}).get("crt", {}))
 
 func _on_wave_started(wave: int, is_boss: bool) -> void:
 	if Game.mode == "story":
@@ -1049,6 +1077,10 @@ func _show_story_victory(stage_id: String) -> void:
 	_over_title.add_theme_color_override("font_color", _story_stage.get("theme", {}).get("accent", Balance.COL_PLAYER))
 	_over_sub.text = "%s // %s" % [_story_stage.get("path", ""), _story_stage.get("title", "")]
 	var next_line := "NEXT // %s" % Game.story_stage_def(_story_next_stage).get("path", "") if _story_next_stage >= 0 else "ACT 1 // UNIX RECOVERY COMPLETE"
+	if _story_next_stage < 0:
+		next_line = "BONUS ACT // TEMPLEOS COMPLETE" if stage_id == "temple_god" else "STORY // ALL MOUNTED PATHS COMPLETE"
+		if stage_id == "temple_god":
+			next_line += "\nRAINBOW GRID UNLOCKED FOR ENDLESS"
 	var best_value := Game.story_stage_best(index)
 	_over_stats.text = "STAGE SCORE   %07d\nBEST          %07d\n\n%s\n\nDAEMONS PURGED %d\nUPTIME        %02d:%02d" % [Game.score, best_value, next_line, int(Game.stats.get("kills", 0)), int(float(Game.stats.get("time", 0.0)) / 60.0), int(float(Game.stats.get("time", 0.0))) % 60]
 	_over_primary.text = "NEXT STAGE  [ENTER]" if _story_next_stage >= 0 else "RETURN TO MENU  [ENTER]"
@@ -1371,6 +1403,13 @@ func _process(delta: float) -> void:
 			_clear_abandon_confirmation()
 	if _windows_watermark != null and is_instance_valid(_windows_watermark):
 		_windows_watermark.visible = fmod(float(Game.stats.get("time", 0.0)), 2.6) < 2.0
+	if _temple_mode or (Game.mode != "story" and Game.temple_rainbow_unlocked):
+		var rainbow := Color.from_hsv(fmod(float(Game.stats.get("time", 0.0)) * 0.08, 1.0), 0.78, 1.0)
+		_era_color = rainbow
+		if walls != null:
+			walls.set_tint(rainbow)
+		if _dust != null:
+			_dust.color = Color(rainbow.r, rainbow.g, rainbow.b, 0.22)
 	var debug_open: bool = _debug_panel != null and _debug_panel.visible
 	var want_hidden: bool = _state == "play" and not get_tree().paused and reticle != null and not debug_open
 	var target_mouse := Input.MOUSE_MODE_HIDDEN if want_hidden else Input.MOUSE_MODE_VISIBLE
@@ -1414,4 +1453,5 @@ func _update_debug_cursor() -> void:
 
 func _exit_tree() -> void:
 	_clear_abandon_confirmation()
+	Balance.clear_arena_size_override()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

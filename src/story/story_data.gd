@@ -69,6 +69,7 @@ const STAGES := [
 	},
 	{
 		"id": "win98",
+		"act": "windows",
 		"path": "C:\\98",
 		"title": "WINDOWS 98",
 		"intro": "The desktop loads. The desktop immediately asks for a driver it lost in 1998.",
@@ -80,6 +81,7 @@ const STAGES := [
 	},
 	{
 		"id": "winxp",
+		"act": "windows",
 		"path": "C:\\XP",
 		"title": "WINDOWS XP",
 		"intro": "The Luna shell is smooth, bright, and somehow still installing updates during combat.",
@@ -91,6 +93,7 @@ const STAGES := [
 	},
 	{
 		"id": "win11",
+		"act": "windows",
 		"path": "Win11",
 		"title": "WINDOWS 11",
 		"intro": "A clean glass desktop hides a familiar problem: too many background processes.",
@@ -99,6 +102,34 @@ const STAGES := [
 		"scale": 1.10,
 		"theme": {"base_col": Color("dfe9f2"), "grid_col": Color("8ca7bd"), "glow_col": Color("b9d9ee"), "accent": Color("2e77b8"), "grid_style": "clean"},
 		"watermark": true
+	},
+	{
+		"id": "temple_boot",
+		"act": "templeos",
+		"path": "TempleOS::BOOT",
+		"title": "THE HOLY BOOT",
+		"intro": "The system boots in a cathedral of pixels. The rainbow is not optional.",
+		"klog": ["temple: praise the scheduler", "graphics: rainbow driver loaded", "oracle: probability is a form of worship"],
+		"waves": [["drone", "drone"], ["lancer", "spewer", "drone"], ["splitter", "trojan", "oom", "drone"], ["bulwark", "lancer", "spewer", "trojan"]],
+		"scale": 1.04,
+		"arena_size": Vector2(640.0, 640.0),
+		"theme": {"base_col": Color("180e1d"), "grid_col": Color("d68a46"), "glow_col": Color("ff6d70"), "accent": Color("ffd24f"), "grid_style": "holy", "crt": {"curvature": 0.02, "noise": 0.035, "scanline": 0.16, "aberration": 0.10, "holy": 1.0}}
+	},
+	{
+		"id": "temple_god",
+		"act": "templeos",
+		"path": "TempleOS::GOD",
+		"title": "ORACLE PROCESS",
+		"intro": "The final process does not predict the next attack. It rolls for one.",
+		"klog": ["oracle: six-sided truth unavailable", "scheduler: GOD has entered the room", "panic: randomness is now a mechanic"],
+		"waves": [["drone", "spewer", "lancer"], ["splitter", "oom", "trojan", "bulwark"], ["recursor", "firewall", "drone", "spewer"], ["god"]],
+		"boss": "GOD",
+		"boss_kind": "god",
+		"boss_index": 1,
+		"boss_scale": 1.0,
+		"scale": 1.08,
+		"arena_size": Vector2(640.0, 640.0),
+		"theme": {"base_col": Color("1c0b20"), "grid_col": Color("f2a44e"), "glow_col": Color("ff536d"), "accent": Color("ffd24f"), "grid_style": "holy", "crt": {"curvature": 0.02, "noise": 0.04, "scanline": 0.18, "aberration": 0.12, "holy": 1.0}}
 	}
 ]
 
@@ -106,7 +137,7 @@ static func stage_count() -> int:
 	return STAGES.size()
 
 static func act_stage_count(act_id: String) -> int:
-	return 6 if act_id == "unix" else 3 if act_id == "windows" else 0
+	return 6 if act_id == "unix" else 3 if act_id == "windows" else 2 if act_id == "templeos" else 0
 
 static func stage_at(index: int) -> Dictionary:
 	if index < 0 or index >= STAGES.size():

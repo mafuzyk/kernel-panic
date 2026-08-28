@@ -24,6 +24,7 @@ var story_mode := false
 var story_stage: Dictionary = {}
 var story_wave_index := -1
 var _story_wave_scale := 1.0
+var _story_boss_kind := "boss"
 
 func start(arena_node: Node2D, container_node: Node2D, first_wave: int) -> void:
 	arena_ref = arena_node
@@ -37,6 +38,7 @@ func start(arena_node: Node2D, container_node: Node2D, first_wave: int) -> void:
 	story_mode = false
 	story_stage = {}
 	story_wave_index = -1
+	_story_boss_kind = "boss"
 	wave = first_wave
 	_running = true
 	_begin_wave()
@@ -55,6 +57,7 @@ func start_story(arena_node: Node2D, container_node: Node2D, stage_def: Dictiona
 	story_mode = true
 	story_stage = stage_def.duplicate(true)
 	story_wave_index = 0
+	_story_boss_kind = str(story_stage.get("boss_kind", "boss"))
 	wave = 1
 	_running = true
 	_begin_story_wave()
@@ -101,8 +104,14 @@ func _begin_story_wave() -> void:
 	for raw_kind in wave_def:
 		_queue.append(str(raw_kind))
 	_story_wave_scale = float(story_stage.get("scale", 1.0))
-	wave_started.emit(wave, _queue.has("boss"))
-	if _queue.has("boss"):
+	var boss_kind := ""
+	for raw_kind in _queue:
+		if str(raw_kind) == "boss" or str(raw_kind) == "god":
+			boss_kind = str(raw_kind)
+	if not boss_kind.is_empty():
+		_story_boss_kind = boss_kind
+	wave_started.emit(wave, not boss_kind.is_empty())
+	if not boss_kind.is_empty():
 		_queue.clear()
 		_awaiting_boss = true
 		_spawn_story_boss()
@@ -208,7 +217,7 @@ func _spawn_boss() -> void:
 		if generation != _spawn_generation or not _running or not is_instance_valid(container):
 			return
 		_awaiting_boss = false
-		_boss = RootBoss.new()
+		_boss = GodBoss.new() if _story_boss_kind == "god" else RootBoss.new()
 		_boss.boss_index = idx
 		_boss.threat_wave = wave
 		_boss.configure(Balance.wave_scale(wave), false)
@@ -353,6 +362,8 @@ func _make_enemy(kind: String) -> EnemyBase:
 			return load("res://src/enemies/update_loop.gd").new()
 		"bloatware":
 			return load("res://src/enemies/bloatware.gd").new()
+		"god":
+			return load("res://src/enemies/god_boss.gd").new()
 	return null
 
 func _edge_point(min_player_dist := 250.0) -> Vector2:

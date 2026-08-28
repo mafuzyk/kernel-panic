@@ -2,6 +2,7 @@ class_name Balance
 
 const ARENA_W := 1208.0
 const ARENA_H := 648.0
+static var _arena_size_override := Vector2.ZERO
 
 const PLAYER_MAX_HP := 4
 const PLAYER_SPEED := 340.0
@@ -102,7 +103,16 @@ static func elite_chance(wave: int) -> float:
 	return clampf(float(wave - 7) * 0.045, 0.0, 0.4)
 
 static func arena_rect() -> Rect2:
-	return Rect2(-ARENA_W * 0.5, -ARENA_H * 0.5, ARENA_W, ARENA_H)
+	var arena_size := Vector2(ARENA_W, ARENA_H)
+	if _arena_size_override.x > 0.0 and _arena_size_override.y > 0.0:
+		arena_size = _arena_size_override
+	return Rect2(-arena_size * 0.5, arena_size)
+
+static func set_arena_size_override(arena_size: Vector2) -> void:
+	_arena_size_override = Vector2(maxf(arena_size.x, 0.0), maxf(arena_size.y, 0.0))
+
+static func clear_arena_size_override() -> void:
+	_arena_size_override = Vector2.ZERO
 
 static func is_desktop_display(display_name: String = "") -> bool:
 	var name := display_name.to_lower() if display_name != "" else DisplayServer.get_name().to_lower()

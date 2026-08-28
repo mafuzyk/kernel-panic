@@ -22,6 +22,7 @@ func configure(next_profile: Dictionary) -> void:
 	_mat.set_shader_parameter("noise", float(profile.get("noise", 0.0)))
 	_mat.set_shader_parameter("scanline", float(profile.get("scanline", 0.0)))
 	_mat.set_shader_parameter("aberration", float(profile.get("aberration", 0.0)))
+	_mat.set_shader_parameter("holy", float(profile.get("holy", 0.0)))
 
 func is_active() -> bool:
-	return not profile.is_empty() and (float(profile.get("scanline", 0.0)) > 0.0 or float(profile.get("curvature", 0.0)) > 0.0)
+	return not profile.is_empty() and (float(profile.get("scanline", 0.0)) > 0.0 or float(profile.get("curvature", 0.0)) > 0.0 or float(profile.get("holy", 0.0)) > 0.0)

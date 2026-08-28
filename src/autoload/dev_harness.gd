@@ -86,7 +86,7 @@ func _autotest() -> void:
 	_check(get_tree().current_scene != null and get_tree().current_scene.name == "Menu", "menu is main scene")
 	_check(Balance.is_desktop_display() == (DisplayServer.get_name() in ["windows", "macos", "x11", "wayland", "embedded"]), "is_desktop_display matches display server")
 	_check(get_tree().current_scene.find_children("*", "BootOverlay", true, false).is_empty(), "boot overlay skipped in headless")
-	var required_bestiary_ids := ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "boss", "recursor", "firewall", "update_loop", "bloatware", "root", "segfault", "bluescreen", "pagefault"]
+	var required_bestiary_ids := ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "boss", "recursor", "firewall", "update_loop", "bloatware", "god", "root", "segfault", "bluescreen", "pagefault"]
 	var entry_ids := {}
 	for entry in BestiaryPanel.ENTRIES:
 		entry_ids[entry["id"]] = true
@@ -385,6 +385,7 @@ func _autotest() -> void:
 	await _debug_controls_test(arena2)
 	await _story_test(arena2)
 	await _windows_test(arena2)
+	await _temple_test(arena2)
 	await _charm_terminal_test(arena2)
 	await _charm_speedrun_test(arena2)
 	await _touch_test()
@@ -427,6 +428,7 @@ func _autotest() -> void:
 	_check(_config_sections_equal(run_before_task10, _config_section_snapshot("run")), "task10 restores run config section")
 	await _task11_test(menu_scene)
 	await _story_scene_test()
+	await _temple_scene_test()
 	for node in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(node):
 			node.queue_free()
@@ -2347,7 +2349,7 @@ func _story_test(arena: Arena) -> void:
 	if story_script == null or not Game.has_method("story_stage_count") or not Game.has_method("story_stage_def") or not arena.spawner.has_method("start_story"):
 		return
 	var count := int(Game.story_stage_count())
-	_check(count == 9 and Game.STORY_DATA.act_stage_count("unix") == 6, "Story contains six UNIX stages plus three Windows stages")
+	_check(count == 11 and Game.STORY_DATA.act_stage_count("unix") == 6 and Game.STORY_DATA.act_stage_count("windows") == 3 and Game.STORY_DATA.act_stage_count("templeos") == 2, "Story contains UNIX, Windows, and TempleOS stages")
 	var expected_ids := ["boot", "var_log", "net", "mem", "quarantine", "kernel"]
 	var expected_paths := ["/boot", "/var/log", "/net", "/mem", "/quarantine", "/kernel"]
 	for i in mini(count, expected_ids.size()):
@@ -2399,7 +2401,7 @@ func _windows_test(arena: Arena) -> void:
 	var crt_script: Script = load("res://src/arena/crt_overlay.gd")
 	_check(update_script != null and bloat_script != null and popup_script != null, "Windows enemy scripts load")
 	_check(crt_script != null, "CRT overlay script loads")
-	_check(Game.story_stage_count() == 9, "Story includes three Windows stages")
+	_check(Game.story_stage_count() == 11, "Story includes three Windows and two TempleOS stages")
 	var paths := ["C:\\98", "C:\\XP", "Win11"]
 	for i in paths.size():
 		var stage: Dictionary = Game.story_stage_def(6 + i)
@@ -2420,6 +2422,42 @@ func _windows_test(arena: Arena) -> void:
 	if bloat_enemy is Node:
 		bloat_enemy.free()
 	_check(arena.has_method("windows_stage_profile"), "arena exposes Windows stage profile")
+
+func _temple_test(arena: Arena) -> void:
+	print("AT_STEP temple")
+	var god_script: Script = load("res://src/enemies/god_boss.gd")
+	_check(god_script != null, "GOD boss script loads")
+	_check(Game.story_stage_count() == 11, "Story includes two TempleOS stages")
+	_check(Game.STORY_DATA.act_stage_count("templeos") == 2, "TempleOS act exposes two stages")
+	var paths := ["TempleOS::BOOT", "TempleOS::GOD"]
+	for i in paths.size():
+		var stage: Dictionary = Game.story_stage_def(9 + i)
+		_check(str(stage.get("path", "")) == paths[i], "TempleOS stage %d has the expected path" % (i + 1))
+	var temple_stage := Game.story_stage_def(9)
+	var god_stage := Game.story_stage_def(10)
+	_check(str(temple_stage.get("theme", {}).get("grid_style", "")) == "holy", "TempleOS uses the holy CRT profile")
+	_check(temple_stage.get("arena_size", Vector2.ZERO) == Vector2(640.0, 640.0), "TempleOS shrinks the arena to 640x640")
+	_check(str(god_stage.get("boss_kind", "")) == "god", "TempleOS final stage declares the GOD boss")
+	var sp: Spawner = arena.spawner
+	var god_enemy = sp.call("_make_enemy", "god")
+	_check(god_enemy is GodBoss, "spawner creates the GOD boss")
+	if god_enemy is GodBoss:
+		_check(god_enemy.has_method("roll_oracle_attack"), "GOD exposes oracle attack selection")
+		var old_seed := Game.rng.seed
+		Game.rng.seed = 90210
+		var oracle_a := str(god_enemy.call("roll_oracle_attack"))
+		Game.rng.seed = 90210
+		var oracle_b := str(god_enemy.call("roll_oracle_attack"))
+		Game.rng.seed = old_seed
+		_check(oracle_a == oracle_b and not oracle_a.is_empty(), "GOD oracle attacks follow the gameplay RNG")
+	if god_enemy is Node:
+		god_enemy.free()
+	_check(arena.has_method("temple_stage_profile"), "arena exposes TempleOS stage profile")
+	var old_size := Balance.arena_rect().size
+	Balance.set_arena_size_override(Vector2(640.0, 640.0))
+	_check(Balance.arena_rect().size == Vector2(640.0, 640.0), "arena override changes only the active combat rectangle")
+	Balance.clear_arena_size_override()
+	_check(Balance.arena_rect().size == old_size, "arena override restores the default rectangle")
 
 func _charm_terminal_test(arena: Arena) -> void:
 	print("AT_STEP charm_terminal")
@@ -2564,6 +2602,56 @@ func _story_scene_test() -> void:
 	Game.to_menu()
 	await _until(func() -> bool:
 		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 6.0, "story menu return")
+
+func _temple_scene_test() -> void:
+	print("AT_STEP temple_scene")
+	var saved_mode := Game.mode
+	var saved_state := Game.state
+	var saved_stage := Game.story_stage_index
+	var saved_cleared: Dictionary = Game.story_cleared.duplicate(true)
+	var saved_best: Dictionary = Game.story_best.duplicate(true)
+	var saved_rainbow := Game.temple_rainbow_unlocked
+	var story_disk := _config_section_snapshot("story")
+	Game.story_cleared = {}
+	Game.story_best = {}
+	Game.temple_rainbow_unlocked = false
+	for i in 9:
+		Game.story_cleared[Game.story_stage_id(i)] = true
+	_check(bool(Game.start_story(9)), "TempleOS scene accepts the unlocked bonus act")
+	var loaded := await _until(func() -> bool:
+		return get_tree().current_scene != null and get_tree().current_scene.name == "Arena", 6.0, "TempleOS arena")
+	if not loaded:
+		Game.to_menu()
+		await _until(func() -> bool:
+			return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 6.0, "TempleOS menu return")
+		Game.mode = saved_mode
+		Game.state = saved_state
+		Game.story_stage_index = saved_stage
+		Game.story_cleared = saved_cleared
+		Game.story_best = saved_best
+		Game.temple_rainbow_unlocked = saved_rainbow
+		_restore_config_section("story", story_disk)
+		return
+	var temple_arena: Arena = get_tree().current_scene
+	await _ticks(3)
+	_check(temple_arena.spawner.story_mode, "TempleOS arena uses the scripted spawner")
+	_check(str(temple_arena.get("_story_stage").get("path", "")) == "TempleOS::BOOT", "TempleOS arena loads the boot stage")
+	_check(Balance.arena_rect().size == Vector2(640.0, 640.0), "TempleOS runtime uses the compact arena")
+	var temple_overlay = temple_arena.get("_crt_overlay")
+	_check(temple_overlay != null and temple_overlay.is_active(), "TempleOS runtime enables the holy CRT")
+	_check(bool(temple_arena.get("_temple_mode")), "TempleOS runtime enables the rainbow mode")
+	temple_arena.spawner.stop()
+	temple_arena.spawner.debug_clear_encounter()
+	Game.to_menu()
+	await _until(func() -> bool:
+		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 6.0, "TempleOS menu return")
+	Game.mode = saved_mode
+	Game.state = saved_state
+	Game.story_stage_index = saved_stage
+	Game.story_cleared = saved_cleared
+	Game.story_best = saved_best
+	Game.temple_rainbow_unlocked = saved_rainbow
+	_restore_config_section("story", story_disk)
 
 func _charm_save_transfer_test(menu: Node) -> void:
 	print("AT_STEP charm_save_transfer")

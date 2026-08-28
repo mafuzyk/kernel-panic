@@ -18,6 +18,7 @@ const ENTRIES := [
 	{"id": "firewall", "name": "FIREWALL", "desc": "rotating wall of orbs. kill the wall to drop the wall.", "threat": 180, "bugs": "wall persists after death of nearby processes."},
 	{"id": "update_loop", "name": "UPDATE_LOOP", "desc": "reinstalls once after death. finish the update before celebrating.", "threat": 190, "bugs": "dies, says 'reinstalling', returns with fewer excuses."},
 	{"id": "bloatware", "name": "BLOATWARE", "desc": "fat process. drops static popup orbs and spawns background drones.", "threat": 450, "bugs": "47 background processes terminated on exit."},
+	{"id": "god", "name": "GOD", "desc": "oracle process. chooses its next attack by literal random roll.", "threat": 777, "bugs": "the attack pattern is not a pattern. it is a result."},
 ]
 
 var t := 0.0
@@ -237,6 +238,11 @@ func _draw_glyph(id: String, c: Color) -> void:
 			draw_rect(Rect2(-17, -12, 34, 24), c, false, 2.0)
 			for i in 5:
 				draw_circle(Vector2.from_angle(TAU * i / 5.0) * 24.0, 3.0, Color(c.r, c.g, c.b, 0.75))
+		"god":
+			draw_circle(Vector2.ZERO, 17.0, Color(c.r, c.g, c.b, 0.12))
+			draw_arc(Vector2.ZERO, 17.0, 0.0, TAU, 32, c, 2.0, true)
+			for i in 6:
+				draw_line(Vector2.from_angle(TAU * i / 6.0) * 20.0, Vector2.from_angle(TAU * i / 6.0) * 25.0, c, 2.0)
 
 func _draw_color_assist_marker(label: String, c: Color) -> void:
 	if not Sfx.color_assist:

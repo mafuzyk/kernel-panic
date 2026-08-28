@@ -21,6 +21,7 @@ var program := "kernel"
 var story_stage_index := 0
 var story_cleared: Dictionary = {}
 var story_best: Dictionary = {}
+var temple_rainbow_unlocked := false
 var vampic_cd := 0.0
 const VAMPIC_COOLDOWN := 10.0
 var unlocked_programs := {"kernel": true}
@@ -145,6 +146,7 @@ func _load_run_config() -> void:
 			program = saved_prog
 		story_cleared = cf.get_value("story", "cleared", {})
 		story_best = cf.get_value("story", "best", {})
+		temple_rainbow_unlocked = bool(cf.get_value("story", "temple_rainbow_unlocked", false))
 		if not story_cleared is Dictionary:
 			story_cleared = {}
 		if not story_best is Dictionary:
@@ -242,7 +244,7 @@ func should_offer_patch(cleared_wave: int) -> bool:
 		return cleared_wave > 0 and cleared_wave % 3 == 0
 	return cleared_wave > 0 and (cleared_wave + 1) % Balance.BOSS_EVERY == 0
 
-const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "UPDATE_LOOP": "update_loop", "BLOATWARE": "bloatware", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault"}
+const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "UPDATE_LOOP": "update_loop", "BLOATWARE": "bloatware", "GOD": "god", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault"}
 
 func _bestiary_id_for_display(display: String) -> String:
 	var normalized := display.strip_edges()
@@ -529,6 +531,7 @@ func export_save_string() -> String:
 		"story": {
 			"cleared": _known_bool_map(story_cleared, STORY_DATA.stage_ids()),
 			"best": story_best.duplicate(true),
+			"temple_rainbow_unlocked": temple_rainbow_unlocked,
 		},
 		"bestiary": _known_bool_map(bestiary, BESTIARY_MAP.values()),
 		"programs": _known_bool_map(unlocked_programs, PROGRAM_DEFS.keys()),
@@ -574,6 +577,7 @@ func import_save_string(encoded: String) -> bool:
 			for stage_id in STORY_DATA.stage_ids():
 				clean_story_best[stage_id] = maxi(int(imported_story_best.get(stage_id, 0)), 0)
 		cf.set_value("story", "best", clean_story_best)
+		cf.set_value("story", "temple_rainbow_unlocked", bool(imported_story.get("temple_rainbow_unlocked", false)))
 	cf.set_value("bestiary", "seen", _known_bool_map(parsed.get("bestiary", {}), BESTIARY_MAP.values()))
 	var imported_programs := _known_bool_map(parsed.get("programs", {}), PROGRAM_DEFS.keys())
 	imported_programs["kernel"] = true
@@ -700,6 +704,9 @@ func complete_story_stage() -> bool:
 	cf.load(Sfx.SAVE_PATH)
 	cf.set_value("story", "cleared", story_cleared)
 	cf.set_value("story", "best", story_best)
+	if id == "temple_god":
+		temple_rainbow_unlocked = true
+		cf.set_value("story", "temple_rainbow_unlocked", true)
 	cf.save(Sfx.SAVE_PATH)
 	if id == "mem" and not unlocked_programs.has("rootlet"):
 		unlock_program("rootlet")
