@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement the approved follow-up review: first-sight onboarding, safe desktop input, qualitative enemy AI, bounded late-wave cadence, accessibility/responsive UI, configurable desktop controls, and patch/Weekly QOL.
+**Goal:** Implement the approved follow-up review: first-sight onboarding, safe desktop input, mode-aware patch cadence, boss wave cleanup, qualitative enemy AI, bounded late-wave cadence, accessibility/responsive UI, configurable desktop controls, and patch/Weekly QOL.
 
 **Architecture:** Keep the current Godot scene architecture and extend the existing `Game`, `Arena`, `Hud`, `Sfx`, `Balance`, `Spawner`, and enemy classes through small explicit helpers. Work is split into sequential tasks so shared state has one owner at a time; every task adds a regression probe to the existing headless harness before production code. The debug spawn/skip controller remains a separate future package.
 
@@ -17,7 +17,7 @@
 - Do not add image assets, runtime dependencies, navigation meshes, physics bodies, networking, or a debug controller in this plan.
 - UI, hints, palette selection, markers, tooltips, and settings must never consume `Game.rng`; gameplay randomness continues to use the existing seeded stream.
 - Mobile behavior must not change: desktop-only settings/keyboard behavior is gated on `Balance.is_desktop_display()` and touch checks; `KP_FORCE_TOUCH`, `KP_FORCE_RETICLE`, and `KP_HINTS` remain valid test controls.
-- Do not change the existing touch aim modes, player movement contract, One-HP rules, or patch effects.
+- Do not change the existing touch aim modes or player movement contract. The approved mode-aware patch task is the explicit exception for One-HP patch eligibility/effects: it removes healing/max-integrity offers and adds shield/absorption offers without changing the mode's one-integrity starting rule.
 - Do not alter wave composition, wave budget, elite chance, max-alive cap, base HP, base damage, projectile damage/speed, or spawn limits. The only intentional difficulty adjustment is the capped cooldown factor in Task 3.
 - Boss attack phases and telegraphs retain priority over steering; teleport destinations retain the no-player-overlap safety rule.
 - Every task must run `godot --headless --path . -- --autotest` after implementation and require `AUTOTEST_ALL_PASS` with zero `AT_FAIL`; known shutdown leak warnings are recorded but are not failures.
@@ -87,7 +87,45 @@ git commit -m "feat: unlock bestiary entries on first sight"
 
 ---
 
-### Task 2: Separate overclock from pause-abandon and add confirmation
+### Task 2: Make patch cadence mode-aware and clear the boss phase
+
+**Files:**
+- Modify: `src/autoload/game.gd`
+- Modify: `src/arena/arena.gd`
+- Modify: `src/player/player.gd`
+- Modify: `src/autoload/dev_harness.gd`
+
+**Interfaces:**
+- Produces one patch-cadence helper: Classic and Weekly offer only after the wave immediately before a boss; One-HP continues to offer every third cleared wave.
+- Produces an explicit One-HP patch pool that excludes healing, max-integrity, RECOVER, and death-prevention patches and includes code-drawn shield and damage-absorption patches.
+- Produces a boss-clear path that removes remaining phase enemies without awarding duplicate kills, Splitter children, or extra boss rewards.
+
+- [ ] **Step 1: Write the failing tests**
+
+Add harness checks for patch cadence at cleared waves 3, 4, 6, 9, and 10 in Classic, Weekly, and One-HP. Assert that One-HP offers contain neither health/max-integrity/heal/death-save ids nor RECOVER-only ids, and that the replacement shield/absorption ids are eligible. Add player probes showing a shield charge and an absorption charge each prevent one incoming hit without changing the one-integrity starting rule. Add a boss cleanup fixture with a boss plus regular enemies and a Splitter, then assert the boss reward leaves no phase enemies and does not add extra kill/reward records.
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run `godot --headless --path . -- --autotest`. Expected: the current every-third-wave offer logic, healing patch pool, absent replacement effects, and surviving phase enemies produce `AT_FAIL` assertions.
+
+- [ ] **Step 3: Write the minimal implementation**
+
+Centralize the cadence predicate in `Game` and call it from the wave-clear path; remove the boss-death offer so Classic/Weekly's offer is before the next boss, while One-HP retains its three-wave cadence. Add `shield` and `absorb` patch definitions and make One-HP exclude `hp`, healing/death-save patches, and RECOVER-only patches. Implement bounded one-hit shield/absorption charges in the existing player damage path: shield blocks the next hit, while absorption converts the next hit into a small meter gain and brief protection. Keep normal-mode patch effects and all starting-health rules unchanged. When the final boss reward is established, queue-free remaining non-boss phase enemies through one guarded Arena helper, with no `died` signal, score, mote, recover, or Splitter child side effects.
+
+- [ ] **Step 4: Run the full verification**
+
+Run the exact autotest command and require `AUTOTEST_ALL_PASS`, zero `AT_FAIL`, and no new parse errors.
+
+- [ ] **Step 5: Commit**
+
+```sh
+git add src/autoload/game.gd src/arena/arena.gd src/player/player.gd src/autoload/dev_harness.gd
+git commit -m "feat: tune patch cadence and boss clear flow"
+```
+
+---
+
+### Task 3: Separate overclock from pause-abandon and add confirmation
 
 **Files:**
 - Modify: `src/autoload/game.gd`
@@ -124,7 +162,7 @@ git commit -m "fix: require confirmation before abandoning a run"
 
 ---
 
-### Task 3: Add bounded cadence and qualitative elite behavior
+### Task 4: Add bounded cadence and qualitative elite behavior
 
 **Files:**
 - Modify: `src/autoload/balance.gd`
@@ -166,7 +204,7 @@ git commit -m "feat: scale enemy cadence and elite behavior by wave"
 
 ---
 
-### Task 4: Add ranged cover cooperation and contain Splitter elite propagation
+### Task 5: Add ranged cover cooperation and contain Splitter elite propagation
 
 **Files:**
 - Modify: `src/enemies/enemy_base.gd`
@@ -203,7 +241,7 @@ git commit -m "feat: coordinate ranged cover and cap splitter elites"
 
 ---
 
-### Task 5: Make Recursor and boss teleports favor flanking destinations
+### Task 6: Make Recursor and boss teleports favor flanking destinations
 
 **Files:**
 - Modify: `src/enemies/recursor.gd`
@@ -239,7 +277,7 @@ git commit -m "feat: make enemy teleports flank the player"
 
 ---
 
-### Task 6: Add color assist and redundant Splitter/Bulwark identifiers
+### Task 7: Add color assist and redundant Splitter/Bulwark identifiers
 
 **Files:**
 - Modify: `src/autoload/balance.gd`
@@ -280,7 +318,7 @@ git commit -m "feat: add color assist threat markers"
 
 ---
 
-### Task 7: Make HUD/panels responsive and scale the movement stick
+### Task 8: Make HUD/panels responsive and scale the movement stick
 
 **Files:**
 - Modify: `src/ui/hud.gd`
@@ -317,7 +355,7 @@ git commit -m "fix: make combat ui follow viewport and touch scale"
 
 ---
 
-### Task 8: Add desktop key remapping with conflict-safe persistence
+### Task 9: Add desktop key remapping with conflict-safe persistence
 
 **Files:**
 - Modify: `src/autoload/game.gd`
@@ -354,7 +392,7 @@ git commit -m "feat: add desktop key remapping"
 
 ---
 
-### Task 9: Add patch tooltips and remove the obsolete Weekly lock-on block
+### Task 10: Add patch tooltips and remove the obsolete Weekly lock-on block
 
 **Files:**
 - Modify: `src/autoload/game.gd`
@@ -393,11 +431,11 @@ git commit -m "feat: explain active patches and allow weekly lockon"
 
 ---
 
-### Task 10: Run final desktop smoke, regression, and scope review
+### Task 11: Run final desktop smoke, regression, and scope review
 
 **Files:**
 - Modify: none unless a test-only assertion is demonstrably unstable; then only `src/autoload/dev_harness.gd`.
-- Verify: all files from Tasks 1–9 and the existing `KP_DEMO` harness.
+- Verify: all files from Tasks 1–10 and the existing `KP_DEMO` harness.
 
 **Interfaces:**
 - Consumes all new persistence, AI, UI, and settings contracts.
@@ -432,4 +470,3 @@ Confirm no spec file changed after approval, no `player.gd` changed, no `.godot/
 - [ ] **Step 4: Review and finish**
 
 Generate the SDD review package from the merge base, dispatch one final whole-branch Luna reviewer, fix at most one final review wave through a Luna implementer plus scoped re-review, then use `superpowers:finishing-a-development-branch` to choose integration. If the final review parks a non-load-bearing observation, record the ruling and cost in the ledger.
-
