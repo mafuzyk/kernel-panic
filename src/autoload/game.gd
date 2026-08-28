@@ -242,7 +242,7 @@ func should_offer_patch(cleared_wave: int) -> bool:
 		return cleared_wave > 0 and cleared_wave % 3 == 0
 	return cleared_wave > 0 and (cleared_wave + 1) % Balance.BOSS_EVERY == 0
 
-const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault"}
+const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "UPDATE_LOOP": "update_loop", "BLOATWARE": "bloatware", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault"}
 
 func _bestiary_id_for_display(display: String) -> String:
 	var normalized := display.strip_edges()
@@ -395,6 +395,7 @@ func onehp_patch_pool() -> Array:
 
 func start_run() -> void:
 	mode = mode if mode != "story" else "classic"
+	Sfx.set_music_variant("normal")
 	state = State.PLAYING
 	score = 0
 	mult = 1
@@ -707,6 +708,7 @@ func complete_story_stage() -> bool:
 
 func to_menu() -> void:
 	state = State.MENU
+	Sfx.set_music_variant("normal")
 	Sfx.set_intensity(0)
 	Engine.time_scale = 1.0
 	get_tree().paused = false

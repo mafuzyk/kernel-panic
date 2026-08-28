@@ -142,10 +142,13 @@ Three run modes change the rules:
 - **Weekly Run** uses a shared local deterministic seed; your selected aim mode, including lock-on, remains active.
 - **One-HP** gives you one mistake and no excuses.
 
-The separate **STORY // UNIX ACT 1** entry contains six fixed stages: `/boot`,
-`/var/log`, `/net`, `/mem`, `/quarantine`, and `/kernel`. Each stage has
-hand-authored waves, an intro log, and its own best score. Clearing a stage
-mounts the next one; clearing `/mem` unlocks the ROOTLET program.
+The separate **STORY // ACTS** entry contains fixed stages with hand-authored
+waves, an intro log, and an individual best score. Act 1 covers the UNIX paths
+`/boot`, `/var/log`, `/net`, `/mem`, `/quarantine`, and `/kernel`; clearing
+`/mem` unlocks the ROOTLET program. The Windows act follows with `C:\98`,
+`C:\XP`, and `Win11`: heavy CRT, soft CRT/Luna, and clean glass eras. It adds
+the reinstalling `UPDATE_LOOP`, the fat `BLOATWARE` process, and destructible
+static POPUP orbs. Clearing a stage mounts the next path.
 
 ## Controls
 

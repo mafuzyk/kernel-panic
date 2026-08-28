@@ -21,6 +21,7 @@ var touch_scale := 1.0
 var aim_mode := "drag"
 var color_assist := false
 var show_run_info := false
+var music_variant := "normal"
 
 func haptic(ms: int) -> void:
 	if not haptics_enabled:
@@ -119,6 +120,19 @@ func play_music() -> void:
 		return
 	for p in _stems:
 		p.play()
+
+func set_music_variant(variant: String) -> void:
+	music_variant = variant if variant in ["normal", "crt_heavy", "crt_soft", "clean"] else "normal"
+	var pitch := 1.0
+	match music_variant:
+		"crt_heavy":
+			pitch = 0.78
+		"crt_soft":
+			pitch = 0.92
+		"clean":
+			pitch = 1.04
+	for stem in _stems:
+		stem.pitch_scale = pitch
 
 func stop_music() -> void:
 	for p in _stems:

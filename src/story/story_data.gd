@@ -66,11 +66,47 @@ const STAGES := [
 		"boss_scale": 1.10,
 		"scale": 1.10,
 		"theme": {"base_col": Color("160812"), "grid_col": Color("572137"), "glow_col": Color("63142e"), "accent": Color("ff3d81")}
+	},
+	{
+		"id": "win98",
+		"path": "C:\\98",
+		"title": "WINDOWS 98",
+		"intro": "The desktop loads. The desktop immediately asks for a driver it lost in 1998.",
+		"klog": ["winlogon: welcome back", "explorer: 47 icons restored", "system: this computer may be shut down"],
+		"waves": [["drone", "drone"], ["lancer", "spewer", "drone"], ["splitter", "trojan", "drone", "drone"], ["bulwark", "lancer", "spewer", "trojan"]],
+		"scale": 1.02,
+		"theme": {"base_col": Color("222b2e"), "grid_col": Color("3a777c"), "glow_col": Color("2b5c61"), "accent": Color("79d6ce"), "grid_style": "crt_heavy", "crt": {"curvature": 0.075, "noise": 0.075, "scanline": 0.22, "aberration": 0.7}},
+		"watermark": true
+	},
+	{
+		"id": "winxp",
+		"path": "C:\\XP",
+		"title": "WINDOWS XP",
+		"intro": "The Luna shell is smooth, bright, and somehow still installing updates during combat.",
+		"klog": ["winlogon: blue-green session active", "update: reboot scheduled", "theme: luna applied successfully"],
+		"waves": [["drone", "spewer", "drone"], ["update_loop", "drone", "lancer"], ["update_loop", "spewer", "splitter", "drone"], ["update_loop", "trojan", "bulwark", "lancer"]],
+		"scale": 1.06,
+		"theme": {"base_col": Color("10223c"), "grid_col": Color("3e7db3"), "glow_col": Color("1f5e9e"), "accent": Color("74b9ff"), "grid_style": "crt_soft", "crt": {"curvature": 0.035, "noise": 0.035, "scanline": 0.10, "aberration": 0.28}},
+		"watermark": true
+	},
+	{
+		"id": "win11",
+		"path": "Win11",
+		"title": "WINDOWS 11",
+		"intro": "A clean glass desktop hides a familiar problem: too many background processes.",
+		"klog": ["shell: rounded corners enabled", "telemetry: everything is fine", "bloatware: 47 background processes active"],
+		"waves": [["drone", "update_loop", "drone"], ["bloatware", "spewer", "lancer"], ["bloatware", "update_loop", "splitter", "drone"], ["bloatware", "bloatware", "trojan", "oom", "spewer"]],
+		"scale": 1.10,
+		"theme": {"base_col": Color("dfe9f2"), "grid_col": Color("8ca7bd"), "glow_col": Color("b9d9ee"), "accent": Color("2e77b8"), "grid_style": "clean"},
+		"watermark": true
 	}
 ]
 
 static func stage_count() -> int:
 	return STAGES.size()
+
+static func act_stage_count(act_id: String) -> int:
+	return 6 if act_id == "unix" else 3 if act_id == "windows" else 0
 
 static func stage_at(index: int) -> Dictionary:
 	if index < 0 or index >= STAGES.size():

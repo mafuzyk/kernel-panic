@@ -16,6 +16,8 @@ const ENTRIES := [
 	{"id": "pagefault", "name": "PAGE FAULT", "desc": "pages shield it until the orbiting nodes are purged.", "threat": 10000, "bugs": "read protection enabled. delete the pages."},
 	{"id": "recursor", "name": "RECURSOR", "desc": "teleports and leaves corruption. pools mark where it was. keep moving.", "threat": 140, "bugs": "leaves corruption where it *was*. check behind you."},
 	{"id": "firewall", "name": "FIREWALL", "desc": "rotating wall of orbs. kill the wall to drop the wall.", "threat": 180, "bugs": "wall persists after death of nearby processes."},
+	{"id": "update_loop", "name": "UPDATE_LOOP", "desc": "reinstalls once after death. finish the update before celebrating.", "threat": 190, "bugs": "dies, says 'reinstalling', returns with fewer excuses."},
+	{"id": "bloatware", "name": "BLOATWARE", "desc": "fat process. drops static popup orbs and spawns background drones.", "threat": 450, "bugs": "47 background processes terminated on exit."},
 ]
 
 var t := 0.0
@@ -39,6 +41,8 @@ func _entry_color(id: String) -> Color:
 		"pagefault": return Color("b46bff")
 		"recursor": return Color("52ff7a")
 		"firewall": return Color("37d8ff")
+		"update_loop": return Color("67b8ff")
+		"bloatware": return Color("4b9ee8")
 		_: return Balance.COL_TEXT
 
 func _ready() -> void:
@@ -224,6 +228,15 @@ func _draw_glyph(id: String, c: Color) -> void:
 				draw_circle(Vector2.from_angle(TAU * i / 5.0) * 22, 3.0, Color(c.r, c.g, c.b, 0.7))
 			var tri := PackedVector2Array([Vector2(8, 0), Vector2(-6, 7), Vector2(-6, -7)])
 			draw_polyline(tri + PackedVector2Array([tri[0]]), c, 1.5, true)
+		"update_loop":
+			draw_rect(Rect2(-14, -11, 28, 22), Color(c.r, c.g, c.b, 0.18))
+			draw_rect(Rect2(-14, -11, 28, 22), c, false, 1.5)
+			draw_arc(Vector2.ZERO, 19.0, -PI / 2.0, PI, 18, c, 2.0, true)
+		"bloatware":
+			draw_rect(Rect2(-17, -12, 34, 24), Color(c.r, c.g, c.b, 0.18))
+			draw_rect(Rect2(-17, -12, 34, 24), c, false, 2.0)
+			for i in 5:
+				draw_circle(Vector2.from_angle(TAU * i / 5.0) * 24.0, 3.0, Color(c.r, c.g, c.b, 0.75))
 
 func _draw_color_assist_marker(label: String, c: Color) -> void:
 	if not Sfx.color_assist:

@@ -349,6 +349,10 @@ func _make_enemy(kind: String) -> EnemyBase:
 			return load("res://src/enemies/recursor.gd").new()
 		"firewall":
 			return load("res://src/enemies/firewall.gd").new()
+		"update_loop":
+			return load("res://src/enemies/update_loop.gd").new()
+		"bloatware":
+			return load("res://src/enemies/bloatware.gd").new()
 	return null
 
 func _edge_point(min_player_dist := 250.0) -> Vector2:

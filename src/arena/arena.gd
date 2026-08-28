@@ -30,6 +30,8 @@ var _story_intro_title: Label
 var _story_intro_text: Label
 var _story_victory := false
 var _story_next_stage := -1
+var _crt_overlay: CrtOverlay
+var _windows_watermark: Label
 var _intro_bars: Array[ColorRect] = []
 var _intro_label: Label
 var _intro_quote: Label
@@ -100,6 +102,7 @@ func _ready() -> void:
 		_story_stage = Game.story_stage_def(Game.story_stage_index)
 		_build_story_intro()
 		_apply_story_theme(_story_stage.get("theme", {}))
+		_build_windows_visuals()
 	if debug_controls_enabled():
 		var debug_panel = load("res://src/ui/debug_panel.gd").new()
 		debug_panel.arena = self
@@ -593,6 +596,38 @@ func _apply_story_theme(theme: Dictionary) -> void:
 		walls.set_tint(accent)
 	if _dust != null:
 		_dust.color = Color(accent.r, accent.g, accent.b, 0.18)
+
+func windows_stage_profile() -> Dictionary:
+	if _story_stage.is_empty():
+		return {}
+	return {"id": _story_stage.get("id", ""), "path": _story_stage.get("path", ""), "grid_style": _story_stage.get("theme", {}).get("grid_style", "clean"), "crt": _story_stage.get("theme", {}).get("crt", {})}
+
+func _build_windows_visuals() -> void:
+	var theme: Dictionary = _story_stage.get("theme", {})
+	var style := str(theme.get("grid_style", "clean"))
+	Sfx.set_music_variant(style)
+	if style == "crt_heavy" or style == "crt_soft":
+		_crt_overlay = CrtOverlay.new()
+		add_child(_crt_overlay)
+		_crt_overlay.configure(theme.get("crt", {}))
+	if bool(_story_stage.get("watermark", false)):
+		var watermark_layer := CanvasLayer.new()
+		watermark_layer.layer = 76
+		_windows_watermark = Label.new()
+		_windows_watermark.text = "ACTIVATE WINDOWS // GO TO SETTINGS"
+		_windows_watermark.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+		_windows_watermark.add_theme_font_size_override("font_size", 11)
+		_windows_watermark.add_theme_color_override("font_color", Color(0.2, 0.65, 0.85, 0.6))
+		_windows_watermark.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_windows_watermark.anchor_left = 1.0
+		_windows_watermark.anchor_right = 1.0
+		_windows_watermark.offset_left = -380.0
+		_windows_watermark.offset_right = -18.0
+		_windows_watermark.offset_top = 18.0
+		_windows_watermark.offset_bottom = 40.0
+		_windows_watermark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		watermark_layer.add_child(_windows_watermark)
+		add_child(watermark_layer)
 
 func _on_wave_started(wave: int, is_boss: bool) -> void:
 	if Game.mode == "story":
@@ -1334,6 +1369,8 @@ func _process(delta: float) -> void:
 		_abandon_t = maxf(_abandon_t - delta, 0.0)
 		if _abandon_t <= 0.0:
 			_clear_abandon_confirmation()
+	if _windows_watermark != null and is_instance_valid(_windows_watermark):
+		_windows_watermark.visible = fmod(float(Game.stats.get("time", 0.0)), 2.6) < 2.0
 	var debug_open: bool = _debug_panel != null and _debug_panel.visible
 	var want_hidden: bool = _state == "play" and not get_tree().paused and reticle != null and not debug_open
 	var target_mouse := Input.MOUSE_MODE_HIDDEN if want_hidden else Input.MOUSE_MODE_VISIBLE

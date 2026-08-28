@@ -86,7 +86,7 @@ func _autotest() -> void:
 	_check(get_tree().current_scene != null and get_tree().current_scene.name == "Menu", "menu is main scene")
 	_check(Balance.is_desktop_display() == (DisplayServer.get_name() in ["windows", "macos", "x11", "wayland", "embedded"]), "is_desktop_display matches display server")
 	_check(get_tree().current_scene.find_children("*", "BootOverlay", true, false).is_empty(), "boot overlay skipped in headless")
-	var required_bestiary_ids := ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "boss", "recursor", "firewall", "root", "segfault", "bluescreen", "pagefault"]
+	var required_bestiary_ids := ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "boss", "recursor", "firewall", "update_loop", "bloatware", "root", "segfault", "bluescreen", "pagefault"]
 	var entry_ids := {}
 	for entry in BestiaryPanel.ENTRIES:
 		entry_ids[entry["id"]] = true
@@ -384,6 +384,7 @@ func _autotest() -> void:
 	await _systems_test(arena2)
 	await _debug_controls_test(arena2)
 	await _story_test(arena2)
+	await _windows_test(arena2)
 	await _charm_terminal_test(arena2)
 	await _charm_speedrun_test(arena2)
 	await _touch_test()
@@ -2346,7 +2347,7 @@ func _story_test(arena: Arena) -> void:
 	if story_script == null or not Game.has_method("story_stage_count") or not Game.has_method("story_stage_def") or not arena.spawner.has_method("start_story"):
 		return
 	var count := int(Game.story_stage_count())
-	_check(count == 6, "act 1 contains six UNIX stages")
+	_check(count == 9 and Game.STORY_DATA.act_stage_count("unix") == 6, "Story contains six UNIX stages plus three Windows stages")
 	var expected_ids := ["boot", "var_log", "net", "mem", "quarantine", "kernel"]
 	var expected_paths := ["/boot", "/var/log", "/net", "/mem", "/quarantine", "/kernel"]
 	for i in mini(count, expected_ids.size()):
@@ -2389,6 +2390,36 @@ func _story_test(arena: Arena) -> void:
 	Game.story_cleared = saved_cleared
 	sp.start(arena, arena.enemy_container, 1)
 	await _ticks(3)
+
+func _windows_test(arena: Arena) -> void:
+	print("AT_STEP windows")
+	var update_script: Script = load("res://src/enemies/update_loop.gd")
+	var bloat_script: Script = load("res://src/enemies/bloatware.gd")
+	var popup_script: Script = load("res://src/enemies/popup_orb.gd")
+	var crt_script: Script = load("res://src/arena/crt_overlay.gd")
+	_check(update_script != null and bloat_script != null and popup_script != null, "Windows enemy scripts load")
+	_check(crt_script != null, "CRT overlay script loads")
+	_check(Game.story_stage_count() == 9, "Story includes three Windows stages")
+	var paths := ["C:\\98", "C:\\XP", "Win11"]
+	for i in paths.size():
+		var stage: Dictionary = Game.story_stage_def(6 + i)
+		_check(str(stage.get("path", "")) == paths[i], "Windows stage %d has the expected path" % (i + 1))
+	_check(str(Game.story_stage_def(6).get("theme", {}).get("grid_style", "")) == "crt_heavy", "C98 selects the heavy CRT profile")
+	_check(str(Game.story_stage_def(7).get("theme", {}).get("grid_style", "")) == "crt_soft", "CXP selects the soft CRT profile")
+	_check(str(Game.story_stage_def(8).get("theme", {}).get("grid_style", "")) == "clean", "Win11 disables the CRT profile")
+	var sp: Spawner = arena.spawner
+	var update_enemy = sp.call("_make_enemy", "update_loop")
+	var bloat_enemy = sp.call("_make_enemy", "bloatware")
+	_check(update_enemy is UpdateLoopEnemy and bloat_enemy is BloatwareEnemy, "spawner creates the Windows enemy cast")
+	if update_enemy != null:
+		_check(update_enemy.has_method("reinstall_duration"), "UPDATE_LOOP exposes reinstall behavior")
+	if bloat_enemy != null:
+		_check(bloat_enemy.has_method("popup_count_on_death"), "BLOATWARE exposes popup drop behavior")
+	if update_enemy is Node:
+		update_enemy.free()
+	if bloat_enemy is Node:
+		bloat_enemy.free()
+	_check(arena.has_method("windows_stage_profile"), "arena exposes Windows stage profile")
 
 func _charm_terminal_test(arena: Arena) -> void:
 	print("AT_STEP charm_terminal")

@@ -264,7 +264,7 @@ func _build_button_row() -> void:
 	add_child(_mode_info)
 	_story_btn = Button.new()
 	_style_card_button(_story_btn, Balance.COL_PLAYER, Vector2(300.0, 48.0))
-	_story_btn.text = "STORY // UNIX ACT 1"
+	_story_btn.text = "STORY // ACTS"
 	_story_btn.anchor_left = 0.5
 	_story_btn.anchor_right = 0.5
 	_story_btn.anchor_top = 0.0
@@ -351,7 +351,7 @@ func _open_story_selector() -> void:
 		_story_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_story_panel.stage_selected.connect(_start_story)
 		var title := Label.new()
-		title.text = "STORY // UNIX RECOVERY"
+		title.text = "STORY // OPERATING SYSTEMS"
 		title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
 		title.add_theme_font_size_override("font_size", 28)
 		title.add_theme_color_override("font_color", Balance.COL_TEXT)
@@ -363,7 +363,7 @@ func _open_story_selector() -> void:
 		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_story_panel.add_child(title)
 		var hint := Label.new()
-		hint.text = "CLEAR A STAGE TO MOUNT THE NEXT PATH // FIXED WAVES // SWIPE TO SCROLL"
+		hint.text = "CLEAR A STAGE TO MOUNT THE NEXT PATH // UNIX + WINDOWS // FIXED WAVES"
 		hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 		hint.add_theme_font_size_override("font_size", 13)
 		hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
