@@ -88,6 +88,11 @@ Three run modes change the rules:
 - `Q` while paused: press twice within 2 seconds to abandon the run
 - `M`: mute
 
+On desktop, open **SETTINGS** to remap movement, dash, overclock, pause,
+abandon, mute, restart, and confirm keys. Select an action and press the new
+physical key; **Escape** cancels, duplicate keys are rejected, and
+**RESET KEYBINDS** restores the defaults. Mouse aim/fire is not remapped.
+
 ## Run and build from source on Linux
 
 KERNEL PANIC is built with **Godot 4.7.2** and GDScript.

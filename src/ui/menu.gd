@@ -21,6 +21,16 @@ var _program_btn: Button
 var _aim_btn_ref: Button
 var _color_assist_btn: Button
 var _boot: BootOverlay
+var _keybind_box: VBoxContainer
+var _keybind_status: Label
+var _keybind_buttons: Dictionary = {}
+var _capture_action := ""
+
+func _desktop_keybinds_enabled() -> bool:
+	return Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
+
+func keybind_capture_visible() -> bool:
+	return _keybind_box != null and _keybind_box.visible
 
 func _refresh_aim_label(btn: Button) -> void:
 	if Game.mode == "weekly" and Sfx.aim_mode == "lockon":
@@ -494,6 +504,8 @@ func _build_settings() -> void:
 	_aim_btn_ref = aim_btn
 	_refresh_aim_label(aim_btn)
 	box.add_child(aim_btn)
+	if _desktop_keybinds_enabled():
+		_build_keybind_settings(box)
 	var touch_sz := Button.new()
 	touch_sz.flat = true
 	touch_sz.text = "TOUCH SIZE: %s" % ["SMALL", "NORMAL", "BIG"][_touch_scale_idx(Sfx.touch_scale)]
@@ -576,6 +588,121 @@ func _build_settings() -> void:
 	box.add_child(stats)
 	add_child(_settings_panel)
 
+func _build_keybind_settings(parent: VBoxContainer) -> void:
+	_keybind_box = VBoxContainer.new()
+	_keybind_box.add_theme_constant_override("separation", 7)
+	var title := Label.new()
+	title.text = "DESKTOP KEYBINDS"
+	title.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_color_override("font_color", Balance.COL_MOTE)
+	_keybind_box.add_child(title)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 5)
+	for action in Game.KEYBIND_DEFAULTS:
+		var row := HBoxContainer.new()
+		row.custom_minimum_size = Vector2(220, 28)
+		row.add_theme_constant_override("separation", 6)
+		var label := Label.new()
+		label.text = _keybind_action_label(action)
+		label.custom_minimum_size = Vector2(92, 0)
+		label.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+		label.add_theme_font_size_override("font_size", 12)
+		label.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.7))
+		row.add_child(label)
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(112, 28)
+		button.flat = true
+		button.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+		button.add_theme_font_size_override("font_size", 12)
+		button.add_theme_color_override("font_color", Balance.COL_TEXT)
+		button.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+		button.pressed.connect(_begin_keybind_capture.bind(action))
+		_keybind_buttons[action] = button
+		row.add_child(button)
+		grid.add_child(row)
+	_keybind_box.add_child(grid)
+	_keybind_status = Label.new()
+	_keybind_status.text = "SELECT A BIND TO CHANGE IT"
+	_keybind_status.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	_keybind_status.add_theme_font_size_override("font_size", 11)
+	_keybind_status.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
+	_keybind_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_keybind_box.add_child(_keybind_status)
+	var reset := Button.new()
+	reset.text = "RESET KEYBINDS"
+	reset.flat = true
+	reset.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	reset.add_theme_font_size_override("font_size", 12)
+	reset.add_theme_color_override("font_color", Balance.COL_DANGER)
+	reset.add_theme_color_override("font_hover_color", Balance.COL_PLAYER_HOT)
+	reset.pressed.connect(func() -> void:
+		Game.reset_keybinds()
+		_refresh_keybind_buttons()
+		_capture_action = ""
+		_keybind_status.text = "KEYBINDS RESET TO DEFAULTS"
+	)
+	_keybind_box.add_child(reset)
+	_refresh_keybind_buttons()
+	parent.add_child(_keybind_box)
+
+func _keybind_action_label(action: String) -> String:
+	return {
+		"move_up": "MOVE UP",
+		"move_down": "MOVE DOWN",
+		"move_left": "MOVE LEFT",
+		"move_right": "MOVE RIGHT",
+		"dash": "DASH",
+		"overclock": "OVERCLOCK",
+		"pause": "PAUSE",
+		"abandon": "ABANDON",
+		"mute": "MUTE",
+		"restart": "RESTART",
+		"confirm": "CONFIRM",
+	}.get(action, action.to_upper())
+
+func _keybind_key_name(physical_key: int) -> String:
+	var key_name := OS.get_keycode_string(physical_key)
+	return key_name if not key_name.is_empty() else "KEY %d" % physical_key
+
+func _refresh_keybind_buttons() -> void:
+	for action in _keybind_buttons:
+		var button: Button = _keybind_buttons[action]
+		button.text = _keybind_key_name(Game.get_keybind(action))
+
+func _begin_keybind_capture(action: String) -> void:
+	if not _desktop_keybinds_enabled() or not Game.KEYBIND_DEFAULTS.has(action):
+		return
+	_capture_action = action
+	_keybind_status.text = "PRESS A KEY FOR %s // ESC CANCELS" % _keybind_action_label(action)
+
+func _handle_keybind_capture(event: InputEventKey) -> bool:
+	if _capture_action.is_empty():
+		return false
+	if not event.pressed or event.echo:
+		return true
+	var physical_key := int(event.physical_keycode)
+	if physical_key <= 0:
+		return true
+	if physical_key == KEY_ESCAPE or int(event.keycode) == KEY_ESCAPE:
+		_capture_action = ""
+		_keybind_status.text = "KEYBIND CAPTURE CANCELLED"
+		return true
+	var conflict := Game.keybind_conflict(physical_key, _capture_action)
+	if conflict != "":
+		_keybind_status.text = "CONFLICT: %s IS ALREADY %s" % [_keybind_key_name(physical_key), _keybind_action_label(conflict)]
+		return true
+	var action := _capture_action
+	if not Game.set_keybind(action, physical_key):
+		_keybind_status.text = "KEYBIND REJECTED"
+		return true
+	_capture_action = ""
+	_refresh_keybind_buttons()
+	_keybind_status.text = "%s BOUND TO %s" % [_keybind_action_label(action), _keybind_key_name(physical_key)]
+	return true
+
 func _make_slider_row(label_text: String, value: float, on_change: Callable) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
@@ -615,6 +742,7 @@ func _open_settings() -> void:
 	Sfx.play("ui", 1.1, -6.0)
 
 func _close_settings() -> void:
+	_capture_action = ""
 	_settings_panel.visible = false
 	Sfx.play("ui", 0.9, -6.0)
 
@@ -743,6 +871,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _starting:
 		return
 	if _settings_panel != null and _settings_panel.visible:
+		if not _capture_action.is_empty():
+			if not _desktop_keybinds_enabled():
+				_capture_action = ""
+				return
+			if event is InputEventKey:
+				_handle_keybind_capture(event)
+				get_viewport().set_input_as_handled()
+			return
 		if event.is_action_pressed("pause"):
 			_close_settings()
 			get_viewport().set_input_as_handled()

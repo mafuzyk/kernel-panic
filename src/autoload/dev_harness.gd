@@ -415,6 +415,7 @@ func _autotest() -> void:
 		_check(int(cf_after.get_value("run", "best_classic", -1)) == 0 and Game.best == 0, "reset scores clears best_classic")
 	else:
 		_fail("menu exposes _reset_scores")
+	await _task10_test(menu_scene)
 	for node in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(node):
 			node.queue_free()
@@ -536,6 +537,101 @@ func _config_snapshot(section: String, key: String, default_value) -> Dictionary
 
 func _config_snapshot_matches(a: Dictionary, b: Dictionary) -> bool:
 	return bool(a["has_section"]) == bool(b["has_section"]) and bool(a["has_key"]) == bool(b["has_key"]) and a["value"] == b["value"]
+
+func _config_section_snapshot(section: String) -> Dictionary:
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	var snapshot := {"has_section": cf.has_section(section), "values": {}}
+	if bool(snapshot["has_section"]):
+		for key in cf.get_section_keys(section):
+			snapshot["values"][key] = cf.get_value(section, key)
+	return snapshot
+
+func _restore_config_section(section: String, snapshot: Dictionary) -> void:
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	if cf.has_section(section):
+		cf.erase_section(section)
+	if bool(snapshot["has_section"]):
+		for key in snapshot["values"]:
+			cf.set_value(section, key, snapshot["values"][key])
+	cf.save(Sfx.SAVE_PATH)
+
+func _task10_test(menu: Node) -> void:
+	print("AT_STEP task10")
+	var expected_defaults := {
+		"move_up": KEY_W,
+		"move_down": KEY_S,
+		"move_left": KEY_A,
+		"move_right": KEY_D,
+		"dash": KEY_SPACE,
+		"overclock": KEY_E,
+		"pause": KEY_ESCAPE,
+		"abandon": KEY_Q,
+		"mute": KEY_M,
+		"restart": KEY_R,
+		"confirm": KEY_ENTER,
+	}
+	var registry_ready := Game.has_method("keybind_defaults") and Game.has_method("get_keybind") and Game.has_method("set_keybind") and Game.has_method("reset_keybinds") and Game.has_method("reload_keybinds")
+	_check(registry_ready, "desktop keybind registry exposes persistence API")
+	var controls_snapshot := _config_section_snapshot("controls")
+	if registry_ready:
+		var defaults: Dictionary = Game.keybind_defaults()
+		for action in expected_defaults:
+			_check(int(defaults.get(action, -1)) == int(expected_defaults[action]), "keybind default exists for %s" % action)
+		Game.reset_keybinds()
+		_check(int(Game.get_keybind("dash")) == KEY_SPACE and _has_physical_key("dash", KEY_SPACE), "reset keybinds applies default dash")
+		var cf_controls := ConfigFile.new()
+		cf_controls.load(Sfx.SAVE_PATH)
+		cf_controls.set_value("controls", "dash", KEY_F)
+		cf_controls.set_value("run", "best_classic", 654321)
+		cf_controls.save(Sfx.SAVE_PATH)
+		Game.reload_keybinds()
+		_check(int(Game.get_keybind("dash")) == KEY_F and _has_physical_key("dash", KEY_F), "saved physical keycode loads into InputMap")
+		var dash_mouse_events := 0
+		var fire_mouse_events := 0
+		for event in InputMap.action_get_events("dash"):
+			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+				dash_mouse_events += 1
+		for event in InputMap.action_get_events("fire"):
+			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+				fire_mouse_events += 1
+		_check(dash_mouse_events == 1 and fire_mouse_events == 1, "keybind reload preserves one mouse fire/aim binding")
+		var run_after_load := ConfigFile.new()
+		run_after_load.load(Sfx.SAVE_PATH)
+		_check(int(run_after_load.get_value("run", "best_classic", 0)) == 654321, "keybind save preserves other ConfigFile sections")
+		var old_dash := int(Game.get_keybind("dash"))
+		var old_overclock := int(Game.get_keybind("overclock"))
+		_check(not bool(Game.set_keybind("overclock", old_dash)), "duplicate keybind is rejected")
+		_check(int(Game.get_keybind("dash")) == old_dash and int(Game.get_keybind("overclock")) == old_overclock, "duplicate rejection leaves original actions unchanged")
+		_check(bool(Game.set_keybind("dash", KEY_G)) and int(Game.get_keybind("dash")) == KEY_G, "new keybind assigns selected action")
+		var cf_fallback := ConfigFile.new()
+		cf_fallback.load(Sfx.SAVE_PATH)
+		cf_fallback.erase_section_key("controls", "overclock")
+		cf_fallback.save(Sfx.SAVE_PATH)
+		Game.reload_keybinds()
+		_check(int(Game.get_keybind("overclock")) == KEY_E, "missing keybind falls back to default")
+		Game.reset_keybinds()
+		_check(int(Game.get_keybind("dash")) == KEY_SPACE and int(Game.get_keybind("overclock")) == KEY_E, "reset keybinds restores all defaults")
+		_restore_config_section("controls", controls_snapshot)
+		Game.reload_keybinds()
+	var capture_api_ready := menu != null and menu.has_method("_desktop_keybinds_enabled") and menu.has_method("keybind_capture_visible")
+	_check(capture_api_ready, "menu exposes desktop-only keybind capture state")
+	if capture_api_ready:
+		var desktop_keybinds := Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
+		_check(bool(menu._desktop_keybinds_enabled()) == desktop_keybinds, "keybind capture is desktop-only and touch-gated")
+		_check(bool(menu.keybind_capture_visible()) == desktop_keybinds, "keybind capture panel visibility follows desktop gate")
+		if desktop_keybinds and menu.has_method("_begin_keybind_capture") and menu.has_method("_handle_keybind_capture"):
+			menu._begin_keybind_capture("dash")
+			menu._handle_keybind_capture(_key_event(KEY_ESCAPE))
+			_check(str(menu.get("_capture_action")) == "", "Escape cancels keybind capture")
+			menu._begin_keybind_capture("dash")
+			menu._handle_keybind_capture(_key_event(KEY_E))
+			_check(str(menu.get("_capture_action")) == "dash" and str(menu.get("_keybind_status").text).contains("CONFLICT"), "capture shows duplicate conflict without assigning")
+			menu._handle_keybind_capture(_key_event(KEY_G, true))
+			_check(str(menu.get("_capture_action")) == "dash", "echo key does not capture")
+			menu._handle_keybind_capture(_key_event(KEY_H))
+			_check(str(menu.get("_capture_action")) == "" and int(Game.get_keybind("dash")) == KEY_H, "valid key ends capture and assigns")
 
 func _color_assist_test() -> void:
 	print("AT_STEP color_assist")

@@ -34,6 +34,31 @@ var combo_left := 0.0
 var wave := 1
 var stats := {}
 var new_best := false
+var keybinds: Dictionary = {}
+
+const KEYBIND_DEFAULTS := {
+	"move_up": KEY_W,
+	"move_down": KEY_S,
+	"move_left": KEY_A,
+	"move_right": KEY_D,
+	"dash": KEY_SPACE,
+	"overclock": KEY_E,
+	"pause": KEY_ESCAPE,
+	"abandon": KEY_Q,
+	"mute": KEY_M,
+	"restart": KEY_R,
+	"confirm": KEY_ENTER,
+}
+
+const KEYBIND_ALTERNATES := {
+	"move_up": [KEY_UP],
+	"move_down": [KEY_DOWN],
+	"move_left": [KEY_LEFT],
+	"move_right": [KEY_RIGHT],
+	"dash": [KEY_SHIFT],
+	"pause": [KEY_P],
+	"confirm": [KEY_KP_ENTER],
+}
 
 func _enter_tree() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -405,26 +430,84 @@ func to_menu() -> void:
 	get_tree().call_deferred("change_scene_to_file", "res://src/ui/menu.tscn")
 
 func _setup_input() -> void:
-	_add_key_action("move_up", [KEY_W, KEY_UP])
-	_add_key_action("move_down", [KEY_S, KEY_DOWN])
-	_add_key_action("move_left", [KEY_A, KEY_LEFT])
-	_add_key_action("move_right", [KEY_D, KEY_RIGHT])
-	_add_key_action("dash", [KEY_SPACE, KEY_SHIFT])
-	_clear_key_events("overclock")
-	_add_key_action("overclock", [KEY_E])
-	_clear_key_events("abandon")
-	_add_key_action("abandon", [KEY_Q])
-	_add_key_action("pause", [KEY_ESCAPE, KEY_P])
-	_add_key_action("mute", [KEY_M])
-	_add_key_action("confirm", [KEY_ENTER, KEY_KP_ENTER])
-	_add_key_action("restart", [KEY_R])
+	_load_keybinds()
+	for action in KEYBIND_DEFAULTS:
+		_apply_keybind_to_input(action)
 	_add_mouse_action("fire", MOUSE_BUTTON_LEFT)
 	_add_mouse_action("dash", MOUSE_BUTTON_RIGHT)
+
+func keybind_defaults() -> Dictionary:
+	return KEYBIND_DEFAULTS.duplicate()
+
+func keybinds_snapshot() -> Dictionary:
+	return keybinds.duplicate()
+
+func get_keybind(action: String) -> int:
+	return int(keybinds.get(action, KEYBIND_DEFAULTS.get(action, 0)))
+
+func reload_keybinds() -> void:
+	_setup_input()
+
+func _load_keybinds() -> void:
+	keybinds.clear()
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	for action in KEYBIND_DEFAULTS:
+		var fallback := int(KEYBIND_DEFAULTS[action])
+		var saved = cf.get_value("controls", action, fallback)
+		var code := int(saved) if typeof(saved) == TYPE_INT else 0
+		keybinds[action] = code if code > 0 else fallback
+
+func keybind_conflict(physical_key: int, except_action: String = "") -> String:
+	if physical_key <= 0:
+		return "INVALID KEY"
+	for action in KEYBIND_DEFAULTS:
+		if action == except_action:
+			continue
+		if get_keybind(action) == physical_key:
+			return action
+		for alternate in KEYBIND_ALTERNATES.get(action, []):
+			if int(alternate) == physical_key:
+				return action
+	return ""
+
+func set_keybind(action: String, physical_key: int) -> bool:
+	if not KEYBIND_DEFAULTS.has(action) or physical_key <= 0:
+		return false
+	if keybind_conflict(physical_key, action) != "":
+		return false
+	keybinds[action] = physical_key
+	_apply_keybind_to_input(action)
+	_save_keybinds()
+	return true
+
+func reset_keybinds() -> void:
+	keybinds = KEYBIND_DEFAULTS.duplicate()
+	for action in KEYBIND_DEFAULTS:
+		_apply_keybind_to_input(action)
+	_save_keybinds()
+
+func _save_keybinds() -> void:
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	for action in KEYBIND_DEFAULTS:
+		cf.set_value("controls", action, get_keybind(action))
+	cf.save(Sfx.SAVE_PATH)
+
+func _apply_keybind_to_input(action: String) -> void:
+	var keys: Array = [get_keybind(action)]
+	for alternate in KEYBIND_ALTERNATES.get(action, []):
+		if not keys.has(alternate):
+			keys.append(alternate)
+	_clear_key_events(action)
+	_add_key_action(action, keys)
 
 func _add_key_action(action: String, keys: Array) -> void:
 	if not InputMap.has_action(action):
 		InputMap.add_action(action)
 	for k in keys:
+		if int(k) <= 0:
+			continue
 		var ev := InputEventKey.new()
 		ev.physical_keycode = k
 		InputMap.action_add_event(action, ev)
