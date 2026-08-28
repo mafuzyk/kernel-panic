@@ -533,11 +533,12 @@ func _config_snapshot(section: String, key: String, default_value) -> Dictionary
 func _config_snapshot_matches(a: Dictionary, b: Dictionary) -> bool:
 	return bool(a["has_section"]) == bool(b["has_section"]) and bool(a["has_key"]) == bool(b["has_key"]) and a["value"] == b["value"]
 
-func _key_event(physical_key: int) -> InputEventKey:
+func _key_event(physical_key: int, is_echo := false) -> InputEventKey:
 	var ev := InputEventKey.new()
 	ev.physical_keycode = physical_key
 	ev.keycode = physical_key
 	ev.pressed = true
+	ev.echo = is_echo
 	return ev
 
 func _has_physical_key(action: String, physical_key: int) -> bool:
@@ -573,8 +574,41 @@ func _input_safety_test(arena: Arena) -> void:
 	Game.state = Game.State.PLAYING
 	arena._set_paused(true)
 	arena._unhandled_input(_key_event(KEY_Q))
+	var stale_timer = arena.get("_abandon_timer")
+	arena._set_paused(false)
+	Game.state = Game.State.PLAYING
+	arena._set_paused(true)
+	arena._unhandled_input(_key_event(KEY_Q))
+	if stale_timer != null:
+		stale_timer.emit_signal("timeout")
+	_check(arena.get("_abandon_armed") == true, "stale abandon timer cannot clear a rearmed confirmation")
+	arena._unhandled_input(_key_event(KEY_Q))
+	_check(Game.state == Game.State.MENU, "rearmed confirmation still accepts the second Q")
+	Game.state = Game.State.PLAYING
+	arena._set_paused(true)
+	arena._unhandled_input(_key_event(KEY_Q))
+	arena._unhandled_input(_key_event(KEY_Q, true))
+	_check(Game.state == Game.State.PLAYING and arena.get("_abandon_armed") == true, "echo Q does not confirm abandon")
+	arena._unhandled_input(_key_event(KEY_Q))
+	_check(Game.state == Game.State.MENU, "physical Q after echo confirms abandon")
+	Game.state = Game.State.PLAYING
+	arena._set_paused(true)
+	arena._unhandled_input(_key_event(KEY_Q))
 	arena._set_paused(false)
 	_check(arena.get("_abandon_armed") != true, "resume clears abandon confirmation")
+	var abandon_button: Button
+	for child in arena._pause_panel.get_children():
+		if child is Button and child.text == "ABANDON PROCESS":
+			abandon_button = child
+	_check(abandon_button != null, "pause exposes abandon button")
+	Game.state = Game.State.PLAYING
+	arena._set_paused(true)
+	if abandon_button != null:
+		abandon_button.emit_signal("pressed")
+	_check(Game.state == Game.State.PLAYING and arena.get("_abandon_armed") == true, "first abandon button press arms confirmation")
+	if abandon_button != null:
+		abandon_button.emit_signal("pressed")
+	_check(Game.state == Game.State.MENU, "second abandon button press confirms within window")
 	Game.state = Game.State.PLAYING
 	arena._set_paused(true)
 	arena._unhandled_input(_key_event(KEY_Q))

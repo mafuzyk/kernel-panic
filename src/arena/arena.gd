@@ -41,6 +41,7 @@ const PAUSE_INFO_CONFIRM := "[ESC] RESUME      [R] RESTART      [Q] PRESS Q AGAI
 var _abandon_armed := false
 var _abandon_t := 0.0
 var _abandon_timer: SceneTreeTimer
+var _abandon_generation := 0
 var _pause_info: Label
 
 func _ready() -> void:
@@ -242,10 +243,7 @@ func _build_pause_panel() -> void:
 	)
 	_pause_panel.add_child(b_restart)
 	var b_menu := _make_button("ABANDON PROCESS", 420)
-	b_menu.pressed.connect(func() -> void:
-		_set_paused(false)
-		Game.to_menu()
-	)
+	b_menu.pressed.connect(_request_abandon_confirmation)
 	_pause_panel.add_child(b_menu)
 	_pause_panel.add_child(_make_volume_row("SFX", Sfx.sfx_vol, 508.0, func(v: float) -> void:
 		Sfx.set_sfx_vol(v)
@@ -859,16 +857,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		Game.start_run()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("abandon") and get_tree().paused and _state == "play":
-		if _abandon_armed and _abandon_t > 0.0:
-			_clear_abandon_confirmation()
-			_set_paused(false)
-			Game.to_menu()
-		else:
-			_abandon_armed = true
-			_abandon_t = ABANDON_CONFIRM_WINDOW
-			_pause_info.text = PAUSE_INFO_CONFIRM
-			_abandon_timer = get_tree().create_timer(ABANDON_CONFIRM_WINDOW, true, false, true)
-			_abandon_timer.timeout.connect(_on_abandon_timeout)
+		if event is InputEventKey and event.echo:
+			get_viewport().set_input_as_handled()
+			return
+		_request_abandon_confirmation()
 		get_viewport().set_input_as_handled()
 
 func _set_paused(v: bool) -> void:
@@ -884,11 +876,28 @@ func _set_paused(v: bool) -> void:
 	if not v:
 		_try_show_patch()
 
-func _on_abandon_timeout() -> void:
-	if _abandon_armed:
+func _request_abandon_confirmation() -> void:
+	if not get_tree().paused or _state != "play":
+		return
+	if _abandon_armed and _abandon_t > 0.0:
+		_clear_abandon_confirmation()
+		_set_paused(false)
+		Game.to_menu()
+		return
+	_abandon_generation += 1
+	_abandon_armed = true
+	_abandon_t = ABANDON_CONFIRM_WINDOW
+	_pause_info.text = PAUSE_INFO_CONFIRM
+	var generation := _abandon_generation
+	_abandon_timer = get_tree().create_timer(ABANDON_CONFIRM_WINDOW, true, false, true)
+	_abandon_timer.timeout.connect(_on_abandon_timeout.bind(generation))
+
+func _on_abandon_timeout(generation: int) -> void:
+	if _abandon_armed and generation == _abandon_generation:
 		_clear_abandon_confirmation()
 
 func _clear_abandon_confirmation() -> void:
+	_abandon_generation += 1
 	_abandon_armed = false
 	_abandon_t = 0.0
 	_abandon_timer = null
