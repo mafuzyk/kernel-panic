@@ -28,13 +28,13 @@ Somehow, it worked.
 
 ## Play it
 
-Grab the Android APK, or the Linux build when available, from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest).
+Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v2.4.0`.
 
 ## Install the game
 
 ### Android
 
-1. Download `KERNEL-PANIC.apk` from the latest release and open it from your browser or file manager.
+1. Download `KERNEL-PANIC-v2.4.0-release.apk` from the latest release and open it from your browser or file manager.
 2. If Android blocks the installation, allow that app to **Install unknown apps** in the system settings, then open the APK again.
 3. Confirm **Install**. The current export targets 64-bit ARM devices (`arm64-v8a`).
 
@@ -50,6 +50,10 @@ chmod +x kernel-panic
 ```
 
 For a local export from this repository, the files are generated at `build/linux-x86_64/`. The executable and its `.pck` must remain together.
+
+### Windows x86_64
+
+Download `kernel-panic.exe` and `kernel-panic.pck` from the same release and keep them in the same directory. Double-click `kernel-panic.exe` to run the game. The Windows debug build uses the matching `kernel-panic-debug.exe` and `kernel-panic-debug.pck` pair and is intended for testing.
 
 ## How it plays
 
@@ -97,7 +101,7 @@ physical key; **Escape** cancels, duplicate keys are rejected, and
 
 KERNEL PANIC is built with **Godot 4.7.2** and GDScript.
 
-1. Clone this repository and enter its directory.
+1. Clone this repository and enter its directory. The source build instructions below target Linux x86_64; the Windows release is distributed as a prebuilt executable.
 2. Open `project.godot` in Godot.
 3. Press `F5` to run the project.
 
