@@ -31,6 +31,13 @@ var _banner: Label
 var _banner_sub_l: Label
 var _score_pop := 0.0
 var _build_label: Label
+const PATCH_TOOLTIP_HOLD_TIME := 0.45
+var _patch_chip_rects: Dictionary = {}
+var _tooltip_patch_id := ""
+var _tooltip_data: Dictionary = {}
+var _tooltip_visible := false
+var _tooltip_touch_index := -1
+var _tooltip_hold_t := 0.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -169,6 +176,10 @@ func _prune_boss_fragments() -> void:
 
 func _process(delta: float) -> void:
 	_score_pop = maxf(_score_pop - delta * 4.0, 0.0)
+	if _tooltip_touch_index >= 0:
+		_tooltip_hold_t += delta
+		if _tooltip_hold_t >= PATCH_TOOLTIP_HOLD_TIME and not _tooltip_visible:
+			_show_patch_tooltip(_tooltip_patch_id)
 	if _banner_t > 0.0:
 		_banner_t -= delta
 		var k := _banner_t
@@ -208,6 +219,65 @@ func _process(delta: float) -> void:
 		_boss_frac = -1.0
 	queue_redraw()
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		if DisplayServer.is_touchscreen_available():
+			return
+		var mouse_id := _patch_id_at(event.position)
+		if mouse_id.is_empty():
+			_dismiss_patch_tooltip()
+		else:
+			_show_patch_tooltip(mouse_id)
+		return
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed:
+			_dismiss_patch_tooltip()
+			var touch_id := _patch_id_at(touch.position)
+			if not touch_id.is_empty():
+				_tooltip_touch_index = touch.index
+				_tooltip_patch_id = touch_id
+				_tooltip_hold_t = 0.0
+		elif touch.index == _tooltip_touch_index:
+			_dismiss_patch_tooltip()
+		return
+	if event is InputEventScreenDrag:
+		var drag := event as InputEventScreenDrag
+		if drag.index == _tooltip_touch_index:
+			_dismiss_patch_tooltip()
+
+func _patch_id_at(position: Vector2) -> String:
+	for id in _patch_chip_rects:
+		if _patch_chip_rects[id].has_point(position):
+			return str(id)
+	return ""
+
+func patch_chip_rect(id: String) -> Rect2:
+	return _patch_chip_rects.get(id, Rect2())
+
+func patch_tooltip_visible() -> bool:
+	return _tooltip_visible
+
+func patch_tooltip_snapshot() -> Dictionary:
+	return _tooltip_data.duplicate(true)
+
+func _show_patch_tooltip(id: String) -> void:
+	if id.is_empty() or not Game.patch_levels.has(id):
+		_dismiss_patch_tooltip()
+		return
+	_tooltip_patch_id = id
+	_tooltip_data = Game.patch_tooltip_data(id)
+	_tooltip_visible = true
+	queue_redraw()
+
+func _dismiss_patch_tooltip() -> void:
+	_tooltip_patch_id = ""
+	_tooltip_data.clear()
+	_tooltip_visible = false
+	_tooltip_touch_index = -1
+	_tooltip_hold_t = 0.0
+	queue_redraw()
+
 func _draw() -> void:
 	var f := _mono
 	_hp_pips(f)
@@ -218,6 +288,7 @@ func _draw() -> void:
 		_boss_split_bar(f)
 	elif _boss_frac >= 0.0:
 		_boss_bar(f)
+	_draw_patch_tooltip(f)
 
 func _hp_pips(f: Font) -> void:
 	var base := Vector2(_safe_side_margin(), hud_top_y(12.0))
@@ -266,7 +337,8 @@ func _oc_bar(f: Font) -> void:
 	_patch_chips(f)
 
 func _patch_chips(f: Font) -> void:
-	if Game.patch_levels.is_empty():
+	_update_patch_chip_rects()
+	if _patch_chip_rects.is_empty():
 		return
 	var x := _safe_side_margin()
 	var y := hud_top_y(68.0)
@@ -274,11 +346,39 @@ func _patch_chips(f: Font) -> void:
 		var code: String = Game.PATCH_CODES.get(id, id.substr(0, 2).to_upper())
 		var lvl := int(Game.patch_levels[id])
 		var txt := "%s%d" % [code, lvl]
-		var w := 30.0
-		draw_rect(Rect2(x, y, w, 15), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.10))
-		draw_rect(Rect2(x, y, w, 15), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.35), false, 1.0)
+		var chip_rect: Rect2 = _patch_chip_rects[id]
+		draw_rect(chip_rect, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.10))
+		draw_rect(chip_rect, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.35), false, 1.0)
 		draw_string(f, Vector2(x + 4, y + 11.5), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.75))
-		x += w + 5.0
+		x += chip_rect.size.x + 5.0
+
+func _update_patch_chip_rects() -> void:
+	_patch_chip_rects.clear()
+	if Game.patch_levels.is_empty():
+		return
+	var x := _safe_side_margin()
+	var y := hud_top_y(68.0)
+	for id in Game.patch_levels:
+		var chip_rect := Rect2(x, y, 30.0, 15.0)
+		_patch_chip_rects[id] = chip_rect
+		x += chip_rect.size.x + 5.0
+
+func _draw_patch_tooltip(f: Font) -> void:
+	if not _tooltip_visible or _tooltip_data.is_empty() or not _patch_chip_rects.has(_tooltip_patch_id):
+		return
+	var width := minf(390.0, maxf(size.x - 24.0, 220.0))
+	var height := 76.0
+	var chip_rect: Rect2 = _patch_chip_rects[_tooltip_patch_id]
+	var pos := chip_rect.position + Vector2(0, chip_rect.size.y + 8.0)
+	if pos.y + height > size.y - 8.0:
+		pos.y = chip_rect.position.y - height - 8.0
+	pos.x = clampf(pos.x, 12.0, maxf(12.0, size.x - width - 12.0))
+	var panel := Rect2(pos, Vector2(width, height))
+	draw_rect(panel, Color(0.01, 0.02, 0.05, 0.96))
+	draw_rect(panel, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.8), false, 1.5)
+	draw_string(f, pos + Vector2(10, 18), str(_tooltip_data.get("title", "PATCH")), HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 13, Balance.COL_TEXT)
+	draw_string(f, pos + Vector2(10, 36), "LEVEL %d // %s" % [int(_tooltip_data.get("level", 0)), str(_tooltip_data.get("description", ""))], HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 11, Balance.COL_TEXT)
+	draw_string(f, pos + Vector2(10, 57), str(_tooltip_data.get("relation", "NO DIRECT INTERACTION")), HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 10, Balance.COL_MOTE)
 
 func _mult_chip(f: Font) -> void:
 	if _mult <= 1:

@@ -418,6 +418,7 @@ func _autotest() -> void:
 	var run_before_task10 := _config_section_snapshot("run")
 	await _task10_test(menu_scene)
 	_check(_config_sections_equal(run_before_task10, _config_section_snapshot("run")), "task10 restores run config section")
+	await _task11_test(menu_scene)
 	for node in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(node):
 			node.queue_free()
@@ -653,6 +654,72 @@ func _task10_test(menu: Node) -> void:
 			_check(reset_button != null, "keybind reset remains reachable inside settings scroll")
 		menu._close_settings()
 	_restore_config_section("run", run_snapshot)
+
+func _task11_test(menu: Node) -> void:
+	print("AT_STEP task11")
+	var metadata_ready := Game.has_method("patch_tooltip_data") and Game.has_method("patch_relation")
+	_check(metadata_ready, "patch tooltip metadata API exists")
+	if metadata_ready:
+		Game.patch_levels = {"heavy": 1, "splitshot": 1}
+		var heavy_info: Dictionary = Game.patch_tooltip_data("heavy")
+		_check(str(heavy_info.get("title", "")) == "HEAVY ROUNDS" and str(heavy_info.get("description", "")) != "" and int(heavy_info.get("level", 0)) == 1, "patch tooltip exposes full title description and level")
+		_check(str(heavy_info.get("relation", "")).contains("TRADEOFF") and str(heavy_info.get("relation", "")).contains("FIRE RATE"), "heavy and splitshot expose documented fire-rate tradeoff")
+		_check(Game.patch_relation("heavy", "ricochet") == "NO DIRECT INTERACTION", "unknown patch relation makes no invented claim")
+	var hud := Hud.new()
+	hud.size = Vector2(1280, 720)
+	add_child(hud)
+	await _ticks(1)
+	var tooltip_api_ready := hud.has_method("patch_chip_rect") and hud.has_method("patch_tooltip_visible") and hud.has_method("patch_tooltip_snapshot")
+	_check(tooltip_api_ready, "HUD exposes patch tooltip hit state")
+	if tooltip_api_ready:
+		hud._update_patch_chip_rects()
+		var chip_rect: Rect2 = hud.patch_chip_rect("heavy")
+		_check(chip_rect.size.x > 0.0 and chip_rect.size.y > 0.0, "active patch chip exposes hit rectangle")
+		var mouse_motion := InputEventMouseMotion.new()
+		mouse_motion.position = chip_rect.get_center()
+		hud._input(mouse_motion)
+		_check(hud.patch_tooltip_visible(), "desktop hover shows patch tooltip")
+		var tooltip_snapshot: Dictionary = hud.patch_tooltip_snapshot()
+		_check(str(tooltip_snapshot.get("title", "")) == "HEAVY ROUNDS" and int(tooltip_snapshot.get("level", 0)) == 1, "hover tooltip contains active patch data")
+		var touch_down := InputEventScreenTouch.new()
+		touch_down.index = 41
+		touch_down.pressed = true
+		touch_down.position = chip_rect.get_center()
+		hud._input(touch_down)
+		hud._process(0.44)
+		_check(not hud.patch_tooltip_visible(), "touch hold below threshold stays hidden")
+		hud._process(0.02)
+		_check(hud.patch_tooltip_visible(), "touch hold at threshold shows patch tooltip")
+		var touch_drag := InputEventScreenDrag.new()
+		touch_drag.index = 41
+		touch_drag.position = chip_rect.get_center() + Vector2(20, 0)
+		hud._input(touch_drag)
+		_check(not hud.patch_tooltip_visible(), "touch movement dismisses patch tooltip")
+		touch_down.position = chip_rect.get_center()
+		hud._input(touch_down)
+		hud._process(0.5)
+		var paused_before := get_tree().paused
+		var touch_up := InputEventScreenTouch.new()
+		touch_up.index = 41
+		touch_up.pressed = false
+		touch_up.position = chip_rect.get_center()
+		hud._input(touch_up)
+		_check(not hud.patch_tooltip_visible() and get_tree().paused == paused_before, "touch release dismisses tooltip without pausing")
+	Game.patch_levels = {}
+	hud.queue_free()
+	await _ticks(2)
+	var saved_mode := Game.mode
+	var saved_aim := Sfx.aim_mode
+	Game.mode = "weekly"
+	Sfx.aim_mode = "lockon"
+	_check(Game.effective_aim_mode() == "lockon", "weekly keeps saved local lock-on mode")
+	if menu != null and menu.has_method("_refresh_mode_ui") and menu.has_method("_refresh_aim_label"):
+		menu._refresh_mode_ui()
+		menu._refresh_aim_label(menu.get("_aim_btn_ref"))
+		_check(not str(menu.get("_mode_info").text).contains("BLOCKED") and str(menu.get("_mode_info").text).contains("LOCAL"), "weekly menu explains local deterministic play")
+		_check(not str(menu.get("_aim_btn_ref").text).contains("BLOCKED"), "weekly menu does not block lock-on")
+	Game.mode = saved_mode
+	Sfx.aim_mode = saved_aim
 
 func _color_assist_test() -> void:
 	print("AT_STEP color_assist")
@@ -2324,8 +2391,8 @@ func _touch_test() -> void:
 	Game.mode = "weekly"
 	_press(Vector2(900, 400), true, 13)
 	await _ticks(10)
-	_check(not player.lockon_active, "lockon blocked in weekly")
-	_check(Game.effective_aim_mode() == "stick", "weekly downgrades lockon to stick")
+	_check(player.lockon_active, "lockon remains active in weekly")
+	_check(Game.effective_aim_mode() == "lockon", "weekly keeps saved lockon mode")
 	_press(Vector2(900, 400), false, 13)
 	_check(Sfx.aim_mode == "lockon", "weekly does not erase saved aim preference")
 	Sfx.aim_mode = saved_aim

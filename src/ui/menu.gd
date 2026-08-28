@@ -33,10 +33,7 @@ func keybind_capture_visible() -> bool:
 	return _keybind_box != null and _keybind_box.visible
 
 func _refresh_aim_label(btn: Button) -> void:
-	if Game.mode == "weekly" and Sfx.aim_mode == "lockon":
-		btn.text = "AIM MODE: LOCK-ON // BLOCKED IN WEEKLY"
-	else:
-		btn.text = "AIM MODE: %s" % Sfx.aim_mode.to_upper()
+	btn.text = "AIM MODE: %s" % Game.effective_aim_mode().to_upper()
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -408,7 +405,7 @@ func _refresh_mode_ui() -> void:
 			_mode_btn.text = "MODE: WEEKLY RUN"
 			var cur := int(cf.get_value("weekly", "best", 0)) if cf.get_value("weekly", "id", "") == Game.week_id() else 0
 			var last := int(cf.get_value("weekly", "last_best", 0))
-			_mode_info.text = "WEEK %s // BEST %d // LAST %d" % [Game.week_id(), cur, last]
+			_mode_info.text = "WEEK %s // LOCAL DETERMINISTIC // BEST %d // LAST %d" % [Game.week_id(), cur, last]
 		"onehp":
 			_mode_btn.text = "MODE: ONE-HP"
 			_mode_info.text = "1 INTEGRITY // SCORE x3 // BEST %d" % int(cf.get_value("run", "best_onehp", 0))
@@ -505,8 +502,6 @@ func _build_settings() -> void:
 	aim_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	aim_btn.pressed.connect(func() -> void:
 		var order := ["drag", "stick", "lockon"]
-		if Game.mode == "weekly":
-			order = ["drag", "stick"]
 		Sfx.aim_mode = order[(order.find(Sfx.aim_mode) + 1) % order.size()]
 		_refresh_aim_label(aim_btn)
 		Sfx.save_settings()

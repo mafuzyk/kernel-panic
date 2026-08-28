@@ -67,7 +67,7 @@ Your first arena run introduces movement and dash timing, then surfaces a short 
 Three run modes change the rules:
 
 - **Classic** is the full escalating run.
-- **Weekly Run** uses a shared deterministic seed.
+- **Weekly Run** uses a shared local deterministic seed; your selected aim mode, including lock-on, remains active.
 - **One-HP** gives you one mistake and no excuses.
 
 ## Controls

@@ -155,8 +155,6 @@ func unlock_onehp() -> void:
 	cf.save(Sfx.SAVE_PATH)
 
 func effective_aim_mode() -> String:
-	if mode == "weekly" and Sfx.aim_mode == "lockon":
-		return "stick"
 	return Sfx.aim_mode
 
 func score_mult() -> int:
@@ -225,6 +223,37 @@ func bestiary_seen(id: String) -> bool:
 	return bestiary.has(id)
 
 const PATCH_CODES := {"rapid": "RP", "cell": "OC", "magnet": "MG", "hp": "HP", "dash": "PH", "frag": "FR", "threads": "TH", "chain": "CH", "core": "HC", "restore": "SR", "light": "LF", "mdash": "MD", "heavy": "HV", "ricochet": "RC", "pdash": "PD", "staticf": "SF", "vampic": "VP", "recycler": "RY", "dataleech": "DL", "splitshot": "SP", "secondwind": "SW", "thorns": "TN", "turbo": "TD", "scrapdiet": "SD", "shield": "SH", "absorb": "AB"}
+
+const PATCH_RELATIONS := {
+	"heavy": {"splitshot": "TRADEOFF: HEAVY + SPLITSHOT BOTH REDUCE FIRE RATE"},
+	"splitshot": {"heavy": "TRADEOFF: HEAVY + SPLITSHOT BOTH REDUCE FIRE RATE"},
+}
+
+func patch_relation(id: String, other_id: String) -> String:
+	return str(PATCH_RELATIONS.get(id, {}).get(other_id, "NO DIRECT INTERACTION"))
+
+func patch_tooltip_data(id: String, active_ids: Array = []) -> Dictionary:
+	var definition: Dictionary = {}
+	for candidate in PATCH_DEFS:
+		if str(candidate.get("id", "")) == id:
+			definition = candidate
+			break
+	var active: Array = active_ids if not active_ids.is_empty() else patch_levels.keys()
+	var relation := "NO DIRECT INTERACTION"
+	for other_id in active:
+		if str(other_id) == id:
+			continue
+		var candidate_relation := patch_relation(id, str(other_id))
+		if candidate_relation != "NO DIRECT INTERACTION":
+			relation = candidate_relation
+			break
+	return {
+		"id": id,
+		"title": str(definition.get("title", id.to_upper())),
+		"description": str(definition.get("desc", "UNKNOWN PATCH")),
+		"level": patch_level(id),
+		"relation": relation,
+	}
 
 func build_string() -> String:
 	if patch_levels.is_empty():
