@@ -595,6 +595,8 @@ func _color_assist_test() -> void:
 	_check(splitter.has_method("color_assist_marker") and splitter.color_assist_marker() == "SPLIT", "Splitter exposes code-drawn assist marker")
 	_check(bulwark.has_method("color_assist_marker") and bulwark.color_assist_marker() == "BULW", "Bulwark exposes code-drawn assist marker")
 	_check(splitter_source.contains("draw_string") and bulwark_source.contains("draw_string") and not splitter_source.contains(".png") and not bulwark_source.contains(".png"), "threat markers use code drawing without images")
+	var bestiary_source := FileAccess.get_file_as_string("res://src/ui/bestiary_panel.gd")
+	_check(bestiary_source.contains("_draw_color_assist_marker") and bestiary_source.contains("SPLIT") and bestiary_source.contains("BULW") and bestiary_source.contains("Sfx.color_assist"), "bestiary draws assist markers beside Splitter and Bulwark glyphs")
 	splitter.free()
 	bulwark.free()
 

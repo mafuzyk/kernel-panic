@@ -167,12 +167,14 @@ func _draw_glyph(id: String, c: Color) -> void:
 			draw_circle(Vector2.ZERO, 15, Color(c.r, c.g, c.b, 0.15))
 			draw_arc(Vector2.ZERO, 15, 0, TAU, 28, c, 1.5, true)
 			draw_line(Vector2(-8, 0), Vector2(8, 0), c, 1.5)
+			_draw_color_assist_marker("SPLIT", c)
 		"bulwark":
 			var pts := PackedVector2Array([Vector2(12, 12), Vector2(-12, 12), Vector2(-12, -12), Vector2(12, -12)])
 			draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.15))
 			draw_polyline(pts + PackedVector2Array([pts[0]]), c, 2.0, true)
 			draw_line(Vector2(-6, -6), Vector2(6, 6), Color(c.r, c.g, c.b, 0.7), 1.5)
 			draw_line(Vector2(-6, 6), Vector2(6, -6), Color(c.r, c.g, c.b, 0.7), 1.5)
+			_draw_color_assist_marker("BULW", c)
 		"trojan":
 			var pts := PackedVector2Array([Vector2(0, -15), Vector2(9, 0), Vector2(0, 15), Vector2(-9, 0)])
 			draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.2))
@@ -222,3 +224,11 @@ func _draw_glyph(id: String, c: Color) -> void:
 				draw_circle(Vector2.from_angle(TAU * i / 5.0) * 22, 3.0, Color(c.r, c.g, c.b, 0.7))
 			var tri := PackedVector2Array([Vector2(8, 0), Vector2(-6, 7), Vector2(-6, -7)])
 			draw_polyline(tri + PackedVector2Array([tri[0]]), c, 1.5, true)
+
+func _draw_color_assist_marker(label: String, c: Color) -> void:
+	if not Sfx.color_assist:
+		return
+	var center := Vector2(30.0, -20.0)
+	draw_circle(center, 10.0, Color(c.r, c.g, c.b, 0.14))
+	draw_arc(center, 10.0, 0.0, TAU, 20, c, 1.2, true)
+	draw_string(ThemeDB.fallback_font, center + Vector2(-18.0, 3.0), label, HORIZONTAL_ALIGNMENT_CENTER, 36.0, 8, c)
