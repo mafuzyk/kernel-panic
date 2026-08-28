@@ -411,6 +411,7 @@ func _autotest() -> void:
 		if c is Label and c.text.begins_with("KERNEL PANIC v" + expected_ver):
 			ver_ok = true
 	_check(ver_ok, "menu version matches project setting (%s)" % expected_ver)
+	await _charm_save_transfer_test(menu_scene)
 	if menu_scene.has_method("_reset_scores"):
 		menu_scene._reset_scores()
 		var cf_after := ConfigFile.new()
@@ -2421,6 +2422,52 @@ func _charm_speedrun_test(arena: Arena) -> void:
 	Game.event_log = saved_events
 	Game.run_seed = saved_seed
 	_restore_config_section("achievements", achievement_disk)
+
+func _charm_save_transfer_test(menu: Node) -> void:
+	print("AT_STEP charm_save_transfer")
+	_check(Game.has_method("export_save_string") and Game.has_method("import_save_string"), "game exposes save transfer API")
+	_check(menu.has_method("_export_save_to_clipboard") and menu.has_method("_import_save_from_clipboard"), "settings exposes save transfer actions")
+	if not Game.has_method("export_save_string") or not Game.has_method("import_save_string"):
+		return
+	var saved_sections := {}
+	for section in ["run", "weekly", "bestiary", "programs", "achievements"]:
+		saved_sections[section] = _config_section_snapshot(section)
+	var saved_state := Game.state
+	var saved_stats: Dictionary = Game.stats.duplicate(true)
+	var saved_mode := Game.mode
+	var saved_program := Game.program
+	var saved_bestiary: Dictionary = Game.bestiary.duplicate(true)
+	var saved_unlocked: Dictionary = Game.unlocked_programs.duplicate(true)
+	var saved_achievements: Dictionary = Game.achievements.duplicate(true)
+	var fixture := ConfigFile.new()
+	fixture.load(Sfx.SAVE_PATH)
+	fixture.set_value("run", "best_classic", 24680)
+	fixture.set_value("run", "best_onehp", 13579)
+	fixture.set_value("run", "onehp_unlocked", true)
+	fixture.set_value("run", "program", "daemon")
+	fixture.set_value("bestiary", "seen", {"drone": true, "oom": true})
+	fixture.set_value("programs", "unlocked", {"kernel": true, "daemon": true})
+	fixture.set_value("achievements", "unlocked", {"first_blood": true})
+	fixture.save(Sfx.SAVE_PATH)
+	Game.call("_load_run_config")
+	var encoded := str(Game.export_save_string())
+	_check(encoded.length() > 20 and not encoded.contains("24680"), "save export is a compact encoded string")
+	Game.best = 0
+	Game.bestiary = {}
+	Game.unlocked_programs = {"kernel": true}
+	Game.achievements = {}
+	_check(bool(Game.import_save_string(encoded)), "save import accepts a valid transfer string")
+	_check(Game.best == 24680 and Game.bestiary.has("oom") and Game.unlocked_programs.has("daemon") and Game.achievements.has("first_blood"), "save import restores progress, records, unlocks, and achievements")
+	_check(not bool(Game.import_save_string("not-a-save")), "save import rejects malformed data")
+	for section in saved_sections:
+		_restore_config_section(section, saved_sections[section])
+	Game.state = saved_state
+	Game.stats = saved_stats
+	Game.mode = saved_mode
+	Game.program = saved_program
+	Game.bestiary = saved_bestiary
+	Game.unlocked_programs = saved_unlocked
+	Game.achievements = saved_achievements
 
 func _touch_test() -> void:
 	var arena: Arena = get_tree().current_scene

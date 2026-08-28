@@ -37,6 +37,8 @@ const ACHIEVEMENT_DEFS := {
 	"terminal_operator": "TERMINAL_OPERATOR",
 	"integrity_restored": "INTEGRITY_RESTORED",
 }
+const SAVE_TRANSFER_FORMAT := "kernel-panic-save"
+const SAVE_TRANSFER_VERSION := 1
 
 const COMBO_WINDOW := Balance.COMBO_WINDOW
 
@@ -443,6 +445,79 @@ func core_dump_text() -> String:
 	if tail_text.is_empty():
 		tail_text = "no recent events"
 	return "SEGFAULT AT player.hp=0 // state dumped\nKILLER %s // HITS %d\nBUILD %s // %s // %s" % [str(stats.get("killer", "DAEMON")), int(stats.get("damage", 0)), build_string(), run_seed_text(), tail_text]
+
+func export_save_string() -> String:
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	var payload := {
+		"format": SAVE_TRANSFER_FORMAT,
+		"version": SAVE_TRANSFER_VERSION,
+		"run": {
+			"best_classic": int(cf.get_value("run", "best_classic", best)),
+			"best_onehp": int(cf.get_value("run", "best_onehp", 0)),
+			"onehp_unlocked": bool(cf.get_value("run", "onehp_unlocked", onehp_unlocked)),
+			"program": str(cf.get_value("run", "program", program)),
+		},
+		"weekly": {
+			"id": str(cf.get_value("weekly", "id", "")),
+			"best": int(cf.get_value("weekly", "best", 0)),
+			"last_id": str(cf.get_value("weekly", "last_id", "")),
+			"last_best": int(cf.get_value("weekly", "last_best", 0)),
+		},
+		"bestiary": _known_bool_map(bestiary, BESTIARY_MAP.values()),
+		"programs": _known_bool_map(unlocked_programs, PROGRAM_DEFS.keys()),
+		"achievements": _known_bool_map(achievements, ACHIEVEMENT_DEFS.keys()),
+	}
+	return Marshalls.raw_to_base64(JSON.stringify(payload).to_utf8_buffer())
+
+func import_save_string(encoded: String) -> bool:
+	var raw_text := encoded.strip_edges()
+	if raw_text.is_empty() or raw_text.length() > 20000:
+		return false
+	var base64_re := RegEx.new()
+	base64_re.compile("^[A-Za-z0-9+/]*={0,2}$")
+	if raw_text.length() % 4 != 0 or base64_re.search(raw_text) == null:
+		return false
+	var raw := Marshalls.base64_to_raw(raw_text)
+	if raw.is_empty():
+		return false
+	var parsed = JSON.parse_string(raw.get_string_from_utf8())
+	if typeof(parsed) != TYPE_DICTIONARY or parsed.get("format", "") != SAVE_TRANSFER_FORMAT or int(parsed.get("version", 0)) != SAVE_TRANSFER_VERSION:
+		return false
+	var run_data: Dictionary = parsed.get("run", {})
+	var weekly_data: Dictionary = parsed.get("weekly", {})
+	if not run_data is Dictionary or not weekly_data is Dictionary:
+		return false
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("run", "best_classic", maxi(int(run_data.get("best_classic", 0)), 0))
+	cf.set_value("run", "best_onehp", maxi(int(run_data.get("best_onehp", 0)), 0))
+	cf.set_value("run", "onehp_unlocked", bool(run_data.get("onehp_unlocked", false)))
+	var imported_program := str(run_data.get("program", "kernel"))
+	cf.set_value("run", "program", imported_program if PROGRAM_DEFS.has(imported_program) else "kernel")
+	cf.set_value("weekly", "id", str(weekly_data.get("id", "")))
+	cf.set_value("weekly", "best", maxi(int(weekly_data.get("best", 0)), 0))
+	cf.set_value("weekly", "last_id", str(weekly_data.get("last_id", "")))
+	cf.set_value("weekly", "last_best", maxi(int(weekly_data.get("last_best", 0)), 0))
+	cf.set_value("bestiary", "seen", _known_bool_map(parsed.get("bestiary", {}), BESTIARY_MAP.values()))
+	var imported_programs := _known_bool_map(parsed.get("programs", {}), PROGRAM_DEFS.keys())
+	imported_programs["kernel"] = true
+	cf.set_value("programs", "unlocked", imported_programs)
+	cf.set_value("achievements", "unlocked", _known_bool_map(parsed.get("achievements", {}), ACHIEVEMENT_DEFS.keys()))
+	if cf.save(Sfx.SAVE_PATH) != OK:
+		return false
+	_load_run_config()
+	return true
+
+func _known_bool_map(raw, allowed: Array) -> Dictionary:
+	var result := {}
+	if typeof(raw) != TYPE_DICTIONARY:
+		return result
+	for key in allowed:
+		var id := str(key)
+		if bool(raw.get(id, false)):
+			result[id] = true
+	return result
 
 func patch_level(id: String) -> int:
 	return int(patch_levels.get(id, 0))

@@ -25,6 +25,8 @@ var _keybind_box: VBoxContainer
 var _keybind_status: Label
 var _keybind_buttons: Dictionary = {}
 var _capture_action := ""
+var _save_transfer_field: LineEdit
+var _save_transfer_status: Label
 
 func _desktop_keybinds_enabled() -> bool:
 	return Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
@@ -554,6 +556,49 @@ func _build_settings() -> void:
 		Sfx.save_settings()
 	)
 	box.add_child(run_info)
+	var transfer_title := Label.new()
+	transfer_title.text = "SAVE TRANSFER // PHONE ↔ PC"
+	transfer_title.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	transfer_title.add_theme_font_size_override("font_size", 14)
+	transfer_title.add_theme_color_override("font_color", Balance.COL_MOTE)
+	box.add_child(transfer_title)
+	_save_transfer_field = LineEdit.new()
+	_save_transfer_field.placeholder_text = "BASE64 SAVE STRING // PASTE HERE"
+	_save_transfer_field.custom_minimum_size = Vector2(0.0, 38.0)
+	_save_transfer_field.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	_save_transfer_field.add_theme_font_size_override("font_size", 11)
+	_save_transfer_field.add_theme_color_override("font_color", Balance.COL_TEXT)
+	box.add_child(_save_transfer_field)
+	var transfer_row := HBoxContainer.new()
+	transfer_row.add_theme_constant_override("separation", 8)
+	var export_btn := Button.new()
+	export_btn.text = "COPY EXPORT"
+	export_btn.flat = true
+	export_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	export_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	export_btn.add_theme_font_size_override("font_size", 13)
+	export_btn.add_theme_color_override("font_color", Balance.COL_TEXT)
+	export_btn.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+	export_btn.pressed.connect(_export_save_to_clipboard)
+	transfer_row.add_child(export_btn)
+	var import_btn := Button.new()
+	import_btn.text = "IMPORT PASTE"
+	import_btn.flat = true
+	import_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	import_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	import_btn.add_theme_font_size_override("font_size", 13)
+	import_btn.add_theme_color_override("font_color", Balance.COL_TEXT)
+	import_btn.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+	import_btn.pressed.connect(_import_save_from_clipboard)
+	transfer_row.add_child(import_btn)
+	box.add_child(transfer_row)
+	_save_transfer_status = Label.new()
+	_save_transfer_status.text = "EXPORT INCLUDES RECORDS, BESTIARY, PROGRAMS, ACHIEVEMENTS"
+	_save_transfer_status.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	_save_transfer_status.add_theme_font_size_override("font_size", 10)
+	_save_transfer_status.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
+	_save_transfer_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(_save_transfer_status)
 	var reset := Button.new()
 	reset.flat = true
 	reset.text = "RESET HIGH SCORE"
@@ -764,6 +809,28 @@ func _close_settings() -> void:
 	_capture_action = ""
 	_settings_panel.visible = false
 	Sfx.play("ui", 0.9, -6.0)
+
+func _export_save_to_clipboard() -> void:
+	if _save_transfer_field == null or not is_instance_valid(_save_transfer_field):
+		return
+	var encoded := Game.export_save_string()
+	_save_transfer_field.text = encoded
+	DisplayServer.clipboard_set(encoded)
+	_save_transfer_status.text = "SAVE EXPORTED // COPIED TO CLIPBOARD"
+
+func _import_save_from_clipboard() -> void:
+	if _save_transfer_field == null or not is_instance_valid(_save_transfer_field):
+		return
+	var encoded := _save_transfer_field.text.strip_edges()
+	if encoded.is_empty():
+		encoded = DisplayServer.clipboard_get().strip_edges()
+	if Game.import_save_string(encoded):
+		_save_transfer_field.text = encoded
+		_save_transfer_status.text = "SAVE IMPORTED // PROGRESS RESTORED"
+		_refresh_mode_ui()
+		_refresh_program_label()
+	else:
+		_save_transfer_status.text = "IMPORT REJECTED // INVALID SAVE STRING"
 
 func _refresh_color_assist_label() -> void:
 	if _color_assist_btn != null:
