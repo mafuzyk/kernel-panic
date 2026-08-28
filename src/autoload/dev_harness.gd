@@ -1,5 +1,23 @@
 extends Node
 
+class OnboardingFixtureGuard extends RefCounted:
+	var _cleanup: Callable
+	var _closed := false
+
+	func _init(cleanup: Callable) -> void:
+		_cleanup = cleanup
+
+	func keep_alive() -> void:
+		pass
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_PREDELETE:
+			if _closed:
+				return
+			_closed = true
+			if _cleanup.is_valid():
+				_cleanup.call()
+
 var active := false
 var _fails := 0
 
@@ -117,17 +135,12 @@ func _autotest() -> void:
 	var player: Player = arena.player
 	_check(player != null and is_instance_valid(player), "player exists")
 	_check(arena.spawner != null, "spawner exists")
-	var onboarding_bestiary_before: Dictionary = Game.bestiary.duplicate(true)
-	var onboarding_tutorial_before: Dictionary = Game.get("tutorial").duplicate(true)
-	var onboarding_bestiary_disk_before := _config_snapshot("bestiary", "seen", {})
 	var onboarding_tutorial_disk_before := _config_snapshot("tutorial", "hints", {})
 	await _onboarding_test(arena)
-	if OS.get_environment("KP_ONBOARDING_EARLY_EXIT") != "":
-		_check(_config_snapshot_matches(onboarding_tutorial_disk_before, _config_snapshot("tutorial", "hints", {})), "early onboarding exit restores tutorial hints ConfigFile section")
-		Game.bestiary = onboarding_bestiary_before
-		Game.tutorial = onboarding_tutorial_before
-		_restore_config_snapshot("bestiary", "seen", onboarding_bestiary_disk_before)
-		_restore_config_snapshot("tutorial", "hints", onboarding_tutorial_disk_before)
+	await _ticks(1)
+	var onboarding_abort_path := OS.get_environment("KP_ONBOARDING_ABORT") != ""
+	var onboarding_restore_label := "aborted onboarding probe restores tutorial hints ConfigFile section" if onboarding_abort_path else "onboarding probe restores tutorial hints ConfigFile section"
+	_check(_config_snapshot_matches(onboarding_tutorial_disk_before, _config_snapshot("tutorial", "hints", {})), onboarding_restore_label)
 	await _ticks(30)
 	_check(Game.wave == 1, "wave 1 started")
 	_check(arena.wave_signal_count >= 1, "wave_started signal received for wave 1")
@@ -413,6 +426,9 @@ func _onboarding_test(arena: Arena) -> void:
 	var saved_tutorial: Dictionary = Game.get("tutorial").duplicate(true)
 	var saved_tutorial_disk := _config_snapshot("tutorial", "hints", {})
 	var saved_run_best_disk := _config_snapshot("run", "best_classic", 0)
+	var fixture_guard := OnboardingFixtureGuard.new(func() -> void:
+		_restore_onboarding_fixture(saved_bestiary, saved_tutorial, saved_bestiary_disk, saved_tutorial_disk)
+	)
 	Game.bestiary.clear()
 	var sighting_unlocks := {}
 	var sighting_cb := func(id: String) -> void:
@@ -480,11 +496,13 @@ func _onboarding_test(arena: Arena) -> void:
 	hud._banner_sub = saved_banner_sub
 	hud._hint_queue = saved_hint_queue
 	hud._hint_queue_ids = saved_hint_queue_ids
-	var onboarding_exit_early := OS.get_environment("KP_ONBOARDING_EARLY_EXIT") != ""
-	_restore_onboarding_fixture(saved_bestiary, saved_tutorial, saved_bestiary_disk, saved_tutorial_disk)
-	if onboarding_exit_early:
+	if OS.get_environment("KP_ONBOARDING_ABORT") != "":
+		fixture_guard.keep_alive()
 		return
-	_check(_config_snapshot_matches(saved_tutorial_disk, _config_snapshot("tutorial", "hints", {})), "onboarding probe restores tutorial hints ConfigFile section")
+	if OS.get_environment("KP_ONBOARDING_EARLY_EXIT") != "":
+		fixture_guard.keep_alive()
+		return
+	fixture_guard.keep_alive()
 
 func _restore_onboarding_fixture(saved_bestiary: Dictionary, saved_tutorial: Dictionary, saved_bestiary_disk: Dictionary, saved_tutorial_disk: Dictionary) -> void:
 	Game.bestiary = saved_bestiary
