@@ -49,6 +49,7 @@ var _abandon_timer: SceneTreeTimer
 var _abandon_generation := 0
 var _pause_info: Label
 var _debug_panel: Control
+var _terminal_panel: Control
 
 func _ready() -> void:
 	add_to_group("arena")
@@ -79,6 +80,7 @@ func _ready() -> void:
 	add_child(overlay)
 	_build_patch_ui()
 	_build_pause_panel()
+	_build_terminal_panel()
 	_build_game_over_panel()
 	_build_intro()
 	if debug_controls_enabled():
@@ -350,12 +352,43 @@ func _build_pause_panel() -> void:
 	var b_menu := _make_button("ABANDON PROCESS", 420)
 	b_menu.pressed.connect(_request_abandon_confirmation)
 	_pause_panel.add_child(b_menu)
+	var b_terminal := _make_button("OPEN TERMINAL", 460)
+	b_terminal.pressed.connect(_open_terminal)
+	_pause_panel.add_child(b_terminal)
 	_pause_panel.add_child(_make_volume_row("SFX", Sfx.sfx_vol, 508.0, func(v: float) -> void:
 		Sfx.set_sfx_vol(v)
 	))
 	_pause_panel.add_child(_make_volume_row("MUSIC", Sfx.music_vol, 556.0, func(v: float) -> void:
 		Sfx.set_music_vol(v)
 	))
+
+func _build_terminal_panel() -> void:
+	var terminal_script: Script = load("res://src/ui/terminal_panel.gd")
+	if terminal_script == null:
+		return
+	_terminal_panel = terminal_script.new()
+	_terminal_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_terminal_panel.set("arena", self)
+	_terminal_panel.visible = false
+	var layer := CanvasLayer.new()
+	layer.layer = 66
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	layer.add_child(_terminal_panel)
+	add_child(layer)
+
+func _open_terminal() -> void:
+	if _terminal_panel == null or _state != "play" or not get_tree().paused:
+		return
+	_pause_panel.visible = false
+	_terminal_panel.call("open_terminal")
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Sfx.play("ui", 1.1, -6.0)
+
+func _close_terminal() -> void:
+	if _terminal_panel != null and is_instance_valid(_terminal_panel):
+		_terminal_panel.visible = false
+	if _pause_panel != null and is_instance_valid(_pause_panel) and _state == "play" and get_tree().paused:
+		_pause_panel.visible = true
 
 func _make_volume_row(label_text: String, value: float, y: float, on_change: Callable) -> Control:
 	var row := HBoxContainer.new()
@@ -494,7 +527,9 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 	walls.pulse()
 	_era_color = Balance.era_color(wave)
 	walls.set_tint(_era_color)
+	Game.log_event("CYCLE %02d START" % wave)
 	if is_boss:
+		Game.log_event("ANOMALY INBOUND // %s" % RootBoss.title_for_index(int(Game.wave / float(Balance.BOSS_EVERY))))
 		hud.show_banner("CYCLE %02d // ANOMALY" % wave, "ROOT DAEMON INBOUND", 2.2)
 		Sfx.play("boss", 1.0, 0.0)
 		_run_boss_intro()
@@ -763,7 +798,8 @@ func _on_boss_spawned(boss: RootBoss) -> void:
 	_boss_rewards_claimed.clear()
 	if not boss.split_started.is_connected(_on_boss_split):
 		boss.split_started.connect(_on_boss_split)
-	_boss_dmg_snapshot = int(Game.stats.get("damage", 0))
+		_boss_dmg_snapshot = int(Game.stats.get("damage", 0))
+	Game.log_event("BOSS SPAWNED // %s" % boss.boss_title)
 
 func _on_boss_split(minis: Array) -> void:
 	hud.set_boss_fragments(minis)
@@ -779,6 +815,7 @@ func _on_player_died() -> void:
 	if _state != "play":
 		return
 	_clear_abandon_confirmation()
+	_close_terminal()
 	_state = "dead"
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	spawner.stop()
@@ -852,6 +889,8 @@ func _on_enemy_died(e: EnemyBase) -> void:
 			return
 		_boss_rewards_claimed[reward_key] = true
 	Game.mark_bestiary_for_enemy(e)
+	if not was_split:
+		Game.log_event("PURGED // %s" % e.display_name)
 	if e.elite:
 		Fx.stacktrace(e.global_position, e.display_name)
 	elif e is RootBoss and not was_split:
@@ -956,8 +995,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			KEY_F4:
 				debug_clear_combatants()
-				get_viewport().set_input_as_handled()
-				return
+		get_viewport().set_input_as_handled()
+		return
+	if _terminal_panel != null and _terminal_panel.visible:
+		if event.is_action_pressed("pause"):
+			_close_terminal()
+			get_viewport().set_input_as_handled()
+		return
 	if _patch_open:
 		if event is InputEventKey and event.pressed and not event.echo:
 			var k: int = event.physical_keycode
@@ -994,6 +1038,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _set_paused(v: bool) -> void:
 	if not v:
 		_clear_abandon_confirmation()
+		_close_terminal()
 	get_tree().paused = v
 	_pause_panel.visible = v
 	if v:
@@ -1003,6 +1048,82 @@ func _set_paused(v: bool) -> void:
 	Sfx.play("ui", 1.0, -6.0)
 	if not v:
 		_try_show_patch()
+
+func execute_terminal_command(command: String) -> String:
+	var raw := command.strip_edges()
+	if raw.is_empty():
+		return ""
+	var parts := raw.to_lower().split(" ", false)
+	var verb := str(parts[0])
+	Game.log_event("terminal: %s" % raw)
+	match verb:
+		"help":
+			return "help\ntop\nman <enemy>\ndmesg\nsudo heal\nrm -rf /"
+		"top":
+			return _terminal_top()
+		"man":
+			return _terminal_man(" ".join(parts.slice(1)))
+		"dmesg":
+			var lines := Game.dmesg_lines(16)
+			return "\n".join(lines) if not lines.is_empty() else "dmesg: no entries"
+		"sudo":
+			if parts.size() >= 2 and str(parts[1]) == "heal":
+				return _terminal_heal()
+			return "sudo: command not found"
+		"rm":
+			if raw == "rm -rf /":
+				return _terminal_rm_rf()
+			return "rm: refusing unsafe target"
+		_:
+			return "%s: command not found" % verb
+
+func _terminal_top() -> String:
+	var s: Dictionary = Game.stats
+	var shots := int(s.get("shots", 0))
+	var hits := int(s.get("hits", 0))
+	var accuracy := 0 if shots <= 0 else int(round(float(hits) / float(shots) * 100.0))
+	return "PROCESS %s\nCYCLE %02d // SCORE %07d\nKILLS %d // BOSS KILLS %d\nACCURACY %d%% // UPTIME %02d:%02d\nBUILD %s" % [Game.program_def()["name"], Game.wave, Game.score, int(s.get("kills", 0)), int(s.get("boss_kills", 0)), accuracy, int(float(s.get("time", 0.0)) / 60.0), int(float(s.get("time", 0.0))) % 60, Game.build_string()]
+
+func _terminal_man(query: String) -> String:
+	var needle := query.strip_edges().to_lower()
+	if needle.is_empty():
+		return "man: specify an enemy"
+	if needle == "root.exe":
+		needle = "root"
+	for entry in BestiaryPanel.ENTRIES:
+		if str(entry["id"]).to_lower() == needle or str(entry["name"]).to_lower() == needle:
+			return "%s\n%s\nBUGS: %s\nTHREAT %d" % [entry["name"], entry["desc"], entry["bugs"], int(entry["threat"])]
+	return "man: no entry for %s" % query.strip_edges()
+
+func _terminal_heal() -> String:
+	if Game.mode == "onehp":
+		return "sudo: PERMISSION DENIED // ONE-HP POLICY"
+	if Game.terminal_heal_used:
+		return "sudo: PERMISSION DENIED // HEAL ALREADY USED"
+	if player == null or not is_instance_valid(player) or player.dead:
+		return "sudo: process unavailable"
+	if player.hp >= player.max_hp:
+		return "sudo: heal not needed"
+	if not Game.consume_terminal_heal():
+		return "sudo: PERMISSION DENIED"
+	player.heal(1)
+	Game.register_heal("sudo")
+	Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY // SUDO", Balance.COL_PLAYER, 14)
+	return "sudo: heal granted // integrity +1"
+
+func _terminal_rm_rf() -> String:
+	if _state != "play" or Game.state != Game.State.PLAYING:
+		return "rm: process already stopped"
+	Game.log_event("PANIC // rm -rf / // filesystem destroyed")
+	for combatant in enemy_list.duplicate():
+		if is_instance_valid(combatant):
+			combatant.queue_free()
+	if spawner != null and is_instance_valid(spawner):
+		spawner.stop()
+	if player != null and is_instance_valid(player) and not player.dead:
+		Game.stats["killer"] = "RM -RF /"
+		player.call("_die")
+	return "rm: deleting / ...\nKERNEL PANIC // PROCESS TERMINATED"
 
 func _request_abandon_confirmation() -> void:
 	if not get_tree().paused or _state != "play":

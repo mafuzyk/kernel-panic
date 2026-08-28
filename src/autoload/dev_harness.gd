@@ -383,6 +383,7 @@ func _autotest() -> void:
 	await _task9_test(arena2)
 	await _systems_test(arena2)
 	await _debug_controls_test(arena2)
+	await _charm_terminal_test(arena2)
 	await _touch_test()
 	Game.to_menu()
 	ok = await _until(func() -> bool:
@@ -2329,6 +2330,59 @@ func _debug_controls_test(arena: Arena) -> void:
 	for child in arena.enemy_container.get_children():
 		child.queue_free()
 	await _ticks(3)
+
+func _charm_terminal_test(arena: Arena) -> void:
+	print("AT_STEP charm_terminal")
+	var terminal_script: Script = load("res://src/ui/terminal_panel.gd")
+	_check(terminal_script != null, "pause terminal script loads")
+	_check(Game.has_method("log_event") and Game.has_method("dmesg_lines"), "game exposes run event log")
+	_check(Game.has_method("consume_terminal_heal"), "game exposes one-use terminal heal")
+	_check(arena.has_method("execute_terminal_command"), "arena exposes terminal command router")
+	var terminal_button_found := false
+	for child in arena._pause_panel.get_children():
+		if child is Button and child.text == "OPEN TERMINAL":
+			terminal_button_found = true
+	_check(terminal_button_found and arena.get("_terminal_panel") != null, "pause exposes the terminal entry point")
+	if terminal_script == null or not arena.has_method("execute_terminal_command"):
+		return
+	var saved_mode := Game.mode
+	var saved_state := Game.state
+	var saved_stats: Dictionary = Game.stats.duplicate(true)
+	var saved_events: Array = Game.event_log.duplicate(true) if Game.get("event_log") is Array else []
+	var saved_terminal_heal_used := bool(Game.get("terminal_heal_used"))
+	var saved_patch_levels: Dictionary = Game.patch_levels.duplicate(true)
+	Game.mode = "classic"
+	Game.state = Game.State.PLAYING
+	Game.wave = 3
+	Game.stats = {"time": 12.5, "kills": 4, "shots": 10, "hits": 6, "damage": 1, "wave": 3, "boss_kills": 0, "heals": {}}
+	Game.event_log = []
+	Game.terminal_heal_used = false
+	Game.log_event("TEST EVENT")
+	var dmesg: Array = Game.dmesg_lines(4)
+	_check(dmesg.size() == 1 and str(dmesg[0]).contains("TEST EVENT"), "dmesg formats the current run event log")
+	_check(str(arena.execute_terminal_command("help")).contains("sudo heal"), "terminal help lists recovery command")
+	_check(str(arena.execute_terminal_command("top")).contains("CYCLE 03"), "terminal top reports current cycle")
+	_check(str(arena.execute_terminal_command("man drone")).contains("DRONE"), "terminal man returns a bestiary entry")
+	_check(str(arena.execute_terminal_command("dmesg")).contains("TEST EVENT"), "terminal dmesg returns run events")
+	if arena.player != null and is_instance_valid(arena.player):
+		var old_hp := arena.player.hp
+		arena.player.hp = maxi(1, arena.player.max_hp - 1)
+		var heal_result := str(arena.execute_terminal_command("sudo heal"))
+		_check(heal_result.contains("granted") and arena.player.hp == old_hp, "sudo heal restores one integrity")
+		var second_heal := str(arena.execute_terminal_command("sudo heal"))
+		_check(second_heal.contains("PERMISSION DENIED"), "sudo heal is limited to once per run")
+		Game.mode = "onehp"
+		Game.terminal_heal_used = false
+		arena.player.hp = 1
+		_check(str(arena.execute_terminal_command("sudo heal")).contains("PERMISSION DENIED"), "one hp mode rejects terminal healing")
+		arena.player.hp = arena.player.max_hp
+	Game.mode = saved_mode
+	Game.state = saved_state
+	Game.wave = int(saved_stats.get("wave", Game.wave))
+	Game.stats = saved_stats
+	Game.event_log = saved_events
+	Game.terminal_heal_used = saved_terminal_heal_used
+	Game.patch_levels = saved_patch_levels
 
 func _touch_test() -> void:
 	var arena: Arena = get_tree().current_scene

@@ -23,6 +23,10 @@ var bestiary := {}
 var tutorial := {}
 var rng := RandomNumberGenerator.new()
 var _max_chain_seen := 1
+const EVENT_LOG_MAX := 64
+var event_log: Array[Dictionary] = []
+var run_seed := 0
+var terminal_heal_used := false
 
 const COMBO_WINDOW := Balance.COMBO_WINDOW
 
@@ -325,14 +329,19 @@ func start_run() -> void:
 	patch_levels = {}
 	wave = 1
 	_max_chain_seen = 1
+	event_log.clear()
+	terminal_heal_used = false
 	Sfx.set_intensity(0)
 	match mode:
 		"weekly":
-			rng.seed = week_number() * 7919 + 13
+			run_seed = week_number() * 7919 + 13
+			rng.seed = run_seed
 		_:
 			rng.randomize()
+			run_seed = int(rng.seed)
 	new_best = false
 	stats = {"kills": 0, "shots": 0, "hits": 0, "damage": 0, "time": 0.0, "wave": 1, "boss_kills": 0, "heals": {}}
+	log_event("BOOT // %s // SEED %d" % [program_def()["name"], run_seed])
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	get_tree().call_deferred("change_scene_to_file", "res://src/arena/arena.tscn")
@@ -342,8 +351,11 @@ func register_kill(base_pts: int, is_boss := false) -> void:
 	combo_left = combo_window
 	score += base_pts * mult * score_mult()
 	stats["kills"] += 1
+	if int(stats["kills"]) == 1:
+		log_event("FIRST BLOOD // daemon purged")
 	if is_boss:
 		stats["boss_kills"] += 1
+		log_event("BOSS PURGED // cycle %02d" % wave)
 	_max_chain_seen = maxi(_max_chain_seen, mult)
 	score_changed.emit(score, mult)
 	combo_changed.emit(mult, 1.0)
@@ -363,6 +375,30 @@ func register_heal(source: String) -> void:
 	if not stats.has("heals"):
 		stats["heals"] = {}
 	stats["heals"][source] = int(stats["heals"].get(source, 0)) + 1
+	log_event("INTEGRITY +1 // %s" % source.to_upper())
+
+func log_event(message: String) -> void:
+	var clean := message.strip_edges()
+	if clean.is_empty():
+		return
+	event_log.append({"time": float(stats.get("time", 0.0)), "text": clean})
+	while event_log.size() > EVENT_LOG_MAX:
+		event_log.pop_front()
+
+func dmesg_lines(limit: int = 14) -> Array[String]:
+	var lines: Array[String] = []
+	var start := maxi(event_log.size() - maxi(limit, 1), 0)
+	for i in range(start, event_log.size()):
+		var entry: Dictionary = event_log[i]
+		lines.append("[%8.3f] %s" % [float(entry.get("time", 0.0)), str(entry.get("text", ""))])
+	return lines
+
+func consume_terminal_heal() -> bool:
+	if state != State.PLAYING or mode == "onehp" or terminal_heal_used:
+		return false
+	terminal_heal_used = true
+	log_event("sudo: heal permission granted")
+	return true
 
 func patch_level(id: String) -> int:
 	return int(patch_levels.get(id, 0))
