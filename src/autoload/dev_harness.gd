@@ -998,6 +998,23 @@ func _systems_test(arena: Arena) -> void:
 	_check(Game.patch_levels.size() > 0 or true, "patch applied")
 	Sfx.haptic(10)
 	_check(Sfx._stems.size() == 3, "three music stems loaded")
+	var music_streams: Array[AudioStreamWAV] = []
+	for stem in Sfx._stems:
+		var stream := stem.stream as AudioStreamWAV
+		if stream != null:
+			music_streams.append(stream)
+	_check(music_streams.size() == 3, "three music streams expose WAV data")
+	if music_streams.size() == 3:
+		var first := music_streams[0]
+		var min_frames := int(first.mix_rate * 30.0)
+		_check(first.data.size() / 2 >= min_frames, "music stems are at least 30 seconds")
+		for i in music_streams.size():
+			var stream := music_streams[i]
+			_check(stream.loop_mode == AudioStreamWAV.LOOP_FORWARD, "music stem %d loops forward" % i)
+			_check(stream.mix_rate == first.mix_rate, "music stem %d sample rate matches" % i)
+			_check(stream.stereo == first.stereo, "music stem %d channel layout matches" % i)
+			_check(stream.data.size() == first.data.size(), "music stem %d length matches" % i)
+			_check(stream.loop_end == first.loop_end, "music stem %d loop end matches" % i)
 	Sfx.set_intensity(2)
 	Sfx.set_intensity(0)
 	await _ticks(2)
