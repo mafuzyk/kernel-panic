@@ -99,6 +99,7 @@ func _autotest() -> void:
 	_check(Game.BESTIARY_MAP.get("SEGFAULT", "") == "segfault", "segfault maps to bestiary")
 	_check(Game.BESTIARY_MAP.get("BLUE SCREEN", "") == "bluescreen", "blue screen maps to bestiary")
 	_check(Game.BESTIARY_MAP.get("PAGE FAULT", "") == "pagefault", "page fault maps to bestiary")
+	await _color_assist_test()
 	Fx.stacktrace(Vector2.ZERO, "TEST_CRASH")
 	await _ticks(2)
 	_check(true, "stacktrace renders without error")
@@ -534,6 +535,77 @@ func _config_snapshot(section: String, key: String, default_value) -> Dictionary
 
 func _config_snapshot_matches(a: Dictionary, b: Dictionary) -> bool:
 	return bool(a["has_section"]) == bool(b["has_section"]) and bool(a["has_key"]) == bool(b["has_key"]) and a["value"] == b["value"]
+
+func _color_assist_test() -> void:
+	print("AT_STEP color_assist")
+	var balance_script: Script = load("res://src/autoload/balance.gd")
+	var palette_ready := balance_script != null and balance_script.has_method("threat_palette") and balance_script.has_method("threat_color")
+	_check(palette_ready, "threat palette helper exists")
+	if palette_ready:
+		var standard: Dictionary = balance_script.call("threat_palette", false)
+		var assist: Dictionary = balance_script.call("threat_palette", true)
+		var standard_pair: bool = standard.get("splitter", Color.BLACK) != standard.get("bulwark", Color.BLACK)
+		var assist_pair: bool = assist.get("splitter", Color.BLACK) != assist.get("bulwark", Color.BLACK)
+		_check(standard_pair, "standard Splitter and Bulwark colors are distinct")
+		_check(assist_pair and _color_distance(assist["splitter"], assist["bulwark"]) > 0.45, "color assist threat pair is accessible")
+		_check(balance_script.call("threat_color", "splitter", false) == standard["splitter"] and balance_script.call("threat_color", "bulwark", false) == standard["bulwark"], "standard threats route through shared palette")
+
+	var saved_disk := _config_snapshot("feel", "color_assist", false)
+	var saved_color_assist := false
+	if Sfx.has_method("set_color_assist"):
+		saved_color_assist = bool(Sfx.get("color_assist"))
+	var settings_cf := ConfigFile.new()
+	settings_cf.load(Sfx.SAVE_PATH)
+	if settings_cf.has_section_key("feel", "color_assist"):
+		settings_cf.erase_section_key("feel", "color_assist")
+	settings_cf.save(Sfx.SAVE_PATH)
+	Sfx._load_settings()
+	_check(Sfx.has_method("set_color_assist") and not bool(Sfx.get("color_assist")), "color assist defaults off")
+	if Sfx.has_method("set_color_assist"):
+		Sfx.set_color_assist(true)
+		Sfx._load_settings()
+		_check(bool(Sfx.get("color_assist")), "color assist persists through reload")
+
+	var menu := get_tree().current_scene
+	var color_button: Button = null
+	if menu != null:
+		if menu.has_method("_refresh_color_assist_label"):
+			Sfx.set_color_assist(false)
+			menu._refresh_color_assist_label()
+		if menu.has_method("_open_settings"):
+			menu._open_settings()
+		for node in menu.find_children("*", "Button", true, false):
+			if node is Button and str(node.text).begins_with("COLOR ASSIST:"):
+				color_button = node
+				break
+	_check(color_button != null, "settings expose color assist toggle")
+	if color_button != null:
+		_check(color_button.text == "COLOR ASSIST: OFF", "color assist toggle shows OFF by default")
+		color_button.pressed.emit()
+		_check(bool(Sfx.get("color_assist")) and color_button.text == "COLOR ASSIST: ON", "color assist toggle enables assist mode")
+		color_button.pressed.emit()
+		_check(not bool(Sfx.get("color_assist")) and color_button.text == "COLOR ASSIST: OFF", "color assist toggle disables assist mode")
+	if menu != null and menu.has_method("_close_settings"):
+		menu._close_settings()
+
+	var splitter := SplitterEnemy.new()
+	var bulwark := BulwarkEnemy.new()
+	var splitter_source := FileAccess.get_file_as_string("res://src/enemies/splitter.gd")
+	var bulwark_source := FileAccess.get_file_as_string("res://src/enemies/bulwark.gd")
+	_check(splitter.has_method("color_assist_marker") and splitter.color_assist_marker() == "SPLIT", "Splitter exposes code-drawn assist marker")
+	_check(bulwark.has_method("color_assist_marker") and bulwark.color_assist_marker() == "BULW", "Bulwark exposes code-drawn assist marker")
+	_check(splitter_source.contains("draw_string") and bulwark_source.contains("draw_string") and not splitter_source.contains(".png") and not bulwark_source.contains(".png"), "threat markers use code drawing without images")
+	splitter.free()
+	bulwark.free()
+
+	if Sfx.has_method("set_color_assist"):
+		Sfx.set("color_assist", saved_color_assist)
+	_restore_config_snapshot("feel", "color_assist", saved_disk)
+	if menu != null and menu.has_method("_refresh_color_assist_label"):
+		menu._refresh_color_assist_label()
+
+func _color_distance(a: Color, b: Color) -> float:
+	return Vector3(a.r, a.g, a.b).distance_to(Vector3(b.r, b.g, b.b))
 
 func _key_event(physical_key: int, is_echo := false) -> InputEventKey:
 	var ev := InputEventKey.new()

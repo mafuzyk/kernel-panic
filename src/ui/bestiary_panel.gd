@@ -29,8 +29,7 @@ func _entry_color(id: String) -> Color:
 		"drone": return Balance.COL_DRONE
 		"lancer": return Balance.COL_LANCER
 		"spewer": return Balance.COL_SPEWER
-		"splitter": return Balance.COL_SPLITTER
-		"bulwark": return Balance.COL_BULWARK
+		"splitter", "bulwark": return Balance.threat_color(id, Sfx.color_assist)
 		"trojan": return Color("c23a5e")
 		"oom": return Color("9a4dff")
 		"boss": return Color("ff3d81")

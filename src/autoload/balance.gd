@@ -52,7 +52,9 @@ const COL_DRONE := Color("ff3d81")
 const COL_LANCER := Color("ff9a3d")
 const COL_SPEWER := Color("b46bff")
 const COL_SPLITTER := Color("ff5c5c")
-const COL_BULWARK := Color("ff5252")
+const COL_BULWARK := Color("58b8ff")
+const COL_SPLITTER_ASSIST := Color("ffb000")
+const COL_BULWARK_ASSIST := Color("7b61ff")
 const COL_MOTE := Color("ffd24f")
 const COL_TEXT := Color("cfe9ff")
 const COL_DANGER := Color("ff2a4d")
@@ -70,6 +72,20 @@ const ERA_TINTS := [
 
 static func era_color(wave: int) -> Color:
 	return ERA_TINTS[clampi((wave - 1) / 5, 0, ERA_TINTS.size() - 1)]
+
+static func threat_palette(color_assist: bool = false) -> Dictionary:
+	if color_assist:
+		return {
+			"splitter": COL_SPLITTER_ASSIST,
+			"bulwark": COL_BULWARK_ASSIST,
+		}
+	return {
+		"splitter": COL_SPLITTER,
+		"bulwark": COL_BULWARK,
+	}
+
+static func threat_color(id: String, color_assist: bool = false) -> Color:
+	return threat_palette(color_assist).get(id, COL_TEXT)
 
 static func wave_budget(wave: int) -> int:
 	return 8 + (wave - 1) * 5 + maxi(0, wave - 4) * 2

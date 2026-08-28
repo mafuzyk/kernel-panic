@@ -19,6 +19,7 @@ var _bestiary_panel: BestiaryPanel
 var _program_panel: ProgramPanel
 var _program_btn: Button
 var _aim_btn_ref: Button
+var _color_assist_btn: Button
 var _boot: BootOverlay
 
 func _refresh_aim_label(btn: Button) -> void:
@@ -461,6 +462,19 @@ func _build_settings() -> void:
 		Sfx.save_settings()
 	)
 	box.add_child(haptics)
+	_color_assist_btn = Button.new()
+	_color_assist_btn.flat = true
+	_color_assist_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	_color_assist_btn.add_theme_font_size_override("font_size", 17)
+	_color_assist_btn.add_theme_color_override("font_color", Balance.COL_TEXT)
+	_color_assist_btn.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+	_color_assist_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_color_assist_btn.pressed.connect(func() -> void:
+		Sfx.set_color_assist(not Sfx.color_assist)
+		_refresh_color_assist_label()
+	)
+	_refresh_color_assist_label()
+	box.add_child(_color_assist_btn)
 	var aim_btn := Button.new()
 	aim_btn.flat = true
 	aim_btn.text = "AIM MODE: %s" % Sfx.aim_mode.to_upper()
@@ -603,6 +617,10 @@ func _open_settings() -> void:
 func _close_settings() -> void:
 	_settings_panel.visible = false
 	Sfx.play("ui", 0.9, -6.0)
+
+func _refresh_color_assist_label() -> void:
+	if _color_assist_btn != null:
+		_color_assist_btn.text = "COLOR ASSIST: %s" % ("ON" if Sfx.color_assist else "OFF")
 
 func _mk_title(f: Font, col: Color) -> Label:
 	var l := Label.new()

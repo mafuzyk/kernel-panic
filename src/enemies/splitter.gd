@@ -10,7 +10,7 @@ func _init() -> void:
 	speed = 82.0
 	pts = 100
 	radius = 18.0
-	col = Balance.COL_SPLITTER
+	col = Balance.threat_color("splitter", Sfx.color_assist)
 
 func _on_ready() -> void:
 	_pulse = Game.rng.randf() * TAU
@@ -23,6 +23,17 @@ func _move(delta: float) -> void:
 
 func vel() -> Vector2:
 	return _v
+
+func color_assist_marker() -> String:
+	return "SPLIT"
+
+func _draw_color_assist_marker(c: Color) -> void:
+	if not Sfx.color_assist:
+		return
+	var center := Vector2(radius + 18.0, -radius - 10.0)
+	draw_circle(center, 12.0, Color(c.r, c.g, c.b, 0.14))
+	draw_arc(center, 12.0, 0.0, TAU, 20, c, 1.5, true)
+	draw_string(ThemeDB.fallback_font, center + Vector2(-24.0, 4.0), color_assist_marker(), HORIZONTAL_ALIGNMENT_CENTER, 48.0, 9, c)
 
 func die() -> void:
 	for i in 2:
@@ -46,3 +57,4 @@ func _draw() -> void:
 	draw_circle(Vector2(r * 0.3, 0), r * 0.22, c)
 	if elite:
 		draw_arc(Vector2.ZERO, r + 5.0, 0, TAU, 24, Color(1, 1, 1, 0.75), 1.6, true)
+	_draw_color_assist_marker(c)
