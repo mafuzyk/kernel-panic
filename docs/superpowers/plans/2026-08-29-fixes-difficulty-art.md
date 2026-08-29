@@ -1084,7 +1084,7 @@ Interfaces:
 
 Numeric expectations used by the probes (scale 1.0): desktop `patches` x-ranges [1020, 1350] / [381.4, 711.4] / [216.6, 424] at 1366x768 / 720x720 / 432x720 all intersect the DASH rect [1206, 1326] / [560, 680] / [272, 392]; after the fix the touch dock ends at x=1194 / 548 / 260 with widths 174 / 166.6 / 120 and never intersects.
 
-- [ ] Step 1: Write the failing harness regression
+- [x] Step 1: Write the failing harness regression
 
 In `src/autoload/dev_harness.gd`, after the line `await _text_overflow_test()` (added in Task 4 Step 1) add:
 
@@ -1166,7 +1166,7 @@ func _touch_hud_layout_test() -> void:
 		tc.free()
 ~~~
 
-- [ ] Step 2: Run the test to verify it fails
+- [x] Step 2: Run the test to verify it fails
 
 Run:
 
@@ -1178,7 +1178,7 @@ Expected: AT_FAIL `tactical ui exposes touch button rect helpers` (the early
 return stops the function at the first missing helper). No parse error; the suite
 still exits with `AUTOTEST_FAILED` because of this check.
 
-- [ ] Step 3: Add touch rect helpers and the touch-aware patches rect to tactical_ui.gd
+- [x] Step 3: Add touch rect helpers and the touch-aware patches rect to tactical_ui.gd
 
 3a. In `src/ui/tactical_ui.gd`, replace the whole `layout` function (lines 35-53):
 
@@ -1254,7 +1254,7 @@ static func touch_boost_rect(viewport: Vector2, touch_scale: float = 1.0) -> Rec
 	return Rect2(viewport.x - s - 40.0 * sc, viewport.y - s * 2.0 - 36.0 - 22.0, s, s)
 ~~~
 
-- [ ] Step 4: Route hud.gd through the touch gate
+- [x] Step 4: Route hud.gd through the touch gate
 
 4a. In `src/ui/hud.gd`, replace (lines 149-150):
 
@@ -1427,7 +1427,7 @@ with:
 	var charge_text := ("x%d" % _dash_max) if _dash_max > 1 else ("[SHIFT]" if not touch_layout() else "x1")
 ~~~
 
-- [ ] Step 5: Run the full suite
+- [x] Step 5: Run the full suite
 
 Run:
 
@@ -1443,7 +1443,7 @@ pre-existing `patch dock chip fits %dx%d`, `active banner is not replaced by
 queued hint` (reads the `_banner_text` var, not the label), `queued hint drains
 after active banner`, and `touch dash button dashes` checks stay green unchanged.
 
-- [ ] Step 6: Visual capture at touch resolutions
+- [x] Step 6: Visual capture at touch resolutions
 
 Run (desktop, windowed; `KP_FORCE_TOUCH=1` makes the arena instantiate
 `TouchControls` per arena.gd:133):
@@ -1462,7 +1462,7 @@ encounter panel. Desktop appearance is unchanged when `KP_FORCE_TOUCH` is unset
 (covered by the Task 2 / Task 8 captures). Captures stay in `/tmp/opencode/` and
 are never committed.
 
-- [ ] Step 7: Commit
+- [x] Step 7: Commit
 
 ~~~sh
 git add src/ui/tactical_ui.gd src/ui/hud.gd src/autoload/dev_harness.gd
