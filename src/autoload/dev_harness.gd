@@ -419,6 +419,7 @@ func _autotest() -> void:
 	await _story_menu_test(menu_scene)
 	await _menu_shell_test(menu_scene)
 	await _text_overflow_test()
+	await _touch_hud_layout_test()
 	await _charm_save_transfer_test(menu_scene)
 	if menu_scene.has_method("_reset_scores"):
 		menu_scene._reset_scores()
@@ -3083,6 +3084,76 @@ func _text_overflow_test() -> void:
 				all_fit = all_fit and bool(entry.get("fits", false))
 		_check(all_fit, "%s keeps its representative text inside the panel at 1366x768, 720x720, and 432x720" % surface_id)
 		panel.free()
+
+func _touch_hud_layout_test() -> void:
+	print("AT_STEP touch_hud_layout")
+	var tui_script: Script = load("res://src/ui/tactical_ui.gd")
+	var tui = tui_script.new() if tui_script != null else null
+	_check(tui != null and tui.has_method("touch_dash_rect") and tui.has_method("touch_boost_rect"), "tactical ui exposes touch button rect helpers")
+	if tui == null or not tui.has_method("touch_dash_rect"):
+		return
+	var hud_script: Script = load("res://src/ui/hud.gd")
+	var hud_src := str(hud_script.source_code)
+	_check(hud_src.contains("if not touch_layout():"), "combat hud skips desktop-only dash module drawing on touch")
+	_check(hud_src.contains("label += \"  READY\""), "overclock ready keeps its label without the [E] keyboard hint on touch")
+	_check(hud_src.contains("\"[SHIFT]\" if not touch_layout()"), "dash charge text gates the [SHIFT] keyboard hint on touch")
+	_check(hud_src.contains("_banner.text = \"\" if hide_main else text"), "compact wave banner omits the duplicated cycle line")
+	_check(hud_src.contains("_banner_sub_l.offset_top = 186"), "compact wave banner repositions below the encounter panel")
+	var tc_script: Script = load("res://src/ui/touch_controls.gd")
+	var tc = tc_script.new() if tc_script != null else null
+	_check(tc != null and tc.has_method("_dash_btn") and tc.has_method("_oc_btn"), "touch controls expose button rects for layout probes")
+	var saved_touch_scale := Sfx.touch_scale
+	var saved_force := OS.get_environment("KP_FORCE_TOUCH")
+	for scale in [0.85, 1.0, 1.2]:
+		Sfx.touch_scale = scale
+		for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			var view := Rect2(Vector2.ZERO, vp)
+			var dash: Rect2 = tui.call("touch_dash_rect", vp, scale)
+			var boost: Rect2 = tui.call("touch_boost_rect", vp, scale)
+			_check(view.encloses(dash.grow(-2.0)), "touch dash ring stays inside the safe area at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
+			_check(view.encloses(boost.grow(-2.0)), "touch boost ring stays inside the safe area at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
+			if tc != null:
+				tc.size = vp
+				var tc_dash: Rect2 = tc.call("_dash_btn")
+				var tc_boost: Rect2 = tc.call("_oc_btn")
+				_check(tc_dash.is_equal_approx(dash), "touch dash button metrics match the shared helper at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
+				_check(tc_boost.is_equal_approx(boost), "touch boost button metrics match the shared helper at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
+			var layout_touch: Dictionary = tui.call("layout", vp, true, scale)
+			var layout_plain: Dictionary = tui.call("layout", vp)
+			var touch_patches: Rect2 = layout_touch["patches"]
+			var plain_patches_vp: Rect2 = layout_plain["patches"]
+			_check(bool(layout_touch["compact"]) == bool(layout_plain["compact"]), "touch layout keeps the compact flag size-based at %dx%d" % [int(vp.x), int(vp.y)])
+			_check(not touch_patches.intersects(dash), "compact+touch patch dock never intersects the touch dash button at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
+			_check(touch_patches.size.x >= minf(120.0, plain_patches_vp.size.x) - 0.01, "touch patch dock keeps readable chips at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
+	Sfx.touch_scale = saved_touch_scale
+	var banner_hud = hud_script.new()
+	banner_hud.size = Vector2(432, 720)
+	banner_hud.set("_banner_sub", "PURGE THE DAEMONS")
+	_check(bool(banner_hud.call("_banner_compact")), "compact viewport suppresses the duplicated wave-banner cycle line")
+	banner_hud.size = Vector2(1366, 768)
+	_check(not bool(banner_hud.call("_banner_compact")), "desktop viewport keeps the full wave banner")
+	banner_hud.size = Vector2(720, 720)
+	banner_hud.set("_banner_sub", "")
+	_check(not bool(banner_hud.call("_banner_compact")), "subtitle-less hint banners keep their main line on compact")
+	banner_hud.free()
+	var gate_hud = hud_script.new()
+	OS.set_environment("KP_FORCE_TOUCH", "")
+	_check(not bool(gate_hud.call("touch_layout")), "hud touch flag stays off without a touchscreen or override")
+	var plain_patches: Rect2 = tui.call("layout", Vector2(1366, 768))["patches"]
+	var snapshot_patches: Rect2 = gate_hud.call("layout_snapshot", Vector2(1366, 768))["patches"]
+	_check(snapshot_patches.is_equal_approx(plain_patches), "non-touch hud snapshot keeps the desktop patch dock unchanged")
+	OS.set_environment("KP_FORCE_TOUCH", "1")
+	_check(bool(gate_hud.call("touch_layout")), "KP_FORCE_TOUCH forces the hud touch layout flag")
+	var forced_patches: Rect2 = gate_hud.call("layout_snapshot", Vector2(1366, 768))["patches"]
+	var forced_dash: Rect2 = tui.call("touch_dash_rect", Vector2(1366, 768), Sfx.touch_scale)
+	_check(not forced_patches.intersects(forced_dash), "KP_FORCE_TOUCH snapshot moves the patch dock clear of the touch dash button")
+	if saved_force.is_empty():
+		OS.set_environment("KP_FORCE_TOUCH", "")
+	else:
+		OS.set_environment("KP_FORCE_TOUCH", saved_force)
+	gate_hud.free()
+	if tc != null:
+		tc.free()
 
 func _charm_save_transfer_test(menu: Node) -> void:
 	print("AT_STEP charm_save_transfer")

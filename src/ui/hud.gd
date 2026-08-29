@@ -148,7 +148,10 @@ func hud_bottom_y(gap: float) -> float:
 	return _layout_height() - _safe_bottom_margin() - gap
 
 func layout_snapshot(viewport: Vector2 = size) -> Dictionary:
-	return TacticalUIHelper.layout(viewport)
+	return TacticalUIHelper.layout(viewport, touch_layout(), Sfx.touch_scale)
+
+func touch_layout() -> bool:
+	return DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
 
 func event_log_visible(viewport: Vector2 = size) -> bool:
 	return not bool(layout_snapshot(viewport)["compact"])
@@ -221,8 +224,14 @@ func show_banner(text: String, sub: String, dur := 2.0) -> void:
 	_banner_text = text
 	_banner_sub = sub
 	_banner_t = dur
-	_banner.text = text
-	_banner_sub_l.text = sub
+	var hide_main := _banner_compact()
+	if _banner != null and is_instance_valid(_banner):
+		_banner.text = "" if hide_main else text
+	if _banner_sub_l != null and is_instance_valid(_banner_sub_l):
+		_banner_sub_l.text = sub
+
+func _banner_compact() -> bool:
+	return bool(layout_snapshot()["compact"]) and not _banner_sub.is_empty()
 
 func queue_hint(id: String, text: String, dur := 1.35) -> void:
 	if id.is_empty() or _hint_queue_ids.has(id):
@@ -280,8 +289,12 @@ func _process(delta: float) -> void:
 		var a_out := clampf(k * 2.5, 0.0, 1.0)
 		_banner.modulate.a = minf(a_in, a_out)
 		_banner_sub_l.modulate.a = _banner.modulate.a * 0.8
-		_banner.offset_top = 120 + (1.0 - minf(a_in, 1.0)) * -14.0
-		_banner.offset_bottom = _banner.offset_top + 52
+		if _banner_compact():
+			_banner_sub_l.offset_top = 186 + (1.0 - minf(a_in, 1.0)) * -14.0
+			_banner_sub_l.offset_bottom = _banner_sub_l.offset_top + 22
+		else:
+			_banner.offset_top = 120 + (1.0 - minf(a_in, 1.0)) * -14.0
+			_banner.offset_bottom = _banner.offset_top + 52
 	else:
 		_banner.modulate.a = 0.0
 		_banner_sub_l.modulate.a = 0.0
@@ -308,7 +321,7 @@ func _process(delta: float) -> void:
 	if _dash_icon != null and is_instance_valid(_dash_icon):
 		var dash_rect: Rect2 = layout_snapshot()["dash"]
 		_dash_icon.position = dash_rect.end - Vector2(64.0, 60.0)
-		_dash_icon.visible = Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available()
+		_dash_icon.visible = Balance.is_desktop_display() and not touch_layout()
 		var dash_col := Balance.COL_PLAYER if _dash_frac >= 1.0 else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.35)
 		_dash_icon.call("configure", "dash", dash_col)
 	_prune_boss_fragments()
@@ -421,7 +434,8 @@ func _draw_tactical_shell(f: Font) -> void:
 	_draw_angular_panel(integrity_rect, _era_accent, 0.055, true)
 	_draw_angular_panel(encounter_rect, _era_accent, 0.045, true)
 	_draw_angular_panel(score_rect, _era_accent, 0.055, true)
-	_draw_angular_panel(dash_rect, _era_accent, 0.045, true)
+	if not touch_layout():
+		_draw_angular_panel(dash_rect, _era_accent, 0.045, true)
 	_draw_angular_panel(patch_rect, _era_accent, 0.045, true)
 	draw_string(f, integrity_rect.position + Vector2(16.0, 22.0), "INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, TacticalUIHelper.TEXT)
 	var cycle_label := "CYCLE %02d" % Game.wave
@@ -475,7 +489,9 @@ func _oc_bar(f: Font) -> void:
 	var label := "SHIELD" if shield_mode else "OVERCLOCK"
 	var txt_col := col
 	if _oc_ready and not _oc_active and not shield_mode:
-		label += "  READY [E]"
+		label += "  READY"
+		if not touch_layout():
+			label += " [E]"
 	if _oc_active:
 		label += " ACTIVE"
 	draw_string(f, Vector2(x, y + 24.0), label, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 11, Color(txt_col.r, txt_col.g, txt_col.b, 0.85))
@@ -513,9 +529,9 @@ func patch_dock_rects(viewport: Vector2 = size) -> Dictionary:
 	var result: Dictionary = {}
 	if Game.patch_levels.is_empty():
 		return result
-	var panel: Rect2 = TacticalUIHelper.layout(viewport)["patches"]
+	var panel: Rect2 = layout_snapshot(viewport)["patches"]
 	var ids: Array = Game.patch_levels.keys()
-	var compact := bool(TacticalUIHelper.layout(viewport)["compact"])
+	var compact := bool(layout_snapshot(viewport)["compact"])
 	var available := Rect2(panel.position + Vector2(12.0, 26.0), Vector2(maxf(panel.size.x - 24.0, 24.0), maxf(panel.size.y - 34.0, 12.0)))
 	var gap := 4.0
 	var max_columns := 5 if not compact else 4
@@ -560,13 +576,13 @@ func _mult_chip(f: Font) -> void:
 	draw_rect(Rect2(bar.position, Vector2(bar.size.x * _combo_frac, 4)), hot)
 
 func _dash_pip(f: Font) -> void:
-	if not Balance.is_desktop_display() or DisplayServer.is_touchscreen_available():
+	if not Balance.is_desktop_display() or touch_layout():
 		return
 	var col := Balance.COL_PLAYER if _dash_frac >= 1.0 else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.35)
 	var dash_rect: Rect2 = layout_snapshot()["dash"]
 	var dash_text := "DASH READY" if _dash_frac >= 1.0 else "DASH CHARGING"
 	draw_string(f, dash_rect.position + Vector2(16.0, 28.0), dash_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 13, Color(col.r, col.g, col.b, 0.82))
-	var charge_text := "x%d" % _dash_max if _dash_max > 1 else "[SHIFT]"
+	var charge_text := ("x%d" % _dash_max) if _dash_max > 1 else ("[SHIFT]" if not touch_layout() else "x1")
 	draw_string(f, dash_rect.position + Vector2(16.0, 52.0), charge_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 11, Color(col.r, col.g, col.b, 0.68))
 	var cooldown := Rect2(dash_rect.position + Vector2(16.0, dash_rect.size.y - 16.0), Vector2(maxf(dash_rect.size.x - 32.0, 50.0), 4.0))
 	draw_rect(cooldown, Color(col.r, col.g, col.b, 0.16))
