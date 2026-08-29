@@ -2,6 +2,7 @@ extends Control
 
 const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
 const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
+const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 
 var _title: Label
 var _title_r: Label
@@ -33,6 +34,19 @@ var _keybind_buttons: Dictionary = {}
 var _capture_action := ""
 var _save_transfer_field: LineEdit
 var _save_transfer_status: Label
+var _settings_frame: Panel
+var _settings_scroll: ScrollContainer
+var _settings_box: VBoxContainer
+var _settings_title: Label
+var _settings_workstation_chrome: Control
+var _settings_navigation_chrome: Control
+var _settings_footer_row: HBoxContainer
+var _settings_nav_buttons: Array[Button] = []
+var _settings_keybind_grid: GridContainer
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and _settings_panel != null and is_instance_valid(_settings_panel):
+		call_deferred("_layout_settings")
 
 func _desktop_keybinds_enabled() -> bool:
 	return Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
@@ -260,9 +274,19 @@ func _add_button_chrome(button: Button, accent: Color, alpha: float = 0.02) -> v
 	frame.call("configure_control", accent, alpha)
 	button.z_index = 2
 
+func _add_button_icon(button: Button, kind: String, accent: Color, icon_size: float = 52.0) -> void:
+	var icon: Control = TacticalIconScript.new()
+	icon.position = Vector2(10.0, (button.custom_minimum_size.y - icon_size) * 0.5)
+	icon.size = Vector2(icon_size, icon_size)
+	icon.z_index = 2
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(icon)
+	icon.call("configure", kind, accent)
+
 func _style_settings_footer_button(button: Button, border: Color) -> void:
 	button.flat = false
 	button.focus_mode = Control.FOCUS_NONE
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	button.add_theme_font_size_override("font_size", 14)
 	button.add_theme_color_override("font_color", border if border != TacticalUIHelper.CYAN else TacticalUIHelper.TEXT)
@@ -270,6 +294,7 @@ func _style_settings_footer_button(button: Button, border: Color) -> void:
 	button.add_theme_stylebox_override("normal", _settings_nav_style(Color(border.r, border.g, border.b, 0.55)))
 	button.add_theme_stylebox_override("hover", _settings_nav_style(border))
 	button.add_theme_stylebox_override("pressed", _settings_nav_style(border))
+	_set_button_text_inset(button, 54.0)
 	_add_button_chrome(button, border, 0.02)
 
 func _build_button_row() -> void:
@@ -368,14 +393,16 @@ func _build_button_row() -> void:
 	var settings_btn := Button.new()
 	_style_card_button(settings_btn, Balance.COL_TEXT, Vector2(bottom_button_w, 48.0))
 	settings_btn.text = "SETTINGS"
-	_set_button_text_inset(settings_btn, 100.0)
+	_set_button_text_inset(settings_btn, 92.0)
+	_add_button_icon(settings_btn, "settings", Balance.COL_PLAYER, 52.0)
 	settings_btn.z_index = 2
 	settings_btn.pressed.connect(_open_settings)
 	row.add_child(settings_btn)
 	var best_btn := Button.new()
 	_style_card_button(best_btn, Balance.COL_SPEWER, Vector2(bottom_button_w, 48.0))
 	best_btn.text = "BESTIARY"
-	_set_button_text_inset(best_btn, 100.0)
+	_set_button_text_inset(best_btn, 92.0)
+	_add_button_icon(best_btn, "bestiary", Balance.COL_SPEWER, 52.0)
 	best_btn.z_index = 2
 	best_btn.pressed.connect(_open_bestiary)
 	row.add_child(best_btn)
@@ -541,7 +568,7 @@ func _open_bestiary() -> void:
 		_bestiary_panel.add_child(hint)
 		var back := Button.new()
 		_style_overlay_back(back)
-		back.text = "<  BACK  [ESC]"
+		back.text = "BACK  [ESC]"
 		back.anchor_left = 0.0
 		back.anchor_right = 0.0
 		back.anchor_top = 1.0
@@ -565,14 +592,14 @@ func _close_bestiary() -> void:
 	Sfx.play("ui", 0.9, -8.0)
 
 func _style_overlay_back(back: Button) -> void:
-	back.text = "<  BACK // ESC"
+	back.text = "BACK // ESC"
 	back.custom_minimum_size = Vector2(154.0, 42.0)
 	back.focus_mode = Control.FOCUS_NONE
 	back.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	back.add_theme_font_size_override("font_size", 13)
 	back.add_theme_color_override("font_color", Balance.COL_PLAYER)
 	back.add_theme_color_override("font_hover_color", Balance.COL_TEXT)
-	back.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	back.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	back.anchor_left = 1.0
 	back.anchor_right = 1.0
 	back.anchor_top = 0.0
@@ -582,17 +609,20 @@ func _style_overlay_back(back: Button) -> void:
 	back.offset_top = 58.0
 	back.offset_bottom = 100.0
 	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.035)
-	normal.border_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.62)
-	normal.set_border_width_all(1)
-	normal.content_margin_left = 8.0
+	normal.bg_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.0)
+	normal.border_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.0)
+	normal.set_border_width_all(0)
+	normal.content_margin_left = 42.0
 	normal.content_margin_right = 8.0
 	back.add_theme_stylebox_override("normal", normal)
 	var hover: StyleBoxFlat = normal.duplicate()
-	hover.bg_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.14)
-	hover.border_color = Balance.COL_PLAYER
-	hover.set_border_width_all(2)
+	hover.bg_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.08)
+	hover.border_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.0)
+	hover.set_border_width_all(0)
 	back.add_theme_stylebox_override("hover", hover)
+	back.add_theme_stylebox_override("pressed", hover)
+	_add_button_chrome(back, Balance.COL_PLAYER, 0.018)
+	_add_button_icon(back, "back", Balance.COL_PLAYER, 30.0)
 
 func main_shell_snapshot() -> Dictionary:
 	var shell_sections := TacticalUIHelper.shell_sections(size)
@@ -610,16 +640,15 @@ func main_shell_snapshot() -> Dictionary:
 func settings_shell_snapshot() -> Dictionary:
 	var shell := TacticalUIHelper.shell_rect(size)
 	var sections := TacticalUIHelper.shell_sections(size)
-	var navigation := Rect2(shell.position + Vector2(10.0, 88.0), Vector2(minf(230.0, shell.size.x * 0.27), maxf(shell.size.y - 160.0, 0.0)))
-	var content_x := navigation.end.x + 14.0
-	var content := Rect2(Vector2(content_x, navigation.position.y), Vector2(maxf(shell.end.x - content_x - 10.0, 0.0), navigation.size.y))
+	var settings_layout := settings_layout_for_viewport(size)
 	return {
 		"groups": ["AUDIO", "CONTROL", "DISPLAY", "SAVE TRANSFER"],
 		"scrollable": _settings_panel != null and _settings_panel.find_child("SettingsScroll", true, false) != null,
 		"shell_rect": shell,
-		"navigation_rect": navigation,
-		"content_rect": content,
+		"navigation_rect": settings_layout["navigation"],
+		"content_rect": settings_layout["content"],
 		"footer_rect": sections["footer"],
+		"title_rect": settings_layout["title"],
 	}
 
 func _cycle_mode() -> void:
@@ -660,6 +689,77 @@ func _refresh_mode_ui() -> void:
 			_mode_info.text = "CLASSIC // ENDLESS WAVES // HIGH SCORE %07d" % Game.best
 	_update_best()
 
+func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
+	var panel_width := minf(1080.0, maxf(viewport.x - 48.0, 280.0))
+	var panel_height := minf(680.0, maxf(viewport.y - 48.0, 240.0))
+	var workstation := Rect2((viewport.x - panel_width) * 0.5, (viewport.y - panel_height) * 0.5, panel_width, panel_height)
+	var navigation_width := minf(230.0, maxf(132.0, workstation.size.x * 0.27))
+	var navigation := Rect2(workstation.position + Vector2(10.0, 88.0), Vector2(navigation_width, maxf(workstation.size.y - 160.0, 0.0)))
+	var content_x := navigation.end.x + 14.0
+	var content := Rect2(Vector2(content_x, navigation.position.y), Vector2(maxf(workstation.end.x - content_x - 10.0, 0.0), navigation.size.y))
+	var footer := Rect2(workstation.position + Vector2(10.0, workstation.size.y - 68.0), Vector2(workstation.size.x - 20.0, 56.0))
+	var title_height := 42.0
+	var title_size := 34
+	if viewport.x < 960.0:
+		title_size = 26
+	if viewport.x < 600.0:
+		title_size = 20
+	if viewport.x < 460.0:
+		title_size = 16
+	var title := Rect2(content.position.x, workstation.position.y + 14.0, content.size.x, title_height)
+	return {
+		"workstation": workstation,
+		"navigation": navigation,
+		"content": content,
+		"footer": footer,
+		"title": title,
+		"title_size": title_size,
+	}
+
+func _layout_settings() -> void:
+	if _settings_panel == null or not is_instance_valid(_settings_panel):
+		return
+	var settings_layout := settings_layout_for_viewport(size)
+	var workstation: Rect2 = settings_layout["workstation"]
+	var navigation: Rect2 = settings_layout["navigation"]
+	var content: Rect2 = settings_layout["content"]
+	var footer: Rect2 = settings_layout["footer"]
+	var title: Rect2 = settings_layout["title"]
+	if _settings_frame != null and is_instance_valid(_settings_frame):
+		_settings_frame.position = workstation.position
+		_settings_frame.size = workstation.size
+	if _settings_workstation_chrome != null and is_instance_valid(_settings_workstation_chrome):
+		_settings_workstation_chrome.position = workstation.position
+		_settings_workstation_chrome.size = workstation.size
+		_settings_workstation_chrome.call("configure_panel", Rect2(Vector2.ZERO, workstation.size), TacticalUIHelper.CYAN, 0.025)
+	if _settings_navigation_chrome != null and is_instance_valid(_settings_navigation_chrome):
+		_settings_navigation_chrome.position = navigation.position
+		_settings_navigation_chrome.size = navigation.size
+		_settings_navigation_chrome.call("configure_panel", Rect2(Vector2.ZERO, navigation.size), TacticalUIHelper.CYAN, 0.025)
+	if _settings_scroll != null and is_instance_valid(_settings_scroll):
+		_settings_scroll.offset_left = content.position.x
+		_settings_scroll.offset_right = content.end.x
+		_settings_scroll.offset_top = content.position.y + 8.0
+		_settings_scroll.offset_bottom = footer.position.y - 8.0
+	if _settings_box != null and is_instance_valid(_settings_box):
+		_settings_box.custom_minimum_size.x = maxf(content.size.x - 28.0, 240.0)
+	if _settings_title != null and is_instance_valid(_settings_title):
+		_settings_title.position = title.position
+		_settings_title.size = title.size
+		_settings_title.add_theme_font_size_override("font_size", int(settings_layout["title_size"]))
+	if _settings_footer_row != null and is_instance_valid(_settings_footer_row):
+		_settings_footer_row.position = footer.position
+		_settings_footer_row.size = footer.size
+	if not _settings_nav_buttons.is_empty():
+		for index in _settings_nav_buttons.size():
+			var nav_button := _settings_nav_buttons[index]
+			if not is_instance_valid(nav_button):
+				continue
+			nav_button.position = navigation.position + Vector2(10.0, 12.0 + float(index) * 48.0)
+			nav_button.size = Vector2(maxf(navigation.size.x - 20.0, 96.0), 38.0)
+	if _settings_keybind_grid != null and is_instance_valid(_settings_keybind_grid):
+		_settings_keybind_grid.columns = 1 if content.size.x < 600.0 else 2
+
 func _build_settings() -> void:
 	_settings_panel = Control.new()
 	_settings_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -674,39 +774,29 @@ func _build_settings() -> void:
 	outer_chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	outer_chrome.call("configure_shell", TacticalUIHelper.CYAN, 0.0)
 	_settings_panel.add_child(outer_chrome)
+	var settings_layout := settings_layout_for_viewport(size)
+	var workstation: Rect2 = settings_layout["workstation"]
+	var navigation: Rect2 = settings_layout["navigation"]
+	var content: Rect2 = settings_layout["content"]
+	var footer: Rect2 = settings_layout["footer"]
 	var scroll := ScrollContainer.new()
 	scroll.name = "SettingsScroll"
-	# The workstation rectangles are already absolute viewport coordinates. A
-	# centered anchor would add half the viewport a second time on wide screens.
 	scroll.anchor_left = 0.0
 	scroll.anchor_right = 0.0
 	scroll.anchor_top = 0.0
 	scroll.anchor_bottom = 0.0
-	# Keep the desktop shell broad enough for the title and keybind grid, while
-	# retaining a compact layout on phones and narrow debug windows.
-	var panel_width := minf(1080.0, maxf(size.x - 48.0, 280.0))
-	var panel_height := minf(680.0, maxf(size.y - 48.0, 240.0))
-	var workstation := Rect2((size.x - panel_width) * 0.5, (size.y - panel_height) * 0.5, panel_width, panel_height)
-	var navigation := Rect2(workstation.position + Vector2(10.0, 88.0), Vector2(minf(230.0, workstation.size.x * 0.27), maxf(workstation.size.y - 160.0, 0.0)))
-	var content_x := navigation.end.x + 14.0
-	var content := Rect2(Vector2(content_x, navigation.position.y), Vector2(maxf(workstation.end.x - content_x - 10.0, 0.0), navigation.size.y))
-	var footer := Rect2(workstation.position + Vector2(10.0, workstation.size.y - 68.0), Vector2(workstation.size.x - 20.0, 56.0))
+	_settings_scroll = scroll
 	var frame := Panel.new()
 	frame.name = "SettingsFrame"
-	frame.anchor_left = 0.5
-	frame.anchor_right = 0.5
-	frame.anchor_top = 0.5
-	frame.anchor_bottom = 0.5
-	frame.offset_left = -panel_width * 0.5
-	frame.offset_right = panel_width * 0.5
-	frame.offset_top = -panel_height * 0.5
-	frame.offset_bottom = panel_height * 0.5
+	frame.position = workstation.position
+	frame.size = workstation.size
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var frame_style := StyleBoxFlat.new()
 	frame_style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
 	frame_style.border_color = Color(0.0, 0.0, 0.0, 0.0)
 	frame_style.set_border_width_all(0)
 	frame.add_theme_stylebox_override("panel", frame_style)
+	_settings_frame = frame
 	_settings_panel.add_child(frame)
 	var workstation_chrome: Control = TacticalChromeScript.new()
 	workstation_chrome.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -714,6 +804,7 @@ func _build_settings() -> void:
 	workstation_chrome.size = workstation.size
 	workstation_chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	workstation_chrome.call("configure_panel", Rect2(Vector2.ZERO, workstation.size), TacticalUIHelper.CYAN, 0.025)
+	_settings_workstation_chrome = workstation_chrome
 	_settings_panel.add_child(workstation_chrome)
 	var navigation_chrome: Control = TacticalChromeScript.new()
 	navigation_chrome.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -721,6 +812,7 @@ func _build_settings() -> void:
 	navigation_chrome.size = navigation.size
 	navigation_chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	navigation_chrome.call("configure_panel", Rect2(Vector2.ZERO, navigation.size), TacticalUIHelper.CYAN, 0.025)
+	_settings_navigation_chrome = navigation_chrome
 	_settings_panel.add_child(navigation_chrome)
 	scroll.offset_left = content.position.x
 	scroll.offset_right = content.end.x
@@ -731,6 +823,7 @@ func _build_settings() -> void:
 	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 	_settings_panel.add_child(scroll)
 	var box := VBoxContainer.new()
+	_settings_box = box
 	box.custom_minimum_size.x = maxf(content.size.x - 28.0, 240.0)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_theme_constant_override("separation", 20)
@@ -741,9 +834,12 @@ func _build_settings() -> void:
 	title.add_theme_font_size_override("font_size", 34)
 	title.add_theme_color_override("font_color", Balance.COL_TEXT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(workstation.position.x + 260.0, workstation.position.y + 18.0)
-	title.size = Vector2(maxf(workstation.size.x - 280.0, 300.0), 42.0)
+	var title_rect: Rect2 = settings_layout["title"]
+	title.position = title_rect.position
+	title.size = title_rect.size
+	title.add_theme_font_size_override("font_size", int(settings_layout["title_size"]))
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_settings_title = title
 	_settings_panel.add_child(title)
 	box.add_child(_settings_group_label("AUDIO // MIX"))
 	box.add_child(_make_slider_row("SFX", Sfx.sfx_vol, func(v: float) -> void:
@@ -926,14 +1022,18 @@ func _build_settings() -> void:
 	_style_settings_footer_button(reset, TacticalUIHelper.MAGENTA)
 	back.custom_minimum_size = Vector2(196.0, 42.0)
 	reset.custom_minimum_size = Vector2(250.0, 42.0)
+	_add_button_icon(back, "back", TacticalUIHelper.CYAN, 36.0)
+	_add_button_icon(reset, "warning", TacticalUIHelper.MAGENTA, 36.0)
 	footer_row.add_child(back)
 	var footer_spacer := Control.new()
 	footer_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	footer_row.add_child(footer_spacer)
 	footer_row.add_child(reset)
 	_settings_panel.add_child(footer_row)
+	_settings_footer_row = footer_row
 	var nav_labels := ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"]
 	var nav_targets := [0, 0, 0, 0, 100000]
+	_settings_nav_buttons.clear()
 	for index in nav_labels.size():
 		var nav_button := Button.new()
 		nav_button.text = "  %s" % nav_labels[index]
@@ -949,6 +1049,7 @@ func _build_settings() -> void:
 		nav_button.add_theme_stylebox_override("hover", _settings_nav_style(TacticalUIHelper.CYAN))
 		nav_button.add_theme_stylebox_override("pressed", _settings_nav_style(TacticalUIHelper.CYAN))
 		_add_button_chrome(nav_button, TacticalUIHelper.CYAN, 0.018)
+		_settings_nav_buttons.append(nav_button)
 		var target: int = nav_targets[index]
 		nav_button.pressed.connect(func() -> void:
 			scroll.set_v_scroll(target)
@@ -989,6 +1090,7 @@ func _build_settings() -> void:
 	stats.text = "LIFETIME  RUNS %d  KILLS %d  BEST CHAIN x%d  TOP THREAT %s" % [runs, kills, chain, top]
 	box.add_child(stats)
 	add_child(_settings_panel)
+	_layout_settings()
 
 func _settings_group_label(text: String) -> Label:
 	var label := Label.new()
@@ -1010,6 +1112,7 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 	_keybind_box.add_child(title)
 	var grid := GridContainer.new()
 	grid.columns = 2
+	_settings_keybind_grid = grid
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 5)
 	for action in Game.KEYBIND_DEFAULTS:
@@ -1045,6 +1148,8 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 	var reset := Button.new()
 	reset.text = "RESET KEYBINDS"
 	reset.flat = true
+	reset.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	reset.custom_minimum_size = Vector2(160.0, 28.0)
 	reset.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	reset.add_theme_font_size_override("font_size", 12)
 	reset.add_theme_color_override("font_color", Balance.COL_DANGER)
@@ -1321,27 +1426,6 @@ func _draw() -> void:
 	draw_circle(ring_center, 9.0, Color(Balance.COL_DANGER.r, Balance.COL_DANGER.g, Balance.COL_DANGER.b, 0.42))
 	var mode_y := size.y * 0.5 + 130.0
 	draw_circle(Vector2(center_x, mode_y), 4.0, Balance.COL_MOTE)
-	var bottom_width := minf(480.0, maxf(size.x * 0.34, 280.0))
-	var bottom_gap := 14.0
-	var bottom_button_w := (bottom_width - bottom_gap) * 0.5
-	var bottom_y := size.y - 95.0
-	var bottom_x := (size.x - bottom_width) * 0.5
-	for icon in [
-		{"center": Vector2(bottom_x + 58.0, bottom_y + 27.0), "color": Balance.COL_PLAYER, "kind": 0},
-		{"center": Vector2(bottom_x + bottom_button_w + bottom_gap + 58.0, bottom_y + 27.0), "color": Balance.COL_SPEWER, "kind": 1},
-	]:
-		var icon_center: Vector2 = icon["center"]
-		var icon_color: Color = icon["color"]
-		var hex := PackedVector2Array()
-		for side in 6:
-			hex.append(icon_center + Vector2.from_angle(TAU * side / 6.0 - PI / 6.0) * 25.0)
-		draw_polyline(hex + PackedVector2Array([hex[0]]), Color(icon_color.r, icon_color.g, icon_color.b, 0.9), 1.7, true)
-		if int(icon["kind"]) == 0:
-			for dot in 5:
-				draw_circle(icon_center + Vector2.from_angle(TAU * dot / 5.0) * 9.0, 3.0, icon_color)
-		else:
-			draw_circle(icon_center, 8.0, Color(icon_color.r, icon_color.g, icon_color.b, 0.85))
-			draw_circle(icon_center, 3.0, TacticalUIHelper.PANEL)
 
 func _start() -> void:
 	if _starting:

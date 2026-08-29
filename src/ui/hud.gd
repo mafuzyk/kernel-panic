@@ -2,6 +2,7 @@ class_name Hud
 extends Control
 
 const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
+const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 
 var player: Player
 var boss: RootBoss
@@ -43,6 +44,7 @@ var _tooltip_data: Dictionary = {}
 var _tooltip_visible := false
 var _tooltip_touch_index := -1
 var _tooltip_hold_t := 0.0
+var _dash_icon: Control
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -86,6 +88,12 @@ func _ready() -> void:
 	_run_info_label.add_theme_font_size_override("font_size", 12)
 	_run_info_label.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.62))
 	add_child(_run_info_label)
+	_dash_icon = TacticalIconScript.new()
+	_dash_icon.size = Vector2(52.0, 52.0)
+	_dash_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dash_icon.z_index = 2
+	_dash_icon.call("configure", "dash", Balance.COL_PLAYER)
+	add_child(_dash_icon)
 	_achievement_label = Label.new()
 	_achievement_label.anchor_left = 0.0
 	_achievement_label.anchor_right = 0.0
@@ -296,6 +304,12 @@ func _process(delta: float) -> void:
 	if _run_info_label != null and is_instance_valid(_run_info_label):
 		var compact := bool(layout_snapshot()["compact"])
 		_run_info_label.text = run_info_text() if Sfx.show_run_info and Game.state == Game.State.PLAYING and not compact else ""
+	if _dash_icon != null and is_instance_valid(_dash_icon):
+		var dash_rect: Rect2 = layout_snapshot()["dash"]
+		_dash_icon.position = dash_rect.end - Vector2(64.0, 60.0)
+		_dash_icon.visible = Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available()
+		var dash_col := Balance.COL_PLAYER if _dash_frac >= 1.0 else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.35)
+		_dash_icon.call("configure", "dash", dash_col)
 	_prune_boss_fragments()
 	if _boss_split:
 		_boss_frac = -1.0
@@ -553,16 +567,6 @@ func _dash_pip(f: Font) -> void:
 	draw_string(f, dash_rect.position + Vector2(16.0, 28.0), dash_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 13, Color(col.r, col.g, col.b, 0.82))
 	var charge_text := "x%d" % _dash_max if _dash_max > 1 else "[SHIFT]"
 	draw_string(f, dash_rect.position + Vector2(16.0, 52.0), charge_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 11, Color(col.r, col.g, col.b, 0.68))
-	var chevron := Rect2(dash_rect.end - Vector2(60.0, 57.0), Vector2(44.0, 38.0))
-	var points := TacticalUIHelper.angular_points(chevron, 7.0)
-	var closed := points.duplicate()
-	closed.append(points[0])
-	draw_colored_polygon(points, Color(col.r, col.g, col.b, 0.08))
-	draw_polyline(closed, Color(col.r, col.g, col.b, 0.72), 1.4, true)
-	for offset in [0.0, 10.0, 20.0]:
-		var x: float = chevron.position.x + 11.0 + float(offset)
-		draw_line(Vector2(x, chevron.position.y + 10.0), Vector2(x + 9.0, chevron.position.y + 19.0), col, 2.0)
-		draw_line(Vector2(x + 9.0, chevron.position.y + 19.0), Vector2(x, chevron.position.y + 28.0), col, 2.0)
 	var cooldown := Rect2(dash_rect.position + Vector2(16.0, dash_rect.size.y - 16.0), Vector2(maxf(dash_rect.size.x - 32.0, 50.0), 4.0))
 	draw_rect(cooldown, Color(col.r, col.g, col.b, 0.16))
 	draw_rect(Rect2(cooldown.position, Vector2(cooldown.size.x * _dash_frac, cooldown.size.y)), Color(col.r, col.g, col.b, 0.76))

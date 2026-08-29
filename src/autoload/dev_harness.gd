@@ -1240,6 +1240,16 @@ func _task9_test(arena: Arena) -> void:
 			_check(button_chrome.frame_rect() == Rect2(Vector2.ZERO, Vector2(460, 42)), "button chrome follows control bounds")
 			button_chrome.queue_free()
 		chrome.queue_free()
+	var icon_script: Script = load("res://src/ui/tactical_icon.gd")
+	_check(icon_script != null, "tactical icon script loads")
+	if icon_script != null:
+		var icon: Control = icon_script.new()
+		icon.size = Vector2(48, 48)
+		_check(icon.has_method("configure") and icon.has_method("icon_kind"), "tactical icon exposes semantic configuration")
+		if icon.has_method("configure") and icon.has_method("icon_kind"):
+			icon.call("configure", "settings", Color(0.1, 0.85, 1.0, 1.0))
+			_check(icon.icon_kind() == "settings", "tactical icon keeps its semantic kind")
+		icon.queue_free()
 	var hud: Hud = arena.hud
 	var hud_layout_ready := hud.has_method("layout_snapshot") and hud.has_method("visible_event_lines") and hud.has_method("event_log_visible")
 	_check(hud_layout_ready, "HUD exposes tactical layout and event log APIs")
@@ -1298,6 +1308,9 @@ func _task9_test(arena: Arena) -> void:
 			for action_rect in arena.state_action_rects(viewport_size, 4):
 				_check(state_bounds.encloses(action_rect) and panel_rect.encloses(action_rect), "state action stays in panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 		_check(arena.pause_action_labels() == ["RESUME", "RESTART", "OPEN TERMINAL", "ABANDON PROCESS"], "pause actions preserve safe order")
+		_check(arena.has_method("pause_action_icon_kinds"), "pause actions expose semantic icons")
+		if arena.has_method("pause_action_icon_kinds"):
+			_check(arena.pause_action_icon_kinds() == ["resume", "restart", "terminal", "warning"], "pause icons preserve action semantics")
 		_check(arena.game_over_action_labels() == ["REBOOT", "ABANDON PROCESS"], "game-over actions preserve retry first")
 	var terminal: Control = arena._terminal_panel
 	var terminal_ready := terminal != null and terminal.has_method("workstation_rect") and terminal.has_method("status_snapshot")
@@ -2739,6 +2752,14 @@ func _menu_shell_test(menu: Node) -> void:
 	print("AT_STEP menu_shell")
 	_check(menu.has_method("main_shell_snapshot"), "menu exposes main shell snapshot")
 	_check(menu.has_method("settings_shell_snapshot"), "menu exposes settings shell snapshot")
+	_check(menu.has_method("settings_layout_for_viewport"), "settings exposes responsive workstation geometry")
+	if menu.has_method("settings_layout_for_viewport"):
+		for viewport_size in [Vector2(1366, 768), Vector2(820, 768), Vector2(720, 720), Vector2(432, 720)]:
+			var settings_layout: Dictionary = menu.settings_layout_for_viewport(viewport_size)
+			var settings_bounds := Rect2(Vector2.ZERO, viewport_size)
+			for rect_key in ["workstation", "navigation", "content", "footer", "title"]:
+				_check(settings_bounds.encloses(settings_layout[rect_key]), "settings %s stays inside viewport at %dx%d" % [rect_key, int(viewport_size.x), int(viewport_size.y)])
+			_check(settings_layout["navigation"].position.x < settings_layout["content"].position.x, "settings navigation precedes content at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 	if menu.has_method("main_shell_snapshot"):
 		var main_snapshot: Dictionary = menu.main_shell_snapshot()
 		_check(str(main_snapshot.get("title", "")).contains("KERNEL PANIC"), "main shell exposes kernel panic title")

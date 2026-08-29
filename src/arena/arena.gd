@@ -4,6 +4,7 @@ extends Node2D
 const PatchCard = preload("res://src/ui/patch_card.gd")
 const TacticalStateSurfaceHelper = preload("res://src/ui/tactical_state_surface.gd")
 const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
+const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 
 var player: Player
 var cam: CameraRig
@@ -434,10 +435,16 @@ func _make_volume_row(label_text: String, value: float, y: float, on_change: Cal
 	var row := HBoxContainer.new()
 	row.anchor_left = 0.5
 	row.anchor_right = 0.5
-	row.offset_left = -190.0
-	row.offset_right = 190.0
+	row.offset_left = -205.0
+	row.offset_right = 205.0
 	_center_panel_control(row, y, 36.0)
 	row.add_theme_constant_override("separation", 14)
+	var icon: Control = TacticalIconScript.new()
+	icon.custom_minimum_size = Vector2(24.0, 24.0)
+	icon.size = Vector2(24.0, 24.0)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.call("configure", "audio" if label_text == "SFX" else "music", Balance.COL_TEXT)
+	row.add_child(icon)
 	var l := Label.new()
 	l.text = label_text
 	l.custom_minimum_size = Vector2(70, 0)
@@ -535,7 +542,7 @@ func _make_button(txt: String, y: float) -> Button:
 	normal.border_color = Color(accent.r, accent.g, accent.b, 0.0)
 	normal.set_border_width_all(0)
 	normal.set_corner_radius_all(0)
-	normal.content_margin_left = 18.0
+	normal.content_margin_left = 54.0
 	normal.content_margin_right = 18.0
 	b.add_theme_stylebox_override("normal", normal)
 	var hover := normal.duplicate()
@@ -556,6 +563,14 @@ func _make_button(txt: String, y: float) -> Button:
 	frame.z_index = 1
 	b.add_child(frame)
 	frame.call("configure_control", accent, 0.025)
+	var icon_kind := "warning" if txt.contains("ABANDON") else ("terminal" if txt.contains("TERMINAL") else ("restart" if txt.contains("RESTART") else "resume"))
+	var icon: Control = TacticalIconScript.new()
+	icon.position = Vector2(12.0, 4.0)
+	icon.size = Vector2(32.0, 32.0)
+	icon.z_index = 2
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(icon)
+	icon.call("configure", icon_kind, accent)
 	return b
 
 func _position_game_over_button(button: Button, right_side: bool) -> void:
@@ -585,6 +600,19 @@ func state_action_rects(viewport: Vector2, count: int) -> Array[Rect2]:
 
 func pause_action_labels() -> Array[String]:
 	return ["RESUME", "RESTART", "OPEN TERMINAL", "ABANDON PROCESS"]
+
+func pause_action_icon_kinds() -> Array[String]:
+	var result: Array[String] = []
+	if _pause_panel == null or not is_instance_valid(_pause_panel):
+		return result
+	for child in _pause_panel.get_children():
+		if not child is Button:
+			continue
+		for icon in child.get_children():
+			if icon.has_method("icon_kind"):
+				result.append(str(icon.call("icon_kind")))
+				break
+	return result
 
 func game_over_action_labels() -> Array[String]:
 	return ["REBOOT", "ABANDON PROCESS"]
