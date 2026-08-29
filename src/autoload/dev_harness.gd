@@ -1199,6 +1199,21 @@ func _task5_test(arena: Arena) -> void:
 
 func _task9_test(arena: Arena) -> void:
 	print("AT_STEP task9")
+	var tactical_script = load("res://src/ui/tactical_ui.gd")
+	_check(tactical_script != null, "tactical UI helper loads")
+	if tactical_script != null:
+		var full: Dictionary = tactical_script.layout(Vector2(1366, 768))
+		var narrow: Dictionary = tactical_script.layout(Vector2(432, 720))
+		_check(not bool(full["compact"]) and bool(narrow["compact"]), "tactical layout selects compact breakpoint")
+		for key in ["integrity", "encounter", "score", "dash", "patches", "boss"]:
+			var full_rect: Rect2 = full[key]
+			var narrow_rect: Rect2 = narrow[key]
+			_check(Rect2(Vector2.ZERO, Vector2(1366, 768)).encloses(full_rect), "full tactical region fits: %s" % key)
+			_check(Rect2(Vector2.ZERO, Vector2(432, 720)).encloses(narrow_rect), "compact tactical region fits: %s" % key)
+		var angular: PackedVector2Array = tactical_script.angular_points(Rect2(10, 20, 100, 50), 10.0)
+		_check(angular.size() == 8 and angular[0] == Vector2(20, 20), "angular frame returns stable clipped corners")
+		var segments: Array[Rect2] = tactical_script.segment_rects(Rect2(0, 0, 100, 10), 5, 2.0)
+		_check(segments.size() == 5 and segments[4].end.x <= 100.01, "segmented meter geometry stays inside bounds")
 	var hud: Hud = arena.hud
 	var saved_hud_size := hud.size
 	hud.size = Vector2(1280, 720)
