@@ -22,6 +22,7 @@ var _klog: Label
 var _klog_t := 0.0
 var _esc_armed := 0.0
 var _bestiary_panel: BestiaryPanel
+var _ach_panel: Control
 var _program_panel: ProgramPanel
 var _story_panel: StoryPanel
 var _program_btn: Button
@@ -436,10 +437,17 @@ func _build_button_row() -> void:
 	best_btn.z_index = 2
 	best_btn.pressed.connect(_open_bestiary)
 	row.add_child(best_btn)
+	var ach_btn := Button.new()
+	_style_card_button(ach_btn, TacticalUIHelper.LIME, Vector2(bottom_button_w, 48.0))
+	ach_btn.text = "AWARDS"
+	ach_btn.z_index = 2
+	ach_btn.pressed.connect(_open_achievements)
+	row.add_child(ach_btn)
 	var bottom_y := size.y - 95.0
 	var bottom_x := (size.x - bottom_width) * 0.5
 	_add_menu_frame(Rect2(Vector2(bottom_x, bottom_y), Vector2(bottom_button_w, 48.0)), Balance.COL_TEXT, 0.015)
 	_add_menu_frame(Rect2(Vector2(bottom_x + bottom_button_w + bottom_gap, bottom_y), Vector2(bottom_button_w, 48.0)), Balance.COL_SPEWER, 0.02)
+	_add_menu_frame(Rect2(Vector2(bottom_x + (bottom_button_w + bottom_gap) * 2.0, bottom_y), Vector2(bottom_button_w, 48.0)), TacticalUIHelper.LIME, 0.02)
 	_mode_info = Label.new()
 	_mode_info.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	_mode_info.add_theme_font_size_override("font_size", 12)
@@ -620,6 +628,40 @@ func _open_bestiary() -> void:
 
 func _close_bestiary() -> void:
 	_bestiary_panel.visible = false
+	Sfx.play("ui", 0.9, -8.0)
+
+func _open_achievements() -> void:
+	if _ach_panel == null:
+		var panel_script: Script = load("res://src/ui/achievements_panel.gd")
+		if panel_script == null:
+			return
+		_ach_panel = panel_script.new()
+		_ach_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+		var back := Button.new()
+		_style_overlay_back(back)
+		back.text = "BACK  [ESC]"
+		back.anchor_left = 0.0
+		back.anchor_right = 0.0
+		back.anchor_top = 1.0
+		back.anchor_bottom = 1.0
+		back.offset_left = 28.0
+		back.offset_right = 190.0
+		back.offset_top = -72.0
+		back.offset_bottom = -30.0
+		back.pressed.connect(_close_achievements)
+		_ach_panel.add_child(back)
+		var layer := CanvasLayer.new()
+		layer.layer = 70
+		layer.add_child(_ach_panel)
+		add_child(layer)
+	_ach_panel.visible = true
+	if _ach_panel.has_method("refresh"):
+		_ach_panel.call("refresh")
+	Sfx.play("ui", 1.1, -8.0)
+
+func _close_achievements() -> void:
+	if _ach_panel != null:
+		_ach_panel.visible = false
 	Sfx.play("ui", 0.9, -8.0)
 
 func _style_overlay_back(back: Button) -> void:
@@ -1495,6 +1537,9 @@ func _input(event: InputEvent) -> void:
 	elif _bestiary_panel != null and _bestiary_panel.visible:
 		_close_bestiary()
 		get_viewport().set_input_as_handled()
+	elif _ach_panel != null and _ach_panel.visible:
+		_close_achievements()
+		get_viewport().set_input_as_handled()
 
 func _start() -> void:
 	if _starting:
@@ -1533,6 +1578,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _bestiary_panel != null and _bestiary_panel.visible:
 		if event.is_action_pressed("pause"):
 			_close_bestiary()
+			get_viewport().set_input_as_handled()
+		return
+	if _ach_panel != null and _ach_panel.visible:
+		if event.is_action_pressed("pause"):
+			_close_achievements()
 			get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("pause"):

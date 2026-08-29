@@ -423,6 +423,7 @@ func _autotest() -> void:
 	await _menu_shell_test(menu_scene)
 	await _text_overflow_test()
 	await _touch_hud_layout_test()
+	await _achievements_panel_test()
 	await _charm_save_transfer_test(menu_scene)
 	if menu_scene.has_method("_reset_scores"):
 		menu_scene._reset_scores()
@@ -3696,3 +3697,63 @@ func _spawn_boss(arena: Arena, mk := 1) -> void:
 		var orb := EnemyOrb.new()
 		orb.setup(boss.global_position + Vector2.from_angle(TAU * i / 5.0) * 60.0, Vector2.from_angle(TAU * i / 5.0), 120.0, boss.col)
 		arena.enemy_container.add_child(orb)
+
+func _achievements_panel_test() -> void:
+	print("AT_STEP achievements_panel")
+	var panel_script: Script = load("res://src/ui/achievements_panel.gd")
+	var panel = panel_script.new() if panel_script != null else null
+	_check(panel != null and panel.has_method("achievement_rows") and panel.has_method("progress_header"), "achievements panel exposes achievement_rows and progress_header")
+	if panel == null or not panel.has_method("achievement_rows"):
+		if panel != null:
+			panel.free()
+		return
+	var saved_achievements: Dictionary = Game.achievements.duplicate()
+	Game.achievements = {"first_blood": true}
+	panel.size = Vector2(1366, 768)
+	var rows: Array = panel.call("achievement_rows")
+	var ids: Array = []
+	for row in rows:
+		ids.append(str(row.get("id", "")))
+	var all_listed := true
+	for id in Game.ACHIEVEMENT_DEFS:
+		if not ids.has(str(id)):
+			all_listed = false
+	_check(all_listed, "achievements panel lists every ACHIEVEMENT_DEFS id")
+	var state_ok: bool = rows.size() == Game.ACHIEVEMENT_DEFS.size()
+	for row in rows:
+		if bool(row.get("unlocked", false)) == (not Game.achievements.has(str(row.get("id", "")))):
+			state_ok = false
+	_check(state_ok, "achievements rows report the correct locked state")
+	_check(str(panel.call("progress_header")).contains("1 / %d" % Game.ACHIEVEMENT_DEFS.size()), "achievements header shows the X / Y progress count")
+	var hints_ok := true
+	for row in rows:
+		if not Game.achievements.has(str(row.get("id", ""))) and str(row.get("hint", "")).strip_edges().is_empty():
+			hints_ok = false
+	_check(hints_ok, "locked achievements expose a hint line")
+	var panel_src := str(panel_script.source_code)
+	_check(panel_src.contains("ScrollContainer"), "achievements panel scrolls instead of blocking mobile input")
+	panel.free()
+	var menu_src := str(load("res://src/ui/menu.gd").source_code)
+	_check(menu_src.contains("_open_achievements"), "menu exposes an achievements entry point")
+	var hud_script: Script = load("res://src/ui/hud.gd")
+	var hud_detached = hud_script.new()
+	hud_detached.size = Vector2(1366, 768)
+	Game.achievements.erase("chain_max")
+	var unlocked_now: bool = Game.unlock_achievement("chain_max")
+	_check(unlocked_now, "test unlock of a fresh achievement succeeds")
+	var surfaced := false
+	for line in hud_detached.call("visible_event_lines"):
+		if str(line).contains("achievement: CHAIN_REACTION"):
+			surfaced = true
+	_check(surfaced, "a mid-run unlock appears in the hud event log lines")
+	hud_detached.size = Vector2(432, 720)
+	_check(not bool(hud_detached.call("event_log_visible")), "compact viewport keeps the event log hidden for the hidden-log probe")
+	Game.achievements.erase("terminal_operator")
+	Game.unlock_achievement("terminal_operator")
+	_check(hud_detached.call("visible_event_lines").size() > 0, "unlocking while the event log is hidden does not error")
+	hud_detached.free()
+	Game.achievements = saved_achievements
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("achievements", "unlocked", saved_achievements)
+	cf.save(Sfx.SAVE_PATH)
