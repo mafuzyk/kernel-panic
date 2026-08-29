@@ -29,12 +29,14 @@ func _move(delta: float) -> void:
 		St.SEEK:
 			var target_idx: int = _nearest_free_mote()
 			if target_idx >= 0:
-				var tp := _field().pos_of(target_idx)
+				var f := _field()
+				var tp := f.pos_of(target_idx)
+				var target_uid := f.uid_of(target_idx)
 				var desired := (tp - global_position).normalized()
 				desired += steer_separation(2.4) * 0.7
 				_v = _v.move_toward(desired.limit_length(1.0) * speed, 500.0 * delta)
-				if global_position.distance_to(tp) < 18.0:
-					_steal(target_idx)
+				if global_position.distance_to(tp) < 18.0 and f.uid_of(target_idx) == target_uid:
+					_steal(target_idx, target_uid)
 			else:
 				_v = _v.move_toward(aim_at_player() * speed * 0.7, 400.0 * delta)
 			if carried_ids.size() >= 2:
@@ -51,8 +53,8 @@ func _move(delta: float) -> void:
 	var f := _field()
 	if f != null:
 		for i in range(carried_ids.size() - 1, -1, -1):
-			var idx: int = carried_ids[i]
-			if not f.alive_at(idx):
+			var idx: int = f.idx_of_uid(int(carried_ids[i]))
+			if idx < 0:
 				carried_ids.remove_at(i)
 				continue
 			f.set_slot_position(idx, global_position + Vector2.from_angle(t * 4.0 + TAU * i / maxi(carried_ids.size(), 1)) * 22.0)
@@ -80,14 +82,16 @@ func _nearest_edge_point() -> Vector2:
 			best = cpt
 	return best
 
-func _steal(idx: int) -> void:
+func _steal(idx: int, expected_uid: int = -1) -> void:
 	var f := _field()
 	if f == null or f.is_stolen(idx):
+		return
+	if expected_uid >= 0 and f.uid_of(idx) != expected_uid:
 		return
 	if f.steal(idx) < 0:
 		return
 	f.set_slot_position(idx, f.pos_of(idx))
-	carried_ids.append(idx)
+	carried_ids.append(f.uid_of(idx))
 	Fx.sparks(f.pos_of(idx), col, 5, 140.0, 0.3, 2.5)
 	Sfx.play("hit", 1.6, -10.0, 0.1)
 	Fx.text(global_position + Vector2(0, -22), "STOLEN", col, 11)

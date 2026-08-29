@@ -385,6 +385,8 @@ func _autotest() -> void:
 	await _era_accent_test(arena2)
 	await _systems_test(arena2)
 	await _debug_controls_test(arena2)
+	await _mote_sweep_test(arena2)
+	await _oom_steal_identity_test(arena2)
 	await _story_test(arena2)
 	await _windows_test(arena2)
 	await _temple_test(arena2)
@@ -2575,6 +2577,75 @@ func _debug_controls_test(arena: Arena) -> void:
 	for child in arena.enemy_container.get_children():
 		child.queue_free()
 	await _ticks(3)
+
+func _mote_sweep_test(arena: Arena) -> void:
+	print("AT_STEP mote_sweep")
+	arena.spawner.stop()
+	arena.spawner.debug_clear_encounter()
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if is_instance_valid(node):
+			node.queue_free()
+	await _ticks(2)
+	var mf: MoteField = arena.mote_field
+	var player_ref: Player = arena.player
+	player_ref.invuln = 9999.0
+	Game.patch_levels = {}
+	player_ref.meter = 0.0
+	player_ref.overclock_active = false
+	for i in range(mf.count() - 1, -1, -1):
+		mf.kill_slot(i)
+	var start := player_ref.global_position
+	var far_idx := mf.spawn(start + Vector2(400.0, 0.0))
+	var mid_idx := mf.spawn(start + Vector2(130.0, 0.0))
+	await _ticks(3)
+	player_ref.global_position = start + Vector2(260.0, 0.0)
+	var collected := await _until(func() -> bool: return not mf.alive_at(mid_idx), 3.0, "swept mote pickup")
+	_check(collected, "a dash-speed position jump collects a mote centered in the swept segment")
+	_check(mf.alive_at(far_idx), "a distant mote is not collected by the swept segment")
+	if far_idx >= 0 and mf.alive_at(far_idx):
+		mf.kill_slot(far_idx)
+	player_ref.invuln = 0.0
+
+func _oom_steal_identity_test(arena: Arena) -> void:
+	print("AT_STEP oom_identity")
+	var mf: MoteField = arena.mote_field
+	_check(mf.has_method("uid_of") and mf.has_method("idx_of_uid"), "mote field exposes identity handles")
+	if not (mf.has_method("uid_of") and mf.has_method("idx_of_uid")):
+		return
+	arena.spawner.stop()
+	arena.spawner.debug_clear_encounter()
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if is_instance_valid(node):
+			node.queue_free()
+	await _ticks(2)
+	var oom: EnemyBase = arena.spawner._make_enemy("oom")
+	oom.position = arena.player.global_position + Vector2(320, 0)
+	arena.enemy_container.add_child(oom)
+	await _ticks(2)
+	for i in range(mf.count() - 1, -1, -1):
+		mf.kill_slot(i)
+	var near_idx := mf.spawn(oom.global_position + Vector2(12.0, 0.0))
+	var target_idx := mf.spawn(oom.global_position + Vector2(160.0, 0.0))
+	var target_pos := mf.pos_of(target_idx)
+	var target_uid: int = mf.call("uid_of", target_idx)
+	oom.call("_steal", target_idx, target_uid)
+	_check(mf.is_stolen(target_idx), "oom steals the targeted mote")
+	mf.kill_slot(near_idx)
+	var resolved: int = mf.call("idx_of_uid", target_uid)
+	_check(resolved >= 0 and mf.alive_at(resolved) and mf.is_stolen(resolved), "the stolen mote keeps its identity after a slot swap")
+	_check(mf.pos_of(resolved).distance_to(target_pos) < 0.01, "the carried slot still points at the stolen mote's position")
+	var third_idx := mf.spawn(oom.global_position + Vector2(300.0, 0.0))
+	var wrong_uid: int = int(target_uid) + 1000000
+	oom.call("_steal", third_idx, wrong_uid)
+	_check(not mf.is_stolen(third_idx), "a stale identity never steals a live free mote")
+	oom.call("_steal", third_idx, mf.call("uid_of", third_idx))
+	_check(mf.is_stolen(third_idx), "a matching identity steals normally")
+	var probe: int = mf.nearest_free(oom.global_position)
+	_check(probe < 0 or (mf.alive_at(probe) and not mf.is_stolen(probe)), "re-resolution only targets live free motes")
+	oom.carried_ids.clear()
+	mf.free_all_stolen()
+	oom.queue_free()
+	await _ticks(2)
 
 func _hud_style_test(_arena: Arena) -> void:
 	print("AT_STEP hud_style")

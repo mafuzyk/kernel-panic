@@ -15,8 +15,12 @@ var _life := PackedFloat32Array()
 var _flags := PackedInt32Array()
 var _seed_t := PackedFloat32Array()
 var _count := 0
+var _uid := PackedInt64Array()
+var _next_uid := 1
 var _mmi: MultiMeshInstance2D
 var player: Node2D
+var _prev_player_pos := Vector2.ZERO
+var _has_prev := false
 
 func _ready() -> void:
 	add_to_group("mote_field")
@@ -25,6 +29,7 @@ func _ready() -> void:
 	_life.resize(MAX)
 	_flags.resize(MAX)
 	_seed_t.resize(MAX)
+	_uid.resize(MAX)
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_2D
 	mm.use_colors = true
@@ -107,6 +112,8 @@ func _init_slot(idx: int, pos: Vector2) -> void:
 	_vel[idx] = Vector2.ZERO
 	_life[idx] = Balance.MOTE_LIFE
 	_flags[idx] = F_ALIVE
+	_uid[idx] = _next_uid
+	_next_uid += 1
 	_seed_t[idx] = Game.rng.randf() * TAU
 
 func kill_slot(idx: int) -> void:
@@ -120,7 +127,9 @@ func kill_slot(idx: int) -> void:
 		_life[idx] = _life[last]
 		_flags[idx] = _flags[last]
 		_seed_t[idx] = _seed_t[last]
+		_uid[idx] = _uid[last]
 	_hide_instance(last)
+	_flags[last] = 0
 
 func _hide_instance(i: int) -> void:
 	_mmi.multimesh.set_instance_transform_2d(i, Transform2D(0.0, Vector2(-9999.0, -9999.0)))
@@ -181,11 +190,25 @@ func stolen_positions_of(ids: Array) -> Array:
 			out.append(i)
 	return out
 
+func uid_of(idx: int) -> int:
+	if idx < 0 or idx >= _count or not alive_at(idx):
+		return -1
+	return _uid[idx]
+
+func idx_of_uid(uid: int) -> int:
+	if uid <= 0:
+		return -1
+	for i in _count:
+		if alive_at(i) and _uid[i] == uid:
+			return i
+	return -1
+
 func _physics_process(delta: float) -> void:
 	if player == null or not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player") if get_tree() != null else null
 	var mag: float = player.magnet_radius() if player != null and is_instance_valid(player) else 0.0
 	var ppos: Vector2 = player.global_position if player != null and is_instance_valid(player) else Vector2.ZERO
+	var sweep_from := _prev_player_pos if _has_prev else ppos
 	for i in range(_count - 1, -1, -1):
 		if not alive_at(i):
 			continue
@@ -204,7 +227,13 @@ func _physics_process(delta: float) -> void:
 			if (f & F_MAGNET) != 0 and d > 1.0:
 				var pull := (ppos - _pos[i]).normalized()
 				_vel[i] = _vel[i].move_toward(pull * 560.0, 2600.0 * delta)
-			if d < 20.0:
+			var seg := ppos - sweep_from
+			var seg_len_sq := seg.length_squared()
+			var seg_t := 0.0
+			if seg_len_sq > 0.0001:
+				seg_t = clampf((_pos[i] - sweep_from).dot(seg) / seg_len_sq, 0.0, 1.0)
+			var nearest := sweep_from + seg * seg_t
+			if d < 20.0 or _pos[i].distance_to(nearest) < 20.0:
 				player.collect_mote()
 				Fx.sparks(_pos[i], Balance.COL_MOTE, 4, 120.0, 0.25, 2.0)
 				kill_slot(i)
@@ -214,6 +243,8 @@ func _physics_process(delta: float) -> void:
 		if (f & F_MAGNET) == 0:
 			_vel[i] = _vel[i].move_toward(Vector2.ZERO, 260.0 * delta)
 		_pos[i] += _vel[i] * delta
+	_prev_player_pos = ppos
+	_has_prev = true
 	_push_instances()
 
 func stolen_ids() -> Array:
