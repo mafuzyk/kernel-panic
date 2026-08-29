@@ -2094,7 +2094,7 @@ Interfaces:
 - Consumes: `Game.ACHIEVEMENT_DEFS` (game.gd:39), `Game.achievements` (persisted in config section "achievements"), `Game.unlock_achievement()` (game.gd:485, already calls `log_event("achievement: %s enabled" % label)` before `achievement_unlocked.emit`), `Game.event_log` + `hud.gd` `visible_event_lines()` (line 155), the bestiary overlay pattern in `menu.gd` (`_open_bestiary` ~551, `_close_bestiary` ~600, `_style_overlay_back` ~604, ESC close chains at ~1452 and ~1490), the bottom card-button row (`_style_card_button`, `bottom_button_w`, row after `best_btn`).
 - Produces: `AchievementsPanel.achievement_rows()`, `AchievementsPanel.progress_header()`, `AchievementsPanel.refresh()`; menu `_open_achievements()` / `_close_achievements()`; harness `_achievements_panel_test()`.
 
-- [ ] Step 1: Write the failing harness regression
+- [x] Step 1: Write the failing harness regression
 
 In `src/autoload/dev_harness.gd`, after the line `await _touch_hud_layout_test()` add:
 
@@ -2166,7 +2166,7 @@ func _achievements_panel_test() -> void:
 	cf.save(Sfx.SAVE_PATH)
 ~~~
 
-- [ ] Step 2: Run the test to verify it fails
+- [x] Step 2: Run the test to verify it fails
 
 Run:
 
@@ -2179,7 +2179,7 @@ Expected: AT_FAIL `achievements panel exposes achievement_rows and progress_head
 are regression protection for the already-working `unlock_achievement →
 log_event` path, not new wiring). No parse error.
 
-- [ ] Step 3: Create src/ui/achievements_panel.gd with the full content
+- [x] Step 3: Create src/ui/achievements_panel.gd with the full content
 
 Create `src/ui/achievements_panel.gd`:
 
@@ -2295,7 +2295,7 @@ func _draw() -> void:
 	draw_polyline(closed, Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.72), 1.4, true)
 ~~~
 
-- [ ] Step 4: Wire the menu entry in menu.gd
+- [x] Step 4: Wire the menu entry in menu.gd
 
 4a. In `src/ui/menu.gd`, replace:
 
@@ -2424,7 +2424,7 @@ with:
 		return
 ~~~
 
-- [ ] Step 5: Confirm no game.gd change is needed
+- [x] Step 5: Confirm no game.gd change is needed
 
 The Step 1 guard `a mid-run unlock appears in the hud event log lines` must pass
 in the Step 6 run: `unlock_achievement()` (game.gd:485) already calls
@@ -2434,7 +2434,7 @@ only if) that guard fails, the fix is to keep that exact `log_event` call as the
 last statement before the `achievement_unlocked.emit(id, label)` line in
 `unlock_achievement` — do not add a HUD-specific accessor. Expected: no edit.
 
-- [ ] Step 6: Run the full suite
+- [x] Step 6: Run the full suite
 
 Run:
 
@@ -2446,7 +2446,7 @@ Expected: `AUTOTEST_ALL_PASS` and zero `AT_FAIL`, with the new `achievements_pan
 `AT_STEP` section present and the save config's achievements section restored by
 the test itself.
 
-- [ ] Step 7: Interactive visual verification
+- [x] Step 7: Interactive visual verification
 
 Run (desktop, windowed):
 
@@ -2460,7 +2460,7 @@ dimmed with hints), and BACK [ESC] / ESC closes it. Resize the window to 432x720
 the row list scrolls with wheel/touch drag and the panel never blocks scrolling.
 Repeat once at 720x720. (Interactive because no KP_* hook opens this panel.)
 
-- [ ] Step 8: Commit
+- [x] Step 8: Commit
 
 ~~~sh
 git add src/ui/achievements_panel.gd src/ui/menu.gd src/autoload/dev_harness.gd
