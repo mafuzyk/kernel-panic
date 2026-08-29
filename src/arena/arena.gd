@@ -839,6 +839,8 @@ func _apply_story_theme(theme: Dictionary) -> void:
 	var glow_col: Color = theme.get("glow_col", Color("0d4160"))
 	var accent: Color = theme.get("accent", Balance.COL_PLAYER)
 	_era_color = accent
+	if hud != null:
+		hud.set_era_accent(accent)
 	if _bg_mat != null:
 		_bg_mat.set_shader_parameter("base_col", base_col)
 		_bg_mat.set_shader_parameter("grid_col", grid_col)
@@ -908,6 +910,8 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 	Game.stats["wave"] = wave
 	walls.pulse()
 	_era_color = Balance.era_color(wave)
+	if hud != null:
+		hud.set_era_accent(_era_color)
 	walls.set_tint(_era_color)
 	if _bg_mat != null:
 		_bg_mat.set_shader_parameter("corruption", background_corruption_for_wave(wave))
@@ -1615,6 +1619,8 @@ func _process(delta: float) -> void:
 	if _temple_mode or (Game.mode != "story" and Game.temple_rainbow_unlocked):
 		var rainbow := Color.from_hsv(fmod(float(Game.stats.get("time", 0.0)) * 0.08, 1.0), 0.78, 1.0)
 		_era_color = rainbow
+		if hud != null:
+			hud.set_era_accent(rainbow)
 		if walls != null:
 			walls.set_tint(rainbow)
 		if _dust != null:

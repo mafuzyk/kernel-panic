@@ -382,6 +382,7 @@ func _autotest() -> void:
 	await _task6_test(arena2)
 	await _task9_test(arena2)
 	await _hud_style_test(arena2)
+	await _era_accent_test(arena2)
 	await _systems_test(arena2)
 	await _debug_controls_test(arena2)
 	await _story_test(arena2)
@@ -2587,6 +2588,31 @@ func _hud_style_test(_arena: Arena) -> void:
 	_check(menu_fill.is_equal_approx(TacticalUI.PANEL), "non-combat surfaces keep the opaque PANEL fill")
 	var hud_script: Script = load("res://src/ui/hud.gd")
 	_check(str(hud_script.source_code).contains("panel_fill_color(combat)"), "combat hud panels draw with the faint combat fill")
+
+func _era_accent_test(arena: Arena) -> void:
+	print("AT_STEP era_accent")
+	var hud_ref = arena.hud
+	_check(hud_ref != null and hud_ref.has_method("set_era_accent") and hud_ref.has_method("era_accent"), "hud exposes era accent controls")
+	if hud_ref == null or not hud_ref.has_method("set_era_accent"):
+		return
+	var hud_script: Script = load("res://src/ui/hud.gd")
+	var fresh_hud = hud_script.new() if hud_script != null else null
+	_check(fresh_hud != null and fresh_hud.call("era_accent") == TacticalUI.CYAN, "hud era accent defaults to cyan")
+	if fresh_hud != null:
+		fresh_hud.free()
+	var seed_before := Game.rng.seed
+	hud_ref.call("set_era_accent", Balance.era_color(8))
+	_check(hud_ref.call("era_accent") == Balance.era_color(8), "set_era_accent updates the hud accent")
+	_check(Game.rng.seed == seed_before, "era accent changes never advance the gameplay rng")
+	arena.call("_on_wave_started", 8, false)
+	_check(arena.hud.call("era_accent") == Balance.era_color(8), "arena pushes the per-wave era accent to the hud")
+	arena.set("_temple_mode", true)
+	var accent_a: Color = arena.hud.call("era_accent")
+	await _ticks(4)
+	var accent_b: Color = arena.hud.call("era_accent")
+	arena.set("_temple_mode", false)
+	_check(accent_a != accent_b, "rainbow mode cycles the hud accent over time")
+	hud_ref.call("set_era_accent", TacticalUI.CYAN)
 
 func _story_test(arena: Arena) -> void:
 	print("AT_STEP story")

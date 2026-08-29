@@ -45,6 +45,7 @@ var _tooltip_visible := false
 var _tooltip_touch_index := -1
 var _tooltip_hold_t := 0.0
 var _dash_icon: Control
+var _era_accent: Color = TacticalUIHelper.CYAN
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -405,35 +406,35 @@ func _draw_tactical_shell(f: Font) -> void:
 	var compact := bool(layout["compact"])
 	var outer := TacticalUIHelper.shell_rect(size)
 	var outer_points := TacticalUIHelper.angular_points(outer, 14.0)
-	draw_polyline(outer_points + PackedVector2Array([outer_points[0]]), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.68), 1.25, true)
-	draw_line(outer.position + Vector2(26.0, 7.0), outer.position + Vector2(170.0, 7.0), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.52), 1.0)
-	draw_line(Vector2(outer.end.x - 170.0, outer.position.y + 7.0), Vector2(outer.end.x - 26.0, outer.position.y + 7.0), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.52), 1.0)
-	draw_line(outer.position + Vector2(26.0, -7.0 + outer.size.y), outer.position + Vector2(170.0, outer.size.y - 7.0), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.52), 1.0)
-	draw_line(Vector2(outer.end.x - 170.0, outer.end.y - 7.0), outer.end - Vector2(26.0, 7.0), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.52), 1.0)
+	draw_polyline(outer_points + PackedVector2Array([outer_points[0]]), Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.68), 1.25, true)
+	draw_line(outer.position + Vector2(26.0, 7.0), outer.position + Vector2(170.0, 7.0), Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.52), 1.0)
+	draw_line(Vector2(outer.end.x - 170.0, outer.position.y + 7.0), Vector2(outer.end.x - 26.0, outer.position.y + 7.0), Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.52), 1.0)
+	draw_line(outer.position + Vector2(26.0, -7.0 + outer.size.y), outer.position + Vector2(170.0, outer.size.y - 7.0), Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.52), 1.0)
+	draw_line(Vector2(outer.end.x - 170.0, outer.end.y - 7.0), outer.end - Vector2(26.0, 7.0), Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.52), 1.0)
 	for corner in [Vector2(outer.position.x + 28.0, outer.position.y + 14.0), Vector2(outer.end.x - 28.0, outer.position.y + 14.0), Vector2(outer.position.x + 28.0, outer.end.y - 14.0), Vector2(outer.end.x - 28.0, outer.end.y - 14.0)]:
-		draw_circle(corner, 2.0, Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.82))
+		draw_circle(corner, 2.0, Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.82))
 	var integrity_rect: Rect2 = layout["integrity"]
 	var encounter_rect: Rect2 = layout["encounter"]
 	var score_rect: Rect2 = layout["score"]
 	var dash_rect: Rect2 = layout["dash"]
 	var patch_rect: Rect2 = layout["patches"]
-	_draw_angular_panel(integrity_rect, TacticalUIHelper.CYAN, 0.055, true)
-	_draw_angular_panel(encounter_rect, TacticalUIHelper.CYAN, 0.045, true)
-	_draw_angular_panel(score_rect, TacticalUIHelper.CYAN, 0.055, true)
-	_draw_angular_panel(dash_rect, TacticalUIHelper.CYAN, 0.045, true)
-	_draw_angular_panel(patch_rect, TacticalUIHelper.CYAN, 0.045, true)
+	_draw_angular_panel(integrity_rect, _era_accent, 0.055, true)
+	_draw_angular_panel(encounter_rect, _era_accent, 0.045, true)
+	_draw_angular_panel(score_rect, _era_accent, 0.055, true)
+	_draw_angular_panel(dash_rect, _era_accent, 0.045, true)
+	_draw_angular_panel(patch_rect, _era_accent, 0.045, true)
 	draw_string(f, integrity_rect.position + Vector2(16.0, 22.0), "INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, TacticalUIHelper.TEXT)
 	var cycle_label := "CYCLE %02d" % Game.wave
 	draw_string(_score_font, encounter_rect.position + Vector2(0.0, 30.0 if compact else 38.0), cycle_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 24 if compact else 32, TacticalUIHelper.TEXT)
 	var encounter_label := _boss_name if not _boss_name.is_empty() else "PROCESS PURGE"
 	draw_string(f, encounter_rect.position + Vector2(0.0, 50.0 if compact else 62.0), encounter_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 11 if compact else 12, TacticalUIHelper.MUTED)
-	draw_string(f, score_rect.position + Vector2(14.0, 22.0), "SCORE", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, TacticalUIHelper.CYAN)
+	draw_string(f, score_rect.position + Vector2(14.0, 22.0), "SCORE", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, _era_accent)
 	draw_string(_score_font, score_rect.position + Vector2(14.0, 52.0), "%07d" % _score, HORIZONTAL_ALIGNMENT_RIGHT, score_rect.size.x - 28.0, 24 if compact else 28, TacticalUIHelper.TEXT)
 	if event_log_visible():
 		var event_rect := Rect2(score_rect.position.x, score_rect.end.y + 8.0, score_rect.size.x, 84.0)
-		_draw_angular_panel(event_rect, TacticalUIHelper.CYAN, 0.025, true)
+		_draw_angular_panel(event_rect, _era_accent, 0.025, true)
 		var event_y := event_rect.position.y + 18.0
-		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, TacticalUIHelper.CYAN)
+		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, _era_accent)
 		for line in visible_event_lines():
 			event_y += 15.0
 			draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), line, HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 11, TacticalUIHelper.MUTED)
@@ -491,7 +492,7 @@ func _oc_bar(f: Font) -> void:
 func _patch_chips(f: Font) -> void:
 	_update_patch_chip_rects()
 	var patch_rect: Rect2 = layout_snapshot()["patches"]
-	draw_string(f, patch_rect.position + Vector2(14.0, 20.0), "PATCH STACK", HORIZONTAL_ALIGNMENT_LEFT, patch_rect.size.x - 28.0, 11, TacticalUIHelper.CYAN)
+	draw_string(f, patch_rect.position + Vector2(14.0, 20.0), "PATCH STACK", HORIZONTAL_ALIGNMENT_LEFT, patch_rect.size.x - 28.0, 11, _era_accent)
 	if _patch_chip_rects.is_empty():
 		draw_string(f, patch_rect.position + Vector2(14.0, 48.0), "NO ACTIVE PATCHES", HORIZONTAL_ALIGNMENT_LEFT, patch_rect.size.x - 28.0, 11, TacticalUIHelper.MUTED)
 		return
@@ -614,3 +615,12 @@ func _boss_split_bar(f: Font) -> void:
 			else:
 				draw_rect(seg, Color(col.r, col.g, col.b, 0.12))
 	draw_string(f, Vector2(region.position.x, boss_title_baseline()), _boss_name, HORIZONTAL_ALIGNMENT_CENTER, region.size.x, 12, Color(col.r, col.g, col.b, 0.9))
+
+func set_era_accent(color: Color) -> void:
+	if color == _era_accent:
+		return
+	_era_accent = color
+	queue_redraw()
+
+func era_accent() -> Color:
+	return _era_accent
