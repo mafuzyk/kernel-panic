@@ -1210,11 +1210,27 @@ func _task9_test(arena: Arena) -> void:
 			var narrow_rect: Rect2 = narrow[key]
 			_check(Rect2(Vector2.ZERO, Vector2(1366, 768)).encloses(full_rect), "full tactical region fits: %s" % key)
 			_check(Rect2(Vector2.ZERO, Vector2(432, 720)).encloses(narrow_rect), "compact tactical region fits: %s" % key)
+		_check(not Rect2(narrow["encounter"]).intersects(Rect2(narrow["integrity"])) and not Rect2(narrow["encounter"]).intersects(Rect2(narrow["score"])), "compact encounter does not cover corner status")
+		_check(not Rect2(narrow["boss"]).intersects(Rect2(narrow["dash"])) and not Rect2(narrow["boss"]).intersects(Rect2(narrow["patches"])), "compact boss frame clears bottom status modules")
 		var angular: PackedVector2Array = tactical_script.angular_points(Rect2(10, 20, 100, 50), 10.0)
 		_check(angular.size() == 8 and angular[0] == Vector2(20, 20), "angular frame returns stable clipped corners")
 		var segments: Array[Rect2] = tactical_script.segment_rects(Rect2(0, 0, 100, 10), 5, 2.0)
 		_check(segments.size() == 5 and segments[4].end.x <= 100.01, "segmented meter geometry stays inside bounds")
 	var hud: Hud = arena.hud
+	var hud_layout_ready := hud.has_method("layout_snapshot") and hud.has_method("visible_event_lines") and hud.has_method("event_log_visible")
+	_check(hud_layout_ready, "HUD exposes tactical layout and event log APIs")
+	if hud_layout_ready:
+		var saved_event_log: Array[Dictionary] = Game.event_log.duplicate(true)
+		Game.event_log = [
+			{"time": 1.0, "text": "ONE"}, {"time": 2.0, "text": "TWO"},
+			{"time": 3.0, "text": "THREE"}, {"time": 4.0, "text": "FOUR"},
+			{"time": 5.0, "text": "FIVE"},
+		]
+		var lines: Array[String] = hud.visible_event_lines()
+		_check(lines.size() == 4 and lines[0].contains("TWO") and lines[3].contains("FIVE"), "HUD event log keeps the newest four entries")
+		_check(hud.event_log_visible(Vector2(1366, 768)), "event log is visible in full layout")
+		_check(not hud.event_log_visible(Vector2(540, 720)), "event log collapses in compact layout")
+		Game.event_log = saved_event_log
 	var saved_hud_size := hud.size
 	hud.size = Vector2(1280, 720)
 	var layout_helpers_ready := hud.has_method("boss_bar_baseline") and hud.has_method("dash_baseline")

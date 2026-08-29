@@ -40,12 +40,14 @@ static func layout(viewport: Vector2) -> Dictionary:
 	var corner_w := minf(245.0, viewport.x * (0.46 if compact else 0.19))
 	var center_w := minf(460.0, viewport.x - side * 2.0)
 	var encounter_h := 58.0 if compact else 76.0
+	var encounter_y := top + 100.0 if compact else top
+	var boss_y := bottom - 152.0 if compact else bottom - 88.0
 	return {
 		"compact": compact,
 		"integrity": Rect2(side, top, corner_w, 92.0 if compact else 112.0),
-		"encounter": Rect2((viewport.x - center_w) * 0.5, top, center_w, encounter_h),
+		"encounter": Rect2((viewport.x - center_w) * 0.5, encounter_y, center_w, encounter_h),
 		"score": Rect2(viewport.x - side - corner_w, top, corner_w, 92.0 if compact else 120.0),
 		"dash": Rect2(side, bottom - 76.0, minf(225.0, viewport.x * 0.45), 76.0),
 		"patches": Rect2(viewport.x - side - minf(330.0, viewport.x * 0.48), bottom - 76.0, minf(330.0, viewport.x * 0.48), 76.0),
-		"boss": Rect2((viewport.x - center_w) * 0.5, bottom - 88.0, center_w, 64.0),
+		"boss": Rect2((viewport.x - center_w) * 0.5, boss_y, center_w, 64.0),
 	}

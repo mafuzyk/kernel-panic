@@ -1,6 +1,8 @@
 class_name Hud
 extends Control
 
+const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
+
 var player: Player
 var boss: RootBoss
 var _score := 0
@@ -49,9 +51,11 @@ func _ready() -> void:
 	_score_label = _mk_label(30, Balance.COL_TEXT, Vector2(0, 14))
 	_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_score_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_score_label.visible = false
 	_best_label = _mk_label(13, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55), Vector2(0, 52))
 	_best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_best_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_best_label.visible = false
 	_banner = _mk_label(40, Balance.COL_TEXT, Vector2(0, 120))
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner.modulate.a = 0.0
@@ -132,6 +136,20 @@ func hud_top_y(gap: float) -> float:
 
 func hud_bottom_y(gap: float) -> float:
 	return _layout_height() - _safe_bottom_margin() - gap
+
+func layout_snapshot(viewport: Vector2 = size) -> Dictionary:
+	return TacticalUIHelper.layout(viewport)
+
+func event_log_visible(viewport: Vector2 = size) -> bool:
+	return not bool(layout_snapshot(viewport)["compact"])
+
+func visible_event_lines(limit: int = 4) -> Array[String]:
+	var result: Array[String] = []
+	var start := maxi(Game.event_log.size() - maxi(limit, 1), 0)
+	for index in range(start, Game.event_log.size()):
+		var entry: Dictionary = Game.event_log[index]
+		result.append("[%05.1f] %s" % [float(entry.get("time", 0.0)), str(entry.get("text", ""))])
+	return result
 
 func dash_baseline() -> float:
 	return hud_bottom_y(14.0)
@@ -258,7 +276,8 @@ func _process(delta: float) -> void:
 		var blink := 0.35 + 0.3 * absf(sin(Time.get_ticks_msec() / 180.0))
 		_build_label.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, blink if on_cd else 0.5))
 	if _run_info_label != null and is_instance_valid(_run_info_label):
-		_run_info_label.text = run_info_text() if Sfx.show_run_info and Game.state == Game.State.PLAYING else ""
+		var compact := bool(layout_snapshot()["compact"])
+		_run_info_label.text = run_info_text() if Sfx.show_run_info and Game.state == Game.State.PLAYING and not compact else ""
 	_prune_boss_fragments()
 	if _boss_split:
 		_boss_frac = -1.0
@@ -330,6 +349,7 @@ func _dismiss_patch_tooltip() -> void:
 
 func _draw() -> void:
 	var f := _mono
+	_draw_tactical_shell(f)
 	_hp_pips(f)
 	_oc_bar(f)
 	_mult_chip(f)
@@ -339,6 +359,43 @@ func _draw() -> void:
 	elif _boss_frac >= 0.0:
 		_boss_bar(f)
 	_draw_patch_tooltip(f)
+
+func _draw_angular_panel(rect: Rect2, color: Color, fill_alpha: float = 0.08) -> void:
+	var points := TacticalUIHelper.angular_points(rect, minf(12.0, rect.size.y * 0.22))
+	draw_colored_polygon(points, TacticalUIHelper.PANEL)
+	draw_colored_polygon(points, Color(color.r, color.g, color.b, fill_alpha))
+	var outline := points.duplicate()
+	outline.append(points[0])
+	draw_polyline(outline, Color(color.r, color.g, color.b, 0.72), 1.4, true)
+
+func _draw_tactical_shell(f: Font) -> void:
+	var layout := layout_snapshot()
+	var compact := bool(layout["compact"])
+	var integrity_rect: Rect2 = layout["integrity"]
+	var encounter_rect: Rect2 = layout["encounter"]
+	var score_rect: Rect2 = layout["score"]
+	var dash_rect: Rect2 = layout["dash"]
+	var patch_rect: Rect2 = layout["patches"]
+	_draw_angular_panel(integrity_rect, TacticalUIHelper.CYAN, 0.055)
+	_draw_angular_panel(encounter_rect, TacticalUIHelper.CYAN, 0.045)
+	_draw_angular_panel(score_rect, TacticalUIHelper.CYAN, 0.055)
+	_draw_angular_panel(dash_rect, TacticalUIHelper.CYAN, 0.045)
+	_draw_angular_panel(patch_rect, TacticalUIHelper.CYAN, 0.045)
+	draw_string(f, integrity_rect.position + Vector2(16.0, 22.0), "INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, TacticalUIHelper.TEXT)
+	var cycle_label := "CYCLE %02d" % Game.wave
+	draw_string(_score_font, encounter_rect.position + Vector2(0.0, 28.0 if compact else 32.0), cycle_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 20 if compact else 24, TacticalUIHelper.TEXT)
+	var encounter_label := _boss_name if not _boss_name.is_empty() else "PROCESS PURGE"
+	draw_string(f, encounter_rect.position + Vector2(0.0, 48.0 if compact else 58.0), encounter_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 11, TacticalUIHelper.MUTED)
+	draw_string(f, score_rect.position + Vector2(14.0, 22.0), "SCORE", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, TacticalUIHelper.CYAN)
+	draw_string(_score_font, score_rect.position + Vector2(14.0, 47.0), "%07d" % _score, HORIZONTAL_ALIGNMENT_RIGHT, score_rect.size.x - 28.0, 20, TacticalUIHelper.TEXT)
+	if event_log_visible():
+		var event_rect := Rect2(score_rect.position.x, score_rect.end.y + 8.0, score_rect.size.x, 84.0)
+		_draw_angular_panel(event_rect, TacticalUIHelper.CYAN, 0.025)
+		var event_y := event_rect.position.y + 18.0
+		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 11, TacticalUIHelper.CYAN)
+		for line in visible_event_lines():
+			event_y += 15.0
+			draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), line, HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 10, TacticalUIHelper.MUTED)
 
 func _hp_pips(f: Font) -> void:
 	var base := Vector2(_safe_side_margin(), hud_top_y(12.0))
