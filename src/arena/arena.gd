@@ -369,35 +369,35 @@ func _refresh_responsive_layout_for_height(viewport_height: float) -> void:
 func _build_pause_panel() -> void:
 	_pause_panel = _make_panel("pause")
 	var title := _make_label("PAUSED", 42, Balance.COL_TEXT)
-	_center_panel_control(title, 125.0, 60.0)
+	_center_panel_control(title, 180.0, 60.0)
 	_pause_panel.add_child(title)
 	_pause_info = _make_label(PAUSE_INFO_DEFAULT, 13, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	_center_panel_control(_pause_info, 545.0, 30.0)
+	_center_panel_control(_pause_info, 565.0, 30.0)
 	_pause_panel.add_child(_pause_info)
 	_pause_stats = _make_label("", 14, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.85))
-	_center_panel_control(_pause_stats, 195.0, 52.0)
+	_center_panel_control(_pause_stats, 237.0, 52.0)
 	_pause_panel.add_child(_pause_stats)
-	var b_resume := _make_button("RESUME", 240)
+	var b_resume := _make_button("RESUME", 288)
 	b_resume.pressed.connect(func() -> void:
 		_set_paused(false)
 	)
 	_pause_panel.add_child(b_resume)
-	var b_restart := _make_button("RESTART", 292)
+	var b_restart := _make_button("RESTART", 334)
 	b_restart.pressed.connect(func() -> void:
 		_set_paused(false)
 		_restart_current_run()
 	)
 	_pause_panel.add_child(b_restart)
-	var b_terminal := _make_button("OPEN TERMINAL", 344)
+	var b_terminal := _make_button("OPEN TERMINAL", 380)
 	b_terminal.pressed.connect(_open_terminal)
 	_pause_panel.add_child(b_terminal)
-	var b_menu := _make_button("ABANDON PROCESS", 515)
+	var b_menu := _make_button("ABANDON PROCESS", 500)
 	b_menu.pressed.connect(_request_abandon_confirmation)
 	_pause_panel.add_child(b_menu)
-	_pause_panel.add_child(_make_volume_row("SFX", Sfx.sfx_vol, 400.0, func(v: float) -> void:
+	_pause_panel.add_child(_make_volume_row("SFX", Sfx.sfx_vol, 432.0, func(v: float) -> void:
 		Sfx.set_sfx_vol(v)
 	))
-	_pause_panel.add_child(_make_volume_row("MUSIC", Sfx.music_vol, 438.0, func(v: float) -> void:
+	_pause_panel.add_child(_make_volume_row("MUSIC", Sfx.music_vol, 470.0, func(v: float) -> void:
 		Sfx.set_music_vol(v)
 	))
 
@@ -541,9 +541,13 @@ func _make_button(txt: String, y: float) -> Button:
 	return b
 
 func _position_game_over_button(button: Button, right_side: bool) -> void:
-	var side_offset := 468.0 if right_side else 0.0
-	button.offset_left = -450.0 + side_offset
-	button.offset_right = -18.0 + side_offset
+	var viewport := get_viewport_rect().size
+	var panel := TacticalStateSurfaceHelper.panel_rect_for_viewport(viewport, "game_over")
+	var gap := 18.0
+	var button_width := maxf((panel.size.x - 56.0 - gap) * 0.5, 120.0)
+	var x := panel.position.x + 28.0 + (button_width + gap if right_side else 0.0)
+	button.offset_left = x - viewport.x * 0.5
+	button.offset_right = button.offset_left + button_width
 
 func _position_game_over_stat(label: Label, right_side: bool) -> void:
 	var side_offset := 408.0 if right_side else 0.0

@@ -32,10 +32,10 @@ static func action_rects_for_viewport(viewport: Vector2, kind: String, count: in
 		var game_width := maxf((panel.size.x - 56.0 - game_gap) * 0.5, 120.0)
 		for index in count:
 			result.append(Rect2(panel.position + Vector2(28.0 + index * (game_width + game_gap), panel.size.y - 112.0), Vector2(game_width, 66.0)))
-			return result
+		return result
 	var pause_width := maxf(panel.size.x - 72.0, 180.0)
 	for index in count:
-		result.append(Rect2(panel.position + Vector2(36.0, 128.0 + index * 52.0), Vector2(pause_width, 42.0)))
+		result.append(Rect2(panel.position + Vector2(36.0, 188.0 + index * 48.0), Vector2(pause_width, 42.0)))
 	return result
 
 func _draw() -> void:
@@ -61,14 +61,14 @@ func _draw() -> void:
 
 func _draw_pause_sections(panel: Rect2) -> void:
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
-	var info := Rect2(panel.position + Vector2(36.0, 92.0), Vector2(panel.size.x - 72.0, 48.0))
+	var info := Rect2(panel.position + Vector2(36.0, 44.0), Vector2(panel.size.x - 72.0, 38.0))
 	draw_colored_polygon(TacticalUIHelper.angular_points(info, 8.0), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.025))
 	draw_string(mono, info.position + Vector2(14.0, 20.0), "PROCESS CONTROL // RUN STATE FROZEN", HORIZONTAL_ALIGNMENT_LEFT, info.size.x - 28.0, 11, TacticalUIHelper.MUTED)
-	var volume := Rect2(panel.position + Vector2(36.0, panel.size.y - 220.0), Vector2(panel.size.x - 72.0, 82.0))
+	var volume := Rect2(panel.position + Vector2(36.0, panel.size.y - 196.0), Vector2(panel.size.x - 72.0, 84.0))
 	var volume_points := TacticalUIHelper.angular_points(volume, 8.0)
 	draw_colored_polygon(volume_points, Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.025))
 	draw_polyline(volume_points + PackedVector2Array([volume_points[0]]), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.38), 1.0, true)
-	var warning := Rect2(panel.position + Vector2(36.0, panel.size.y - 130.0), Vector2(panel.size.x - 72.0, 78.0))
+	var warning := Rect2(panel.position + Vector2(36.0, panel.size.y - 118.0), Vector2(panel.size.x - 72.0, 84.0))
 	var warning_points := TacticalUIHelper.angular_points(warning, 8.0)
 	draw_polyline(warning_points + PackedVector2Array([warning_points[0]]), Color(TacticalUIHelper.MAGENTA.r, TacticalUIHelper.MAGENTA.g, TacticalUIHelper.MAGENTA.b, 0.7), 1.3, true)
 
