@@ -1268,6 +1268,10 @@ func _task9_test(arena: Arena) -> void:
 		if icon.has_method("configure") and icon.has_method("icon_kind"):
 			icon.call("configure", "settings", Color(0.1, 0.85, 1.0, 1.0))
 			_check(icon.icon_kind() == "settings", "tactical icon keeps its semantic kind")
+		_check(icon.has_method("music_glyph_bounds"), "music icon exposes measurable glyph bounds")
+		if icon.has_method("music_glyph_bounds"):
+			var music_bounds: Rect2 = icon.call("music_glyph_bounds", Vector2(24.0, 24.0))
+			_check(music_bounds.size.x >= 12.0 and music_bounds.size.y >= 16.0, "music icon remains legible at compact pause size")
 		icon.queue_free()
 	var hud: Hud = arena.hud
 	var hud_layout_ready := hud.has_method("layout_snapshot") and hud.has_method("visible_event_lines") and hud.has_method("event_log_visible")
@@ -1334,6 +1338,9 @@ func _task9_test(arena: Arena) -> void:
 				_check(pause_panel.encloses(action_rect), "pause action stays inside panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 			_check(not Rect2(pause_layout["stats"]).intersects(Rect2(pause_actions[0])), "pause stats clear first action at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 			_check(not Rect2(pause_layout["volume"]).intersects(Rect2(pause_layout["warning"])), "pause audio clears warning at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			var warning_inner := Rect2(pause_layout["warning"]).grow(-6.0 * float(pause_layout["scale"]))
+			_check(warning_inner.encloses(Rect2(pause_actions[3])), "pause abandon action clears warning frame at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			_check(Rect2(pause_actions[3]).end.y + 6.0 * float(pause_layout["scale"]) <= Rect2(pause_layout["shortcuts"]).position.y, "pause abandon action clears shortcut row at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 	if tactical_surface_script.has_method("terminal_layout"):
 		for viewport_size in [Vector2(720, 521), Vector2(1096, 631), Vector2(1366, 768)]:
 			var terminal_layout: Dictionary = tactical_surface_script.terminal_layout(viewport_size)

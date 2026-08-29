@@ -17,6 +17,10 @@ func configure(icon_kind: String, color: Color = TacticalUIHelper.CYAN) -> void:
 func icon_kind() -> String:
 	return _kind
 
+static func music_glyph_bounds(control_size: Vector2) -> Rect2:
+	var inset := maxf(2.0, minf(control_size.x, control_size.y) * 0.125)
+	return Rect2(Vector2(inset, inset), control_size - Vector2(inset * 2.0, inset * 2.0))
+
 func _line_color(alpha: float = 0.92) -> Color:
 	return Color(_accent.r, _accent.g, _accent.b, alpha)
 
@@ -140,10 +144,14 @@ func _draw_audio(center: Vector2, radius: float) -> void:
 	draw_arc(center, radius * 0.78, -PI * 0.34, PI * 0.34, 12, _line_color(0.6), 1.3, true)
 
 func _draw_music(center: Vector2, radius: float) -> void:
-	draw_line(center + Vector2(radius * 0.18, -radius * 0.68), center + Vector2(radius * 0.18, radius * 0.32), _line_color(), 1.9)
-	draw_line(center + Vector2(radius * 0.18, -radius * 0.68), center + Vector2(radius * 0.64, -radius * 0.82), _line_color(), 1.9)
-	draw_circle(center + Vector2(-radius * 0.16, radius * 0.38), radius * 0.25, _line_color())
-	draw_circle(center + Vector2(radius * 0.34, radius * 0.24), radius * 0.25, _line_color())
+	var glyph := music_glyph_bounds(size)
+	var stem_x := glyph.position.x + glyph.size.x * 0.58
+	var stem_top := glyph.position.y + glyph.size.y * 0.12
+	var stem_bottom := glyph.position.y + glyph.size.y * 0.72
+	var head_center := Vector2(glyph.position.x + glyph.size.x * 0.38, glyph.position.y + glyph.size.y * 0.76)
+	draw_line(Vector2(stem_x, stem_top), Vector2(stem_x, stem_bottom), _line_color(), 2.2)
+	draw_line(Vector2(stem_x, stem_top), Vector2(glyph.position.x + glyph.size.x * 0.84, glyph.position.y + glyph.size.y * 0.22), _line_color(), 2.2)
+	draw_circle(head_center, glyph.size.x * 0.18, _line_color())
 
 func _draw_warning(center: Vector2, radius: float) -> void:
 	var triangle := PackedVector2Array([
