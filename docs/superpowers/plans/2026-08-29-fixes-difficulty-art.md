@@ -38,7 +38,7 @@ Interfaces:
 - Consumes: `arena.gd` `_build_story_intro()` / `_show_story_intro()` / `_unhandled_input()` / `_process()`, `_ready()` story branch at lines 153-155, `story_data.gd` stage intros.
 - Produces: `TacticalUI.wrapped_line_count()`, `TacticalUI.wrapped_height()`, `TacticalUI.fit_block()`; `Arena.story_intro_active()`, `Arena.dismiss_story_intro()`; intro dismiss gating of `spawner.start_story`.
 
-- [ ] Step 1: Write the failing harness regression
+- [x] Step 1: Write the failing harness regression
 
 In `src/autoload/dev_harness.gd`, in the autotest flow, after the line `await _story_scene_test()` add:
 
@@ -125,7 +125,7 @@ func _story_intro_layout_test() -> void:
 			_check(bool(fit.get("fits", false)) and int(fit.get("font_size", 0)) >= 12, "story intro %d measures inside the intro panel at %dx%d" % [stage_index + 1, int(vp.x), int(vp.y)])
 ~~~
 
-- [ ] Step 2: Run the test to verify it fails
+- [x] Step 2: Run the test to verify it fails
 
 Run:
 
@@ -138,7 +138,7 @@ Expected: AT_FAIL lines including `story arena exposes the intro state query` an
 `no enemies spawn during the intro`. The command must not fail from a parse
 error; the suite still exits with `AUTOTEST_FAILED` because of these checks.
 
-- [ ] Step 3: Add the shared measurement helpers to tactical_ui.gd
+- [x] Step 3: Add the shared measurement helpers to tactical_ui.gd
 
 Append to `src/ui/tactical_ui.gd` (end of file, inside the `TacticalUI` class):
 
@@ -173,7 +173,7 @@ static func fit_block(font: Font, text: String, width: float, height_cap: float,
 	return {"font_size": chosen, "height": height, "fits": height <= height_cap}
 ~~~
 
-- [ ] Step 4: Rework the intro state machine in arena.gd
+- [x] Step 4: Rework the intro state machine in arena.gd
 
 4a. In `src/arena/arena.gd`, immediately before `func _build_story_intro() -> void:`, add:
 
@@ -331,7 +331,7 @@ with:
 			return
 ~~~
 
-- [ ] Step 5: Run the full suite
+- [x] Step 5: Run the full suite
 
 Run:
 
@@ -342,7 +342,7 @@ godot --headless --path . -- --autotest
 Expected: `AUTOTEST_ALL_PASS` and zero `AT_FAIL`. The adapted `_story_scene_test`,
 new auto-dismiss and layout checks, and every pre-existing story/spawner check pass.
 
-- [ ] Step 6: Commit
+- [x] Step 6: Commit
 
 ~~~sh
 git add src/arena/arena.gd src/ui/tactical_ui.gd src/autoload/dev_harness.gd
