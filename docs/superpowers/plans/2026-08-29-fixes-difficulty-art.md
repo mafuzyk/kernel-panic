@@ -1482,7 +1482,7 @@ Interfaces:
 - Consumes: `mote_field.gd` `_physics_process()` pickup at `d < 20.0` (line 207), `kill_slot()` swap-remove, `nearest_free()`; `oom_killer.gd` `_move()` SEEK branch and `carried_ids`.
 - Produces: swept segment collection (prev→current player position vs 20px radius); `MoteField.uid_of(idx)` / `MoteField.idx_of_uid(uid)` identity handles; `OomKiller._steal(idx, expected_uid)` re-validation; uid-based `carried_ids`.
 
-- [ ] Step 1: Write the failing harness regression
+- [x] Step 1: Write the failing harness regression
 
 In `src/autoload/dev_harness.gd`, after the line `await _debug_controls_test(arena2)` add:
 
@@ -1564,7 +1564,7 @@ func _oom_steal_identity_test(arena: Arena) -> void:
 	await _ticks(2)
 ~~~
 
-- [ ] Step 2: Run the test to verify it fails
+- [x] Step 2: Run the test to verify it fails
 
 Run:
 
@@ -1577,7 +1577,7 @@ swept segment` (today the 260px teleport steps over the mote at 130px, outside
 both the 115px magnet radius and the 20px pickup radius) and AT_FAIL `mote field
 exposes identity handles`. No parse error.
 
-- [ ] Step 3: Swept pickup in mote_field.gd
+- [x] Step 3: Swept pickup in mote_field.gd
 
 3a. In `src/pickups/mote_field.gd`, after the line `var player: Node2D` (line ~19), add:
 
@@ -1632,7 +1632,7 @@ with the swept-segment distance test (magnet logic above it stays untouched):
 	_has_prev = true
 ~~~
 
-- [ ] Step 4: Identity handles in mote_field.gd
+- [x] Step 4: Identity handles in mote_field.gd
 
 4a. After the line `var _count := 0` (line ~17), add:
 
@@ -1677,7 +1677,7 @@ func idx_of_uid(uid: int) -> int:
 	return -1
 ~~~
 
-- [ ] Step 5: Harden oom_killer.gd
+- [x] Step 5: Harden oom_killer.gd
 
 5a. In `src/enemies/oom_killer.gd` `_move()` St.SEEK branch, replace:
 
@@ -1753,7 +1753,7 @@ func _steal(idx: int, expected_uid: int = -1) -> void:
 
 The existing harness calls `oom._steal(mote_idx)` with one argument (lines ~1211 and ~2384); the `expected_uid = -1` default keeps them valid.
 
-- [ ] Step 6: Run the full suite
+- [x] Step 6: Run the full suite
 
 Run:
 
@@ -1765,7 +1765,7 @@ Expected: `AUTOTEST_ALL_PASS` and zero `AT_FAIL`, including the pre-existing
 `OOM_KILLER steals selected mote slot`, `OOM_KILLER steals motes`, and
 `killed OOM_KILLER returns motes` checks.
 
-- [ ] Step 7: Commit
+- [x] Step 7: Commit
 
 ~~~sh
 git add src/pickups/mote_field.gd src/enemies/oom_killer.gd src/autoload/dev_harness.gd
