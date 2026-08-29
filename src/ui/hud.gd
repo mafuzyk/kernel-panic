@@ -73,6 +73,7 @@ func _ready() -> void:
 	_build_label.offset_bottom = -6.0
 	_build_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_build_label.text = Game.build_string()
+	_build_label.visible = false
 	_run_info_label = Label.new()
 	_run_info_label.anchor_left = 1.0
 	_run_info_label.anchor_right = 1.0
@@ -398,9 +399,11 @@ func _draw_tactical_shell(f: Font) -> void:
 			draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), line, HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 10, TacticalUIHelper.MUTED)
 
 func _hp_pips(f: Font) -> void:
-	var base := Vector2(_safe_side_margin(), hud_top_y(12.0))
+	var integrity_rect: Rect2 = layout_snapshot()["integrity"]
+	var base := integrity_rect.position + Vector2(18.0, 48.0)
+	var spacing := minf(30.0, maxf(22.0, (integrity_rect.size.x - 36.0) / float(maxi(_max_hp, 1))))
 	for i in _max_hp:
-		var p := base + Vector2(i * 30.0, 0)
+		var p := base + Vector2(i * spacing, 0)
 		var on := i < _hp
 		var col := Balance.COL_PLAYER if on else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.18)
 		var s := 9.0
@@ -414,10 +417,12 @@ func _hp_pips(f: Font) -> void:
 			draw_circle(p, 2.5, col)
 
 func _oc_bar(f: Font) -> void:
-	var x := _safe_side_margin()
-	var y := hud_top_y(34.0)
-	var r := Rect2(x, y, 150, 8)
-	var col := Balance.COL_PLAYER_HOT if _oc_active else Balance.COL_PLAYER
+	var integrity_rect: Rect2 = layout_snapshot()["integrity"]
+	var x := integrity_rect.position.x + 16.0
+	var y := integrity_rect.position.y + integrity_rect.size.y - 34.0
+	var r := Rect2(x, y, maxf(integrity_rect.size.x - 32.0, 80.0), 8.0)
+	var shield_mode := player != null and is_instance_valid(player) and bool(player.prog.get("shield_mode", false))
+	var col := TacticalUIHelper.LIME if shield_mode else (Balance.COL_PLAYER_HOT if _oc_active else Balance.COL_PLAYER)
 	if _oc_ready and not _oc_active:
 		var pulse := 0.5 + 0.5 * absf(sin(Time.get_ticks_msec() / 90.0))
 		col.a = 0.6 + 0.4 * pulse
@@ -426,17 +431,17 @@ func _oc_bar(f: Font) -> void:
 	var frac := clampf(_meter / Balance.OC_METER_MAX, 0.0, 1.0)
 	draw_rect(Rect2(r.position, Vector2(r.size.x * frac, r.size.y)), Color(col.r, col.g, col.b, 0.85))
 	draw_rect(r, Color(col.r, col.g, col.b, 0.5), false, 1.2)
-	var label := "OVERCLOCK"
+	var label := "SHIELD" if shield_mode else "OVERCLOCK"
 	var txt_col := col
-	if _oc_ready and not _oc_active:
+	if _oc_ready and not _oc_active and not shield_mode:
 		label += "  READY [E]"
 	if _oc_active:
 		label += " ACTIVE"
-	draw_string(f, Vector2(x, hud_top_y(60.0)), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(txt_col.r, txt_col.g, txt_col.b, 0.85))
+	draw_string(f, Vector2(x, y + 24.0), label, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 11, Color(txt_col.r, txt_col.g, txt_col.b, 0.85))
 	if Game.patch_level("scrapdiet") > 0 and player != null and is_instance_valid(player):
 		var thr: int = player._scrap_threshold()
 		var sc := Color(1.0, 0.75, 0.4, 0.9)
-		var sx := x + 166.0
+		var sx := x + r.size.x + 12.0
 		draw_rect(Rect2(sx, y, 86, 8), Color(sc.r, sc.g, sc.b, 0.14))
 		var sfrac: float = clampf(float(player.scrap_count) / float(thr), 0.0, 1.0)
 		draw_rect(Rect2(sx, y, 86.0 * sfrac, 8), Color(sc.r, sc.g, sc.b, 0.8))
@@ -445,10 +450,11 @@ func _oc_bar(f: Font) -> void:
 
 func _patch_chips(f: Font) -> void:
 	_update_patch_chip_rects()
+	var patch_rect: Rect2 = layout_snapshot()["patches"]
+	draw_string(f, patch_rect.position + Vector2(14.0, 20.0), "PATCH STACK", HORIZONTAL_ALIGNMENT_LEFT, patch_rect.size.x - 28.0, 11, TacticalUIHelper.CYAN)
 	if _patch_chip_rects.is_empty():
+		draw_string(f, patch_rect.position + Vector2(14.0, 48.0), "NO ACTIVE PATCHES", HORIZONTAL_ALIGNMENT_LEFT, patch_rect.size.x - 28.0, 11, TacticalUIHelper.MUTED)
 		return
-	var x := _safe_side_margin()
-	var y := hud_top_y(68.0)
 	for id in Game.patch_levels:
 		var code: String = Game.PATCH_CODES.get(id, id.substr(0, 2).to_upper())
 		var lvl := int(Game.patch_levels[id])
@@ -456,19 +462,30 @@ func _patch_chips(f: Font) -> void:
 		var chip_rect: Rect2 = _patch_chip_rects[id]
 		draw_rect(chip_rect, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.10))
 		draw_rect(chip_rect, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.35), false, 1.0)
-		draw_string(f, Vector2(x + 4, y + 11.5), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.75))
-		x += chip_rect.size.x + 5.0
+		draw_string(f, chip_rect.position + Vector2(0.0, chip_rect.size.y * 0.68), txt, HORIZONTAL_ALIGNMENT_CENTER, chip_rect.size.x, 10, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.82))
 
 func _update_patch_chip_rects() -> void:
-	_patch_chip_rects.clear()
+	_patch_chip_rects = patch_dock_rects(size)
+
+func patch_dock_rects(viewport: Vector2 = size) -> Dictionary:
+	var result: Dictionary = {}
 	if Game.patch_levels.is_empty():
-		return
-	var x := _safe_side_margin()
-	var y := hud_top_y(68.0)
-	for id in Game.patch_levels:
-		var chip_rect := Rect2(x, y, 30.0, 15.0)
-		_patch_chip_rects[id] = chip_rect
-		x += chip_rect.size.x + 5.0
+		return result
+	var panel: Rect2 = TacticalUIHelper.layout(viewport)["patches"]
+	var ids: Array = Game.patch_levels.keys()
+	var compact := bool(TacticalUIHelper.layout(viewport)["compact"])
+	var available := Rect2(panel.position + Vector2(12.0, 26.0), Vector2(maxf(panel.size.x - 24.0, 24.0), maxf(panel.size.y - 34.0, 12.0)))
+	var gap := 4.0
+	var max_columns := 5 if not compact else 4
+	var columns := mini(max_columns, maxi(ids.size(), 1))
+	var rows := ceili(float(ids.size()) / float(columns))
+	var chip_w := maxf((available.size.x - gap * float(columns - 1)) / float(columns), 8.0)
+	var chip_h := maxf((available.size.y - gap * float(rows - 1)) / float(rows), 8.0)
+	for index in ids.size():
+		var col := index % columns
+		var row := index / columns
+		result[ids[index]] = Rect2(available.position + Vector2(col * (chip_w + gap), row * (chip_h + gap)), Vector2(chip_w, chip_h))
+	return result
 
 func _draw_patch_tooltip(f: Font) -> void:
 	if not _tooltip_visible or _tooltip_data.is_empty() or not _patch_chip_rects.has(_tooltip_patch_id):

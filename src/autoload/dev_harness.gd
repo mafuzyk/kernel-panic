@@ -1231,6 +1231,13 @@ func _task9_test(arena: Arena) -> void:
 		_check(hud.event_log_visible(Vector2(1366, 768)), "event log is visible in full layout")
 		_check(not hud.event_log_visible(Vector2(540, 720)), "event log collapses in compact layout")
 		Game.event_log = saved_event_log
+	var dock_ready := hud.has_method("patch_dock_rects")
+	_check(dock_ready, "HUD exposes responsive patch dock geometry")
+	if dock_ready:
+		for viewport in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			var dock: Dictionary = hud.patch_dock_rects(viewport)
+			for patch_id in dock:
+				_check(Rect2(Vector2.ZERO, viewport).encloses(dock[patch_id]), "patch dock chip fits %dx%d" % [int(viewport.x), int(viewport.y)])
 	var saved_hud_size := hud.size
 	hud.size = Vector2(1280, 720)
 	var layout_helpers_ready := hud.has_method("boss_bar_baseline") and hud.has_method("dash_baseline")
