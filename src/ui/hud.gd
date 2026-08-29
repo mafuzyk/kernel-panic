@@ -156,10 +156,27 @@ func dash_baseline() -> float:
 	return hud_bottom_y(14.0)
 
 func boss_bar_baseline() -> float:
-	return hud_bottom_y(26.0)
+	var rows := boss_bar_rects(size, false)
+	return rows[0].position.y if not rows.is_empty() else hud_bottom_y(26.0)
 
 func boss_title_baseline() -> float:
-	return hud_bottom_y(34.0)
+	var region: Rect2 = layout_snapshot()["boss"]
+	return region.position.y + 20.0
+
+func boss_bar_rects(viewport: Vector2 = size, split: bool = _boss_split) -> Array[Rect2]:
+	var result: Array[Rect2] = []
+	var region: Rect2 = TacticalUIHelper.layout(viewport)["boss"]
+	var row_gap := 3.0
+	var row_h := 7.0 if split else 10.0
+	var row_y := region.position.y + 31.0
+	var label_inset := 64.0 if split else 8.0
+	var row_w := maxf(region.size.x - label_inset - 8.0, 80.0)
+	if split:
+		for index in 2:
+			result.append(Rect2(region.position.x + label_inset, row_y + index * (row_h + row_gap), row_w, row_h))
+	else:
+		result.append(Rect2(region.position.x + label_inset, row_y, row_w, row_h))
+	return result
 
 func _on_score(score: int, mult: int) -> void:
 	if score > _score:
@@ -527,11 +544,10 @@ func _dash_pip(f: Font) -> void:
 	draw_string(f, Vector2(_safe_side_margin() + 22.0, baseline + 5.0), dash_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, 0.7))
 
 func _boss_bar(f: Font) -> void:
-	var w := minf(500.0, maxf(160.0, size.x - _safe_side_margin() * 2.0))
-	var x0 := (size.x - w) * 0.5
-	var baseline := boss_bar_baseline()
-	var r := Rect2(x0, baseline, w, 10)
+	var region: Rect2 = layout_snapshot()["boss"]
+	var r: Rect2 = boss_bar_rects(size, false)[0]
 	var col := Balance.COL_DANGER
+	_draw_angular_panel(region, col, 0.045)
 	draw_rect(r, Color(col.r, col.g, col.b, 0.15))
 	var segs := 20
 	var filled := int(ceil(_boss_frac * segs))
@@ -541,30 +557,27 @@ func _boss_bar(f: Font) -> void:
 			draw_rect(seg, Color(col.r, col.g, col.b, 0.9))
 		else:
 			draw_rect(seg, Color(col.r, col.g, col.b, 0.12))
-	draw_string(f, Vector2(x0, boss_title_baseline()), _boss_name, HORIZONTAL_ALIGNMENT_CENTER, w, 12, Color(col.r, col.g, col.b, 0.9))
+	draw_string(f, Vector2(region.position.x, boss_title_baseline()), _boss_name, HORIZONTAL_ALIGNMENT_CENTER, region.size.x, 12, Color(col.r, col.g, col.b, 0.9))
 
 func _boss_split_bar(f: Font) -> void:
-	var w := minf(500.0, maxf(160.0, size.x - _safe_side_margin() * 2.0))
-	var x0 := (size.x - w) * 0.5
-	var row_h := 7.0
-	var row_gap := 3.0
-	var bar_x := x0 + 64.0
-	var bar_w := w - 64.0
+	var region: Rect2 = layout_snapshot()["boss"]
+	var rows := boss_bar_rects(size, true)
 	var col := Balance.COL_DANGER
-	var container := Rect2(x0, boss_bar_baseline(), w, row_h * 2.0 + row_gap)
-	draw_rect(container, Color(col.r, col.g, col.b, 0.08))
-	draw_rect(container, Color(col.r, col.g, col.b, 0.42), false, 1.0)
-	for fragment in _boss_fragments:
-		if not is_instance_valid(fragment):
-			continue
-		var slot := clampi(int(fragment.get_meta("mini_slot", 0)), 0, 1)
-		var y := container.position.y + slot * (row_h + row_gap)
+	_draw_angular_panel(region, col, 0.045)
+	for slot in 2:
+		var row: Rect2 = rows[slot]
 		var label := "MINI-A" if slot == 0 else "MINI-B"
-		draw_string(f, Vector2(x0, y + row_h), label, HORIZONTAL_ALIGNMENT_LEFT, 58.0, 10, Color(col.r, col.g, col.b, 0.9))
-		var row := Rect2(bar_x, y, bar_w, row_h)
+		draw_string(f, Vector2(region.position.x, row.position.y + row.size.y), label, HORIZONTAL_ALIGNMENT_LEFT, 58.0, 10, Color(col.r, col.g, col.b, 0.9))
 		draw_rect(row, Color(col.r, col.g, col.b, 0.12))
-		var max_hp := maxf(float(fragment.max_hp), 1.0)
-		var frac := clampf(float(fragment.hp) / max_hp, 0.0, 1.0)
+		var fragment: RootBoss = null
+		for candidate in _boss_fragments:
+			if is_instance_valid(candidate) and clampi(int(candidate.get_meta("mini_slot", 0)), 0, 1) == slot:
+				fragment = candidate
+				break
+		var frac := 0.0
+		if fragment != null:
+			var max_hp := maxf(float(fragment.max_hp), 1.0)
+			frac = clampf(float(fragment.hp) / max_hp, 0.0, 1.0)
 		var filled := clampi(int(ceilf(frac * 20.0)), 0, 20)
 		for i in 20:
 			var seg := Rect2(row.position.x + i * (row.size.x / 20.0) + 1.0, row.position.y, row.size.x / 20.0 - 2.0, row.size.y)
@@ -572,4 +585,4 @@ func _boss_split_bar(f: Font) -> void:
 				draw_rect(seg, Color(col.r, col.g, col.b, 0.9))
 			else:
 				draw_rect(seg, Color(col.r, col.g, col.b, 0.12))
-	draw_string(f, Vector2(x0, boss_title_baseline()), _boss_name, HORIZONTAL_ALIGNMENT_CENTER, w, 12, Color(col.r, col.g, col.b, 0.9))
+	draw_string(f, Vector2(region.position.x, boss_title_baseline()), _boss_name, HORIZONTAL_ALIGNMENT_CENTER, region.size.x, 12, Color(col.r, col.g, col.b, 0.9))

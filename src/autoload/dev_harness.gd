@@ -1238,6 +1238,15 @@ func _task9_test(arena: Arena) -> void:
 			var dock: Dictionary = hud.patch_dock_rects(viewport)
 			for patch_id in dock:
 				_check(Rect2(Vector2.ZERO, viewport).encloses(dock[patch_id]), "patch dock chip fits %dx%d" % [int(viewport.x), int(viewport.y)])
+	var boss_geometry_ready := hud.has_method("boss_bar_rects")
+	_check(boss_geometry_ready, "HUD exposes boss bar geometry")
+	if boss_geometry_ready:
+		for viewport in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			var normal_rows: Array[Rect2] = hud.boss_bar_rects(viewport, false)
+			var split_rows: Array[Rect2] = hud.boss_bar_rects(viewport, true)
+			_check(normal_rows.size() == 1 and split_rows.size() == 2, "boss geometry exposes one or two combined rows")
+			for row in split_rows:
+				_check(Rect2(Vector2.ZERO, viewport).encloses(row), "split boss row fits %dx%d" % [int(viewport.x), int(viewport.y)])
 	var saved_hud_size := hud.size
 	hud.size = Vector2(1280, 720)
 	var layout_helpers_ready := hud.has_method("boss_bar_baseline") and hud.has_method("dash_baseline")
