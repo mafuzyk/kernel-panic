@@ -392,9 +392,9 @@ func _draw() -> void:
 		_boss_bar(f)
 	_draw_patch_tooltip(f)
 
-func _draw_angular_panel(rect: Rect2, color: Color, fill_alpha: float = 0.08) -> void:
+func _draw_angular_panel(rect: Rect2, color: Color, fill_alpha: float = 0.08, combat: bool = false) -> void:
 	var points := TacticalUIHelper.angular_points(rect, minf(12.0, rect.size.y * 0.22))
-	draw_colored_polygon(points, TacticalUIHelper.PANEL)
+	draw_colored_polygon(points, TacticalUIHelper.panel_fill_color(combat))
 	draw_colored_polygon(points, Color(color.r, color.g, color.b, fill_alpha))
 	var outline := points.duplicate()
 	outline.append(points[0])
@@ -417,11 +417,11 @@ func _draw_tactical_shell(f: Font) -> void:
 	var score_rect: Rect2 = layout["score"]
 	var dash_rect: Rect2 = layout["dash"]
 	var patch_rect: Rect2 = layout["patches"]
-	_draw_angular_panel(integrity_rect, TacticalUIHelper.CYAN, 0.055)
-	_draw_angular_panel(encounter_rect, TacticalUIHelper.CYAN, 0.045)
-	_draw_angular_panel(score_rect, TacticalUIHelper.CYAN, 0.055)
-	_draw_angular_panel(dash_rect, TacticalUIHelper.CYAN, 0.045)
-	_draw_angular_panel(patch_rect, TacticalUIHelper.CYAN, 0.045)
+	_draw_angular_panel(integrity_rect, TacticalUIHelper.CYAN, 0.055, true)
+	_draw_angular_panel(encounter_rect, TacticalUIHelper.CYAN, 0.045, true)
+	_draw_angular_panel(score_rect, TacticalUIHelper.CYAN, 0.055, true)
+	_draw_angular_panel(dash_rect, TacticalUIHelper.CYAN, 0.045, true)
+	_draw_angular_panel(patch_rect, TacticalUIHelper.CYAN, 0.045, true)
 	draw_string(f, integrity_rect.position + Vector2(16.0, 22.0), "INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, TacticalUIHelper.TEXT)
 	var cycle_label := "CYCLE %02d" % Game.wave
 	draw_string(_score_font, encounter_rect.position + Vector2(0.0, 30.0 if compact else 38.0), cycle_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 24 if compact else 32, TacticalUIHelper.TEXT)
@@ -431,7 +431,7 @@ func _draw_tactical_shell(f: Font) -> void:
 	draw_string(_score_font, score_rect.position + Vector2(14.0, 52.0), "%07d" % _score, HORIZONTAL_ALIGNMENT_RIGHT, score_rect.size.x - 28.0, 24 if compact else 28, TacticalUIHelper.TEXT)
 	if event_log_visible():
 		var event_rect := Rect2(score_rect.position.x, score_rect.end.y + 8.0, score_rect.size.x, 84.0)
-		_draw_angular_panel(event_rect, TacticalUIHelper.CYAN, 0.025)
+		_draw_angular_panel(event_rect, TacticalUIHelper.CYAN, 0.025, true)
 		var event_y := event_rect.position.y + 18.0
 		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, TacticalUIHelper.CYAN)
 		for line in visible_event_lines():

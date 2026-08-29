@@ -3,6 +3,7 @@ extends RefCounted
 
 const BG := Color("050914")
 const PANEL := Color(0.015, 0.035, 0.07, 0.90)
+const COMBAT_FILL := Color(0.015, 0.035, 0.07, 0.06)
 const CYAN := Color("28e7ff")
 const TEXT := Color("d9efff")
 const MUTED := Color(0.68, 0.78, 0.88, 0.62)
@@ -98,3 +99,6 @@ static func fit_block(font: Font, text: String, width: float, height_cap: float,
 		chosen -= 1
 	var height := wrapped_height(font, text, width, chosen)
 	return {"font_size": chosen, "height": height, "fits": height <= height_cap}
+
+static func panel_fill_color(combat: bool) -> Color:
+	return COMBAT_FILL if combat else PANEL

@@ -381,6 +381,7 @@ func _autotest() -> void:
 	await _task5_test(arena2)
 	await _task6_test(arena2)
 	await _task9_test(arena2)
+	await _hud_style_test(arena2)
 	await _systems_test(arena2)
 	await _debug_controls_test(arena2)
 	await _story_test(arena2)
@@ -2571,6 +2572,21 @@ func _debug_controls_test(arena: Arena) -> void:
 	for child in arena.enemy_container.get_children():
 		child.queue_free()
 	await _ticks(3)
+
+func _hud_style_test(_arena: Arena) -> void:
+	print("AT_STEP hud_style")
+	var tui_script: Script = load("res://src/ui/tactical_ui.gd")
+	var tui = tui_script.new() if tui_script != null else null
+	_check(tui != null and tui.has_method("panel_fill_color"), "tactical ui exposes panel_fill_color")
+	if tui == null or not tui.has_method("panel_fill_color"):
+		return
+	var combat_fill: Color = tui.call("panel_fill_color", true)
+	var menu_fill: Color = tui.call("panel_fill_color", false)
+	_check(combat_fill.a <= 0.08, "combat panel fill stays faint (alpha <= 0.08)")
+	_check(combat_fill.a >= 0.04, "combat panel fill keeps a visible tint (alpha >= 0.04)")
+	_check(menu_fill.is_equal_approx(TacticalUI.PANEL), "non-combat surfaces keep the opaque PANEL fill")
+	var hud_script: Script = load("res://src/ui/hud.gd")
+	_check(str(hud_script.source_code).contains("panel_fill_color(combat)"), "combat hud panels draw with the faint combat fill")
 
 func _story_test(arena: Arena) -> void:
 	print("AT_STEP story")
