@@ -1264,6 +1264,17 @@ func _task9_test(arena: Arena) -> void:
 		for card in patch_cards_visual:
 			patch_cards_aligned = patch_cards_aligned and absf(card.position.y - patch_cards_visual[0].position.y) < 0.01 and absf(card.size.y - patch_cards_visual[0].size.y) < 0.01
 	_check(patch_cards_aligned, "patch cards share one straight baseline and height")
+	var state_surface_ready := arena.has_method("state_panel_rect") and arena.has_method("state_action_rects") and arena.has_method("pause_action_labels") and arena.has_method("game_over_action_labels")
+	_check(state_surface_ready, "state panels expose tactical geometry and action labels")
+	if state_surface_ready:
+		for viewport_size in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			var state_bounds := Rect2(Vector2.ZERO, viewport_size)
+			var panel_rect: Rect2 = arena.state_panel_rect(viewport_size)
+			_check(state_bounds.encloses(panel_rect), "state panel fits viewport %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			for action_rect in arena.state_action_rects(viewport_size, 4):
+				_check(state_bounds.encloses(action_rect) and panel_rect.encloses(action_rect), "state action stays in panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+		_check(arena.pause_action_labels() == ["RESUME", "RESTART", "OPEN TERMINAL", "ABANDON PROCESS"], "pause actions preserve safe order")
+		_check(arena.game_over_action_labels() == ["REBOOT", "ABANDON PROCESS"], "game-over actions preserve retry first")
 	var saved_hud_size := hud.size
 	hud.size = Vector2(1280, 720)
 	var layout_helpers_ready := hud.has_method("boss_bar_baseline") and hud.has_method("dash_baseline")

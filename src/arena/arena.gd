@@ -2,6 +2,7 @@ class_name Arena
 extends Node2D
 
 const PatchCard = preload("res://src/ui/patch_card.gd")
+const TacticalStateSurfaceHelper = preload("res://src/ui/tactical_state_surface.gd")
 
 var player: Player
 var cam: CameraRig
@@ -21,6 +22,8 @@ var _pause_panel: Control
 var _pause_stats: Label
 var _over_panel: Control
 var _over_stats: Label
+var _over_core_stats: Label
+var _over_run_stats: Label
 var _over_title: Label
 var _over_sub: Label
 var _over_primary: Button
@@ -364,37 +367,37 @@ func _refresh_responsive_layout_for_height(viewport_height: float) -> void:
 	_refresh_responsive_layout(viewport_height)
 
 func _build_pause_panel() -> void:
-	_pause_panel = _make_panel()
+	_pause_panel = _make_panel("pause")
 	var title := _make_label("PAUSED", 42, Balance.COL_TEXT)
-	_center_panel_control(title, 220.0, 60.0)
+	_center_panel_control(title, 125.0, 60.0)
 	_pause_panel.add_child(title)
 	_pause_info = _make_label(PAUSE_INFO_DEFAULT, 13, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	_center_panel_control(_pause_info, 470.0, 30.0)
+	_center_panel_control(_pause_info, 545.0, 30.0)
 	_pause_panel.add_child(_pause_info)
 	_pause_stats = _make_label("", 14, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.85))
-	_center_panel_control(_pause_stats, 180.0, 30.0)
+	_center_panel_control(_pause_stats, 195.0, 52.0)
 	_pause_panel.add_child(_pause_stats)
-	var b_resume := _make_button("RESUME", 320)
+	var b_resume := _make_button("RESUME", 240)
 	b_resume.pressed.connect(func() -> void:
 		_set_paused(false)
 	)
 	_pause_panel.add_child(b_resume)
-	var b_restart := _make_button("RESTART", 370)
+	var b_restart := _make_button("RESTART", 292)
 	b_restart.pressed.connect(func() -> void:
 		_set_paused(false)
 		_restart_current_run()
 	)
 	_pause_panel.add_child(b_restart)
-	var b_menu := _make_button("ABANDON PROCESS", 420)
-	b_menu.pressed.connect(_request_abandon_confirmation)
-	_pause_panel.add_child(b_menu)
-	var b_terminal := _make_button("OPEN TERMINAL", 460)
+	var b_terminal := _make_button("OPEN TERMINAL", 344)
 	b_terminal.pressed.connect(_open_terminal)
 	_pause_panel.add_child(b_terminal)
-	_pause_panel.add_child(_make_volume_row("SFX", Sfx.sfx_vol, 508.0, func(v: float) -> void:
+	var b_menu := _make_button("ABANDON PROCESS", 515)
+	b_menu.pressed.connect(_request_abandon_confirmation)
+	_pause_panel.add_child(b_menu)
+	_pause_panel.add_child(_make_volume_row("SFX", Sfx.sfx_vol, 400.0, func(v: float) -> void:
 		Sfx.set_sfx_vol(v)
 	))
-	_pause_panel.add_child(_make_volume_row("MUSIC", Sfx.music_vol, 556.0, func(v: float) -> void:
+	_pause_panel.add_child(_make_volume_row("MUSIC", Sfx.music_vol, 438.0, func(v: float) -> void:
 		Sfx.set_music_vol(v)
 	))
 
@@ -455,24 +458,34 @@ func _make_volume_row(label_text: String, value: float, y: float, on_change: Cal
 	return row
 
 func _build_game_over_panel() -> void:
-	_over_panel = _make_panel()
+	_over_panel = _make_panel("game_over")
 	_over_title = _make_label("PROCESS TERMINATED", 44, Balance.COL_DANGER)
-	_center_panel_control(_over_title, 150.0, 62.0)
+	_center_panel_control(_over_title, 132.0, 62.0)
 	_over_panel.add_child(_over_title)
 	_over_sub = _make_label("", 14, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	_center_panel_control(_over_sub, 216.0, 26.0)
+	_center_panel_control(_over_sub, 186.0, 26.0)
 	_over_panel.add_child(_over_sub)
 	_over_stats = _make_label("", 17, Balance.COL_TEXT)
-	_center_panel_control(_over_stats, 252.0, 218.0)
+	_over_stats.visible = false
 	_over_panel.add_child(_over_stats)
+	_over_core_stats = _make_label("", 13, Balance.COL_TEXT)
+	_over_core_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_position_game_over_stat(_over_core_stats, false)
+	_over_panel.add_child(_over_core_stats)
+	_over_run_stats = _make_label("", 13, Balance.COL_TEXT)
+	_over_run_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_position_game_over_stat(_over_run_stats, true)
+	_over_panel.add_child(_over_run_stats)
 	_over_primary = _make_button("REBOOT  [ENTER]", 500)
+	_position_game_over_button(_over_primary, false)
 	_over_primary.pressed.connect(_handle_over_primary)
 	_over_panel.add_child(_over_primary)
-	_over_menu = _make_button("ABANDON PROCESS  [ESC]", 550)
+	_over_menu = _make_button("ABANDON PROCESS  [ESC]", 500)
+	_position_game_over_button(_over_menu, true)
 	_over_menu.pressed.connect(Game.to_menu)
 	_over_panel.add_child(_over_menu)
 
-func _make_panel() -> Control:
+func _make_panel(kind: String = "pause") -> Control:
 	var p := Control.new()
 	p.set_anchors_preset(Control.PRESET_FULL_RECT)
 	p.visible = false
@@ -482,6 +495,11 @@ func _make_panel() -> Control:
 	dim.color = Color(0.01, 0.012, 0.03, 0.82)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(dim)
+	var surface := TacticalStateSurfaceHelper.new()
+	surface.set_anchors_preset(Control.PRESET_FULL_RECT)
+	surface.configure(kind)
+	surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(surface)
 	var layer := CanvasLayer.new()
 	layer.layer = 60
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -492,18 +510,62 @@ func _make_panel() -> Control:
 func _make_button(txt: String, y: float) -> Button:
 	var b := Button.new()
 	b.text = txt
-	b.flat = true
+	b.flat = false
 	b.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	b.add_theme_font_size_override("font_size", 18)
 	b.add_theme_color_override("font_color", Balance.COL_TEXT)
 	b.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
 	b.add_theme_color_override("font_pressed_color", Balance.COL_PLAYER_HOT)
 	b.add_theme_color_override("font_focus_color", Balance.COL_TEXT)
-	b.anchor_left = 0.0
-	b.anchor_right = 1.0
+	var accent := Balance.COL_DANGER if txt.contains("ABANDON") else Balance.COL_PLAYER
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(accent.r, accent.g, accent.b, 0.035)
+	normal.border_color = Color(accent.r, accent.g, accent.b, 0.72)
+	normal.set_border_width_all(1)
+	normal.set_corner_radius_all(0)
+	normal.content_margin_left = 18.0
+	normal.content_margin_right = 18.0
+	b.add_theme_stylebox_override("normal", normal)
+	var hover := normal.duplicate()
+	hover.bg_color = Color(accent.r, accent.g, accent.b, 0.14)
+	hover.border_color = accent
+	hover.set_border_width_all(2)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", hover)
+	b.anchor_left = 0.5
+	b.anchor_right = 0.5
+	b.offset_left = -230.0
+	b.offset_right = 230.0
 	_center_panel_control(b, y, 40.0)
 	b.mouse_filter = Control.MOUSE_FILTER_STOP
 	return b
+
+func _position_game_over_button(button: Button, right_side: bool) -> void:
+	var side_offset := 468.0 if right_side else 0.0
+	button.offset_left = -450.0 + side_offset
+	button.offset_right = -18.0 + side_offset
+
+func _position_game_over_stat(label: Label, right_side: bool) -> void:
+	var side_offset := 408.0 if right_side else 0.0
+	label.anchor_left = 0.5
+	label.anchor_right = 0.5
+	label.offset_left = -375.0 + side_offset
+	label.offset_right = -35.0 + side_offset
+	_center_panel_control(label, 320.0, 180.0)
+
+func state_panel_rect(viewport: Vector2, design_top: float = 0.0, control_size: Vector2 = Vector2.ZERO) -> Rect2:
+	var kind := "game_over" if control_size.x > 700.0 else "pause"
+	return TacticalStateSurfaceHelper.panel_rect_for_viewport(viewport, kind)
+
+func state_action_rects(viewport: Vector2, count: int) -> Array[Rect2]:
+	var kind := "game_over" if count <= 2 else "pause"
+	return TacticalStateSurfaceHelper.action_rects_for_viewport(viewport, kind, count)
+
+func pause_action_labels() -> Array[String]:
+	return ["RESUME", "RESTART", "OPEN TERMINAL", "ABANDON PROCESS"]
+
+func game_over_action_labels() -> Array[String]:
+	return ["REBOOT", "ABANDON PROCESS"]
 
 func _make_label(txt: String, size: int, col: Color) -> Label:
 	var l := Label.new()
@@ -966,23 +1028,24 @@ func _show_game_over() -> void:
 	var acc := 0.0
 	if s["shots"] > 0:
 		acc = float(s["hits"]) / float(s["shots"]) * 100.0
-	var lines := [
+	var core_lines := [
 		"TERMINATED BY %s" % str(Game.stats.get("killer", "DAEMON")),
 		"PROGRAM       %s" % Game.program_def()["name"],
 		"BUILD         %s" % Game.build_string(),
-		"FINAL SCORE   %07d" % Game.score,
-			"BEST          %07d" % Game.best_for_mode(),
-		"",
+		"SEED          %s" % Game.run_seed_text(),
+	]
+	var run_lines := [
+		"FINAL SCORE      %07d" % Game.score,
+		"BEST             %07d" % Game.best_for_mode(),
 		"CYCLES        %d" % s["wave"],
 		"DAEMONS PURGED %d" % s["kills"],
 		_heals_line(s),
 		"ACCURACY      %d%%" % int(acc),
 		"UPTIME        %02d:%02d" % [int(s["time"] / 60.0), int(s["time"]) % 60],
 	]
-	for dump_line in Game.core_dump_text().split("\n"):
-		lines.append(dump_line)
 	_over_sub.text = ["segmentation fault (core dumped)", "process has stopped responding", "kernel oops", "the daemons send their regards"][randi() % 4]
-	_over_stats.text = "\n".join(lines)
+	_over_core_stats.text = "\n".join(core_lines)
+	_over_run_stats.text = "\n".join(run_lines)
 	for c in _over_panel.get_children():
 		if c is Label and c.text == "NEW RECORD":
 			c.queue_free()
@@ -1029,7 +1092,8 @@ func _show_story_victory(stage_id: String) -> void:
 		if stage_id == "temple_god":
 			next_line += "\nRAINBOW GRID UNLOCKED FOR ENDLESS"
 	var best_value := Game.story_stage_best(index)
-	_over_stats.text = "STAGE SCORE   %07d\nBEST          %07d\n\n%s\n\nDAEMONS PURGED %d\nUPTIME        %02d:%02d" % [Game.score, best_value, next_line, int(Game.stats.get("kills", 0)), int(float(Game.stats.get("time", 0.0)) / 60.0), int(float(Game.stats.get("time", 0.0))) % 60]
+	_over_core_stats.text = "STAGE          %s\nBEST           %07d\n\n%s" % [str(_story_stage.get("title", "STAGE CLEARED")), best_value, next_line]
+	_over_run_stats.text = "STAGE SCORE      %07d\nDAEMONS PURGED   %d\nUPTIME           %02d:%02d" % [Game.score, int(Game.stats.get("kills", 0)), int(float(Game.stats.get("time", 0.0)) / 60.0), int(float(Game.stats.get("time", 0.0))) % 60]
 	_over_primary.text = "NEXT STAGE  [ENTER]" if _story_next_stage >= 0 else "RETURN TO MENU  [ENTER]"
 	_over_menu.text = "STORY SELECT  [ESC]"
 	_over_panel.modulate.a = 0.0
