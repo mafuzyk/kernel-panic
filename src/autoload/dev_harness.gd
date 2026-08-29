@@ -415,6 +415,7 @@ func _autotest() -> void:
 			ver_ok = true
 	_check(ver_ok, "menu version matches project setting (%s)" % expected_ver)
 	await _story_menu_test(menu_scene)
+	await _menu_shell_test(menu_scene)
 	await _charm_save_transfer_test(menu_scene)
 	if menu_scene.has_method("_reset_scores"):
 		menu_scene._reset_scores()
@@ -2710,6 +2711,23 @@ func _story_menu_test(menu: Node) -> void:
 	menu.call("_close_story_selector")
 	await _ticks(1)
 	_check(not panel.visible, "story selector closes cleanly")
+
+func _menu_shell_test(menu: Node) -> void:
+	print("AT_STEP menu_shell")
+	_check(menu.has_method("main_shell_snapshot"), "menu exposes main shell snapshot")
+	_check(menu.has_method("settings_shell_snapshot"), "menu exposes settings shell snapshot")
+	if menu.has_method("main_shell_snapshot"):
+		var main_snapshot: Dictionary = menu.main_shell_snapshot()
+		_check(str(main_snapshot.get("title", "")).contains("KERNEL PANIC"), "main shell exposes kernel panic title")
+		_check(str(main_snapshot.get("primary_action", "")).contains("PURGE"), "main shell exposes primary purge action")
+		_check(not str(main_snapshot.get("mode_explanation", "")).strip_edges().is_empty(), "main shell exposes mode explanation")
+		var routes: Array = main_snapshot.get("routes", [])
+		_check(routes.has("PROGRAM") and routes.has("STORY") and routes.has("BESTIARY"), "main shell exposes program story and bestiary routes")
+	if menu.has_method("settings_shell_snapshot"):
+		var settings_snapshot: Dictionary = menu.settings_shell_snapshot()
+		var groups: Array = settings_snapshot.get("groups", [])
+		_check(groups.has("AUDIO") and groups.has("CONTROL") and groups.has("DISPLAY") and groups.has("SAVE TRANSFER"), "settings shell exposes aligned option groups")
+		_check(bool(settings_snapshot.get("scrollable", false)), "settings shell remains scrollable")
 
 func _story_scene_test() -> void:
 	print("AT_STEP story_scene")

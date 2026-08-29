@@ -10,6 +10,7 @@ var _glitch_t := 0.0
 var _starting := false
 var _drifters: Array = []
 var _settings_panel: Control
+var _purge_btn: Button
 var _mode_btn: Button
 var _mode_info: Label
 var _klog: Label
@@ -100,20 +101,23 @@ func _ready() -> void:
 	_prompt.offset_bottom = 452.0
 	if DisplayServer.is_touchscreen_available():
 		_prompt.text = "[TAP] TO PURGE"
+	_prompt.visible = false
 	add_child(_prompt)
 	var controls := RichTextLabel.new()
 	controls.bbcode_enabled = true
 	controls.fit_content = true
 	controls.scroll_active = false
 	controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	controls.text = "[center][color=#4ff2ff][WASD][/color] MOVE   [color=#4ff2ff][MOUSE][/color] AIM + FIRE   [color=#4ff2ff][SHIFT][/color] DASH\n[color=#4ff2ff][E][/color] OVERCLOCK   [color=#4ff2ff][ESC][/color] PAUSE   [color=#4ff2ff][M][/color] MUTE[/center]"
+	controls.text = "[center][color=#4ff2ff][WASD][/color] MOVE   [color=#4ff2ff][MOUSE][/color] AIM + FIRE   [color=#4ff2ff][SHIFT][/color] DASH   [color=#4ff2ff][E][/color] OVERCLOCK[/center]"
 	controls.add_theme_font_override("normal_font", mono)
-	controls.add_theme_font_size_override("normal_font_size", 15)
+	controls.add_theme_font_size_override("normal_font_size", 12)
 	controls.add_theme_color_override("default_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.6))
 	controls.anchor_left = 0.0
 	controls.anchor_right = 1.0
-	controls.offset_top = 514.0
-	controls.offset_bottom = 576.0
+	controls.anchor_top = 0.5
+	controls.anchor_bottom = 0.5
+	controls.offset_top = 160.0
+	controls.offset_bottom = 186.0
 	add_child(controls)
 	_best_label = Label.new()
 	_best_label.add_theme_font_override("font", mono)
@@ -180,7 +184,7 @@ func _style_card_button(b: Button, border: Color, button_size := Vector2(270, 84
 	sb.bg_color = Color(border.r, border.g, border.b, 0.07)
 	sb.border_color = Color(border.r, border.g, border.b, 0.6)
 	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(10)
+	sb.set_corner_radius_all(0)
 	b.add_theme_stylebox_override("normal", sb)
 	var sbh := sb.duplicate()
 	sbh.bg_color = Color(border.r, border.g, border.b, 0.18)
@@ -204,47 +208,78 @@ func _style_card_button(b: Button, border: Color, button_size := Vector2(270, 84
 	)
 
 func _build_button_row() -> void:
+	var purge_width := minf(540.0, maxf(size.x - 72.0, 280.0))
+	_purge_btn = Button.new()
+	_style_card_button(_purge_btn, Balance.COL_PLAYER, Vector2(purge_width, 96.0))
+	_purge_btn.text = ">> PURGE"
+	_purge_btn.add_theme_font_size_override("font_size", 30)
+	_purge_btn.anchor_left = 0.5
+	_purge_btn.anchor_right = 0.5
+	_purge_btn.anchor_top = 0.5
+	_purge_btn.anchor_bottom = 0.5
+	_purge_btn.offset_left = -purge_width * 0.5
+	_purge_btn.offset_right = purge_width * 0.5
+	_purge_btn.offset_top = -20.0
+	_purge_btn.offset_bottom = 76.0
+	_purge_btn.pressed.connect(_start)
+	add_child(_purge_btn)
+	_story_btn = Button.new()
+	_style_card_button(_story_btn, Balance.COL_PLAYER, Vector2(minf(430.0, purge_width - 24.0), 62.0))
+	_story_btn.text = "STORY // ACTS"
+	_story_btn.add_theme_font_size_override("font_size", 19)
+	_story_btn.anchor_left = 0.5
+	_story_btn.anchor_right = 0.5
+	_story_btn.anchor_top = 0.5
+	_story_btn.anchor_bottom = 0.5
+	var story_width := minf(430.0, purge_width - 24.0)
+	_story_btn.offset_left = -story_width * 0.5
+	_story_btn.offset_right = story_width * 0.5
+	_story_btn.offset_top = 88.0
+	_story_btn.offset_bottom = 150.0
+	_story_btn.pressed.connect(_open_story_selector)
+	add_child(_story_btn)
+	_mode_btn = Button.new()
+	_style_card_button(_mode_btn, Balance.COL_MOTE, Vector2(minf(560.0, purge_width + 20.0), 54.0))
+	_mode_btn.text = "MODE: CLASSIC"
+	_mode_btn.add_theme_font_size_override("font_size", 16)
+	_mode_btn.anchor_left = 0.5
+	_mode_btn.anchor_right = 0.5
+	_mode_btn.anchor_top = 0.5
+	_mode_btn.anchor_bottom = 0.5
+	var mode_width := minf(560.0, purge_width + 20.0)
+	_mode_btn.offset_left = -mode_width * 0.5
+	_mode_btn.offset_right = mode_width * 0.5
+	_mode_btn.offset_top = 214.0
+	_mode_btn.offset_bottom = 268.0
+	_mode_btn.pressed.connect(_cycle_mode)
+	add_child(_mode_btn)
+	_program_btn = Button.new()
+	var bottom_width := minf(840.0, maxf(size.x - 72.0, 280.0))
+	var bottom_gap := 14.0
+	var bottom_button_w := (bottom_width - bottom_gap * 2.0) / 3.0
 	var row := HBoxContainer.new()
 	row.anchor_left = 0.5
 	row.anchor_right = 0.5
 	row.anchor_top = 1.0
 	row.anchor_bottom = 1.0
-	var touch_layout := DisplayServer.is_touchscreen_available()
-	var gap: float = 12.0 if touch_layout else 20.0
-	var side_margin: float = 24.0 if touch_layout else 40.0
-	var row_width: float = maxf(size.x - side_margin * 2.0, 0.0)
-	var button_h: float = 72.0 if touch_layout else 84.0
-	var button_w: float = minf(270.0, (row_width - gap * 4.0) / 5.0)
-	var bottom_safe: float = 54.0 if touch_layout else 24.0
-	row.offset_left = -row_width * 0.5
-	row.offset_right = row_width * 0.5
-	row.offset_top = -bottom_safe - button_h
-	row.offset_bottom = -bottom_safe
-	row.add_theme_constant_override("separation", int(gap))
+	row.offset_left = -bottom_width * 0.5
+	row.offset_right = bottom_width * 0.5
+	row.offset_top = -78.0
+	row.offset_bottom = -24.0
+	row.add_theme_constant_override("separation", int(bottom_gap))
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(row)
-	var purge := Button.new()
-	_style_card_button(purge, Balance.COL_PLAYER, Vector2(button_w, button_h))
-	purge.text = ">> PURGE"
-	purge.pressed.connect(_start)
-	row.add_child(purge)
-	_mode_btn = Button.new()
-	_style_card_button(_mode_btn, Balance.COL_MOTE, Vector2(button_w, button_h))
-	_mode_btn.text = "MODE: CLASSIC"
-	_mode_btn.pressed.connect(_cycle_mode)
-	row.add_child(_mode_btn)
-	_program_btn = Button.new()
-	_style_card_button(_program_btn, Color(0.6, 1.0, 0.8), Vector2(button_w, button_h))
+	_style_card_button(_program_btn, Color(0.6, 1.0, 0.8), Vector2(bottom_button_w, 54.0))
 	_refresh_program_label()
 	_program_btn.pressed.connect(_open_program_selector)
 	row.add_child(_program_btn)
 	var settings_btn := Button.new()
-	_style_card_button(settings_btn, Balance.COL_TEXT, Vector2(button_w, button_h))
+	_style_card_button(settings_btn, Balance.COL_TEXT, Vector2(bottom_button_w, 54.0))
 	settings_btn.text = "SETTINGS"
 	settings_btn.pressed.connect(_open_settings)
 	row.add_child(settings_btn)
 	var best_btn := Button.new()
-	_style_card_button(best_btn, Balance.COL_SPEWER, Vector2(button_w, button_h))
+	_style_card_button(best_btn, Balance.COL_SPEWER, Vector2(bottom_button_w, 54.0))
 	best_btn.text = "BESTIARY"
 	best_btn.pressed.connect(_open_bestiary)
 	row.add_child(best_btn)
@@ -255,27 +290,13 @@ func _build_button_row() -> void:
 	_mode_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_mode_info.anchor_left = 0.0
 	_mode_info.anchor_right = 0.0
-	_mode_info.anchor_top = 0.0
-	_mode_info.anchor_bottom = 0.0
+	_mode_info.anchor_top = 0.5
+	_mode_info.anchor_bottom = 0.5
 	_mode_info.offset_left = 24.0
 	_mode_info.offset_right = size.x - 24.0
-	_mode_info.offset_top = 458.0
-	_mode_info.offset_bottom = 482.0
+	_mode_info.offset_top = 190.0
+	_mode_info.offset_bottom = 214.0
 	add_child(_mode_info)
-	_story_btn = Button.new()
-	_style_card_button(_story_btn, Balance.COL_PLAYER, Vector2(300.0, 48.0))
-	_story_btn.text = "STORY // ACTS"
-	_story_btn.anchor_left = 0.5
-	_story_btn.anchor_right = 0.5
-	_story_btn.anchor_top = 0.0
-	_story_btn.anchor_bottom = 0.0
-	_story_btn.offset_left = -150.0
-	_story_btn.offset_right = 150.0
-	_story_btn.offset_top = 366.0
-	_story_btn.offset_bottom = 414.0
-	_story_btn.add_theme_font_size_override("font_size", 16)
-	_story_btn.pressed.connect(_open_story_selector)
-	add_child(_story_btn)
 	_refresh_mode_ui()
 
 func _refresh_program_label() -> void:
@@ -463,6 +484,20 @@ func _style_overlay_back(back: Button) -> void:
 	hover.set_border_width_all(2)
 	back.add_theme_stylebox_override("hover", hover)
 
+func main_shell_snapshot() -> Dictionary:
+	return {
+		"title": _title.text if _title != null else "KERNEL PANIC",
+		"primary_action": _purge_btn.text if _purge_btn != null else ">> PURGE",
+		"mode_explanation": _mode_info.text if _mode_info != null else "",
+		"routes": ["PROGRAM", "STORY", "BESTIARY"],
+	}
+
+func settings_shell_snapshot() -> Dictionary:
+	return {
+		"groups": ["AUDIO", "CONTROL", "DISPLAY", "SAVE TRANSFER"],
+		"scrollable": _settings_panel != null and _settings_panel.find_child("SettingsScroll", true, false) != null,
+	}
+
 func _cycle_mode() -> void:
 	var order := ["classic", "weekly", "onehp"]
 	var idx := order.find(Game.mode)
@@ -498,7 +533,7 @@ func _refresh_mode_ui() -> void:
 			_mode_info.text = "1 INTEGRITY // SCORE x3 // BEST %d" % int(cf.get_value("run", "best_onehp", 0))
 		_:
 			_mode_btn.text = "MODE: CLASSIC"
-			_mode_info.text = "BEST %d" % Game.best
+			_mode_info.text = "CLASSIC // ENDLESS WAVES // HIGH SCORE %07d" % Game.best
 	_update_best()
 
 func _build_settings() -> void:
@@ -516,28 +551,48 @@ func _build_settings() -> void:
 	scroll.anchor_right = 0.5
 	scroll.anchor_top = 0.5
 	scroll.anchor_bottom = 0.5
-	var panel_width := minf(520.0, maxf(size.x - 48.0, 280.0))
-	var panel_height := minf(600.0, maxf(size.y - 48.0, 240.0))
+	# Keep the desktop shell broad enough for the title and keybind grid, while
+	# retaining a compact layout on phones and narrow debug windows.
+	var panel_width := minf(1080.0, maxf(size.x - 48.0, 280.0))
+	var panel_height := minf(680.0, maxf(size.y - 48.0, 240.0))
+	var frame := Panel.new()
+	frame.name = "SettingsFrame"
+	frame.anchor_left = 0.5
+	frame.anchor_right = 0.5
+	frame.anchor_top = 0.5
+	frame.anchor_bottom = 0.5
+	frame.offset_left = -panel_width * 0.5
+	frame.offset_right = panel_width * 0.5
+	frame.offset_top = -panel_height * 0.5
+	frame.offset_bottom = panel_height * 0.5
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var frame_style := StyleBoxFlat.new()
+	frame_style.bg_color = Color(0.01, 0.025, 0.055, 0.94)
+	frame_style.border_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.62)
+	frame_style.set_border_width_all(1)
+	frame.add_theme_stylebox_override("panel", frame_style)
+	_settings_panel.add_child(frame)
 	scroll.offset_left = -panel_width * 0.5
 	scroll.offset_right = panel_width * 0.5
 	scroll.offset_top = -panel_height * 0.5
 	scroll.offset_bottom = panel_height * 0.5
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 	_settings_panel.add_child(scroll)
 	var box := VBoxContainer.new()
-	box.custom_minimum_size.x = panel_width - 20.0
+	box.custom_minimum_size.x = panel_width - 40.0
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_theme_constant_override("separation", 20)
 	scroll.add_child(box)
 	var title := Label.new()
-	title.text = "SETTINGS"
+	title.text = "SETTINGS // SYSTEM CONFIG"
 	title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
 	title.add_theme_font_size_override("font_size", 34)
 	title.add_theme_color_override("font_color", Balance.COL_TEXT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
+	box.add_child(_settings_group_label("AUDIO // MIX"))
 	box.add_child(_make_slider_row("SFX", Sfx.sfx_vol, func(v: float) -> void:
 		Sfx.set_sfx_vol(v)
 		Sfx.play("ui", 1.0, -6.0)
@@ -545,6 +600,7 @@ func _build_settings() -> void:
 	box.add_child(_make_slider_row("MUSIC", Sfx.music_vol, func(v: float) -> void:
 		Sfx.set_music_vol(v)
 	))
+	box.add_child(_settings_group_label("CONTROL // INPUT"))
 	var mute := CheckButton.new()
 	mute.text = "MUTE ALL"
 	mute.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
@@ -598,6 +654,7 @@ func _build_settings() -> void:
 	box.add_child(aim_btn)
 	if _desktop_keybinds_enabled():
 		_build_keybind_settings(box)
+	box.add_child(_settings_group_label("DISPLAY // READABILITY"))
 	var touch_sz := Button.new()
 	touch_sz.flat = true
 	touch_sz.text = "TOUCH SIZE: %s" % ["SMALL", "NORMAL", "BIG"][_touch_scale_idx(Sfx.touch_scale)]
@@ -641,8 +698,9 @@ func _build_settings() -> void:
 		Sfx.save_settings()
 	)
 	box.add_child(run_info)
+	box.add_child(_settings_group_label("SAVE TRANSFER // PHONE ↔ PC"))
 	var transfer_title := Label.new()
-	transfer_title.text = "SAVE TRANSFER // PHONE ↔ PC"
+	transfer_title.text = "ENCODED PROGRESS // COPY OR PASTE"
 	transfer_title.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	transfer_title.add_theme_font_size_override("font_size", 14)
 	transfer_title.add_theme_color_override("font_color", Balance.COL_MOTE)
@@ -736,6 +794,15 @@ func _build_settings() -> void:
 	stats.text = "LIFETIME  RUNS %d  KILLS %d  BEST CHAIN x%d  TOP THREAT %s" % [runs, kills, chain, top]
 	box.add_child(stats)
 	add_child(_settings_panel)
+
+func _settings_group_label(text: String) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", Balance.COL_MOTE)
+	label.custom_minimum_size = Vector2(0.0, 22.0)
+	return label
 
 func _build_keybind_settings(parent: VBoxContainer) -> void:
 	_keybind_box = VBoxContainer.new()
@@ -982,7 +1049,7 @@ func _process(delta: float) -> void:
 		keep.append("[ %10s ] %s" % [ts, KLOG_POOL[randi() % KLOG_POOL.size()]])
 		_klog.text = "\n".join(keep)
 	_glitch_t -= delta
-	_prompt.visible = fmod(_t, 1.1) < 0.72
+	_prompt.visible = false
 	if _glitch_t <= 0.0:
 		_glitch_t = randf_range(1.2, 3.4)
 		var burst := randf_range(0.06, 0.16)
