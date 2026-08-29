@@ -59,6 +59,12 @@ The 1366×768 mocks define the full layout. At narrow desktop widths, side panel
 
 Every generated asset candidate is reviewed at 1366×768, a narrow Hyprland/dwindle window, and a representative mobile aspect ratio. Candidates with visible blur, seams, poor cropping, weak contrast, or a style mismatch are rejected and are never committed as placeholders.
 
+### Visual correction pass — combat surfaces
+
+The fullscreen comparison against the approved HUD and patch-selection references found three concrete mismatches. The encounter and score hierarchy was undersized, the desktop dash module lacked the reference's ready/charge affordance, and the patch cards were too tall and sat too low beneath the overlay title. The HUD typography and dash module now match the reference proportions more closely, while the patch dock uses a compact measured card region with a shared baseline.
+
+The narrow captures requested through Hyprland/dwindle were presented by the compositor at 646×736 for both 720×720 and 432×720 requests. They were still inspected separately: the compact panels, boss bar, dash module, and patch dock remained inside the rendered viewport without collisions or clipping. No raster asset was needed; all corrections remain code-drawn.
+
 ## Accessibility and interaction
 
 - Color is always reinforced by shape, label, or icon.

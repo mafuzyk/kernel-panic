@@ -401,19 +401,19 @@ func _draw_tactical_shell(f: Font) -> void:
 	_draw_angular_panel(patch_rect, TacticalUIHelper.CYAN, 0.045)
 	draw_string(f, integrity_rect.position + Vector2(16.0, 22.0), "INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, TacticalUIHelper.TEXT)
 	var cycle_label := "CYCLE %02d" % Game.wave
-	draw_string(_score_font, encounter_rect.position + Vector2(0.0, 28.0 if compact else 32.0), cycle_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 20 if compact else 24, TacticalUIHelper.TEXT)
+	draw_string(_score_font, encounter_rect.position + Vector2(0.0, 30.0 if compact else 38.0), cycle_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 24 if compact else 32, TacticalUIHelper.TEXT)
 	var encounter_label := _boss_name if not _boss_name.is_empty() else "PROCESS PURGE"
-	draw_string(f, encounter_rect.position + Vector2(0.0, 48.0 if compact else 58.0), encounter_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 11, TacticalUIHelper.MUTED)
+	draw_string(f, encounter_rect.position + Vector2(0.0, 50.0 if compact else 62.0), encounter_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 11 if compact else 12, TacticalUIHelper.MUTED)
 	draw_string(f, score_rect.position + Vector2(14.0, 22.0), "SCORE", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, TacticalUIHelper.CYAN)
-	draw_string(_score_font, score_rect.position + Vector2(14.0, 47.0), "%07d" % _score, HORIZONTAL_ALIGNMENT_RIGHT, score_rect.size.x - 28.0, 20, TacticalUIHelper.TEXT)
+	draw_string(_score_font, score_rect.position + Vector2(14.0, 52.0), "%07d" % _score, HORIZONTAL_ALIGNMENT_RIGHT, score_rect.size.x - 28.0, 24 if compact else 28, TacticalUIHelper.TEXT)
 	if event_log_visible():
 		var event_rect := Rect2(score_rect.position.x, score_rect.end.y + 8.0, score_rect.size.x, 84.0)
 		_draw_angular_panel(event_rect, TacticalUIHelper.CYAN, 0.025)
 		var event_y := event_rect.position.y + 18.0
-		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 11, TacticalUIHelper.CYAN)
+		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, TacticalUIHelper.CYAN)
 		for line in visible_event_lines():
 			event_y += 15.0
-			draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), line, HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 10, TacticalUIHelper.MUTED)
+			draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), line, HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 11, TacticalUIHelper.MUTED)
 
 func _hp_pips(f: Font) -> void:
 	var integrity_rect: Rect2 = layout_snapshot()["integrity"]
@@ -538,10 +538,24 @@ func _dash_pip(f: Font) -> void:
 	if not Balance.is_desktop_display() or DisplayServer.is_touchscreen_available():
 		return
 	var col := Balance.COL_PLAYER if _dash_frac >= 1.0 else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.35)
-	var baseline := dash_baseline()
-	draw_circle(Vector2(_safe_side_margin() + 8.0, baseline), 5.0, col)
-	var dash_text := "DASH x%d [SHIFT]" % _dash_max if _dash_max > 1 else "DASH [SHIFT]"
-	draw_string(f, Vector2(_safe_side_margin() + 22.0, baseline + 5.0), dash_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, 0.7))
+	var dash_rect: Rect2 = layout_snapshot()["dash"]
+	var dash_text := "DASH READY" if _dash_frac >= 1.0 else "DASH CHARGING"
+	draw_string(f, dash_rect.position + Vector2(16.0, 28.0), dash_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 13, Color(col.r, col.g, col.b, 0.82))
+	var charge_text := "x%d" % _dash_max if _dash_max > 1 else "[SHIFT]"
+	draw_string(f, dash_rect.position + Vector2(16.0, 52.0), charge_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 11, Color(col.r, col.g, col.b, 0.68))
+	var chevron := Rect2(dash_rect.end - Vector2(60.0, 57.0), Vector2(44.0, 38.0))
+	var points := TacticalUIHelper.angular_points(chevron, 7.0)
+	var closed := points.duplicate()
+	closed.append(points[0])
+	draw_colored_polygon(points, Color(col.r, col.g, col.b, 0.08))
+	draw_polyline(closed, Color(col.r, col.g, col.b, 0.72), 1.4, true)
+	for offset in [0.0, 10.0, 20.0]:
+		var x: float = chevron.position.x + 11.0 + float(offset)
+		draw_line(Vector2(x, chevron.position.y + 10.0), Vector2(x + 9.0, chevron.position.y + 19.0), col, 2.0)
+		draw_line(Vector2(x + 9.0, chevron.position.y + 19.0), Vector2(x, chevron.position.y + 28.0), col, 2.0)
+	var cooldown := Rect2(dash_rect.position + Vector2(16.0, dash_rect.size.y - 16.0), Vector2(maxf(dash_rect.size.x - 32.0, 50.0), 4.0))
+	draw_rect(cooldown, Color(col.r, col.g, col.b, 0.16))
+	draw_rect(Rect2(cooldown.position, Vector2(cooldown.size.x * _dash_frac, cooldown.size.y)), Color(col.r, col.g, col.b, 0.76))
 
 func _boss_bar(f: Font) -> void:
 	var region: Rect2 = layout_snapshot()["boss"]
