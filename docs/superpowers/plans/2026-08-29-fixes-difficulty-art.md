@@ -1784,7 +1784,7 @@ Interfaces:
 - Consumes: `Game.mode` / `Game.difficulty`, `spawner.gd` budget (line 163), alive cap (line 283), elite roll (line 329); cadence read points in `enemy_base.gd` (lines 50-51), `spewer.gd` (line 67), `root_boss.gd` (lines 340, 510); menu `_cycle_mode()` persistence pattern (lines 664-676).
 - Produces: `Game.difficulty` + `Game.set_difficulty()`; `Balance.DIFFICULTY_ORDER`, `Balance.difficulty_max_alive()`, `Balance.difficulty_wave_budget()`, `Balance.difficulty_elite_chance()`, `Balance.difficulty_cadence()`; a `DIFFICULTY` cycler next to MODE.
 
-- [ ] Step 1: Write the failing harness regression
+- [x] Step 1: Write the failing harness regression
 
 In `src/autoload/dev_harness.gd`, after the line `await _systems_test(arena2)` add:
 
@@ -1836,7 +1836,7 @@ func _difficulty_test() -> void:
 	Game.set("difficulty", saved_difficulty)
 ~~~
 
-- [ ] Step 2: Run the test to verify it fails
+- [x] Step 2: Run the test to verify it fails
 
 Run:
 
@@ -1846,7 +1846,7 @@ godot --headless --path . -- --autotest
 
 Expected: AT_FAIL `balance exposes difficulty-aware read helpers`. No parse error.
 
-- [ ] Step 3: Add the difficulty tables and read helpers to balance.gd
+- [x] Step 3: Add the difficulty tables and read helpers to balance.gd
 
 3a. In `src/autoload/balance.gd`, directly after `const HEAL_EVERY := 3` (line ~39), add:
 
@@ -1898,7 +1898,7 @@ The `base >= 1.0` guard keeps the wave 1-5 ramp at exactly 1.0 for every difficu
 
 The base functions `wave_budget`, `max_alive`, `attack_cadence_factor`, `elite_chance` keep their signatures and values, so the locked harness checks (`max_alive(1)==8`, `max_alive(2)==10`, `max_alive(30)==10`, cadence wave checks) pass unchanged.
 
-- [ ] Step 4: Persist the setting in game.gd
+- [x] Step 4: Persist the setting in game.gd
 
 4a. In `src/autoload/game.gd`, directly after `var mode := "classic"` (line ~19), add:
 
@@ -1927,7 +1927,7 @@ func set_difficulty(value: String) -> void:
 	cf.save(Sfx.SAVE_PATH)
 ~~~
 
-- [ ] Step 5: Apply the multipliers at the read points
+- [x] Step 5: Apply the multipliers at the read points
 
 5a. In `src/arena/spawner.gd` `_build_queue()`, replace (line ~163):
 
@@ -1988,7 +1988,7 @@ with:
 
 5f. In `src/enemies/root_boss.gd` (lines ~340 and ~510), replace both occurrences of `Balance.attack_cadence_factor(threat_wave)` with `Balance.difficulty_cadence(threat_wave)`.
 
-- [ ] Step 6: Add the DIFFICULTY cycler to menu.gd
+- [x] Step 6: Add the DIFFICULTY cycler to menu.gd
 
 6a. In `src/ui/menu.gd`, directly after the line `var _mode_btn: Button` (line ~18), add:
 
@@ -2049,7 +2049,7 @@ func _refresh_difficulty_label() -> void:
 	_refresh_difficulty_label()
 ~~~
 
-- [ ] Step 7: Document the control in README.md
+- [x] Step 7: Document the control in README.md
 
 In `README.md`, directly after the One-HP bullet (line ~152, the `- **One-HP** gives you one mistake and no excuses.` line), insert:
 
@@ -2060,7 +2060,7 @@ chance, and attack cadence, and it is stored locally; Story keeps its fixed
 per-stage curve and weekly runs stay seed-deterministic.
 ~~~
 
-- [ ] Step 8: Run the full suite
+- [x] Step 8: Run the full suite
 
 Run:
 
@@ -2073,7 +2073,7 @@ passes unmodified at default NORMAL, including the weekly seed-determinism
 check and the locked `Balance.max_alive` / cadence checks. Story-mode spawn
 behavior is identical across difficulties.
 
-- [ ] Step 9: Commit
+- [x] Step 9: Commit
 
 ~~~sh
 git add src/autoload/balance.gd src/autoload/game.gd src/ui/menu.gd src/arena/spawner.gd src/enemies/enemy_base.gd src/enemies/spewer.gd src/enemies/root_boss.gd README.md src/autoload/dev_harness.gd
