@@ -66,6 +66,10 @@ func status_snapshot() -> Dictionary:
 	}
 
 func _build() -> void:
+	var viewport_size := get_viewport_rect().size
+	var layout: Dictionary = TacticalStateSurfaceHelper.terminal_layout(viewport_size)
+	var compact: bool = bool(layout["compact"])
+	var gap := 8 if compact else 12
 	var dim := ColorRect.new()
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.color = Color(0.005, 0.008, 0.02, 0.9)
@@ -80,13 +84,13 @@ func _build() -> void:
 	_panel.position = workstation_rect(get_viewport_rect().size).position
 	_panel.size = workstation_rect(get_viewport_rect().size).size
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_panel.add_theme_stylebox_override("panel", _panel_style())
+	_panel.add_theme_stylebox_override("panel", _panel_style(14.0 if compact else 20.0))
 	add_child(_panel)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
+	box.add_theme_constant_override("separation", gap)
 	_panel.add_child(box)
 	var header := HBoxContainer.new()
-	header.custom_minimum_size = Vector2(0.0, 40.0)
+	header.custom_minimum_size = Vector2(0.0, float(layout["header"].size.y))
 	header.add_theme_constant_override("separation", 14)
 	var title_box := VBoxContainer.new()
 	title_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -106,7 +110,7 @@ func _build() -> void:
 
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 14)
+	body.add_theme_constant_override("separation", gap)
 	var history := VBoxContainer.new()
 	history.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	history.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -118,17 +122,22 @@ func _build() -> void:
 	_output.add_theme_font_override("normal_font", load("res://assets/fonts/ShareTechMono.ttf"))
 	_output.add_theme_font_size_override("normal_font_size", 16)
 	_output.add_theme_color_override("default_color", Balance.COL_PLAYER)
+	_output.add_theme_stylebox_override("normal", _output_style())
 	_output.text = _initial_output()
 	history.add_child(_output)
 	body.add_child(history)
 
-	var side := VBoxContainer.new()
-	var compact := get_viewport_rect().size.x < 760.0
-	var side_width := 118.0 if compact else 340.0
+	var side_width: float = float(layout["command_index"].size.x)
+	var side := Control.new()
 	side.custom_minimum_size = Vector2(side_width, 0.0)
 	side.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	side.add_theme_constant_override("separation", 8)
-	side.add_child(_label("COMMAND INDEX", 13 if not compact else 10, Balance.COL_PLAYER))
+	var command_box := VBoxContainer.new()
+	command_box.position = Vector2.ZERO
+	command_box.size = Vector2(side_width, float(layout["command_index"].size.y))
+	command_box.add_theme_constant_override("separation", 5)
+	var command_title := _label("COMMAND INDEX", 13 if not compact else 10, Balance.COL_PLAYER)
+	command_title.custom_minimum_size = Vector2(0.0, 20.0)
+	command_box.add_child(command_title)
 	var command_list := VBoxContainer.new()
 	command_list.add_theme_constant_override("separation", 4)
 	var command_defs := [
@@ -140,12 +149,15 @@ func _build() -> void:
 		["rm -rf /", "abort process"],
 	]
 	var command_list_margin := MarginContainer.new()
-	command_list_margin.add_theme_constant_override("margin_left", 26)
-	command_list_margin.add_theme_constant_override("margin_right", 30)
+	command_list_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	command_list_margin.add_theme_constant_override("margin_left", 12)
+	command_list_margin.add_theme_constant_override("margin_right", 12)
 	command_list_margin.add_child(command_list)
+	var available_rows_height := maxf(float(layout["command_index"].size.y) - 26.0, 120.0)
+	var command_row_height := clampf((available_rows_height - 20.0) / 6.0, 22.0, 31.0)
 	for command_def in command_defs:
 		var command_row := HBoxContainer.new()
-		command_row.custom_minimum_size = Vector2(0.0, 30.0 if not compact else 25.0)
+		command_row.custom_minimum_size = Vector2(0.0, command_row_height)
 		var command_label := _label(str(command_def[0]), 12 if not compact else 9, Balance.COL_TEXT)
 		command_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		command_label.clip_text = true
@@ -156,32 +168,33 @@ func _build() -> void:
 		description.clip_text = true
 		command_row.add_child(description)
 		command_list.add_child(command_row)
-	side.add_child(command_list_margin)
-	var side_spacer := Control.new()
-	side_spacer.custom_minimum_size = Vector2(0.0, 36.0 if not compact else 12.0)
-	side.add_child(side_spacer)
-	side.add_child(_label("SYSTEM STATUS", 13 if not compact else 10, Balance.COL_PLAYER))
+	command_box.add_child(command_list_margin)
+	side.add_child(command_box)
+	var status_box := VBoxContainer.new()
+	status_box.position = Vector2(0.0, float(layout["command_index"].size.y) + gap)
+	status_box.size = Vector2(side_width, float(layout["system_status"].size.y))
+	status_box.add_theme_constant_override("separation", 6)
+	status_box.add_child(_label("SYSTEM STATUS", 13 if not compact else 10, Balance.COL_PLAYER))
 	_system_status = _label("TTY0 / PAUSED\nPROCESS LINK // STABLE\nINPUT // READY\nPROMPT // ACTIVE", 12 if not compact else 9, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.72))
-	side.add_child(_system_status)
+	status_box.add_child(_system_status)
+	side.add_child(status_box)
 	var side_margin := MarginContainer.new()
-	side_margin.custom_minimum_size = Vector2(side_width + 24.0, 0.0)
-	side_margin.add_theme_constant_override("margin_left", 18)
-	side_margin.add_theme_constant_override("margin_right", 6)
+	side_margin.custom_minimum_size = Vector2(side_width, 0.0)
 	side_margin.add_child(side)
 	body.add_child(side_margin)
 	box.add_child(body)
 
 	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(0.0, 44.0)
+	row.custom_minimum_size = Vector2(0.0, float(layout["prompt"].size.y))
 	row.add_theme_constant_override("separation", 6)
 	var prompt_frame := PanelContainer.new()
 	prompt_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	prompt_frame.custom_minimum_size = Vector2(0.0, 44.0)
+	prompt_frame.custom_minimum_size = Vector2(0.0, float(layout["prompt"].size.y))
 	prompt_frame.add_theme_stylebox_override("panel", _outline_style(Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.72)))
 	var prompt_content := HBoxContainer.new()
 	prompt_content.add_theme_constant_override("separation", 6)
 	var prompt := _label("kernel@panic:~$", 17, Balance.COL_PLAYER)
-	prompt.custom_minimum_size = Vector2(170.0, 34.0)
+	prompt.custom_minimum_size = Vector2(136.0 if compact else 170.0, 34.0)
 	prompt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	prompt_content.add_child(prompt)
 	_input = LineEdit.new()
@@ -201,7 +214,7 @@ func _build() -> void:
 	var run := Button.new()
 	run.text = "RUN [ENTER]"
 	run.flat = false
-	run.custom_minimum_size = Vector2(150.0, 34.0)
+	run.custom_minimum_size = Vector2(118.0 if compact else 150.0, 34.0)
 	run.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	run.add_theme_font_size_override("font_size", 15)
 	run.add_theme_color_override("font_color", Balance.COL_PLAYER)
@@ -210,7 +223,7 @@ func _build() -> void:
 	run.pressed.connect(_submit_input)
 	row.add_child(run)
 	box.add_child(row)
-	var shortcuts := _label("↑↓ HISTORY        TAB AUTOCOMPLETE        ESC CLOSE", 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.52))
+	var shortcuts := _label("↑↓ HISTORY        TAB AUTOCOMPLETE        ESC CLOSE", 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.68))
 	shortcuts.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	shortcuts.custom_minimum_size = Vector2(0.0, 18.0)
 	box.add_child(shortcuts)
@@ -259,6 +272,8 @@ func _layout_panel() -> void:
 	var rect := workstation_rect(get_viewport_rect().size)
 	_panel.position = rect.position
 	_panel.size = rect.size
+	var layout: Dictionary = TacticalStateSurfaceHelper.terminal_layout(get_viewport_rect().size)
+	_panel.add_theme_stylebox_override("panel", _panel_style(14.0 if bool(layout["compact"]) else 20.0))
 
 func _update_status() -> void:
 	if _header_status != null and is_instance_valid(_header_status):
@@ -267,14 +282,24 @@ func _update_status() -> void:
 		var cycle := int(Game.wave)
 		_system_status.text = "TTY0 / PAUSED\nCYCLE %02d\nINPUT // READY\nPROMPT // ACTIVE\nCOMMANDS // %02d" % [cycle, _command_count]
 
-func _panel_style() -> StyleBoxFlat:
+func _panel_style(inset: float = 20.0) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
 	style.set_border_width_all(0)
-	style.content_margin_left = 20.0
-	style.content_margin_right = 20.0
-	style.content_margin_top = 14.0
-	style.content_margin_bottom = 16.0
+	style.content_margin_left = inset
+	style.content_margin_right = inset
+	style.content_margin_top = inset
+	style.content_margin_bottom = inset
+	return style
+
+func _output_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
+	style.set_border_width_all(0)
+	style.content_margin_left = 10.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 10.0
+	style.content_margin_bottom = 10.0
 	return style
 
 func _label(text: String, size: int, color: Color) -> Label:

@@ -33,21 +33,84 @@ static func action_rects_for_viewport(viewport: Vector2, kind: String, count: in
 		for index in count:
 			result.append(Rect2(panel.position + Vector2(28.0 + index * (game_width + game_gap), panel.size.y - 112.0), Vector2(game_width, 66.0)))
 		return result
-	var pause_width := maxf(panel.size.x - 72.0, 180.0)
-	for index in count:
-		if index < 3:
-			result.append(Rect2(panel.position + Vector2(36.0, 188.0 + index * 48.0), Vector2(pause_width, 42.0)))
-		else:
-			var warning: Rect2 = pause_section_rects(viewport)["warning"]
-			result.append(Rect2(warning.position, Vector2(warning.size.x, 42.0)))
+	var pause_actions: Array = pause_layout(viewport)["actions"]
+	for index in mini(count, pause_actions.size()):
+		result.append(pause_actions[index])
 	return result
 
 static func pause_section_rects(viewport: Vector2) -> Dictionary:
+	var layout := pause_layout(viewport)
+	return {"panel": layout["panel"], "volume": layout["volume"], "warning": layout["warning"]}
+
+static func pause_layout(viewport: Vector2) -> Dictionary:
 	var panel := panel_rect_for_viewport(viewport, "pause")
-	var section_width := maxf(panel.size.x - 72.0, 180.0)
-	var volume := Rect2(panel.position + Vector2(36.0, panel.size.y - 196.0), Vector2(section_width, 72.0))
-	var warning := Rect2(panel.position + Vector2(36.0, panel.size.y - 112.0), Vector2(section_width, 80.0))
-	return {"panel": panel, "volume": volume, "warning": warning}
+	var inset_x := clampf(panel.size.x * 0.055, 18.0, 36.0)
+	var width := panel.size.x - inset_x * 2.0
+	var scale := clampf((panel.size.y - 36.0) / 436.0, 0.68, 1.0)
+	var y := panel.position.y + 18.0
+	var info := Rect2(panel.position.x + inset_x, y, width, 28.0 * scale)
+	y = info.end.y + 4.0 * scale
+	var title := Rect2(panel.position.x + inset_x, y, width, 50.0 * scale)
+	y = title.end.y
+	var stats := Rect2(panel.position.x + inset_x, y, width, 46.0 * scale)
+	y = stats.end.y + 8.0 * scale
+	var action_height := 40.0 * scale
+	var action_gap := 6.0 * scale
+	var actions: Array[Rect2] = []
+	for index in 3:
+		actions.append(Rect2(panel.position.x + inset_x, y, width, action_height))
+		y += action_height + (action_gap if index < 2 else 0.0)
+	y += 8.0 * scale
+	var volume := Rect2(panel.position.x + inset_x, y, width, 72.0 * scale)
+	y = volume.end.y + 8.0 * scale
+	var warning := Rect2(panel.position.x + inset_x, y, width, 80.0 * scale)
+	var abandon := Rect2(warning.position + Vector2(0.0, 6.0 * scale), Vector2(warning.size.x, action_height))
+	var shortcuts := Rect2(warning.position + Vector2(8.0 * scale, 54.0 * scale), Vector2(warning.size.x - 16.0 * scale, 18.0 * scale))
+	actions.append(abandon)
+	return {
+		"panel": panel,
+		"info": info,
+		"title": title,
+		"stats": stats,
+		"actions": actions,
+		"volume": volume,
+		"warning": warning,
+		"shortcuts": shortcuts,
+		"scale": scale,
+	}
+
+static func terminal_layout(viewport: Vector2) -> Dictionary:
+	var panel := panel_rect_for_viewport(viewport, "terminal")
+	var compact := panel.size.x < 760.0 or panel.size.y < 560.0
+	var inset := 14.0 if compact else 20.0
+	var inner := panel.grow(-inset)
+	var header_h := 46.0 if compact else 52.0
+	var prompt_h := 44.0 if compact else 48.0
+	var shortcuts_h := 18.0
+	var gap := 8.0 if compact else 12.0
+	var header := Rect2(inner.position, Vector2(inner.size.x, header_h))
+	var shortcuts := Rect2(Vector2(inner.position.x, inner.end.y - shortcuts_h), Vector2(inner.size.x, shortcuts_h))
+	var prompt := Rect2(Vector2(inner.position.x, shortcuts.position.y - gap - prompt_h), Vector2(inner.size.x, prompt_h))
+	var body_top := header.end.y + gap
+	var body_bottom := prompt.position.y - gap
+	var body_height := maxf(body_bottom - body_top, 80.0)
+	var side_width := clampf(inner.size.x * 0.32, 180.0, 340.0)
+	var history := Rect2(Vector2(inner.position.x, body_top), Vector2(maxf(inner.size.x - side_width - gap, 120.0), body_height))
+	var side_x := history.end.x + gap
+	var side_height := body_height
+	var status_height := clampf(side_height * 0.28, 86.0, 124.0)
+	var command_index := Rect2(Vector2(side_x, body_top), Vector2(side_width, maxf(side_height - status_height - gap, 80.0)))
+	var system_status := Rect2(Vector2(side_x, command_index.end.y + gap), Vector2(side_width, status_height))
+	return {
+		"panel": panel,
+		"header": header,
+		"history": history,
+		"command_index": command_index,
+		"system_status": system_status,
+		"prompt": prompt,
+		"shortcuts": shortcuts,
+		"compact": compact,
+	}
 
 func _draw() -> void:
 	if size.x <= 1.0 or size.y <= 1.0:
@@ -64,8 +127,9 @@ func _draw() -> void:
 	draw_colored_polygon(frame, Color(TacticalUIHelper.PANEL.r, TacticalUIHelper.PANEL.g, TacticalUIHelper.PANEL.b, 0.96))
 	draw_colored_polygon(frame, Color(accent.r, accent.g, accent.b, 0.035))
 	draw_polyline(closed, Color(accent.r, accent.g, accent.b, 0.9), 2.0, true)
-	var top_line_y := panel.position.y + (54.0 if variant == "terminal" else 34.0)
-	draw_line(Vector2(panel.position.x + 38.0, top_line_y), Vector2(panel.end.x - 38.0, top_line_y), Color(accent.r, accent.g, accent.b, 0.42), 1.0)
+	if variant != "terminal":
+		var top_line_y := panel.position.y + 34.0
+		draw_line(Vector2(panel.position.x + 38.0, top_line_y), Vector2(panel.end.x - 38.0, top_line_y), Color(accent.r, accent.g, accent.b, 0.42), 1.0)
 	var bottom_line_y := panel.end.y - 28.0
 	draw_line(Vector2(panel.position.x + 38.0, bottom_line_y), Vector2(panel.end.x - 38.0, bottom_line_y), Color(accent.r, accent.g, accent.b, 0.42), 1.0)
 	if variant == "game_over":
@@ -77,15 +141,15 @@ func _draw() -> void:
 
 func _draw_pause_sections(panel: Rect2) -> void:
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
-	var info := Rect2(panel.position + Vector2(36.0, 44.0), Vector2(panel.size.x - 72.0, 38.0))
+	var layout := pause_layout(size)
+	var info: Rect2 = layout["info"]
 	draw_colored_polygon(TacticalUIHelper.angular_points(info, 8.0), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.025))
 	draw_string(mono, info.position + Vector2(14.0, 20.0), "PROCESS CONTROL // RUN STATE FROZEN", HORIZONTAL_ALIGNMENT_LEFT, info.size.x - 28.0, 11, TacticalUIHelper.MUTED)
-	var sections := pause_section_rects(size)
-	var volume: Rect2 = sections["volume"]
+	var volume: Rect2 = layout["volume"]
 	var volume_points := TacticalUIHelper.angular_points(volume, 8.0)
 	draw_colored_polygon(volume_points, Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.025))
 	draw_polyline(volume_points + PackedVector2Array([volume_points[0]]), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.38), 1.0, true)
-	var warning: Rect2 = sections["warning"]
+	var warning: Rect2 = layout["warning"]
 	var warning_points := TacticalUIHelper.angular_points(warning, 8.0)
 	draw_polyline(warning_points + PackedVector2Array([warning_points[0]]), Color(TacticalUIHelper.MAGENTA.r, TacticalUIHelper.MAGENTA.g, TacticalUIHelper.MAGENTA.b, 0.7), 1.3, true)
 
@@ -104,28 +168,8 @@ func _draw_game_over_sections(panel: Rect2) -> void:
 		draw_string(mono, section.position + Vector2(24.0, 42.0), headings[index], HORIZONTAL_ALIGNMENT_LEFT, section.size.x - 48.0, 15, TacticalUIHelper.MAGENTA)
 
 func _draw_terminal_sections(panel: Rect2) -> void:
-	var inner := panel.grow(-20.0)
-	var header_y := panel.position.y + 54.0
-	var right_w := minf(360.0, inner.size.x * 0.34)
-	var gap := 14.0
-	var main_top := header_y + 6.0
-	var footer_h := 78.0
-	var main_h := inner.end.y - footer_h - main_top - 4.0
-	var left := Rect2(inner.position.x, main_top, inner.size.x - right_w - gap, main_h)
-	var right := Rect2(left.end.x + gap, main_top, right_w, main_h)
-	var prompt := Rect2(inner.position.x, inner.end.y - footer_h, inner.size.x, footer_h - 10.0)
-	for section in [left, right, prompt]:
+	var layout := terminal_layout(size)
+	for section in [layout["history"], layout["command_index"], layout["system_status"], layout["prompt"]]:
 		var points := TacticalUIHelper.angular_points(section, 9.0)
 		draw_colored_polygon(points, Color(accent.r, accent.g, accent.b, 0.018))
 		draw_polyline(points + PackedVector2Array([points[0]]), Color(accent.r, accent.g, accent.b, 0.58), 1.1, true)
-	var command_index := Rect2(right.position + Vector2(12.0, 12.0), Vector2(right.size.x - 24.0, right.size.y * 0.66 - 18.0))
-	var system_status := Rect2(right.position + Vector2(12.0, right.size.y * 0.66), Vector2(right.size.x - 24.0, right.size.y * 0.34 - 24.0))
-	for section in [command_index, system_status]:
-		var points := TacticalUIHelper.angular_points(section, 7.0)
-		draw_polyline(points + PackedVector2Array([points[0]]), Color(accent.r, accent.g, accent.b, 0.32), 1.0, true)
-	var row_height := 34.0
-	for row_index in 6:
-		var row := Rect2(command_index.position + Vector2(10.0, 18.0 + row_index * row_height), Vector2(command_index.size.x - 20.0, row_height - 5.0))
-		var row_points := TacticalUIHelper.angular_points(row, 5.0)
-		var row_color := TacticalUIHelper.MAGENTA if row_index == 5 else accent
-		draw_polyline(row_points + PackedVector2Array([row_points[0]]), Color(row_color.r, row_color.g, row_color.b, 0.55), 1.0, true)

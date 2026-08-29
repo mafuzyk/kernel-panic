@@ -1317,8 +1317,32 @@ func _task9_test(arena: Arena) -> void:
 		for card in patch_cards_visual:
 			patch_cards_aligned = patch_cards_aligned and absf(card.position.y - patch_cards_visual[0].position.y) < 0.01 and absf(card.size.y - patch_cards_visual[0].size.y) < 0.01
 	_check(patch_cards_aligned, "patch cards share one straight baseline and height")
+	var tactical_surface_script: Script = load("res://src/ui/tactical_state_surface.gd")
 	var state_surface_ready := arena.has_method("state_panel_rect") and arena.has_method("state_action_rects") and arena.has_method("pause_action_labels") and arena.has_method("game_over_action_labels")
 	_check(state_surface_ready, "state panels expose tactical geometry and action labels")
+	_check(tactical_surface_script.has_method("pause_layout"), "pause surface exposes one shared responsive layout")
+	_check(tactical_surface_script.has_method("terminal_layout"), "terminal surface exposes one shared responsive layout")
+	if tactical_surface_script.has_method("pause_layout"):
+		for viewport_size in [Vector2(525, 521), Vector2(720, 720), Vector2(1366, 768)]:
+			var pause_layout: Dictionary = tactical_surface_script.pause_layout(viewport_size)
+			var pause_panel: Rect2 = pause_layout["panel"]
+			var pause_actions: Array = pause_layout["actions"]
+			_check(pause_actions.size() == 4, "pause layout exposes four aligned actions at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			for pause_key in ["info", "title", "stats", "volume", "warning", "shortcuts"]:
+				_check(pause_panel.encloses(pause_layout[pause_key]), "pause %s stays inside panel at %dx%d" % [pause_key, int(viewport_size.x), int(viewport_size.y)])
+			for action_rect in pause_actions:
+				_check(pause_panel.encloses(action_rect), "pause action stays inside panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			_check(not Rect2(pause_layout["stats"]).intersects(Rect2(pause_actions[0])), "pause stats clear first action at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			_check(not Rect2(pause_layout["volume"]).intersects(Rect2(pause_layout["warning"])), "pause audio clears warning at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+	if tactical_surface_script.has_method("terminal_layout"):
+		for viewport_size in [Vector2(720, 521), Vector2(1096, 631), Vector2(1366, 768)]:
+			var terminal_layout: Dictionary = tactical_surface_script.terminal_layout(viewport_size)
+			var terminal_panel: Rect2 = terminal_layout["panel"]
+			for terminal_key in ["header", "history", "command_index", "system_status", "prompt", "shortcuts"]:
+				_check(terminal_panel.encloses(terminal_layout[terminal_key]), "terminal %s stays inside panel at %dx%d" % [terminal_key, int(viewport_size.x), int(viewport_size.y)])
+			_check(not Rect2(terminal_layout["history"]).intersects(Rect2(terminal_layout["command_index"])), "terminal history clears command index at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			_check(not Rect2(terminal_layout["history"]).intersects(Rect2(terminal_layout["prompt"])), "terminal history clears prompt at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			_check(not Rect2(terminal_layout["prompt"]).intersects(Rect2(terminal_layout["shortcuts"])), "terminal prompt clears shortcuts at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 	if state_surface_ready:
 		for viewport_size in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
 			var state_bounds := Rect2(Vector2.ZERO, viewport_size)

@@ -68,6 +68,9 @@ var _abandon_t := 0.0
 var _abandon_timer: SceneTreeTimer
 var _abandon_generation := 0
 var _pause_info: Label
+var _pause_title: Label
+var _pause_buttons: Array[Button] = []
+var _pause_volume_rows: Array[Control] = []
 var _debug_panel: Control
 var _terminal_panel: Control
 var _dust: CPUParticles2D
@@ -358,6 +361,7 @@ func _layout_patch_box() -> void:
 			card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 func _refresh_responsive_layout(viewport_height: float = -1.0) -> void:
+	_layout_pause_panel()
 	for panel in [_pause_panel, _over_panel, _patch_panel]:
 		if panel == null or not is_instance_valid(panel):
 			continue
@@ -371,38 +375,74 @@ func _refresh_responsive_layout_for_height(viewport_height: float) -> void:
 
 func _build_pause_panel() -> void:
 	_pause_panel = _make_panel("pause")
-	var title := _make_label("PAUSED", 42, Balance.COL_TEXT)
-	_center_panel_control(title, 180.0, 60.0)
-	_pause_panel.add_child(title)
+	_pause_title = _make_label("PAUSED", 42, Balance.COL_TEXT)
+	_pause_panel.add_child(_pause_title)
 	_pause_info = _make_label(PAUSE_INFO_DEFAULT, 13, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	_center_panel_control(_pause_info, 565.0, 30.0)
 	_pause_panel.add_child(_pause_info)
 	_pause_stats = _make_label("", 14, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.85))
-	_center_panel_control(_pause_stats, 237.0, 52.0)
 	_pause_panel.add_child(_pause_stats)
 	var b_resume := _make_button("RESUME", 288)
 	b_resume.pressed.connect(func() -> void:
 		_set_paused(false)
 	)
 	_pause_panel.add_child(b_resume)
+	_pause_buttons.append(b_resume)
 	var b_restart := _make_button("RESTART", 334)
 	b_restart.pressed.connect(func() -> void:
 		_set_paused(false)
 		_restart_current_run()
 	)
 	_pause_panel.add_child(b_restart)
+	_pause_buttons.append(b_restart)
 	var b_terminal := _make_button("OPEN TERMINAL", 380)
 	b_terminal.pressed.connect(_open_terminal)
 	_pause_panel.add_child(b_terminal)
+	_pause_buttons.append(b_terminal)
 	var b_menu := _make_button("ABANDON PROCESS", 500)
 	b_menu.pressed.connect(_request_abandon_confirmation)
 	_pause_panel.add_child(b_menu)
-	_pause_panel.add_child(_make_volume_row("SFX", Sfx.sfx_vol, 426.0, func(v: float) -> void:
+	_pause_buttons.append(b_menu)
+	var sfx_row := _make_volume_row("SFX", Sfx.sfx_vol, 426.0, func(v: float) -> void:
 		Sfx.set_sfx_vol(v)
-	))
-	_pause_panel.add_child(_make_volume_row("MUSIC", Sfx.music_vol, 464.0, func(v: float) -> void:
+	)
+	_pause_panel.add_child(sfx_row)
+	_pause_volume_rows.append(sfx_row)
+	var music_row := _make_volume_row("MUSIC", Sfx.music_vol, 464.0, func(v: float) -> void:
 		Sfx.set_music_vol(v)
-	))
+	)
+	_pause_panel.add_child(music_row)
+	_pause_volume_rows.append(music_row)
+	_layout_pause_panel()
+
+func _place_pause_control(control: Control, rect: Rect2) -> void:
+	control.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	control.position = rect.position
+	control.size = rect.size
+	control.scale = Vector2.ONE
+	control.remove_meta("panel_design_top")
+	control.remove_meta("panel_control_height")
+
+func _layout_pause_panel() -> void:
+	if _pause_panel == null or not is_instance_valid(_pause_panel) or _pause_buttons.size() != 4:
+		return
+	var layout: Dictionary = TacticalStateSurfaceHelper.pause_layout(get_viewport_rect().size)
+	var scale: float = float(layout["scale"])
+	_place_pause_control(_pause_title, layout["title"])
+	_place_pause_control(_pause_stats, layout["stats"])
+	_place_pause_control(_pause_info, layout["shortcuts"])
+	_pause_title.add_theme_font_size_override("font_size", maxi(30, int(round(42.0 * scale))))
+	_pause_stats.add_theme_font_size_override("font_size", maxi(11, int(round(14.0 * scale))))
+	_pause_info.add_theme_font_size_override("font_size", maxi(9, int(round(12.0 * scale))))
+	var actions: Array = layout["actions"]
+	for index in _pause_buttons.size():
+		_place_pause_control(_pause_buttons[index], actions[index])
+		_pause_buttons[index].add_theme_font_size_override("font_size", maxi(14, int(round(18.0 * scale))))
+	var volume: Rect2 = layout["volume"]
+	var row_gap := 4.0 * scale
+	var row_height := (volume.size.y - row_gap) * 0.5
+	for index in _pause_volume_rows.size():
+		var row_rect := Rect2(volume.position + Vector2(12.0 * scale, index * (row_height + row_gap)), Vector2(volume.size.x - 24.0 * scale, row_height))
+		_place_pause_control(_pause_volume_rows[index], row_rect)
 
 func _build_terminal_panel() -> void:
 	var terminal_script: Script = load("res://src/ui/terminal_panel.gd")
@@ -466,7 +506,7 @@ func _make_volume_row(label_text: String, value: float, y: float, on_change: Cal
 	s.max_value = 1.0
 	s.step = 0.05
 	s.value = value
-	s.custom_minimum_size = Vector2(220, 32)
+	s.custom_minimum_size = Vector2(100, 28)
 	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	s.modulate = Color(0.55, 0.9, 1.0)
