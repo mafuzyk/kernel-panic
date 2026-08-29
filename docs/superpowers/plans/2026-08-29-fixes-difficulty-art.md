@@ -362,7 +362,7 @@ Interfaces:
 - Consumes: `hud.gd` `_draw_angular_panel()` (line 395) and its six combat call sites (lines 420-424, 434); `TacticalUI.PANEL`.
 - Produces: `TacticalUI.COMBAT_FILL`, `TacticalUI.panel_fill_color(combat: bool)`; opaque panels unchanged for menu/pause/terminal/game-over surfaces (they use `TacticalUI.PANEL` directly and are not touched).
 
-- [ ] Step 1: Write the failing harness regression
+- [x] Step 1: Write the failing harness regression
 
 In `src/autoload/dev_harness.gd`, after the line `await _task9_test(arena2)` add:
 
@@ -389,7 +389,7 @@ func _hud_style_test(_arena: Arena) -> void:
 	_check(str(hud_script.source_code).contains("panel_fill_color(true)"), "combat hud panels draw with the faint combat fill")
 ~~~
 
-- [ ] Step 2: Run the test to verify it fails
+- [x] Step 2: Run the test to verify it fails
 
 Run:
 
@@ -399,7 +399,7 @@ godot --headless --path . -- --autotest
 
 Expected: AT_FAIL `tactical ui exposes panel_fill_color`. No parse error.
 
-- [ ] Step 3: Add COMBAT_FILL to tactical_ui.gd
+- [x] Step 3: Add COMBAT_FILL to tactical_ui.gd
 
 In `src/ui/tactical_ui.gd`, directly below the line `const PANEL := Color(0.015, 0.035, 0.07, 0.90)`, add:
 
@@ -414,7 +414,7 @@ static func panel_fill_color(combat: bool) -> Color:
 	return COMBAT_FILL if combat else PANEL
 ~~~
 
-- [ ] Step 4: Route the combat panels through the faint fill in hud.gd
+- [x] Step 4: Route the combat panels through the faint fill in hud.gd
 
 4a. In `src/ui/hud.gd`, replace `_draw_angular_panel`:
 
@@ -472,7 +472,7 @@ to:
 		_draw_angular_panel(event_rect, TacticalUIHelper.CYAN, 0.025, true)
 ~~~
 
-- [ ] Step 5: Run the full suite
+- [x] Step 5: Run the full suite
 
 Run:
 
@@ -482,7 +482,7 @@ godot --headless --path . -- --autotest
 
 Expected: `AUTOTEST_ALL_PASS` and zero `AT_FAIL`.
 
-- [ ] Step 6: Visual capture against the approved combat HUD mock
+- [x] Step 6: Visual capture against the approved combat HUD mock
 
 Run (desktop, windowed):
 
@@ -498,7 +498,7 @@ with the arena visible through them, matching
 `/home/mafu/.codex/generated_images/01a044e4-d316-7ef2-85d8-9aa85056ea3a/exec-10cafd61-702d-4c80-bb5e-20e90420d23c.png`
 at all three resolutions. Menu, pause, terminal, and game-over surfaces remain opaque.
 
-- [ ] Step 7: Commit
+- [x] Step 7: Commit
 
 ~~~sh
 git add src/ui/tactical_ui.gd src/ui/hud.gd src/autoload/dev_harness.gd
