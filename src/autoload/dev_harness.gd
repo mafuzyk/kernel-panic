@@ -1275,6 +1275,16 @@ func _task9_test(arena: Arena) -> void:
 				_check(state_bounds.encloses(action_rect) and panel_rect.encloses(action_rect), "state action stays in panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 		_check(arena.pause_action_labels() == ["RESUME", "RESTART", "OPEN TERMINAL", "ABANDON PROCESS"], "pause actions preserve safe order")
 		_check(arena.game_over_action_labels() == ["REBOOT", "ABANDON PROCESS"], "game-over actions preserve retry first")
+	var terminal: Control = arena._terminal_panel
+	var terminal_ready := terminal != null and terminal.has_method("workstation_rect") and terminal.has_method("status_snapshot")
+	_check(terminal_ready, "terminal exposes tactical workstation geometry")
+	if terminal_ready:
+		for viewport_size in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			var terminal_rect: Rect2 = terminal.workstation_rect(viewport_size)
+			_check(Rect2(Vector2.ZERO, viewport_size).encloses(terminal_rect), "terminal workstation fits viewport %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+		var terminal_status: Dictionary = terminal.status_snapshot()
+		_check(str(terminal_status.get("tty", "")) == "TTY0" and bool(terminal_status.get("paused", false)), "terminal status identifies frozen TTY")
+		_check(int(terminal_status.get("command_count", -1)) >= 0 and bool(terminal_status.get("prompt_visible", false)), "terminal status exposes command count and prompt")
 	var saved_hud_size := hud.size
 	hud.size = Vector2(1280, 720)
 	var layout_helpers_ready := hud.has_method("boss_bar_baseline") and hud.has_method("dash_baseline")
@@ -3027,6 +3037,11 @@ func _capture() -> void:
 				_populate(arena)
 				await _ticks(30)
 				arena._set_paused(true)
+			"terminal":
+				_populate(arena, 2)
+				await _ticks(20)
+				arena._set_paused(true)
+				arena._open_terminal()
 	await _ticks(frames)
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
