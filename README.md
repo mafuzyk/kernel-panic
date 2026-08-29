@@ -28,13 +28,22 @@ Somehow, it worked.
 
 ## Play it
 
-Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v2.4.7`.
+Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v2.5.0`.
+
+### What's new in 2.5.0
+
+- A complete tactical UI pass across the menu, settings, program/story/bestiary selectors, combat HUD, patch selection, boss encounters, pause screen, and diagnostic terminal.
+- New UNIX, Windows, and TempleOS story acts, with era-specific CRT treatments, bosses, enemies, and arena rules.
+- A desktop debug console for skipping cycles, spawning enemies and bosses, forcing ROOT split states, and clearing combatants while testing movement and AI.
+- Portable save transfer, achievement/event-log reporting, speedrun diagnostics, and the in-game terminal recovery tools.
+- Better desktop input safety, responsive layouts, clearer action icons, aligned controls, and refined pause/terminal behavior on compact windows.
+- Linux x86_64 and Windows x86_64 exports now embed their project data, while the Android release targets arm64 devices.
 
 ## Install the game
 
 ### Android
 
-1. Download `KERNEL-PANIC-v2.4.7-release.apk` from the latest release and open it from your browser or file manager.
+1. Download `KERNEL-PANIC-v2.5.0-release.apk` from the latest release and open it from your browser or file manager.
 2. If Android blocks the installation, allow that app to **Install unknown apps** in the system settings, then open the APK again.
 3. Confirm **Install**. The current export targets 64-bit ARM devices (`arm64-v8a`).
 

@@ -14,7 +14,7 @@ test_bin() {
 		printf '%s\n' 'FAIL: kernel-panic-bin publishes literal ${pkgver} source URLs' >&2
 		return 1
 	fi
-	if [[ "$bin_srcinfo" != *'releases/download/v2.4.7/kernel-panic'* ]]; then
+	if [[ "$bin_srcinfo" != *'releases/download/v2.5.0/kernel-panic'* ]]; then
 		printf '%s\n' 'FAIL: kernel-panic-bin release URL did not resolve pkgver' >&2
 		return 1
 	fi

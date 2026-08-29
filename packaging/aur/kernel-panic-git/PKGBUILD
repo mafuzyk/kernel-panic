@@ -1,7 +1,7 @@
 # Maintainer: mafuzyk
 pkgname=kernel-panic-git
-pkgver=2.4.7.r0.gc2ba92d
-pkgrel=2
+pkgver=2.5.0.r0.g895a0e5
+pkgrel=1
 pkgdesc='Neon arena shooter about keeping one stubborn process alive (development version)'
 arch=('x86_64')
 url='https://github.com/mafuzyk/kernel-panic'
