@@ -337,7 +337,7 @@ func hover_direction(to_target: Vector2) -> Vector2:
 	return desired.limit_length(1.0)
 
 func repeated_cooldown(base_interval: float) -> float:
-	return base_interval * Balance.attack_cadence_factor(threat_wave) if is_ranged_profile() else base_interval
+	return base_interval * Balance.difficulty_cadence(threat_wave) if is_ranged_profile() else base_interval
 
 func _start_spiral(shots: int, dur: float) -> void:
 	_spiral_cd = repeated_cooldown(5.5)
@@ -507,7 +507,7 @@ func _process(delta: float) -> void:
 	if act == Act.SPIRAL and _spiral_shots > 0:
 		var fire_acc: float = get_meta("sp_acc", 0.0) + delta
 		while fire_acc >= 0.085 and _spiral_shots > 0:
-			fire_acc -= 0.085 * Balance.attack_cadence_factor(threat_wave)
+			fire_acc -= 0.085 * Balance.difficulty_cadence(threat_wave)
 			_spiral_shots -= 1
 			_spiral_angle += 0.47
 			_spawn_orb(Vector2.from_angle(_spiral_angle), 235.0)

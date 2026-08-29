@@ -38,6 +38,13 @@ const WAVE_SCALE_CAP := 1.65
 const BOSS_EVERY := 5
 const HEAL_EVERY := 3
 
+const DIFFICULTY_ORDER := ["easy", "normal", "hard"]
+const DIFF_ALIVE_MULT := {"easy": 0.7, "normal": 1.0, "hard": 1.3}
+const DIFF_BUDGET_MULT := {"easy": 0.8, "normal": 1.0, "hard": 1.2}
+const DIFF_ELITE_MULT := {"easy": 0.6, "normal": 1.0, "hard": 1.4}
+const DIFF_CADENCE_SCALE := {"easy": 1.0, "normal": 1.0, "hard": 0.897}
+const DIFF_CADENCE_FLOOR := {"easy": 0.90, "normal": 0.78, "hard": 0.70}
+
 const LAYER_PLAYER := 2
 const LAYER_ENEMY := 4
 const LAYER_PBULLET := 8
@@ -101,6 +108,37 @@ static func attack_cadence_factor(wave: int) -> float:
 
 static func elite_chance(wave: int) -> float:
 	return clampf(float(wave - 7) * 0.045, 0.0, 0.4)
+
+static func difficulty_applies() -> bool:
+	return Game.mode != "story"
+
+static func difficulty_max_alive(wave: int) -> int:
+	if not difficulty_applies():
+		return max_alive(wave)
+	var mult: float = DIFF_ALIVE_MULT.get(Game.difficulty, 1.0)
+	return maxi(1, int(ceil(float(max_alive(wave)) * mult)))
+
+static func difficulty_wave_budget(wave: int) -> int:
+	if not difficulty_applies():
+		return wave_budget(wave)
+	var mult: float = DIFF_BUDGET_MULT.get(Game.difficulty, 1.0)
+	return maxi(1, int(floor(float(wave_budget(wave)) * mult)))
+
+static func difficulty_elite_chance(wave: int) -> float:
+	if not difficulty_applies():
+		return elite_chance(wave)
+	var mult: float = DIFF_ELITE_MULT.get(Game.difficulty, 1.0)
+	return clampf(elite_chance(wave) * mult, 0.0, 1.0)
+
+static func difficulty_cadence(wave: int) -> float:
+	if not difficulty_applies():
+		return attack_cadence_factor(wave)
+	var base := attack_cadence_factor(wave)
+	if base >= 1.0:
+		return 1.0
+	var scale: float = DIFF_CADENCE_SCALE.get(Game.difficulty, 1.0)
+	var floor_v: float = DIFF_CADENCE_FLOOR.get(Game.difficulty, 0.78)
+	return clampf(base * scale, floor_v, 1.0)
 
 static func arena_rect() -> Rect2:
 	var arena_size := Vector2(ARENA_W, ARENA_H)

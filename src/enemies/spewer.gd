@@ -64,7 +64,7 @@ func _fire() -> void:
 	_fire_t = repeated_fire_interval(Game.rng.randf_range(1.9, 2.5))
 
 func repeated_fire_interval(base_interval: float) -> float:
-	return maxf(base_interval * Balance.attack_cadence_factor(threat_wave), 0.5)
+	return maxf(base_interval * Balance.difficulty_cadence(threat_wave), 0.5)
 
 func telegraph_duration() -> float:
 	return 0.42

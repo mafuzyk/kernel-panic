@@ -151,6 +151,11 @@ Three run modes change the rules:
 - **Weekly Run** uses a shared local deterministic seed; your selected aim mode, including lock-on, remains active.
 - **One-HP** gives you one mistake and no excuses.
 
+Endless modes also expose a **DIFFICULTY** cycler next to **MODE** (EASY /
+NORMAL / HARD, default NORMAL). It scales the spawn cap, wave budget, elite
+chance, and attack cadence, and it is stored locally; Story keeps its fixed
+per-stage curve and weekly runs stay seed-deterministic.
+
 The separate **STORY // ACTS** entry contains fixed stages with hand-authored
 waves, an intro log, and an individual best score. Act 1 covers the UNIX paths
 `/boot`, `/var/log`, `/net`, `/mem`, `/quarantine`, and `/kernel`; clearing

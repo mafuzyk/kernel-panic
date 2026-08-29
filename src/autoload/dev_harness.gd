@@ -384,6 +384,7 @@ func _autotest() -> void:
 	await _hud_style_test(arena2)
 	await _era_accent_test(arena2)
 	await _systems_test(arena2)
+	await _difficulty_test()
 	await _debug_controls_test(arena2)
 	await _mote_sweep_test(arena2)
 	await _oom_steal_identity_test(arena2)
@@ -2542,6 +2543,46 @@ func _systems_test(arena: Arena) -> void:
 	Sfx.set_intensity(2)
 	Sfx.set_intensity(0)
 	await _ticks(2)
+
+func _difficulty_test() -> void:
+	print("AT_STEP difficulty")
+	var balance_script: Script = load("res://src/autoload/balance.gd")
+	var has_helpers: bool = balance_script != null and balance_script.has_method("difficulty_max_alive") and balance_script.has_method("difficulty_wave_budget") and balance_script.has_method("difficulty_elite_chance") and balance_script.has_method("difficulty_cadence")
+	_check(has_helpers, "balance exposes difficulty-aware read helpers")
+	if not has_helpers:
+		return
+	var saved_mode := Game.mode
+	var saved_difficulty := str(Game.get("difficulty"))
+	var alive_caps := {"easy": 7, "normal": 10, "hard": 13}
+	var budget_mults := {"easy": 0.8, "normal": 1.0, "hard": 1.2}
+	var elite_mults := {"easy": 0.6, "normal": 1.0, "hard": 1.4}
+	var cadence_floors := {"easy": 0.90, "normal": 0.78, "hard": 0.70}
+	Game.mode = "classic"
+	for difficulty in ["easy", "normal", "hard"]:
+		Game.set("difficulty", difficulty)
+		_check(balance_script.call("difficulty_max_alive", 2) == int(alive_caps[difficulty]), "difficulty %s caps wave 2 alive at %d" % [difficulty, alive_caps[difficulty]])
+		var expected_budget: int = int(floor(float(Balance.wave_budget(5)) * float(budget_mults[difficulty])))
+		_check(balance_script.call("difficulty_wave_budget", 5) == expected_budget, "difficulty %s scales the wave budget" % difficulty)
+		var expected_elite: float = clampf(Balance.elite_chance(10) * float(elite_mults[difficulty]), 0.0, 1.0)
+		_check(absf(float(balance_script.call("difficulty_elite_chance", 10)) - expected_elite) < 0.0001, "difficulty %s scales the elite chance" % difficulty)
+		_check(absf(float(balance_script.call("difficulty_cadence", 1)) - 1.0) < 0.001, "difficulty %s keeps wave 1 cadence at 1.0" % difficulty)
+		_check(absf(float(balance_script.call("difficulty_cadence", 30)) - float(cadence_floors[difficulty])) < 0.005, "difficulty %s lands wave 30 cadence on %.2f" % [difficulty, cadence_floors[difficulty]])
+	Game.mode = "story"
+	for difficulty in ["easy", "normal", "hard"]:
+		Game.set("difficulty", difficulty)
+		var story_unscaled: bool = balance_script.call("difficulty_max_alive", 30) == Balance.max_alive(30) and balance_script.call("difficulty_wave_budget", 30) == Balance.wave_budget(30) and absf(float(balance_script.call("difficulty_cadence", 30)) - Balance.attack_cadence_factor(30)) < 0.0001 and absf(float(balance_script.call("difficulty_elite_chance", 10)) - Balance.elite_chance(10)) < 0.0001
+		_check(story_unscaled, "story ignores difficulty %s" % difficulty)
+	Game.mode = "classic"
+	if Game.has_method("set_difficulty"):
+		Game.call("set_difficulty", "hard")
+		_check(str(Game.get("difficulty")) == "hard", "set_difficulty stores a new difficulty")
+		var cf_probe := ConfigFile.new()
+		cf_probe.load(Sfx.SAVE_PATH)
+		_check(str(cf_probe.get_value("game", "difficulty", "")) == "hard", "difficulty persists to the save config")
+		Game.call("set_difficulty", "normal")
+		_check(str(Game.get("difficulty")) == "normal", "set_difficulty restores normal")
+	Game.mode = saved_mode
+	Game.set("difficulty", saved_difficulty)
 
 func _debug_controls_test(arena: Arena) -> void:
 	print("AT_STEP debug_controls")

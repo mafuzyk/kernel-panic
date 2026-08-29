@@ -16,6 +16,7 @@ var _drifters: Array = []
 var _settings_panel: Control
 var _purge_btn: Button
 var _mode_btn: Button
+var _diff_btn: Button
 var _mode_info: Label
 var _klog: Label
 var _klog_t := 0.0
@@ -383,6 +384,25 @@ func _build_button_row() -> void:
 	_program_btn.add_theme_color_override("font_hover_color", TacticalUIHelper.LIME)
 	_program_btn.pressed.connect(_open_program_selector)
 	add_child(_program_btn)
+	_diff_btn = Button.new()
+	_diff_btn.flat = true
+	_diff_btn.z_index = 2
+	_diff_btn.focus_mode = Control.FOCUS_NONE
+	_diff_btn.anchor_left = 0.5
+	_diff_btn.anchor_right = 0.5
+	_diff_btn.anchor_top = 0.5
+	_diff_btn.anchor_bottom = 0.5
+	_diff_btn.offset_left = -110.0
+	_diff_btn.offset_right = 110.0
+	_diff_btn.offset_top = 166.0
+	_diff_btn.offset_bottom = 192.0
+	_diff_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	_diff_btn.add_theme_font_size_override("font_size", 13)
+	_diff_btn.add_theme_color_override("font_color", Color(0.6, 1.0, 0.8, 0.9))
+	_diff_btn.add_theme_color_override("font_hover_color", TacticalUIHelper.LIME)
+	_diff_btn.pressed.connect(_cycle_difficulty)
+	add_child(_diff_btn)
+	_refresh_difficulty_label()
 	var footer_layout := footer_button_layout_for_viewport(size)
 	var bottom_width: float = footer_layout["total_width"]
 	var bottom_gap: float = footer_layout["gap"]
@@ -679,6 +699,25 @@ func _cycle_mode() -> void:
 	if _aim_btn_ref != null:
 		_refresh_aim_label(_aim_btn_ref)
 
+func _cycle_difficulty() -> void:
+	if Game.mode == "story":
+		Sfx.play("ui", 0.9, -10.0)
+		_refresh_difficulty_label()
+		return
+	var order: Array = Balance.DIFFICULTY_ORDER
+	var idx := order.find(Game.difficulty)
+	Game.set_difficulty(str(order[(idx + 1) % order.size()]))
+	Sfx.play("ui", 1.1, -8.0)
+	_refresh_difficulty_label()
+
+func _refresh_difficulty_label() -> void:
+	if _diff_btn == null:
+		return
+	if Game.mode == "story":
+		_diff_btn.text = "DIFFICULTY: FIXED CURVE"
+	else:
+		_diff_btn.text = "DIFFICULTY: %s" % Game.difficulty.to_upper()
+
 func _refresh_mode_ui() -> void:
 	var cf := ConfigFile.new()
 	cf.load(Sfx.SAVE_PATH)
@@ -701,6 +740,7 @@ func _refresh_mode_ui() -> void:
 	if Game.mode == "story":
 		_mode_info.text = "STORY // FIXED DIFFICULTY CURVE // " + _mode_info.text
 	_update_best()
+	_refresh_difficulty_label()
 
 func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
 	var panel_width := minf(1080.0, maxf(viewport.x - 48.0, 280.0))

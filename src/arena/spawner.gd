@@ -160,7 +160,7 @@ func hud_banner(txt: String) -> void:
 
 func _build_queue() -> void:
 	_queue.clear()
-	var budget := Balance.wave_budget(wave)
+	var budget := Balance.difficulty_wave_budget(wave)
 	if wave_event == "surge":
 		budget = int(budget * 1.3)
 	elif wave_event == "rich":
@@ -280,7 +280,7 @@ func _physics_process(delta: float) -> void:
 	if _queue.is_empty() or _pending > 0:
 		return
 	_spawn_t -= delta
-	if _spawn_t > 0.0 or alive >= Balance.max_alive(wave):
+	if _spawn_t > 0.0 or alive >= Balance.difficulty_max_alive(wave):
 		return
 	_spawn_t = maxf(Balance.WAVE_SPAWN_MIN, (Balance.WAVE_SPAWN_INTERVAL - wave * 0.05) * (0.6 if wave_event == "surge" else 1.0))
 	var group_size := 1 if wave == 1 else 2
@@ -326,7 +326,7 @@ func _telegraph_spawn(pos: Vector2, kind: String, generation: int) -> void:
 		if story_mode:
 			_configure_story_enemy(e)
 		else:
-			_configure_enemy(e, Game.rng.randf() < Balance.elite_chance(wave))
+			_configure_enemy(e, Game.rng.randf() < Balance.difficulty_elite_chance(wave))
 		container.add_child(e)
 	)
 

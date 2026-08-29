@@ -47,8 +47,8 @@ func elite_steering(to_target: Vector2, lateral_sign: float = 1.0) -> Vector2:
 
 func elite_reacquire_interval(base_interval: float) -> float:
 	if elite and elite_kind == "swift":
-		return maxf(base_interval * Balance.attack_cadence_factor(threat_wave) * 0.82, 0.35)
-	return base_interval * Balance.attack_cadence_factor(threat_wave)
+		return maxf(base_interval * Balance.difficulty_cadence(threat_wave) * 0.82, 0.35)
+	return base_interval * Balance.difficulty_cadence(threat_wave)
 
 func volatile_burst_count() -> int:
 	return 6 if elite and elite_kind == "volatile" else 0

@@ -17,6 +17,7 @@ enum State { MENU, PLAYING, GAME_OVER }
 var combo_window := Balance.COMBO_WINDOW
 var patch_levels := {}
 var mode := "classic"
+var difficulty := "normal"
 var program := "kernel"
 var story_stage_index := 0
 var story_cleared: Dictionary = {}
@@ -127,6 +128,15 @@ func set_program(id: String) -> void:
 		cf.set_value("run", "program", id)
 		cf.save(Sfx.SAVE_PATH)
 
+func set_difficulty(value: String) -> void:
+	if value not in Balance.DIFFICULTY_ORDER:
+		return
+	difficulty = value
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("game", "difficulty", value)
+	cf.save(Sfx.SAVE_PATH)
+
 func _load_run_config() -> void:
 	var cf := ConfigFile.new()
 	if cf.load(Sfx.SAVE_PATH) == OK:
@@ -138,6 +148,9 @@ func _load_run_config() -> void:
 		mode = cf.get_value("game", "mode", "classic")
 		if mode == "onehp" and not onehp_unlocked:
 			mode = "classic"
+		difficulty = str(cf.get_value("game", "difficulty", "normal"))
+		if difficulty not in Balance.DIFFICULTY_ORDER:
+			difficulty = "normal"
 		unlocked_programs = cf.get_value("programs", "unlocked", {"kernel": true})
 		if not unlocked_programs.has("kernel"):
 			unlocked_programs["kernel"] = true
