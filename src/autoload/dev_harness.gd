@@ -429,6 +429,8 @@ func _autotest() -> void:
 	_check(_config_sections_equal(run_before_task10, _config_section_snapshot("run")), "task10 restores run config section")
 	await _task11_test(menu_scene)
 	await _story_scene_test()
+	await _story_intro_auto_test()
+	await _story_intro_layout_test()
 	await _temple_scene_test()
 	for node in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(node):
@@ -2884,9 +2886,21 @@ func _story_scene_test() -> void:
 		return
 	var story_arena: Arena = get_tree().current_scene
 	await _ticks(3)
-	_check(Game.mode == "story" and story_arena.spawner.story_mode, "story arena uses the scripted spawner")
+	_check(Game.mode == "story", "story arena loads in story mode")
 	_check(str(story_arena.get("_story_stage").get("path", "")) == "/boot", "story arena loads the selected stage")
 	_check(story_arena.get("_story_intro_panel") != null, "story arena builds an intro card")
+	_check(story_arena.has_method("story_intro_active"), "story arena exposes the intro state query")
+	_check(not story_arena.spawner.story_mode, "story spawner idles during the intro")
+	await _simulation_seconds(1.5)
+	_check(story_arena.enemy_container.get_children().is_empty(), "no enemies spawn during the intro")
+	if story_arena.has_method("story_intro_active") and story_arena.has_method("dismiss_story_intro"):
+		_check(story_arena.call("story_intro_active"), "story intro is active on scene load")
+		story_arena.set("_story_intro_t", 0.0)
+		_check(not story_arena.call("dismiss_story_intro"), "dismiss input before the minimum hold is ignored")
+		story_arena.set("_story_intro_t", 1.0)
+		_check(story_arena.call("dismiss_story_intro"), "dismiss after the minimum hold starts the story")
+		await _ticks(6)
+	_check(story_arena.spawner.story_mode, "story arena uses the scripted spawner")
 	story_arena.spawner.stop()
 	story_arena.spawner.debug_clear_encounter()
 	story_arena.spawner.story_cleared.emit("boot")
@@ -2902,6 +2916,49 @@ func _story_scene_test() -> void:
 	Game.to_menu()
 	await _until(func() -> bool:
 		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 6.0, "story menu return")
+
+func _story_intro_auto_test() -> void:
+	print("AT_STEP story_intro_auto")
+	var saved_mode := Game.mode
+	var saved_state := Game.state
+	var saved_stage := Game.story_stage_index
+	Game.story_cleared[Game.story_stage_id(0)] = true
+	_check(bool(Game.start_story(0)), "story auto-dismiss test loads the first stage")
+	var loaded := await _until(func() -> bool:
+		return get_tree().current_scene != null and get_tree().current_scene.name == "Arena", 6.0, "story arena")
+	if not loaded:
+		return
+	var auto_arena: Arena = get_tree().current_scene
+	await _ticks(3)
+	_check(auto_arena.has_method("story_intro_active"), "auto-dismiss arena exposes the intro state query")
+	if auto_arena.has_method("story_intro_active"):
+		var dismissed := await _until(func() -> bool: return not auto_arena.call("story_intro_active"), 12.0, "story intro auto-dismiss")
+		_check(dismissed, "story intro auto-dismisses after 8 seconds without input")
+		await _ticks(6)
+		_check(auto_arena.spawner.story_mode, "auto-dismiss starts story spawning")
+	auto_arena.spawner.stop()
+	auto_arena.spawner.debug_clear_encounter()
+	Game.mode = saved_mode
+	Game.state = saved_state
+	Game.story_stage_index = saved_stage
+	Game.to_menu()
+	await _until(func() -> bool:
+		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 6.0, "menu return")
+
+func _story_intro_layout_test() -> void:
+	print("AT_STEP story_intro_layout")
+	var tui_script: Script = load("res://src/ui/tactical_ui.gd")
+	var tui = tui_script.new() if tui_script != null else null
+	_check(tui != null and tui.has_method("fit_block"), "tactical ui exposes fit_block text measurement")
+	if tui == null or not tui.has_method("fit_block"):
+		return
+	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
+	for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+		var cap := minf(216.0, vp.y * 0.3)
+		for stage_index in Game.story_stage_count():
+			var intro := str(Game.story_stage_def(stage_index).get("intro", ""))
+			var fit: Dictionary = tui.call("fit_block", mono, intro, 344.0, cap, 15, 12)
+			_check(bool(fit.get("fits", false)) and int(fit.get("font_size", 0)) >= 12, "story intro %d measures inside the intro panel at %dx%d" % [stage_index + 1, int(vp.x), int(vp.y)])
 
 func _temple_scene_test() -> void:
 	print("AT_STEP temple_scene")
@@ -2934,6 +2991,12 @@ func _temple_scene_test() -> void:
 		return
 	var temple_arena: Arena = get_tree().current_scene
 	await _ticks(3)
+	if temple_arena.has_method("story_intro_active") and temple_arena.has_method("dismiss_story_intro"):
+		if temple_arena.call("story_intro_active"):
+			await _simulation_seconds(0.5)
+			temple_arena.set("_story_intro_t", 1.0)
+			temple_arena.call("dismiss_story_intro")
+			await _ticks(6)
 	_check(temple_arena.spawner.story_mode, "TempleOS arena uses the scripted spawner")
 	_check(str(temple_arena.get("_story_stage").get("path", "")) == "TempleOS::BOOT", "TempleOS arena loads the boot stage")
 	_check(Balance.arena_rect().size == Vector2(640.0, 640.0), "TempleOS runtime uses the compact arena")

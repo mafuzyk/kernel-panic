@@ -151,7 +151,6 @@ func _ready() -> void:
 	spawner.boss_spawned.connect(_on_boss_spawned)
 	spawner.story_cleared.connect(_on_story_cleared)
 	if Game.mode == "story":
-		spawner.start_story(self, enemy_container, _story_stage)
 		call_deferred("_show_story_intro")
 	else:
 		spawner.start(self, enemy_container, 1)
@@ -726,6 +725,18 @@ func _build_intro() -> void:
 	il_layer.add_child(_intro_label)
 	add_child(il_layer)
 
+const STORY_INTRO_FADE_IN := 0.35
+const STORY_INTRO_MIN_HOLD := 0.8
+const STORY_INTRO_AUTO_DISMISS := 8.0
+const STORY_INTRO_FADE_OUT := 0.5
+const STORY_INTRO_MAX_HEIGHT := 216.0
+const STORY_INTRO_FONT_FLOOR := 12
+
+var _story_intro_state := 0 # 0 = off, 1 = fade in, 2 = hold, 3 = fade out
+var _story_intro_t := 0.0
+var _story_intro_hint: Label = null
+var _story_spawn_started := false
+
 func _build_story_intro() -> void:
 	_story_intro_panel = _make_panel()
 	_story_intro_path = _make_label("", 16, Balance.COL_PLAYER)
@@ -736,7 +747,12 @@ func _build_story_intro() -> void:
 	_story_intro_panel.add_child(_story_intro_title)
 	_story_intro_text = _make_label("", 15, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.75))
 	_center_panel_control(_story_intro_text, 344.0, 54.0)
+	_story_intro_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_story_intro_panel.add_child(_story_intro_text)
+	_story_intro_hint = _make_label("PRESS ANY KEY", 12, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
+	_center_panel_control(_story_intro_hint, 392.0, 20.0)
+	_story_intro_hint.modulate.a = 0.0
+	_story_intro_panel.add_child(_story_intro_hint)
 	var act_label := "ACT 1 // UNIX RECOVERY LOG"
 	if str(_story_stage.get("act", "")) == "windows":
 		act_label = "ACT 2 // WINDOWS RECOVERY LOG"
@@ -752,16 +768,68 @@ func _show_story_intro() -> void:
 	_story_intro_path.text = str(_story_stage.get("path", ""))
 	_story_intro_title.text = str(_story_stage.get("title", "STORY STAGE"))
 	_story_intro_text.text = str(_story_stage.get("intro", ""))
+	_fit_story_intro_text()
 	_story_intro_panel.modulate.a = 0.0
 	_story_intro_panel.visible = true
-	var tw := create_tween()
-	tw.tween_property(_story_intro_panel, "modulate:a", 1.0, 0.35)
-	tw.tween_interval(2.4)
-	tw.tween_property(_story_intro_panel, "modulate:a", 0.0, 0.5)
-	tw.tween_callback(func() -> void:
-		if _story_intro_panel != null and is_instance_valid(_story_intro_panel):
-			_story_intro_panel.visible = false
-	)
+	_story_intro_state = 1
+	_story_intro_t = 0.0
+
+func _fit_story_intro_text() -> void:
+	var font: Font = _story_intro_text.get_theme_font("font")
+	var text := _story_intro_text.text
+	var cap := minf(STORY_INTRO_MAX_HEIGHT, get_viewport_rect().size.y * 0.3)
+	var chosen := STORY_INTRO_FONT_FLOOR
+	for fs in [15, 13, 12]:
+		if TacticalUI.wrapped_height(font, text, 344.0, fs) <= cap:
+			chosen = fs
+			break
+	_story_intro_text.add_theme_font_size_override("font_size", chosen)
+	_story_intro_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_story_intro_text.offset_bottom = _story_intro_text.offset_top + TacticalUI.wrapped_height(font, text, 344.0, chosen) + 8.0
+
+func story_intro_active() -> bool:
+	return _story_intro_state != 0
+
+func dismiss_story_intro() -> bool:
+	if _story_intro_state != 2 or _story_intro_t < STORY_INTRO_MIN_HOLD:
+		return false
+	_finish_story_intro()
+	return true
+
+func _finish_story_intro() -> void:
+	if _story_intro_state != 2:
+		return
+	_story_intro_state = 3
+	_story_intro_t = 0.0
+	if _story_intro_hint != null:
+		_story_intro_hint.modulate.a = 0.0
+	_begin_story_spawning()
+
+func _begin_story_spawning() -> void:
+	if _story_spawn_started or _story_stage.is_empty():
+		return
+	_story_spawn_started = true
+	spawner.start_story(self, enemy_container, _story_stage)
+
+func _tick_story_intro(delta: float) -> void:
+	_story_intro_t += delta
+	match _story_intro_state:
+		1:
+			_story_intro_panel.modulate.a = minf(_story_intro_t / STORY_INTRO_FADE_IN, 1.0)
+			if _story_intro_t >= STORY_INTRO_FADE_IN:
+				_story_intro_state = 2
+				_story_intro_t = 0.0
+		2:
+			if _story_intro_hint != null:
+				_story_intro_hint.modulate.a = 1.0 if _story_intro_t >= STORY_INTRO_MIN_HOLD else 0.0
+			if _story_intro_t >= STORY_INTRO_AUTO_DISMISS:
+				_finish_story_intro()
+		3:
+			_story_intro_panel.modulate.a = maxf(1.0 - _story_intro_t / STORY_INTRO_FADE_OUT, 0.0)
+			if _story_intro_t >= STORY_INTRO_FADE_OUT:
+				if _story_intro_panel != null and is_instance_valid(_story_intro_panel):
+					_story_intro_panel.visible = false
+				_story_intro_state = 0
 
 func _apply_story_theme(theme: Dictionary) -> void:
 	if theme.is_empty():
@@ -1325,6 +1393,23 @@ func _on_combo_milestone(m: int) -> void:
 	Sfx.haptic(15)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _story_intro_state == 2:
+		var wants_dismiss := false
+		if event is InputEventKey:
+			var key_event := event as InputEventKey
+			if key_event.pressed and not key_event.echo:
+				wants_dismiss = true
+		elif event is InputEventMouseButton:
+			var mouse_event := event as InputEventMouseButton
+			if mouse_event.pressed:
+				wants_dismiss = true
+		elif event is InputEventScreenTouch:
+			var touch_event := event as InputEventScreenTouch
+			if touch_event.pressed:
+				wants_dismiss = true
+		if wants_dismiss:
+			dismiss_story_intro()
+			return
 	if handle_pause_input(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -1517,6 +1602,8 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
 	_refresh_responsive_layout()
+	if _story_intro_state != 0:
+		_tick_story_intro(delta)
 	if _intro_bars.size() > 1 and is_instance_valid(_intro_bars[1]):
 		_intro_bars[1].pivot_offset.y = get_viewport_rect().size.y
 	if _abandon_armed and get_tree().paused:

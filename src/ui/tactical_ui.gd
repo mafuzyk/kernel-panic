@@ -69,3 +69,32 @@ static func shell_sections(viewport: Vector2) -> Dictionary:
 		"content": Rect2(shell.position + Vector2(inset, header_h + inset), Vector2(maxf(shell.size.x - inset * 2.0, 0.0), maxf(shell.size.y - header_h - footer_h - inset * 2.0, 0.0))),
 		"footer": Rect2(shell.position + Vector2(inset, shell.size.y - footer_h), Vector2(maxf(shell.size.x - inset * 2.0, 0.0), footer_h - inset)),
 	}
+
+static func wrapped_line_count(font: Font, text: String, width: float, font_size: int) -> int:
+	if font == null:
+		return 0
+	var lines := 0
+	for raw_line in text.split("\n"):
+		var words := str(raw_line).split(" ")
+		var current := ""
+		for word in words:
+			var candidate := word if current.is_empty() else current + " " + word
+			if font.get_string_size(candidate, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= width or current.is_empty():
+				current = candidate
+			else:
+				lines += 1
+				current = word
+		lines += 1
+	return maxi(lines, 1)
+
+static func wrapped_height(font: Font, text: String, width: float, font_size: int) -> float:
+	if font == null or text.is_empty():
+		return 0.0
+	return float(wrapped_line_count(font, text, width, font_size)) * font.get_height(font_size) * 1.25
+
+static func fit_block(font: Font, text: String, width: float, height_cap: float, start_size: int, min_size: int) -> Dictionary:
+	var chosen := clampi(start_size, min_size, 64)
+	while chosen > min_size and wrapped_height(font, text, width, chosen) > height_cap:
+		chosen -= 1
+	var height := wrapped_height(font, text, width, chosen)
+	return {"font_size": chosen, "height": height, "fits": height <= height_cap}
