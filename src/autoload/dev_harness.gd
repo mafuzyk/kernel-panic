@@ -1247,6 +1247,23 @@ func _task9_test(arena: Arena) -> void:
 			_check(normal_rows.size() == 1 and split_rows.size() == 2, "boss geometry exposes one or two combined rows")
 			for row in split_rows:
 				_check(Rect2(Vector2.ZERO, viewport).encloses(row), "split boss row fits %dx%d" % [int(viewport.x), int(viewport.y)])
+	var patch_card_script: Script = load("res://src/ui/patch_card.gd")
+	_check(patch_card_script != null, "tactical patch card script loads")
+	if patch_card_script != null:
+		var patch_card: Control = patch_card_script.new()
+		patch_card.configure({"id": "staticf", "title": "STATIC FIELD", "desc": "BURNS ENEMIES WITHIN 70PX", "rare": true, "legend": true}, 0)
+		_check(patch_card.has_method("frame_points") and patch_card.frame_points().size() == 8, "patch card exposes clipped angular frame")
+		_check(patch_card.has_method("rarity_label") and patch_card.rarity_label() == "LEGENDARY", "patch card exposes semantic rarity label")
+		_check(patch_card.has_method("card_title") and patch_card.card_title() == "STATIC FIELD", "patch card preserves readable title")
+		patch_card.queue_free()
+	var patch_box_visual := arena.patch_box_rect_for_viewport(Vector2(1366, 768))
+	var patch_cards_visual: Array[Rect2] = arena.patch_card_rects_for_viewport(Vector2(1366, 768))
+	_check(patch_box_visual.position.y > 230.0 and patch_box_visual.position.y < 270.0 and patch_box_visual.size.y > 280.0 and patch_box_visual.size.y < 315.0 and patch_box_visual.end.y < 570.0, "patch cards match the approved compact overlay proportion")
+	var patch_cards_aligned := patch_cards_visual.size() == 3
+	if patch_cards_aligned:
+		for card in patch_cards_visual:
+			patch_cards_aligned = patch_cards_aligned and absf(card.position.y - patch_cards_visual[0].position.y) < 0.01 and absf(card.size.y - patch_cards_visual[0].size.y) < 0.01
+	_check(patch_cards_aligned, "patch cards share one straight baseline and height")
 	var saved_hud_size := hud.size
 	hud.size = Vector2(1280, 720)
 	var layout_helpers_ready := hud.has_method("boss_bar_baseline") and hud.has_method("dash_baseline")

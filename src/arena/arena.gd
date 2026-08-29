@@ -1,6 +1,8 @@
 class_name Arena
 extends Node2D
 
+const PatchCard = preload("res://src/ui/patch_card.gd")
+
 var player: Player
 var cam: CameraRig
 var spawner: Spawner
@@ -54,7 +56,7 @@ const PANEL_REFERENCE_HEIGHT := 720.0
 const PANEL_CONTENT_HEIGHT := 500.0
 const PANEL_SAFE_MARGIN := 16.0
 const PATCH_MAX_WIDTH := 930.0
-const PATCH_BOX_HEIGHT := 240.0
+const PATCH_BOX_HEIGHT := 295.0
 var _abandon_armed := false
 var _abandon_t := 0.0
 var _abandon_timer: SceneTreeTimer
@@ -316,7 +318,9 @@ func patch_box_rect_for_viewport(viewport_size: Vector2) -> Rect2:
 	var horizontal_margin := clampf(viewport_size.x * 0.04, 16.0, 48.0)
 	var width := minf(PATCH_MAX_WIDTH, maxf(0.0, viewport_size.x - horizontal_margin * 2.0))
 	var height := minf(PATCH_BOX_HEIGHT, maxf(180.0, viewport_size.y - 2.0 * PANEL_SAFE_MARGIN))
-	return Rect2((viewport_size.x - width) * 0.5, (viewport_size.y - height) * 0.5, width, height)
+	var max_top := maxf(PANEL_SAFE_MARGIN, viewport_size.y - PANEL_SAFE_MARGIN - height)
+	var top := clampf(viewport_size.y * 0.32, PANEL_SAFE_MARGIN, max_top)
+	return Rect2((viewport_size.x - width) * 0.5, top, width, height)
 
 func patch_card_rects_for_viewport(viewport_size: Vector2) -> Array[Rect2]:
 	var box := patch_box_rect_for_viewport(viewport_size)
@@ -333,12 +337,12 @@ func _layout_patch_box() -> void:
 	var box := patch_box_rect_for_viewport(get_viewport_rect().size)
 	_patch_box.anchor_left = 0.5
 	_patch_box.anchor_right = 0.5
-	_patch_box.anchor_top = 0.5
-	_patch_box.anchor_bottom = 0.5
+	_patch_box.anchor_top = 0.0
+	_patch_box.anchor_bottom = 0.0
 	_patch_box.offset_left = -box.size.x * 0.5
 	_patch_box.offset_right = box.size.x * 0.5
-	_patch_box.offset_top = -box.size.y * 0.5
-	_patch_box.offset_bottom = box.size.y * 0.5
+	_patch_box.offset_top = box.position.y
+	_patch_box.offset_bottom = box.end.y
 	var separation := clampf(box.size.x * 0.026, 10.0, 24.0)
 	_patch_box.add_theme_constant_override("separation", separation)
 	var card_width := maxf(0.0, (box.size.x - separation * 2.0) / 3.0)
@@ -877,71 +881,14 @@ func _try_show_patch() -> void:
 	Sfx.play("ready", 0.8, -4.0)
 	Sfx.haptic(30)
 
-func _make_patch_card(def: Dictionary, idx: int) -> Button:
-	var b := Button.new()
-	b.custom_minimum_size = Vector2(280, 220)
-	b.focus_mode = Control.FOCUS_NONE
-	var lvl := Game.patch_level(def["id"])
-	var border := Balance.COL_MOTE
-	if def.get("legend", false):
-		border = Color(1.0, 0.84, 0.3)
-	elif not def["rare"]:
-		border = Balance.COL_PLAYER
-	b.add_theme_stylebox_override("normal", _card_style(Color(border.r, border.g, border.b, 0.12), border, 2.0))
-	b.add_theme_stylebox_override("hover", _card_style(Color(border.r, border.g, border.b, 0.28), border, 3.0))
-	b.add_theme_stylebox_override("pressed", _card_style(Color(border.r, border.g, border.b, 0.4), border, 3.0))
-	var vb := VBoxContainer.new()
-	vb.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vb.offset_left = 14.0
-	vb.offset_right = -14.0
-	vb.offset_top = 16.0
-	vb.offset_bottom = -14.0
-	vb.add_theme_constant_override("separation", 10)
-	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	b.add_child(vb)
-	var key := Label.new()
-	key.text = "[%d]" % (idx + 1)
-	key.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	key.add_theme_font_size_override("font_size", 13)
-	key.add_theme_color_override("font_color", Color(border.r, border.g, border.b, 0.7))
-	vb.add_child(key)
-	var t := Label.new()
-	t.text = def["title"]
-	t.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
-	t.add_theme_font_size_override("font_size", 19)
-	t.add_theme_color_override("font_color", Balance.COL_TEXT)
-	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vb.add_child(t)
-	var d := Label.new()
-	d.text = def["desc"]
-	d.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	d.add_theme_font_size_override("font_size", 14)
-	d.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.75))
-	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	d.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vb.add_child(d)
-	var lv := Label.new()
-	lv.text = ("LV %d > %d" % [lvl, lvl + 1]) if lvl > 0 else "NEW"
-	if def.get("legend", false):
-		lv.text += "  // LEGENDARY"
-	elif def["rare"]:
-		lv.text += "  // RARE"
-	lv.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	lv.add_theme_font_size_override("font_size", 12)
-	lv.add_theme_color_override("font_color", border)
-	vb.add_child(lv)
-	b.pressed.connect(func() -> void:
-		_pick_patch(idx)
+func _make_patch_card(def: Dictionary, idx: int) -> Control:
+	var card: Control = PatchCard.new()
+	card.custom_minimum_size = Vector2(280.0, 330.0)
+	card.configure(def, idx)
+	card.selected.connect(func(selected_idx: int) -> void:
+		_pick_patch(selected_idx)
 	)
-	return b
-
-func _card_style(bg: Color, border: Color, bw: float) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(int(bw))
-	sb.set_corner_radius_all(10)
-	return sb
+	return card
 
 func _apply_patch_effects(id: String) -> void:
 	match id:
