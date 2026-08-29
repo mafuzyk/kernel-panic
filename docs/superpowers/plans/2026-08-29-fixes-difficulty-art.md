@@ -701,7 +701,7 @@ Interfaces:
 - Consumes: `TacticalUI.wrapped_line_count/wrapped_height/fit_block`; each panel's own layout metrics (`_content_metrics()`, `pause_layout`, `terminal_layout`, `panel_rect_for_viewport`).
 - Produces: `TacticalUI.ellipsis_fit()`; a `text_overflow_report() -> Array` method on every listed surface (entries `{"id": String, "fits": bool}`), measured klog column in story_panel, autowrapped menu mode info, fitted multiline blocks.
 
-- [ ] Step 1: Write the failing harness regression
+- [x] Step 1: Write the failing harness regression
 
 In `src/autoload/dev_harness.gd`, after the line `await _menu_shell_test(menu_scene)` add:
 
@@ -738,7 +738,7 @@ func _text_overflow_test() -> void:
 		panel.free()
 ~~~
 
-- [ ] Step 2: Run the test to verify it fails
+- [x] Step 2: Run the test to verify it fails
 
 Run:
 
@@ -748,7 +748,7 @@ godot --headless --path . -- --autotest
 
 Expected: seven AT_FAIL lines, one per surface (`story exposes text_overflow_report`, ...). No parse error.
 
-- [ ] Step 3: Add ellipsis_fit to tactical_ui.gd
+- [x] Step 3: Add ellipsis_fit to tactical_ui.gd
 
 Append to `src/ui/tactical_ui.gd` (inside the class):
 
@@ -762,7 +762,7 @@ static func ellipsis_fit(font: Font, text: String, max_width: float, font_size: 
 	return clipped + "…"
 ~~~
 
-- [ ] Step 4: story_panel.gd — measured klog column + report
+- [x] Step 4: story_panel.gd — measured klog column + report
 
 4a. In `src/ui/story_panel.gd` `_draw_stage_detail()`, replace the klog loop (currently lines ~335-337):
 
@@ -823,7 +823,7 @@ func text_overflow_report() -> Array:
 	return out
 ~~~
 
-- [ ] Step 5: bestiary_panel.gd — fitted behavior/bug text + report
+- [x] Step 5: bestiary_panel.gd — fitted behavior/bug text + report
 
 5a. In `src/ui/bestiary_panel.gd` `_draw_detail()` (lines ~274-276), replace:
 
@@ -865,7 +865,7 @@ func text_overflow_report() -> Array:
 	return out
 ~~~
 
-- [ ] Step 6: program_panel.gd — fitted summary/stats + report
+- [x] Step 6: program_panel.gd — fitted summary/stats + report
 
 6a. In `src/ui/program_panel.gd` (lines ~185-189), replace the fixed 2-line summary and 5-line stat block:
 
@@ -907,7 +907,7 @@ func text_overflow_report() -> Array:
 	return out
 ~~~
 
-- [ ] Step 7: patch_card.gd — fitted description + report
+- [x] Step 7: patch_card.gd — fitted description + report
 
 7a. In `src/ui/patch_card.gd` (line ~87), replace:
 
@@ -938,7 +938,7 @@ func text_overflow_report() -> Array:
 
 (`_mono` is only assigned in `_ready()`, which does not run for a detached instance, so the report loads its own font copy.)
 
-- [ ] Step 8: menu.gd — autowrap mode info + report
+- [x] Step 8: menu.gd — autowrap mode info + report
 
 8a. In `src/ui/menu.gd` `_build_button_row()` (lines ~423-437), change the `_mode_info` label block from:
 
@@ -997,7 +997,7 @@ func text_overflow_report() -> Array:
 	return out
 ~~~
 
-- [ ] Step 9: terminal_panel.gd and tactical_state_surface.gd — reports
+- [x] Step 9: terminal_panel.gd and tactical_state_surface.gd — reports
 
 9a. Append to `src/ui/terminal_panel.gd`:
 
@@ -1032,7 +1032,7 @@ func text_overflow_report() -> Array:
 	return out
 ~~~
 
-- [ ] Step 10: Run the full suite
+- [x] Step 10: Run the full suite
 
 Run:
 
@@ -1045,7 +1045,7 @@ Expected: `AUTOTEST_ALL_PASS` and zero `AT_FAIL`. If a surface report fails at
 copy text; ellipsis is allowed only for the single-line klog chips added in
 Step 4a) and re-run until green.
 
-- [ ] Step 11: Visual sweep against the approved mocks
+- [x] Step 11: Visual sweep against the approved mocks
 
 Run (desktop, windowed):
 
@@ -1061,7 +1061,7 @@ Expected: no clipped or overlapping text on any captured surface; compare agains
 `/home/mafu/.codex/generated_images/01a044e4-d316-7ef2-85d8-9aa85056ea3a/`.
 Captures stay in `/tmp/opencode/` and are never committed.
 
-- [ ] Step 12: Commit
+- [x] Step 12: Commit
 
 ~~~sh
 git add src/ui/tactical_ui.gd src/ui/story_panel.gd src/ui/bestiary_panel.gd src/ui/program_panel.gd src/ui/patch_card.gd src/ui/menu.gd src/ui/terminal_panel.gd src/ui/tactical_state_surface.gd src/autoload/dev_harness.gd
