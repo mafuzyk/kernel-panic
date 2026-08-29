@@ -836,8 +836,20 @@ func _input_safety_test(arena: Arena) -> void:
 	arena._set_paused(false)
 	get_viewport().push_input(_key_event(KEY_ESCAPE))
 	_check(get_tree().paused, "Viewport Escape opens pause through input dispatch")
+	get_viewport().push_input(_key_event(KEY_ESCAPE, true))
+	_check(get_tree().paused, "Escape key repeat does not immediately close pause")
 	get_viewport().push_input(_key_event(KEY_ESCAPE))
 	_check(not get_tree().paused, "Viewport Escape closes pause while tree is paused")
+	arena._set_paused(true)
+	var focused_pause_button: Button = null
+	for pause_child in arena._pause_panel.get_children():
+		if pause_child is Button and pause_child.text == "RESUME":
+			focused_pause_button = pause_child
+			break
+	if focused_pause_button != null:
+		focused_pause_button.grab_focus()
+	get_viewport().push_input(_key_event(KEY_ESCAPE))
+	_check(not get_tree().paused, "Viewport Escape closes pause when a pause button has focus")
 	Game.state = Game.State.PLAYING
 	arena._state = "play"
 	arena._set_paused(true)
@@ -2781,6 +2793,14 @@ func _menu_shell_test(menu: Node) -> void:
 			_check(main_shell.encloses(main_snapshot["footer_rect"]), "main footer stays inside shared frame")
 		if main_snapshot.has("score_rect") and main_snapshot.has("primary_rect"):
 			_check(not Rect2(main_snapshot["score_rect"]).intersects(Rect2(main_snapshot["primary_rect"])), "main score clears the primary action")
+	_check(menu.has_method("footer_button_layout_for_viewport"), "main footer exposes measured button geometry")
+	if menu.has_method("footer_button_layout_for_viewport"):
+		var footer_layout: Dictionary = menu.footer_button_layout_for_viewport(Vector2(1400, 768))
+		_check(is_equal_approx(float(footer_layout.get("total_width", 0.0)), 448.0), "main footer matches the approved compact width")
+		_check(is_equal_approx(float(footer_layout.get("button_width", 0.0)), 217.0), "main footer buttons keep equal measured widths")
+		_check(is_equal_approx(float(footer_layout.get("gap", 0.0)), 14.0), "main footer keeps the measured center gap")
+		var runtime_footer_layout: Dictionary = menu.footer_button_layout_for_viewport(Vector2(1024, 576))
+		_check(is_equal_approx(float(runtime_footer_layout.get("total_width", 0.0)), 1024.0 * 0.327), "main footer scales from the logical viewport")
 	if menu.has_method("settings_shell_snapshot"):
 		var settings_snapshot: Dictionary = menu.settings_shell_snapshot()
 		var groups: Array = settings_snapshot.get("groups", [])
@@ -2799,6 +2819,11 @@ func _menu_shell_test(menu: Node) -> void:
 			if not settings_scroll_nodes.is_empty():
 				var settings_scroll: ScrollContainer = settings_scroll_nodes[0]
 				_check(settings_scroll.anchor_left == 0.0 and settings_scroll.anchor_right == 0.0 and settings_scroll.anchor_top == 0.0 and settings_scroll.anchor_bottom == 0.0, "settings scroll uses absolute workstation coordinates")
+			var settings_field: LineEdit = menu.get("_save_transfer_field")
+			if settings_field != null:
+				settings_field.grab_focus()
+			get_viewport().push_input(_key_event(KEY_ESCAPE))
+			_check(not bool(menu.get("_settings_panel").visible), "Viewport Escape closes settings with a focused text field")
 			menu._close_settings()
 	var tactical_surface_script: Script = load("res://src/ui/tactical_state_surface.gd")
 	_check(tactical_surface_script != null and tactical_surface_script.has_method("pause_section_rects"), "pause surface exposes separated volume and warning geometry")

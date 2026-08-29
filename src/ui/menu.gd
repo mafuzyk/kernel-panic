@@ -297,6 +297,15 @@ func _style_settings_footer_button(button: Button, border: Color) -> void:
 	_set_button_text_inset(button, 54.0)
 	_add_button_chrome(button, border, 0.02)
 
+func footer_button_layout_for_viewport(viewport_size: Vector2) -> Dictionary:
+	var total_width := minf(448.0, maxf(viewport_size.x * 0.327, 280.0))
+	var gap := 14.0
+	return {
+		"total_width": total_width,
+		"gap": gap,
+		"button_width": (total_width - gap) * 0.5,
+	}
+
 func _build_button_row() -> void:
 	var purge_width := minf(430.0, maxf(size.x * 0.30, 280.0))
 	_purge_btn = Button.new()
@@ -374,9 +383,10 @@ func _build_button_row() -> void:
 	_program_btn.add_theme_color_override("font_hover_color", TacticalUIHelper.LIME)
 	_program_btn.pressed.connect(_open_program_selector)
 	add_child(_program_btn)
-	var bottom_width := minf(480.0, maxf(size.x * 0.34, 280.0))
-	var bottom_gap := 14.0
-	var bottom_button_w := (bottom_width - bottom_gap) / 2.0
+	var footer_layout := footer_button_layout_for_viewport(size)
+	var bottom_width: float = footer_layout["total_width"]
+	var bottom_gap: float = footer_layout["gap"]
+	var bottom_button_w: float = footer_layout["button_width"]
 	var row := HBoxContainer.new()
 	row.anchor_left = 0.5
 	row.anchor_right = 0.5
@@ -1426,6 +1436,22 @@ func _draw() -> void:
 	draw_circle(ring_center, 9.0, Color(Balance.COL_DANGER.r, Balance.COL_DANGER.g, Balance.COL_DANGER.b, 0.42))
 	var mode_y := size.y * 0.5 + 130.0
 	draw_circle(Vector2(center_x, mode_y), 4.0, Balance.COL_MOTE)
+
+func _input(event: InputEvent) -> void:
+	if _starting or not _capture_action.is_empty() or not event.is_action_pressed("pause"):
+		return
+	if _settings_panel != null and _settings_panel.visible:
+		_close_settings()
+		get_viewport().set_input_as_handled()
+	elif _program_panel != null and _program_panel.visible:
+		_close_program_selector()
+		get_viewport().set_input_as_handled()
+	elif _story_panel != null and _story_panel.visible:
+		_close_story_selector()
+		get_viewport().set_input_as_handled()
+	elif _bestiary_panel != null and _bestiary_panel.visible:
+		_close_bestiary()
+		get_viewport().set_input_as_handled()
 
 func _start() -> void:
 	if _starting:
