@@ -5,6 +5,7 @@ const PatchCard = preload("res://src/ui/patch_card.gd")
 const TacticalStateSurfaceHelper = preload("res://src/ui/tactical_state_surface.gd")
 const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
+const PauseInputRouterScript = preload("res://src/arena/pause_input_router.gd")
 
 var player: Player
 var cam: CameraRig
@@ -523,6 +524,10 @@ func _make_panel(kind: String = "pause") -> Control:
 	layer.layer = 60
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	layer.add_child(p)
+	if kind == "pause":
+		var input_router: Node = PauseInputRouterScript.new()
+		input_router.arena = self
+		layer.add_child(input_router)
 	add_child(layer)
 	return p
 
@@ -613,6 +618,19 @@ func pause_action_icon_kinds() -> Array[String]:
 				result.append(str(icon.call("icon_kind")))
 				break
 	return result
+
+func handle_pause_input(event: InputEvent) -> bool:
+	if not get_tree().paused or not event.is_action_pressed("pause"):
+		return false
+	if _terminal_panel != null and is_instance_valid(_terminal_panel) and _terminal_panel.visible:
+		_close_terminal()
+		return true
+	if _patch_open:
+		return true
+	if _state == "play":
+		_set_paused(false)
+		return true
+	return false
 
 func game_over_action_labels() -> Array[String]:
 	return ["REBOOT", "ABANDON PROCESS"]
@@ -1267,6 +1285,9 @@ func _on_combo_milestone(m: int) -> void:
 	Sfx.haptic(15)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if handle_pause_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if debug_controls_enabled() and event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
 			KEY_F1:

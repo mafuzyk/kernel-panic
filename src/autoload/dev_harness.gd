@@ -833,6 +833,13 @@ func _input_safety_test(arena: Arena) -> void:
 	_check(InputMap.has_action("abandon") and abandon_events.size() == 1 and _has_physical_key("abandon", KEY_Q) and not _has_physical_key("abandon", KEY_E), "abandon is bound to Q only")
 	Game.state = Game.State.PLAYING
 	arena._state = "play"
+	arena._set_paused(false)
+	get_viewport().push_input(_key_event(KEY_ESCAPE))
+	_check(get_tree().paused, "Viewport Escape opens pause through input dispatch")
+	get_viewport().push_input(_key_event(KEY_ESCAPE))
+	_check(not get_tree().paused, "Viewport Escape closes pause while tree is paused")
+	Game.state = Game.State.PLAYING
+	arena._state = "play"
 	arena._set_paused(true)
 	arena._unhandled_input(_key_event(KEY_E))
 	_check(Game.state == Game.State.PLAYING, "E has no effect while paused")
