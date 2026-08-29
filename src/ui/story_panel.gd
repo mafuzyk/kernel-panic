@@ -1,6 +1,8 @@
 class_name StoryPanel
 extends Control
 
+const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
+
 signal stage_selected(index: int)
 
 var scroll_y := 0.0
@@ -9,6 +11,9 @@ var _press_position := Vector2.ZERO
 var _drag_start_y := 0.0
 var _scroll_start := 0.0
 var _card_rects: Dictionary = {}
+var _tab_rects: Dictionary = {}
+var _selected_stage := 0
+var _act_filter := "unix"
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -23,8 +28,26 @@ func available_stage_indices() -> Array:
 func select_stage(index: int) -> bool:
 	if not Game.story_stage_unlocked(index):
 		return false
+	_selected_stage = index
 	stage_selected.emit(index)
+	queue_redraw()
 	return true
+
+func selected_stage_index() -> int:
+	return _selected_stage
+
+func _is_wide() -> bool:
+	return size.x >= 1080.0
+
+func _visible_stage_indices() -> Array:
+	var result: Array = []
+	for index in Game.story_stage_count():
+		var stage := Game.story_stage_def(index)
+		var act := str(stage.get("act", "unix"))
+		if _is_wide() and act != _act_filter:
+			continue
+		result.append(index)
+	return result
 
 func _columns() -> int:
 	if size.x >= 1080.0:
@@ -34,6 +57,18 @@ func _columns() -> int:
 	return 1
 
 func _content_metrics() -> Dictionary:
+	if _is_wide():
+		var route_w := size.x * 0.62
+		var gap := 14.0
+		var cols := 3
+		var card_h := 122.0
+		var card_w: float = (route_w - 48.0 - gap * float(cols - 1)) / float(cols)
+		var visible_count := _visible_stage_indices().size()
+		var rows := ceili(float(maxi(visible_count, 1)) / float(cols))
+		var content_h := rows * card_h + maxf(rows - 1, 0) * gap
+		var viewport_top := 210.0
+		var viewport_bottom: float = maxf(size.y - 132.0, viewport_top + card_h)
+		return {"cols": cols, "gap": gap, "card_h": card_h, "card_w": card_w, "rows": rows, "content_h": content_h, "viewport_top": viewport_top, "viewport_bottom": viewport_bottom, "viewport_h": viewport_bottom - viewport_top, "route_w": route_w}
 	var cols := _columns()
 	var gap := 18.0
 	var card_h := 190.0
@@ -44,9 +79,44 @@ func _content_metrics() -> Dictionary:
 	var viewport_bottom: float = maxf(size.y - 130.0, viewport_top)
 	return {"cols": cols, "gap": gap, "card_h": card_h, "card_w": card_w, "content_h": content_h, "viewport_top": viewport_top, "viewport_bottom": viewport_bottom, "viewport_h": viewport_bottom - viewport_top}
 
+func content_viewport_rect() -> Rect2:
+	var metrics := _content_metrics()
+	var x := 28.0 if _is_wide() else 0.0
+	var width := float(metrics.get("route_w", size.x)) if _is_wide() else size.x
+	return Rect2(x, float(metrics["viewport_top"]), width, float(metrics["viewport_h"]))
+
+func visible_card_rects() -> Array[Rect2]:
+	var result: Array[Rect2] = []
+	var viewport := content_viewport_rect()
+	for raw_rect in _card_rects.values():
+		var rect: Rect2 = raw_rect
+		if viewport.encloses(rect):
+			result.append(rect)
+	return result
+
+func card_accent(index: int) -> Color:
+	var accent := _stage_color(index)
+	if index == _selected_stage and Game.story_stage_unlocked(index):
+		return accent
+	return Color(accent.r, accent.g, accent.b, 0.46)
+
+func _tab_for_position(position: Vector2) -> String:
+	for raw_act in _tab_rects:
+		if _tab_rects[raw_act].has_point(position):
+			return str(raw_act)
+	return ""
+
+func _select_act(act_id: String) -> void:
+	if act_id == "" or act_id == _act_filter:
+		return
+	_act_filter = act_id
+	_scroll_to(0.0)
+	queue_redraw()
+
 func _scroll_to(value: float) -> void:
 	var metrics := _content_metrics()
-	var max_scroll: float = maxf(150.0 + float(metrics["content_h"]) - float(metrics["viewport_bottom"]), 0.0)
+	var content_top: float = 214.0 if _is_wide() else 150.0
+	var max_scroll: float = maxf(content_top + float(metrics["content_h"]) - float(metrics["viewport_bottom"]), 0.0)
 	scroll_y = clampf(value, 0.0, max_scroll)
 	queue_redraw()
 
@@ -66,7 +136,11 @@ func _gui_input(event: InputEvent) -> void:
 				_scroll_start = scroll_y
 			else:
 				if _dragging and event.position.distance_to(_press_position) < 14.0:
-					_select_at(event.position)
+					var act := _tab_for_position(event.position)
+					if act != "":
+						_select_act(act)
+					else:
+						_select_at(event.position)
 				_dragging = false
 			accept_event()
 	elif event is InputEventMouseMotion and _dragging:
@@ -80,7 +154,11 @@ func _gui_input(event: InputEvent) -> void:
 			_scroll_start = scroll_y
 		else:
 			if _dragging and event.position.distance_to(_press_position) < 18.0:
-				_select_at(event.position)
+				var act := _tab_for_position(event.position)
+				if act != "":
+					_select_act(act)
+				else:
+					_select_at(event.position)
 			_dragging = false
 		accept_event()
 	elif event is InputEventScreenDrag and _dragging:
@@ -112,43 +190,127 @@ func _draw() -> void:
 	var card_w: float = metrics["card_w"]
 	var card_h: float = metrics["card_h"]
 	var total_w := card_w * float(cols) + gap * float(cols - 1)
-	var x0 := (size.x - total_w) * 0.5
-	var y0 := 150.0 - scroll_y
+	var x0 := 28.0 if _is_wide() else (size.x - total_w) * 0.5
+	var content_top: float = 214.0 if _is_wide() else 150.0
+	var y0 := content_top - scroll_y
 	var viewport_top: float = metrics["viewport_top"]
 	var viewport_bottom: float = metrics["viewport_bottom"]
+	_tab_rects.clear()
+	if _is_wide():
+		var tab_x := 28.0
+		var tab_y := 154.0
+		var tab_w := minf(196.0, (size.x - 56.0) / 3.0)
+		for act_id in ["unix", "windows", "templeos"]:
+			var tab := Rect2(tab_x, tab_y, tab_w, 34.0)
+			_tab_rects[act_id] = tab
+			var tab_col := Balance.COL_PLAYER if act_id == "unix" else Color("b46bff") if act_id == "windows" else Balance.COL_MOTE
+			var active: bool = act_id == _act_filter
+			var tab_points := TacticalUIHelper.angular_points(tab, 7.0)
+			draw_colored_polygon(tab_points, Color(tab_col.r, tab_col.g, tab_col.b, 0.16 if active else 0.035))
+			draw_polyline(tab_points + PackedVector2Array([tab_points[0]]), Color(tab_col.r, tab_col.g, tab_col.b, 0.95 if active else 0.42), 1.7 if active else 1.0, true)
+			draw_string(mono, tab.position + Vector2(14.0, 22.0), act_id.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, tab.size.x - 28.0, 12, Color(tab_col.r, tab_col.g, tab_col.b, 1.0 if active else 0.58))
+			tab_x += tab_w + 10.0
+	var stage_indices: Array = _visible_stage_indices()
 	_card_rects.clear()
-	for i in Game.story_stage_count():
-		var stage := Game.story_stage_def(i)
+	# Route connectors are drawn first so each stage marker remains legible above them.
+	for route_i in stage_indices.size() - 1:
+		var first_index: int = stage_indices[route_i]
+		var second_index: int = stage_indices[route_i + 1]
+		var first_col := route_i % cols
+		var first_row := route_i / cols
+		var second_col := (route_i + 1) % cols
+		var second_row := (route_i + 1) / cols
+		var first_center := Vector2(x0 + first_col * (card_w + gap) + card_w * 0.5, y0 + first_row * (card_h + gap) + card_h * 0.5)
+		var second_center := Vector2(x0 + second_col * (card_w + gap) + card_w * 0.5, y0 + second_row * (card_h + gap) + card_h * 0.5)
+		var route_col := _stage_color(second_index) if Game.story_stage_unlocked(second_index) else Color(TacticalUIHelper.MUTED.r, TacticalUIHelper.MUTED.g, TacticalUIHelper.MUTED.b, 0.25)
+		draw_line(first_center, second_center, Color(route_col.r, route_col.g, route_col.b, 0.54), 2.0)
+	for i in stage_indices.size():
+		var stage_index: int = stage_indices[i]
+		var stage := Game.story_stage_def(stage_index)
 		var col := i % cols
 		var row := i / cols
 		var origin := Vector2(x0 + col * (card_w + gap), y0 + row * (card_h + gap))
 		var rect := Rect2(origin, Vector2(card_w, card_h))
-		_card_rects[i] = rect
+		_card_rects[stage_index] = rect
 		if origin.y < viewport_top or origin.y + card_h > viewport_bottom:
 			continue
-		var unlocked := Game.story_stage_unlocked(i)
-		var accent: Color = _stage_color(i)
+		var unlocked: bool = Game.story_stage_unlocked(stage_index)
+		var selected: bool = stage_index == _selected_stage and unlocked
+		var accent: Color = card_accent(stage_index) if unlocked else _stage_color(stage_index)
 		var border := accent if unlocked else Color(accent.r, accent.g, accent.b, 0.24)
-		draw_rect(rect, Color(border.r, border.g, border.b, 0.07 if unlocked else 0.025))
-		draw_rect(rect, border, false, 1.8 if unlocked else 1.2)
+		var card_points := TacticalUIHelper.angular_points(rect, 10.0)
+		# Opaque card fill keeps route connectors behind the card, never through its copy.
+		draw_colored_polygon(card_points, Color(0.01, 0.012, 0.03, 0.96))
+		if selected:
+			draw_colored_polygon(card_points, Color(border.r, border.g, border.b, 0.12))
+		draw_polyline(card_points + PackedVector2Array([card_points[0]]), border, 2.1 if selected else (1.7 if unlocked else 1.1), true)
+		if selected:
+			var selected_points := TacticalUIHelper.angular_points(rect.grow(-4.0), 7.0)
+			draw_polyline(selected_points + PackedVector2Array([selected_points[0]]), Color(border.r, border.g, border.b, 0.48), 1.0, true)
 		draw_circle(origin + Vector2(42.0, 43.0), 18.0, Color(border.r, border.g, border.b, 0.12))
 		draw_arc(origin + Vector2(42.0, 43.0), 18.0, 0.0, TAU, 20, border, 1.4, true)
-		draw_string(mono, origin + Vector2(31.0, 48.0), "%02d" % (i + 1), HORIZONTAL_ALIGNMENT_LEFT, 24.0, 13, border)
+		draw_string(mono, origin + Vector2(31.0, 48.0), "%02d" % (stage_index + 1), HORIZONTAL_ALIGNMENT_LEFT, 24.0, 13, border)
 		var name_text := str(stage.get("path", "")) if unlocked else "LOCKED"
 		draw_string(orbitron, origin + Vector2(76.0, 36.0), name_text, HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 18, Balance.COL_TEXT if unlocked else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.42))
 		draw_string(mono, origin + Vector2(76.0, 59.0), str(stage.get("title", "STORY STAGE")) if unlocked else "CLEAR THE PREVIOUS STAGE", HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 11, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.35))
-		var body := str(stage.get("intro", "")) if unlocked else "This process is not mounted yet."
-		draw_multiline_string(mono, origin + Vector2(16.0, 93.0), body, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 12, 2, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.68 if unlocked else 0.32))
 		var waves: int = stage.get("waves", []).size()
-		var footer := "%d FIXED WAVES // READY" % waves if unlocked else "[ LOCKED ]"
-		draw_string(mono, origin + Vector2(16.0, card_h - 16.0), footer, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 11, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.45))
+		if _is_wide():
+			var body := str(stage.get("intro", "")) if unlocked else "This process is not mounted yet."
+			draw_multiline_string(mono, origin + Vector2(76.0, 80.0), body, HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 10, 1, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.66 if unlocked else 0.32))
+			var footer := "%d WAVES // %s" % [waves, "READY" if unlocked else "LOCKED"]
+			draw_string(mono, origin + Vector2(76.0, card_h - 14.0), footer, HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 10, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.45))
+		else:
+			var body := str(stage.get("intro", "")) if unlocked else "This process is not mounted yet."
+			draw_multiline_string(mono, origin + Vector2(16.0, 93.0), body, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 12, 2, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.68 if unlocked else 0.32))
+			var footer := "%d FIXED WAVES // READY" % waves if unlocked else "[ LOCKED ]"
+			draw_string(mono, origin + Vector2(16.0, card_h - 16.0), footer, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 11, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.45))
+	if _is_wide():
+		_draw_stage_detail(metrics, mono, orbitron)
 	var viewport_h: float = metrics["viewport_h"]
 	var content_h: float = metrics["content_h"]
-	var max_scroll: float = maxf(150.0 + content_h - viewport_bottom, 0.0)
+	var max_scroll: float = maxf(content_top + content_h - viewport_bottom, 0.0)
 	if max_scroll > 0.0:
-		var track := Rect2(size.x - 22.0, 150.0, 4.0, viewport_h)
+		var track := Rect2((float(metrics["route_w"]) if _is_wide() else size.x) - 22.0, float(metrics["viewport_top"]), 4.0, viewport_h)
 		var thumb_h: float = maxf(28.0, viewport_h * viewport_h / content_h)
 		var thumb_y: float = track.position.y + (track.size.y - thumb_h) * (scroll_y / max_scroll)
 		draw_rect(track, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.12))
 		draw_rect(Rect2(track.position.x, thumb_y, track.size.x, thumb_h), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.75))
 		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
+
+func _draw_stage_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
+	var route_w: float = metrics["route_w"]
+	var rail := Rect2(route_w + 48.0, float(metrics["viewport_top"]), size.x - route_w - 76.0, float(metrics["viewport_h"]))
+	var stage := Game.story_stage_def(_selected_stage)
+	var accent := _stage_color(_selected_stage)
+	var frame := TacticalUIHelper.angular_points(rail, 13.0)
+	draw_colored_polygon(frame, Color(accent.r, accent.g, accent.b, 0.055))
+	draw_polyline(frame + PackedVector2Array([frame[0]]), Color(accent.r, accent.g, accent.b, 0.66), 1.5, true)
+	draw_string(mono, rail.position + Vector2(18.0, 24.0), "MOUNT POINT // %s" % str(stage.get("path", "UNKNOWN")), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, Color(accent.r, accent.g, accent.b, 0.9))
+	draw_string(orbitron, rail.position + Vector2(18.0, 54.0), str(stage.get("title", "STORY STAGE")), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 20, TacticalUIHelper.TEXT)
+	var unlocked: bool = Game.story_stage_unlocked(_selected_stage)
+	draw_string(mono, rail.position + Vector2(18.0, 76.0), "STATUS: %s" % ("READY TO MOUNT" if unlocked else "LOCKED // CLEAR PREVIOUS"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, accent if unlocked else TacticalUIHelper.MUTED)
+	draw_multiline_string(mono, rail.position + Vector2(18.0, 108.0), str(stage.get("intro", "")), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 12, 3, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.74))
+	var divider_y := rail.position.y + 164.0
+	draw_line(rail.position + Vector2(18.0, divider_y - rail.position.y), rail.position + Vector2(rail.size.x - 18.0, divider_y - rail.position.y), Color(accent.r, accent.g, accent.b, 0.3), 1.0)
+	draw_string(mono, rail.position + Vector2(18.0, 188.0), "THREATS", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, accent)
+	var threat_names: Array = []
+	for wave in stage.get("waves", []):
+		for enemy in wave:
+			if not threat_names.has(enemy):
+				threat_names.append(enemy)
+	var threat_text := ", ".join(threat_names)
+	draw_multiline_string(mono, rail.position + Vector2(18.0, 210.0), threat_text.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, 2, TacticalUIHelper.TEXT)
+	draw_string(mono, rail.position + Vector2(18.0, 252.0), "WAVES  %02d     SCALE  %.2fx" % [stage.get("waves", []).size(), float(stage.get("scale", 1.0))], HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, TacticalUIHelper.MUTED)
+	var preview := Rect2(rail.position + Vector2(18.0, 274.0), Vector2(minf(rail.size.x - 36.0, 170.0), 92.0))
+	var preview_points := TacticalUIHelper.angular_points(preview, 8.0)
+	draw_colored_polygon(preview_points, Color(0.02, 0.06, 0.11, 0.75))
+	draw_polyline(preview_points + PackedVector2Array([preview_points[0]]), Color(accent.r, accent.g, accent.b, 0.42), 1.0, true)
+	for grid_i in range(1, 5):
+		draw_line(preview.position + Vector2(float(grid_i) * preview.size.x / 5.0, 8.0), preview.position + Vector2(float(grid_i) * preview.size.x / 5.0, preview.size.y - 8.0), Color(accent.r, accent.g, accent.b, 0.16), 1.0)
+	for grid_i in range(1, 3):
+		draw_line(preview.position + Vector2(8.0, float(grid_i) * preview.size.y / 3.0), preview.position + Vector2(preview.size.x - 8.0, float(grid_i) * preview.size.y / 3.0), Color(accent.r, accent.g, accent.b, 0.16), 1.0)
+	draw_circle(preview.get_center(), 5.0, accent)
+	draw_string(mono, preview.position + Vector2(12.0, 18.0), "ARENA PREVIEW", HORIZONTAL_ALIGNMENT_LEFT, preview.size.x - 24.0, 9, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.62))
+	var klog: Array = stage.get("klog", [])
+	for log_i in mini(klog.size(), 2):
+		draw_string(mono, rail.position + Vector2(208.0, 292.0 + float(log_i) * 20.0), "> " + str(klog[log_i]), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 226.0, 10, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.56))

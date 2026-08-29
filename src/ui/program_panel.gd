@@ -1,6 +1,8 @@
 class_name ProgramPanel
 extends Control
 
+const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
+
 signal selection_changed(id: String)
 
 var scroll_y := 0.0
@@ -39,7 +41,7 @@ func _columns() -> int:
 func _content_metrics() -> Dictionary:
 	var cols := _columns()
 	var gap := 18.0
-	var card_h := 214.0
+	var card_h := 300.0
 	var card_w: float = minf(390.0, (size.x - 48.0 - gap * float(cols - 1)) / float(cols))
 	var rows := ceili(float(Game.PROGRAM_DEFS.size()) / float(cols))
 	var content_h: float = rows * card_h + maxf(rows - 1, 0) * gap
@@ -51,6 +53,30 @@ func _content_metrics() -> Dictionary:
 func content_viewport_rect() -> Rect2:
 	var metrics := _content_metrics()
 	return Rect2(0.0, float(metrics["viewport_top"]), size.x, float(metrics["viewport_h"]))
+
+func visible_card_rects() -> Array[Rect2]:
+	var result: Array[Rect2] = []
+	var viewport := content_viewport_rect()
+	for raw_rect in _card_rects.values():
+		var rect: Rect2 = raw_rect
+		if viewport.encloses(rect):
+			result.append(rect)
+	return result
+
+func card_accent(id: String) -> Color:
+	var definition: Dictionary = Game.PROGRAM_DEFS.get(id, {})
+	var visual: Dictionary = definition.get("visual", {})
+	var accent: Color = visual.get("color", Balance.COL_TEXT)
+	if Game.program == id and Game.unlocked_programs.has(id):
+		return accent
+	return Color(accent.r, accent.g, accent.b, 0.46)
+
+func _tradeoff(id: String) -> String:
+	match id:
+		"kernel": return "OVERclock enabled // no shield core"
+		"daemon": return "HIGH RISK // kill recharge on close-range hits"
+		"rootlet": return "NO OVERCLOCK // shield core absorbs one hit"
+		_: return "PROCESS PROFILE // no additional notes"
 
 func _scroll_to(value: float) -> void:
 	var metrics := _content_metrics()
@@ -136,9 +162,15 @@ func _draw() -> void:
 		var unlocked := Game.unlocked_programs.has(id)
 		var visual: Dictionary = definition.get("visual", {})
 		var true_col: Color = visual.get("color", Balance.COL_TEXT)
-		var border := true_col if unlocked else Color(true_col.r, true_col.g, true_col.b, 0.28)
-		draw_rect(rect, Color(border.r, border.g, border.b, 0.06 if unlocked else 0.025))
-		draw_rect(rect, border, false, 1.8 if unlocked else 1.2)
+		var selected := Game.program == id and unlocked
+		var border: Color = card_accent(id) if unlocked else Color(true_col.r, true_col.g, true_col.b, 0.28)
+		var frame := TacticalUIHelper.angular_points(rect, 13.0)
+		draw_colored_polygon(frame, Color(border.r, border.g, border.b, 0.07 if unlocked else 0.025))
+		draw_polyline(frame + PackedVector2Array([frame[0]]), border, 2.3 if selected else (1.8 if unlocked else 1.2), true)
+		if selected:
+			var inner_frame := TacticalUIHelper.angular_points(rect.grow(-5.0), 9.0)
+			draw_polyline(inner_frame + PackedVector2Array([inner_frame[0]]), Color(border.r, border.g, border.b, 0.48), 1.0, true)
+			draw_line(origin + Vector2(18.0, 16.0), origin + Vector2(76.0, 16.0), border, 2.0)
 		draw_set_transform(origin + Vector2(48.0, 50.0), 0.0, Vector2(1.35, 1.35))
 		_draw_silhouette(str(visual.get("silhouette", "kernel_arrow")), true_col if unlocked else Color(true_col.r, true_col.g, true_col.b, 0.22))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -146,7 +178,9 @@ func _draw() -> void:
 		draw_string(mono, origin + Vector2(90.0, 60.0), str(definition.get("role", "PROGRAM")), HORIZONTAL_ALIGNMENT_LEFT, card_w - 104.0, 11, Color(true_col.r, true_col.g, true_col.b, 0.8 if unlocked else 0.35))
 		draw_multiline_string(mono, origin + Vector2(16.0, 91.0), str(definition.get("summary", "")), HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 12, 2, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.68 if unlocked else 0.36))
 		var stat_text := "INTEGRITY  %s\nSPEED      %s\nFIRE       %s\nRANGE      %s\nDASH/CORE  %s" % [definition.get("integrity", "—"), definition.get("speed", "—"), definition.get("fire", "—"), definition.get("range", "—"), definition.get("dash_shield", "—")]
-		draw_multiline_string(mono, origin + Vector2(16.0, 132.0), stat_text, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 11, 2, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.78 if unlocked else 0.42))
+		draw_multiline_string(mono, origin + Vector2(16.0, 132.0), stat_text, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 11, 5, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.78 if unlocked else 0.42))
+		draw_line(origin + Vector2(16.0, card_h - 62.0), origin + Vector2(card_w - 16.0, card_h - 62.0), Color(border.r, border.g, border.b, 0.32), 1.0)
+		draw_multiline_string(mono, origin + Vector2(16.0, card_h - 42.0), _tradeoff(id), HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 10, 2, Color(border.r, border.g, border.b, 0.78 if unlocked else 0.42))
 		var footer := "[ SELECTED ]" if Game.program == id and unlocked else "[ READY ]" if unlocked else "[ LOCKED // UNLOCK IN RUN ]"
 		var footer_col := true_col if unlocked else Balance.COL_DANGER
 		draw_string(mono, origin + Vector2(16.0, card_h - 14.0), footer, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 11, Color(footer_col.r, footer_col.g, footer_col.b, 0.8 if unlocked else 0.5))
@@ -160,6 +194,7 @@ func _draw() -> void:
 		draw_rect(track, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.12))
 		draw_rect(Rect2(track.position.x, thumb_y, track.size.x, thumb_h), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.75))
 		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
+	draw_string(mono, Vector2(40.0, size.y - 94.0), "COMPARISON // INTEGRITY  SPEED  FIRE  RANGE  CORE", HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 80.0, 520.0), 10, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
 
 func _draw_silhouette(key: String, c: Color) -> void:
 	match key:

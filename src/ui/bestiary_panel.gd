@@ -1,6 +1,8 @@
 class_name BestiaryPanel
 extends Control
 
+const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
+
 const ENTRIES := [
 	{"id": "drone", "name": "DRONE", "desc": "basic corrupted process. dash through packs.", "threat": 50, "bugs": "swarms without a scheduler. forever."},
 	{"id": "lancer", "name": "LANCER", "desc": "telegraphs then lunges. sidestep the line, punish the stagger.", "threat": 90, "bugs": "lunges in a straight line. sidestep = fix."},
@@ -24,8 +26,11 @@ const ENTRIES := [
 var t := 0.0
 var scroll_y := 0.0
 var _dragging := false
+var _press_position := Vector2.ZERO
 var _drag_start_y := 0.0
 var _scroll_start := 0.0
+var _card_rects: Dictionary = {}
+var _selected_id := "root"
 
 func _entry_color(id: String) -> Color:
 	match id:
@@ -48,6 +53,59 @@ func _entry_color(id: String) -> Color:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	if _selected_id == "" and not ENTRIES.is_empty():
+		_selected_id = ENTRIES[0]["id"]
+
+func select_entry(id: String) -> bool:
+	for entry in ENTRIES:
+		if str(entry["id"]) == id:
+			_selected_id = id
+			queue_redraw()
+			return true
+	return false
+
+func detail_entry_id() -> String:
+	return _selected_id
+
+func entry_status(id: String) -> String:
+	return "LOGGED" if Game.bestiary_seen(id) else "LOCKED // PURGE TO LOG"
+
+func _is_wide() -> bool:
+	return size.x >= 1080.0
+
+func _content_metrics() -> Dictionary:
+	if _is_wide():
+		var list_w := minf(460.0, size.x * 0.36)
+		var card_h := 58.0
+		var gap := 8.0
+		var viewport_top := 156.0
+		var viewport_bottom: float = maxf(size.y - 116.0, viewport_top + card_h)
+		var content_h := ENTRIES.size() * card_h + maxf(ENTRIES.size() - 1, 0) * gap
+		return {"cols": 1, "gap": gap, "card_h": card_h, "card_w": list_w - 16.0, "content_h": content_h, "viewport_top": viewport_top, "viewport_bottom": viewport_bottom, "viewport_h": viewport_bottom - viewport_top, "list_w": list_w}
+	var cols: int = 4 if size.x >= 1100.0 else 2
+	var card_h := 170.0
+	var gap := 18.0
+	var viewport_top := 140.0
+	var viewport_bottom: float = maxf(size.y - 130.0, viewport_top + card_h)
+	var cw: float = minf(280.0, (size.x - 48.0 - gap * float(cols - 1)) / float(cols))
+	var rows := ceili(float(ENTRIES.size()) / float(cols))
+	var content_h := rows * card_h + maxf(rows - 1, 0) * gap
+	return {"cols": cols, "gap": gap, "card_h": card_h, "card_w": cw, "content_h": content_h, "viewport_top": viewport_top, "viewport_bottom": viewport_bottom, "viewport_h": viewport_bottom - viewport_top}
+
+func content_viewport_rect() -> Rect2:
+	var metrics := _content_metrics()
+	var x := 28.0 if _is_wide() else 0.0
+	var width := float(metrics.get("list_w", size.x)) if _is_wide() else size.x
+	return Rect2(x, float(metrics["viewport_top"]), width, float(metrics["viewport_h"]))
+
+func visible_card_rects() -> Array[Rect2]:
+	var result: Array[Rect2] = []
+	var viewport := content_viewport_rect()
+	for raw_rect in _card_rects.values():
+		var rect: Rect2 = raw_rect
+		if viewport.encloses(rect):
+			result.append(rect)
+	return result
 
 func _process(delta: float) -> void:
 	t += delta
@@ -62,10 +120,15 @@ func _gui_input(event: InputEvent) -> void:
 			_scroll_by(72.0)
 			accept_event()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
-			_dragging = event.pressed
-			if _dragging:
+			if event.pressed:
+				_dragging = true
+				_press_position = event.position
 				_drag_start_y = event.position.y
 				_scroll_start = scroll_y
+			else:
+				if _dragging and event.position.distance_to(_press_position) < 14.0:
+					_select_at(event.position)
+				_dragging = false
 			accept_event()
 	elif event is InputEventMouseMotion and _dragging:
 		_scroll_to(_scroll_start - (event.position.y - _drag_start_y))
@@ -73,9 +136,12 @@ func _gui_input(event: InputEvent) -> void:
 	elif event is InputEventScreenTouch:
 		if event.pressed:
 			_dragging = true
+			_press_position = event.position
 			_drag_start_y = event.position.y
 			_scroll_start = scroll_y
 		else:
+			if _dragging and event.position.distance_to(_press_position) < 18.0:
+				_select_at(event.position)
 			_dragging = false
 		accept_event()
 	elif event is InputEventScreenDrag and _dragging:
@@ -86,69 +152,118 @@ func _scroll_by(amount: float) -> void:
 	_scroll_to(scroll_y + amount)
 
 func _scroll_to(value: float) -> void:
-	var cols: int = 4 if size.x >= 1100.0 else 2
-	var rows: int = ceili(float(ENTRIES.size()) / float(cols))
-	var card_h := 170.0
-	var gap := 18.0
-	var viewport_h: float = maxf(size.y - 270.0, 240.0)
-	var content_h: float = rows * card_h + (rows - 1) * gap
-	var max_scroll: float = maxf(content_h - viewport_h, 0.0)
+	var metrics := _content_metrics()
+	var max_scroll: float = maxf(float(metrics["content_h"]) - float(metrics["viewport_h"]), 0.0)
 	scroll_y = clampf(value, 0.0, max_scroll)
+	queue_redraw()
+
+func _select_at(position: Vector2) -> void:
+	for raw_id in _card_rects:
+		var id := str(raw_id)
+		if _card_rects[id].has_point(position):
+			if select_entry(id):
+				Sfx.play("ui", 1.05, -8.0)
+			return
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.01, 0.012, 0.03, 1.0))
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
 	var orbitron: Font = load("res://assets/fonts/Orbitron.ttf")
-	var cols: int = 4 if size.x >= 1100.0 else 2
-	var gap := 18.0
-	var cw: float = minf(280.0, (size.x - 48.0 - gap * float(cols - 1)) / float(cols))
-	var ch := 170.0
-	var total_w: float = cw * float(cols) + gap * float(cols - 1)
-	var x0: float = (size.x - total_w) * 0.5
-	var y0 := 150.0 - scroll_y
-	var viewport_top := 140.0
-	var viewport_bottom: float = size.y - 130.0
+	var metrics := _content_metrics()
+	var cols: int = metrics["cols"]
+	var gap: float = metrics["gap"]
+	var cw: float = metrics["card_w"]
+	var ch: float = metrics["card_h"]
+	var x0: float = 28.0 if _is_wide() else (size.x - cw * float(cols) - gap * float(cols - 1)) * 0.5
+	var y0: float = float(metrics["viewport_top"]) - scroll_y
+	var viewport_top: float = metrics["viewport_top"]
+	var viewport_bottom: float = metrics["viewport_bottom"]
+	_card_rects.clear()
+	if _is_wide():
+		var list_frame := TacticalUIHelper.angular_points(Rect2(28.0, 146.0, float(metrics["list_w"]), size.y - 258.0), 12.0)
+		draw_colored_polygon(list_frame, Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.025))
+		draw_polyline(list_frame + PackedVector2Array([list_frame[0]]), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.42), 1.0, true)
 	for i in ENTRIES.size():
 		var e: Dictionary = ENTRIES[i]
 		var col := i % cols
 		var row := i / cols
 		var origin := Vector2(x0 + col * (cw + gap), y0 + row * (ch + gap))
-		# Keep whole cards inside the scroll viewport; never paint under BACK/nav UI.
+		var rect := Rect2(origin, Vector2(cw, ch))
+		_card_rects[e["id"]] = rect
 		if origin.y < viewport_top or origin.y + ch > viewport_bottom:
 			continue
 		var seen := Game.bestiary_seen(e["id"])
 		var true_col: Color = _entry_color(e["id"])
+		var selected: bool = _selected_id == e["id"]
 		var border := true_col if seen else Color(true_col.r, true_col.g, true_col.b, 0.25)
-		draw_rect(Rect2(origin, Vector2(cw, ch)), Color(border.r, border.g, border.b, 0.06))
-		draw_rect(Rect2(origin, Vector2(cw, ch)), border, false, 1.5)
-		var glyph_c := Vector2(origin + Vector2(cw * 0.5, 54.0))
-		draw_set_transform(glyph_c, 0.0, Vector2(1.6, 1.6))
-		if seen:
-			_draw_glyph(e["id"], true_col)
-		else:
-			_draw_glyph(e["id"], Color(true_col.r, true_col.g, true_col.b, 0.18))
+		var frame := TacticalUIHelper.angular_points(rect, 8.0)
+		draw_colored_polygon(frame, Color(border.r, border.g, border.b, 0.10 if selected else 0.045))
+		draw_polyline(frame + PackedVector2Array([frame[0]]), Color(border.r, border.g, border.b, 1.0 if selected else 0.65), 1.8 if selected else 1.1, true)
+		if selected:
+			var inner := TacticalUIHelper.angular_points(rect.grow(-3.0), 6.0)
+			draw_polyline(inner + PackedVector2Array([inner[0]]), Color(border.r, border.g, border.b, 0.38), 1.0, true)
+		var glyph_c := origin + Vector2(30.0, ch * 0.5)
+		draw_set_transform(glyph_c, 0.0, Vector2(0.76 if _is_wide() else 1.6, 0.76 if _is_wide() else 1.6))
+		_draw_glyph(e["id"], true_col if seen else Color(true_col.r, true_col.g, true_col.b, 0.18))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-		var name_txt: String = e["name"] if seen else "???"
-		draw_string(orbitron, origin + Vector2(14, ch - 70.0), name_txt, HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 16, Balance.COL_TEXT if seen else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.4))
-		var desc: String = e["desc"] if seen else "purge one to log its data."
-		draw_multiline_string(mono, origin + Vector2(14, ch - 48.0), desc, HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 12, 2, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.65 if seen else 0.3))
-		if seen:
-			draw_string(mono, origin + Vector2(cw - 14.0, 20.0), "%d PTS" % int(e["threat"]), HORIZONTAL_ALIGNMENT_RIGHT, 90.0, 11, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.7))
-		if not seen:
-			draw_string(mono, origin + Vector2(14, ch - 14.0), "[ LOCKED ]", HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 11, Color(Balance.COL_DANGER.r, Balance.COL_DANGER.g, Balance.COL_DANGER.b, 0.5))
+		if _is_wide():
+			var name_txt: String = e["name"] if seen else "???"
+			draw_string(orbitron, origin + Vector2(58.0, 24.0), name_txt, HORIZONTAL_ALIGNMENT_LEFT, cw - 160.0, 13, Balance.COL_TEXT if seen else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.4))
+			draw_string(mono, origin + Vector2(cw - 94.0, 23.0), "%d PTS" % int(e["threat"]), HORIZONTAL_ALIGNMENT_RIGHT, 78.0, 10, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.72 if seen else 0.32))
+			var status := "LOGGED // SELECT FOR DETAIL" if seen else "LOCKED // PURGE TO LOG"
+			draw_string(mono, origin + Vector2(58.0, 43.0), status, HORIZONTAL_ALIGNMENT_LEFT, cw - 72.0, 9, Color(border.r, border.g, border.b, 0.75))
 		else:
-			draw_string(mono, origin + Vector2(14, ch - 14.0), "BUGS: " + str(e["bugs"]), HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	var viewport_h: float = maxf(size.y - 270.0, 240.0)
-	var rows: int = ceili(float(ENTRIES.size()) / float(cols))
-	var content_h: float = rows * ch + (rows - 1) * gap
+			var name_txt: String = e["name"] if seen else "???"
+			draw_string(orbitron, origin + Vector2(14, ch - 70.0), name_txt, HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 16, Balance.COL_TEXT if seen else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.4))
+			var desc: String = e["desc"] if seen else "purge one to log its data."
+			draw_multiline_string(mono, origin + Vector2(14, ch - 48.0), desc, HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 12, 2, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.65 if seen else 0.3))
+		if not _is_wide():
+			if seen:
+				draw_string(mono, origin + Vector2(cw - 14.0, 20.0), "%d PTS" % int(e["threat"]), HORIZONTAL_ALIGNMENT_RIGHT, 90.0, 11, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.7))
+			if not seen:
+				draw_string(mono, origin + Vector2(14, ch - 14.0), "[ LOCKED ]", HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 11, Color(Balance.COL_DANGER.r, Balance.COL_DANGER.g, Balance.COL_DANGER.b, 0.5))
+			else:
+				draw_string(mono, origin + Vector2(14, ch - 14.0), "BUGS: " + str(e["bugs"]), HORIZONTAL_ALIGNMENT_LEFT, cw - 28, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
+	if _is_wide():
+		_draw_detail(metrics, mono, orbitron)
+	var viewport_h: float = metrics["viewport_h"]
+	var content_h: float = metrics["content_h"]
 	var max_scroll: float = maxf(content_h - viewport_h, 0.0)
 	if max_scroll > 0.0:
-		var track := Rect2(size.x - 22.0, 150.0, 4.0, viewport_h)
+		var track := Rect2((float(metrics["list_w"]) + 18.0 if _is_wide() else size.x - 22.0), viewport_top, 4.0, viewport_h)
 		var thumb_h: float = maxf(28.0, viewport_h * viewport_h / content_h)
 		var thumb_y: float = track.position.y + (track.size.y - thumb_h) * (scroll_y / max_scroll)
 		draw_rect(track, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.12))
 		draw_rect(Rect2(track.position.x, thumb_y, track.size.x, thumb_h), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.75))
 		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
+
+func _draw_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
+	var rail := Rect2(float(metrics["list_w"]) + 58.0, 146.0, size.x - float(metrics["list_w"]) - 86.0, size.y - 258.0)
+	var entry: Dictionary = {}
+	for candidate in ENTRIES:
+		if str(candidate["id"]) == _selected_id:
+			entry = candidate
+			break
+	if entry.is_empty():
+		entry = ENTRIES[0]
+	var id := str(entry["id"])
+	var seen := Game.bestiary_seen(id)
+	var accent: Color = _entry_color(id)
+	var frame := TacticalUIHelper.angular_points(rail, 13.0)
+	draw_colored_polygon(frame, Color(accent.r, accent.g, accent.b, 0.055))
+	draw_polyline(frame + PackedVector2Array([frame[0]]), Color(accent.r, accent.g, accent.b, 0.62), 1.5, true)
+	draw_string(mono, rail.position + Vector2(20.0, 26.0), "FIELD ENTRY // %s" % ("LOGGED" if seen else "LOCKED"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, Color(accent.r, accent.g, accent.b, 0.85))
+	draw_string(orbitron, rail.position + Vector2(20.0, 58.0), str(entry["name"]) if seen else "UNKNOWN PROCESS", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 220.0, 23, TacticalUIHelper.TEXT)
+	draw_string(mono, rail.position + Vector2(20.0, 82.0), "%d THREAT POINTS" % int(entry["threat"]) if seen else "PURGE THIS PROCESS TO REVEAL", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 220.0, 11, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.85 if seen else 0.45))
+	var glyph_pos := Vector2(rail.end.x - 94.0, rail.position.y + 74.0)
+	draw_set_transform(glyph_pos, 0.0, Vector2(2.7, 2.7))
+	_draw_glyph(id, Color(accent.r, accent.g, accent.b, 0.9 if seen else 0.2))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	draw_line(rail.position + Vector2(20.0, 104.0), rail.position + Vector2(rail.size.x - 20.0, 104.0), Color(accent.r, accent.g, accent.b, 0.28), 1.0)
+	draw_string(mono, rail.position + Vector2(20.0, 132.0), "BEHAVIOR", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
+	draw_multiline_string(mono, rail.position + Vector2(20.0, 156.0), str(entry["desc"]) if seen else "No field data available. The first sighting will unlock this behavior report.", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 13, 3, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.78 if seen else 0.42))
+	draw_string(mono, rail.position + Vector2(20.0, 218.0), "BUG REPORT", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
+	draw_multiline_string(mono, rail.position + Vector2(20.0, 242.0), str(entry["bugs"]) if seen else "LOCKED // COMPLETE A SIGHTING TO ACCESS NOTES", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 12, 3, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.64 if seen else 0.36))
 
 func _draw_glyph(id: String, c: Color) -> void:
 	match id:

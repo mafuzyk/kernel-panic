@@ -314,19 +314,7 @@ func _open_program_selector() -> void:
 		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_program_panel.add_child(hint)
 		var back := Button.new()
-		back.text = "BACK"
-		back.flat = true
-		back.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		back.add_theme_font_size_override("font_size", 18)
-		back.add_theme_color_override("font_color", Balance.COL_PLAYER)
-		back.anchor_left = 0.5
-		back.anchor_right = 0.5
-		back.anchor_top = 1.0
-		back.anchor_bottom = 1.0
-		back.offset_left = -70.0
-		back.offset_right = 70.0
-		back.offset_top = -90.0
-		back.offset_bottom = -50.0
+		_style_overlay_back(back)
 		back.pressed.connect(_close_program_selector)
 		_program_panel.add_child(back)
 		var layer := CanvasLayer.new()
@@ -375,19 +363,7 @@ func _open_story_selector() -> void:
 		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_story_panel.add_child(hint)
 		var back := Button.new()
-		back.text = "BACK"
-		back.flat = true
-		back.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		back.add_theme_font_size_override("font_size", 18)
-		back.add_theme_color_override("font_color", Balance.COL_PLAYER)
-		back.anchor_left = 0.5
-		back.anchor_right = 0.5
-		back.anchor_top = 1.0
-		back.anchor_bottom = 1.0
-		back.offset_left = -70.0
-		back.offset_right = 70.0
-		back.offset_top = -90.0
-		back.offset_bottom = -50.0
+		_style_overlay_back(back)
 		back.pressed.connect(_close_story_selector)
 		_story_panel.add_child(back)
 		var layer := CanvasLayer.new()
@@ -442,19 +418,7 @@ func _open_bestiary() -> void:
 		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_bestiary_panel.add_child(hint)
 		var back := Button.new()
-		back.text = "BACK"
-		back.flat = true
-		back.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		back.add_theme_font_size_override("font_size", 18)
-		back.add_theme_color_override("font_color", Balance.COL_PLAYER)
-		back.anchor_left = 0.5
-		back.anchor_right = 0.5
-		back.anchor_top = 1.0
-		back.anchor_bottom = 1.0
-		back.offset_left = -70.0
-		back.offset_right = 70.0
-		back.offset_top = -90.0
-		back.offset_bottom = -50.0
+		_style_overlay_back(back)
 		back.pressed.connect(_close_bestiary)
 		_bestiary_panel.add_child(back)
 		var layer := CanvasLayer.new()
@@ -468,6 +432,36 @@ func _open_bestiary() -> void:
 func _close_bestiary() -> void:
 	_bestiary_panel.visible = false
 	Sfx.play("ui", 0.9, -8.0)
+
+func _style_overlay_back(back: Button) -> void:
+	back.text = "<  BACK // ESC"
+	back.custom_minimum_size = Vector2(154.0, 42.0)
+	back.focus_mode = Control.FOCUS_NONE
+	back.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	back.add_theme_font_size_override("font_size", 13)
+	back.add_theme_color_override("font_color", Balance.COL_PLAYER)
+	back.add_theme_color_override("font_hover_color", Balance.COL_TEXT)
+	back.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	back.anchor_left = 1.0
+	back.anchor_right = 1.0
+	back.anchor_top = 0.0
+	back.anchor_bottom = 0.0
+	back.offset_left = -190.0
+	back.offset_right = -36.0
+	back.offset_top = 58.0
+	back.offset_bottom = 100.0
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.035)
+	normal.border_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.62)
+	normal.set_border_width_all(1)
+	normal.content_margin_left = 8.0
+	normal.content_margin_right = 8.0
+	back.add_theme_stylebox_override("normal", normal)
+	var hover: StyleBoxFlat = normal.duplicate()
+	hover.bg_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.14)
+	hover.border_color = Balance.COL_PLAYER
+	hover.set_border_width_all(2)
+	back.add_theme_stylebox_override("hover", hover)
 
 func _cycle_mode() -> void:
 	var order := ["classic", "weekly", "onehp"]

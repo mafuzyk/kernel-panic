@@ -1965,6 +1965,65 @@ func _systems_test(arena: Arena) -> void:
 	_check(Game.program == "kernel", "locked rootlet rejects panel touch selection")
 	locked_panel.queue_free()
 	await _ticks(2)
+	print("AT_STEP selection_geometry")
+	if selector_script != null:
+		var geometry_panel = selector_script.new()
+		geometry_panel.size = Vector2(1366, 768)
+		get_tree().current_scene.add_child(geometry_panel)
+		await _ticks(2)
+		geometry_panel._scroll_to(0.0)
+		await _ticks(2)
+		_check(geometry_panel.has_method("visible_card_rects"), "program selector exposes visible card geometry")
+		_check(geometry_panel.has_method("card_accent"), "program selector exposes selected accent")
+		if geometry_panel.has_method("visible_card_rects") and geometry_panel.has_method("content_viewport_rect"):
+			var program_viewport: Rect2 = geometry_panel.content_viewport_rect()
+			var program_cards_contained := true
+			for raw_rect in geometry_panel.visible_card_rects():
+				program_cards_contained = program_cards_contained and program_viewport.encloses(raw_rect)
+			_check(program_cards_contained, "visible program cards stay inside content viewport")
+		if geometry_panel.has_method("card_accent"):
+			_check(geometry_panel.card_accent("kernel") != geometry_panel.card_accent("daemon"), "selected program has a distinct accent")
+		geometry_panel.queue_free()
+		await _ticks(2)
+	var story_geometry_script: Script = load("res://src/ui/story_panel.gd")
+	if story_geometry_script != null:
+		var story_geometry = story_geometry_script.new()
+		story_geometry.size = Vector2(1366, 768)
+		get_tree().current_scene.add_child(story_geometry)
+		await _ticks(2)
+		_check(story_geometry.has_method("content_viewport_rect") and story_geometry.has_method("visible_card_rects"), "story selector exposes content geometry")
+		_check(story_geometry.has_method("selected_stage_index") and story_geometry.has_method("card_accent"), "story selector exposes selected state")
+		if story_geometry.has_method("select_stage"):
+			_check(story_geometry.select_stage(0), "story selector selects the first stage")
+		if story_geometry.has_method("selected_stage_index"):
+			_check(story_geometry.selected_stage_index() == 0, "story selector tracks selected stage")
+		if story_geometry.has_method("visible_card_rects") and story_geometry.has_method("content_viewport_rect"):
+			var story_viewport: Rect2 = story_geometry.content_viewport_rect()
+			var story_cards_contained := true
+			for raw_rect in story_geometry.visible_card_rects():
+				story_cards_contained = story_cards_contained and story_viewport.encloses(raw_rect)
+			_check(story_cards_contained, "visible story cards stay inside content viewport")
+		story_geometry.queue_free()
+		await _ticks(2)
+	var bestiary_geometry_script: Script = load("res://src/ui/bestiary_panel.gd")
+	if bestiary_geometry_script != null:
+		var saved_bestiary_geometry: Dictionary = Game.bestiary.duplicate(true)
+		Game.bestiary.clear()
+		var bestiary_geometry = bestiary_geometry_script.new()
+		bestiary_geometry.size = Vector2(1366, 768)
+		get_tree().current_scene.add_child(bestiary_geometry)
+		await _ticks(2)
+		_check(bestiary_geometry.has_method("content_viewport_rect") and bestiary_geometry.has_method("visible_card_rects"), "bestiary exposes content geometry")
+		_check(bestiary_geometry.has_method("entry_status") and str(bestiary_geometry.entry_status("root")).contains("LOCKED"), "bestiary keeps locked entries explicit")
+		if bestiary_geometry.has_method("visible_card_rects") and bestiary_geometry.has_method("content_viewport_rect"):
+			var bestiary_viewport: Rect2 = bestiary_geometry.content_viewport_rect()
+			var bestiary_cards_contained := true
+			for raw_rect in bestiary_geometry.visible_card_rects():
+				bestiary_cards_contained = bestiary_cards_contained and bestiary_viewport.encloses(raw_rect)
+			_check(bestiary_cards_contained, "visible bestiary cards stay inside content viewport")
+		bestiary_geometry.queue_free()
+		await _ticks(2)
+		Game.bestiary = saved_bestiary_geometry
 	Game.program = saved_program_selection
 	Game.unlocked_programs = saved_unlocked_programs
 	_restore_config_snapshot("run", "program", saved_program_disk)
@@ -2990,12 +3049,22 @@ func _capture() -> void:
 			if c is Label and c.text.begins_with("BEST"):
 				print("PROBE stray=", c.text, " gpos=", c.global_position, " size=", c.size, " parent=", c.get_parent().name)
 	if mode == "menu":
-		if OS.get_environment("KP_BESTIARY") != "" and get_tree().current_scene.has_method("_open_bestiary"):
-			get_tree().current_scene._open_bestiary()
-		if OS.get_environment("KP_SETTINGS") != "":
-			var menu := get_tree().current_scene
-			if menu.has_method("_open_settings"):
-				menu._open_settings()
+		var menu := get_tree().current_scene
+		if OS.get_environment("KP_PROGRAM") != "" and menu.has_method("_open_program_selector"):
+			Game.unlocked_programs = {"kernel": true, "daemon": true, "rootlet": true}
+			menu._open_program_selector()
+		elif OS.get_environment("KP_STORY") != "" and menu.has_method("_open_story_selector"):
+			for story_index in Game.story_stage_count() - 1:
+				Game.story_cleared[Game.story_stage_id(story_index)] = true
+			menu._open_story_selector()
+		elif OS.get_environment("KP_BESTIARY") != "" and menu.has_method("_open_bestiary"):
+			Game.bestiary = {}
+			for bestiary_index in 8:
+				Game.bestiary[BestiaryPanel.ENTRIES[bestiary_index]["id"]] = true
+			Game.bestiary["root"] = true
+			menu._open_bestiary()
+		elif OS.get_environment("KP_SETTINGS") != "" and menu.has_method("_open_settings"):
+			menu._open_settings()
 	else:
 		Game.start_run()
 		await _until(func() -> bool:
