@@ -182,9 +182,11 @@ func _draw() -> void:
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		draw_string(orbitron, origin + Vector2(90.0, 38.0), str(definition.get("name", id.to_upper())), HORIZONTAL_ALIGNMENT_LEFT, card_w - 104.0, 17, Balance.COL_TEXT if unlocked else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
 		draw_string(mono, origin + Vector2(90.0, 60.0), str(definition.get("role", "PROGRAM")), HORIZONTAL_ALIGNMENT_LEFT, card_w - 104.0, 11, Color(true_col.r, true_col.g, true_col.b, 0.8 if unlocked else 0.35))
-		draw_multiline_string(mono, origin + Vector2(16.0, 91.0), str(definition.get("summary", "")), HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 12, 2, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.68 if unlocked else 0.36))
+		var summary_size: int = TacticalUI.fit_block(mono, str(definition.get("summary", "")), card_w - 32.0, 34.0, 12, 10)["font_size"]
+		draw_multiline_string(mono, origin + Vector2(16.0, 91.0), str(definition.get("summary", "")), HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, summary_size, 3, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.68 if unlocked else 0.36))
 		var stat_text := "INTEGRITY  %s\nSPEED      %s\nFIRE       %s\nRANGE      %s\nDASH/CORE  %s" % [definition.get("integrity", "—"), definition.get("speed", "—"), definition.get("fire", "—"), definition.get("range", "—"), definition.get("dash_shield", "—")]
-		draw_multiline_string(mono, origin + Vector2(16.0, 132.0), stat_text, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 11, 5, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.78 if unlocked else 0.42))
+		var stat_size: int = TacticalUI.fit_block(mono, stat_text, card_w - 32.0, 64.0, 11, 9)["font_size"]
+		draw_multiline_string(mono, origin + Vector2(16.0, 132.0), stat_text, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, stat_size, 5, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.78 if unlocked else 0.42))
 		draw_line(origin + Vector2(16.0, card_h - 62.0), origin + Vector2(card_w - 16.0, card_h - 62.0), Color(border.r, border.g, border.b, 0.32), 1.0)
 		draw_multiline_string(mono, origin + Vector2(16.0, card_h - 42.0), _tradeoff(id), HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 10, 2, Color(border.r, border.g, border.b, 0.78 if unlocked else 0.42))
 		var footer := "[ SELECTED ]" if Game.program == id and unlocked else "[ READY ]" if unlocked else "[ LOCKED // UNLOCK IN RUN ]"
@@ -232,3 +234,21 @@ func _draw_silhouette(key: String, c: Color) -> void:
 			draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.3))
 			draw_polyline(pts + PackedVector2Array([pts[0]]), c, 1.8, true)
 			draw_circle(Vector2(4, 0), 4.0, c)
+
+func text_overflow_report() -> Array:
+	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
+	var out: Array = []
+	var longest_summary := ""
+	var longest_stat_line := ""
+	for id in Game.PROGRAM_DEFS:
+		var definition: Dictionary = Game.PROGRAM_DEFS[id]
+		if str(definition.get("summary", "")).length() > longest_summary.length():
+			longest_summary = str(definition.get("summary", ""))
+		for stat_key in ["fire", "dash_shield"]:
+			var line := str(definition.get(stat_key, ""))
+			if line.length() > longest_stat_line.length():
+				longest_stat_line = line
+	var card_w: float = float(_content_metrics().get("card_w", minf(430.0, (size.x - 48.0) * 0.5)))
+	out.append({"id": "program_summary", "fits": TacticalUI.wrapped_height(mono, longest_summary, card_w - 32.0, 12) <= 34.0 or TacticalUI.wrapped_height(mono, longest_summary, card_w - 32.0, 10) <= 34.0})
+	out.append({"id": "program_stats", "fits": mono.get_string_size(longest_stat_line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x <= card_w - 32.0})
+	return out

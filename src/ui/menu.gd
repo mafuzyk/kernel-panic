@@ -432,7 +432,8 @@ func _build_button_row() -> void:
 	_mode_info.offset_left = 24.0
 	_mode_info.offset_right = size.x - 24.0
 	_mode_info.offset_top = 190.0
-	_mode_info.offset_bottom = 214.0
+	_mode_info.offset_bottom = 234.0
+	_mode_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_mode_info.visible = false
 	add_child(_mode_info)
 	_refresh_mode_ui()
@@ -697,6 +698,8 @@ func _refresh_mode_ui() -> void:
 		_:
 			_mode_btn.text = "MODE: CLASSIC"
 			_mode_info.text = "CLASSIC // ENDLESS WAVES // HIGH SCORE %07d" % Game.best
+	if Game.mode == "story":
+		_mode_info.text = "STORY // FIXED DIFFICULTY CURVE // " + _mode_info.text
 	_update_best()
 
 func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
@@ -1504,3 +1507,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("confirm"):
 		_start()
+
+func text_overflow_report() -> Array:
+	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
+	var out: Array = []
+	var longest := ""
+	for text in [
+		"UNIX ACT 1 // CURRENT /kernel // 6/6 STAGES CLEAR",
+		"WEEK W9999 // LOCAL DETERMINISTIC // BEST 0000000 // LAST 0000000",
+		"CLASSIC // ENDLESS WAVES // HIGH SCORE 0000000",
+		"STORY // FIXED DIFFICULTY CURVE // UNIX ACT 1 // CURRENT /kernel // 6/6 STAGES CLEAR",
+	]:
+		if text.length() > longest.length():
+			longest = text
+	var info_width: float = maxf(size.x - 48.0, 0.0)
+	out.append({"id": "mode_info", "fits": TacticalUI.wrapped_height(mono, longest, info_width, 12) <= 44.0})
+	return out

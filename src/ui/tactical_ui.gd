@@ -102,3 +102,11 @@ static func fit_block(font: Font, text: String, width: float, height_cap: float,
 
 static func panel_fill_color(combat: bool) -> Color:
 	return COMBAT_FILL if combat else PANEL
+
+static func ellipsis_fit(font: Font, text: String, max_width: float, font_size: int) -> String:
+	if font == null or font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= max_width:
+		return text
+	var clipped := text
+	while clipped.length() > 1 and font.get_string_size(clipped + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > max_width:
+		clipped = clipped.substr(0, clipped.length() - 1)
+	return clipped + "…"

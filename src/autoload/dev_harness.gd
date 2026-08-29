@@ -418,6 +418,7 @@ func _autotest() -> void:
 	_check(ver_ok, "menu version matches project setting (%s)" % expected_ver)
 	await _story_menu_test(menu_scene)
 	await _menu_shell_test(menu_scene)
+	await _text_overflow_test()
 	await _charm_save_transfer_test(menu_scene)
 	if menu_scene.has_method("_reset_scores"):
 		menu_scene._reset_scores()
@@ -3057,6 +3058,31 @@ func _temple_scene_test() -> void:
 	Game.story_best = saved_best
 	Game.temple_rainbow_unlocked = saved_rainbow
 	_restore_config_section("story", story_disk)
+
+func _text_overflow_test() -> void:
+	print("AT_STEP text_overflow")
+	var surfaces := {
+		"story": "res://src/ui/story_panel.gd",
+		"bestiary": "res://src/ui/bestiary_panel.gd",
+		"program": "res://src/ui/program_panel.gd",
+		"patch_card": "res://src/ui/patch_card.gd",
+		"menu": "res://src/ui/menu.gd",
+		"terminal": "res://src/ui/terminal_panel.gd",
+		"state_surface": "res://src/ui/tactical_state_surface.gd",
+	}
+	for surface_id in surfaces:
+		var script: Script = load(surfaces[surface_id])
+		var panel = script.new() if script != null else null
+		_check(panel != null and panel.has_method("text_overflow_report"), "%s exposes text_overflow_report" % surface_id)
+		if panel == null or not panel.has_method("text_overflow_report"):
+			continue
+		var all_fit := true
+		for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			panel.size = vp
+			for entry in panel.call("text_overflow_report"):
+				all_fit = all_fit and bool(entry.get("fits", false))
+		_check(all_fit, "%s keeps its representative text inside the panel at 1366x768, 720x720, and 432x720" % surface_id)
+		panel.free()
 
 func _charm_save_transfer_test(menu: Node) -> void:
 	print("AT_STEP charm_save_transfer")

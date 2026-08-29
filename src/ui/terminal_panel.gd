@@ -337,3 +337,15 @@ func _make_button(text: String, size: int, color: Color) -> Button:
 	button.add_theme_color_override("font_color", color)
 	button.add_theme_color_override("font_hover_color", Balance.COL_PLAYER_HOT)
 	return button
+
+func text_overflow_report() -> Array:
+	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
+	var out: Array = []
+	var workstation := workstation_rect(Vector2(size.x, size.y))
+	out.append({"id": "workstation_inside_viewport", "fits": Rect2(Vector2.ZERO, Vector2(size.x, size.y)).encloses(workstation)})
+	var longest := ""
+	for line in _initial_output().split("\n"):
+		if line.length() > longest.length():
+			longest = line
+	out.append({"id": "terminal_output_wraps", "fits": TacticalUI.wrapped_height(mono, longest, maxf(workstation.size.x - 48.0, 0.0), 13) > 0.0})
+	return out

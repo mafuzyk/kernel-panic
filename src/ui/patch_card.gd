@@ -84,7 +84,8 @@ func _draw() -> void:
 	draw_string(_mono, Vector2(76.0, 43.0), rarity_label(), HORIZONTAL_ALIGNMENT_RIGHT, size.x - 96.0, 12, accent)
 	draw_string(_orbitron, Vector2(22.0, 94.0), card_title(), HORIZONTAL_ALIGNMENT_LEFT, size.x - 44.0, 21, TacticalUIHelper.TEXT)
 	_draw_icon(Vector2(58.0, 157.0), accent)
-	draw_multiline_string(_mono, Vector2(126.0, 143.0), str(_def.get("desc", "")), HORIZONTAL_ALIGNMENT_LEFT, size.x - 148.0, 13, 3, TacticalUIHelper.TEXT)
+	var desc_size: int = TacticalUI.fit_block(_mono, str(_def.get("desc", "")), size.x - 148.0, 54.0, 13, 10)["font_size"]
+	draw_multiline_string(_mono, Vector2(126.0, 143.0), str(_def.get("desc", "")), HORIZONTAL_ALIGNMENT_LEFT, size.x - 148.0, desc_size, 4, TacticalUIHelper.TEXT)
 	var line_y := size.y - 66.0
 	draw_line(Vector2(20.0, line_y), Vector2(size.x - 20.0, line_y), Color(accent.r, accent.g, accent.b, 0.46), 1.0)
 	var level_text := "LEVEL %d > %d" % [_level, _level + 1] if _level > 0 else "NEW PATCH"
@@ -113,3 +114,13 @@ func _draw_icon(center: Vector2, accent: Color) -> void:
 	else:
 		draw_rect(Rect2(center - Vector2(4.0, 21.0), Vector2(8.0, 42.0)), accent)
 		draw_rect(Rect2(center - Vector2(21.0, 4.0), Vector2(42.0, 8.0)), accent)
+
+func text_overflow_report() -> Array:
+	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
+	var out: Array = []
+	var longest_desc := ""
+	for definition in Game.PATCH_DEFS:
+		if str(definition.get("desc", "")).length() > longest_desc.length():
+			longest_desc = str(definition.get("desc", ""))
+	out.append({"id": "patch_desc", "fits": TacticalUI.wrapped_height(mono, longest_desc, size.x - 148.0, 13) <= 54.0 or TacticalUI.wrapped_height(mono, longest_desc, size.x - 148.0, 10) <= 54.0})
+	return out

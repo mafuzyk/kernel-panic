@@ -173,3 +173,16 @@ func _draw_terminal_sections(panel: Rect2) -> void:
 		var points := TacticalUIHelper.angular_points(section, 9.0)
 		draw_colored_polygon(points, Color(accent.r, accent.g, accent.b, 0.018))
 		draw_polyline(points + PackedVector2Array([points[0]]), Color(accent.r, accent.g, accent.b, 0.58), 1.1, true)
+
+func text_overflow_report() -> Array:
+	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
+	var out: Array = []
+	var panel := panel_rect_for_viewport(Vector2(size.x, size.y), "game_over")
+	var section_width: float = (panel.size.x - 56.0 - 18.0) * 0.5
+	var longest_dump_line := ""
+	for line in "SEGFAULT AT player.hp=0 // state dumped\nKILLER DAEMON // HITS 99".split("\n"):
+		if line.length() > longest_dump_line.length():
+			longest_dump_line = line
+	out.append({"id": "gameover_headings", "fits": mono.get_string_size("RUN SUMMARY", HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x <= section_width - 48.0})
+	out.append({"id": "gameover_dump_line", "fits": mono.get_string_size(longest_dump_line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x <= section_width - 48.0 or TacticalUI.wrapped_height(mono, longest_dump_line, section_width - 48.0, 10) <= 190.0})
+	return out

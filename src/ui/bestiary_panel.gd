@@ -271,9 +271,13 @@ func _draw_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	draw_line(rail.position + Vector2(20.0, 152.0), rail.position + Vector2(rail.size.x - 20.0, 152.0), Color(accent.r, accent.g, accent.b, 0.28), 1.0)
 	draw_string(mono, rail.position + Vector2(20.0, 180.0), "BEHAVIOR", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
-	draw_multiline_string(mono, rail.position + Vector2(20.0, 204.0), "> " + (str(entry["desc"]) if seen else "No field data available. The first sighting will unlock this behavior report."), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 13, 3, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.78 if seen else 0.42))
+	var desc_text := "> " + (str(entry["desc"]) if seen else "No field data available. The first sighting will unlock this behavior report.")
+	var desc_size: int = TacticalUI.fit_block(mono, desc_text, rail.size.x - 40.0, 64.0, 13, 10)["font_size"]
+	draw_multiline_string(mono, rail.position + Vector2(20.0, 204.0), desc_text, HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, desc_size, 5, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.78 if seen else 0.42))
 	draw_string(mono, rail.position + Vector2(20.0, 278.0), "BUG REPORT", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
-	draw_multiline_string(mono, rail.position + Vector2(20.0, 302.0), "> " + (str(entry["bugs"]) if seen else "LOCKED // COMPLETE A SIGHTING TO ACCESS NOTES"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 12, 3, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.64 if seen else 0.36))
+	var bugs_text := "> " + (str(entry["bugs"]) if seen else "LOCKED // COMPLETE A SIGHTING TO ACCESS NOTES")
+	var bugs_size: int = TacticalUI.fit_block(mono, bugs_text, rail.size.x - 40.0, float(rail.size.y) - 316.0, 12, 10)["font_size"]
+	draw_multiline_string(mono, rail.position + Vector2(20.0, 302.0), bugs_text, HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, bugs_size, 6, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.64 if seen else 0.36))
 
 func _draw_glyph(id: String, c: Color) -> void:
 	match id:
@@ -376,3 +380,19 @@ func _draw_color_assist_marker(label: String, c: Color) -> void:
 	draw_circle(center, 10.0, Color(c.r, c.g, c.b, 0.14))
 	draw_arc(center, 10.0, 0.0, TAU, 20, c, 1.2, true)
 	draw_string(ThemeDB.fallback_font, center + Vector2(-18.0, 3.0), label, HORIZONTAL_ALIGNMENT_CENTER, 36.0, 8, c)
+
+func text_overflow_report() -> Array:
+	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
+	var out: Array = []
+	var metrics := _content_metrics()
+	var rail_w: float = size.x - float(metrics.get("list_w", size.x * 0.4)) - 86.0
+	var longest_desc := ""
+	var longest_bugs := ""
+	for entry in ENTRIES:
+		if ("> " + str(entry["desc"])).length() > longest_desc.length():
+			longest_desc = "> " + str(entry["desc"])
+		if ("> " + str(entry["bugs"])).length() > longest_bugs.length():
+			longest_bugs = "> " + str(entry["bugs"])
+	out.append({"id": "bestiary_desc", "fits": TacticalUI.wrapped_height(mono, longest_desc, rail_w - 40.0, 13) <= 64.0 or TacticalUI.wrapped_height(mono, longest_desc, rail_w - 40.0, 10) <= 64.0})
+	out.append({"id": "bestiary_bugs", "fits": TacticalUI.wrapped_height(mono, longest_bugs, rail_w - 40.0, 12) <= maxf(size.y - 258.0 - 58.0, 0.0) or TacticalUI.wrapped_height(mono, longest_bugs, rail_w - 40.0, 10) <= maxf(size.y - 258.0 - 58.0, 0.0)})
+	return out

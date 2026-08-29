@@ -309,7 +309,8 @@ func _draw_stage_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void
 	draw_string(orbitron, rail.position + Vector2(18.0, 54.0), str(stage.get("title", "STORY STAGE")), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 20, TacticalUIHelper.TEXT)
 	var unlocked: bool = Game.story_stage_unlocked(_selected_stage)
 	draw_string(mono, rail.position + Vector2(18.0, 76.0), "STATUS: %s" % ("READY TO MOUNT" if unlocked else "LOCKED // CLEAR PREVIOUS"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, accent if unlocked else TacticalUIHelper.MUTED)
-	draw_multiline_string(mono, rail.position + Vector2(18.0, 108.0), str(stage.get("intro", "")), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 12, 3, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.74))
+	var intro_size: int = TacticalUI.fit_block(mono, str(stage.get("intro", "")), rail.size.x - 36.0, 56.0, 12, 10)["font_size"]
+	draw_multiline_string(mono, rail.position + Vector2(18.0, 108.0), str(stage.get("intro", "")), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, intro_size, 5, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.74))
 	var divider_y := rail.position.y + 164.0
 	draw_line(rail.position + Vector2(18.0, divider_y - rail.position.y), rail.position + Vector2(rail.size.x - 18.0, divider_y - rail.position.y), Color(accent.r, accent.g, accent.b, 0.3), 1.0)
 	draw_string(mono, rail.position + Vector2(18.0, 188.0), "THREATS", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, accent)
@@ -332,5 +333,31 @@ func _draw_stage_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void
 	draw_circle(preview.get_center(), 5.0, accent)
 	draw_string(mono, preview.position + Vector2(12.0, 18.0), "ARENA PREVIEW", HORIZONTAL_ALIGNMENT_LEFT, preview.size.x - 24.0, 9, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.62))
 	var klog: Array = stage.get("klog", [])
+	var klog_x := 18.0 + preview.size.x + 20.0
+	var klog_width := maxf(rail.size.x - klog_x - 18.0, 0.0)
 	for log_i in mini(klog.size(), 2):
-		draw_string(mono, rail.position + Vector2(208.0, 292.0 + float(log_i) * 20.0), "> " + str(klog[log_i]), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 226.0, 10, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.56))
+		var klog_text := "> " + str(klog[log_i])
+		draw_string(mono, rail.position + Vector2(klog_x, 292.0 + float(log_i) * 20.0), TacticalUI.ellipsis_fit(mono, klog_text, klog_width, 10), HORIZONTAL_ALIGNMENT_LEFT, klog_width, 10, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.56))
+
+func text_overflow_report() -> Array:
+	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
+	var orbitron: Font = load("res://assets/fonts/Orbitron.ttf")
+	var out: Array = []
+	var longest_intro := ""
+	var longest_title := ""
+	var longest_klog := ""
+	for stage_index in Game.story_stage_count():
+		var stage: Dictionary = Game.story_stage_def(stage_index)
+		if str(stage.get("intro", "")).length() > longest_intro.length():
+			longest_intro = str(stage.get("intro", ""))
+		if str(stage.get("title", "")).length() > longest_title.length():
+			longest_title = str(stage.get("title", ""))
+		for line in stage.get("klog", []):
+			if ("> " + str(line)).length() > longest_klog.length():
+				longest_klog = "> " + str(line)
+	var rail_w: float = size.x * 0.42 if _is_wide() else size.x
+	out.append({"id": "detail_intro", "fits": TacticalUI.wrapped_height(mono, longest_intro, rail_w - 36.0, 12) <= 56.0 or TacticalUI.wrapped_height(mono, longest_intro, rail_w - 36.0, 10) <= 56.0})
+	out.append({"id": "detail_title", "fits": orbitron.get_string_size(longest_title, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x <= rail_w - 36.0})
+	var klog_width: float = maxf(rail_w - (minf(rail_w - 36.0, 170.0) + 38.0) - 18.0, 0.0)
+	out.append({"id": "klog_lines", "fits": mono.get_string_size(TacticalUI.ellipsis_fit(mono, longest_klog, klog_width, 10), HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x <= klog_width})
+	return out
