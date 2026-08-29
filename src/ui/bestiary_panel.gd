@@ -2,6 +2,7 @@ class_name BestiaryPanel
 extends Control
 
 const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
+const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 
 const ENTRIES := [
 	{"id": "drone", "name": "DRONE", "desc": "basic corrupted process. dash through packs.", "threat": 50, "bugs": "swarms without a scheduler. forever."},
@@ -53,6 +54,11 @@ func _entry_color(id: String) -> Color:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	var chrome: Control = TacticalChromeScript.new()
+	chrome.set_anchors_preset(Control.PRESET_FULL_RECT)
+	chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chrome.call("configure_shell", TacticalUIHelper.CYAN, 0.0)
+	add_child(chrome)
 	if _selected_id == "" and not ENTRIES.is_empty():
 		_selected_id = ENTRIES[0]["id"]
 
@@ -75,7 +81,7 @@ func _is_wide() -> bool:
 
 func _content_metrics() -> Dictionary:
 	if _is_wide():
-		var list_w := minf(460.0, size.x * 0.36)
+		var list_w := minf(430.0, size.x * 0.34)
 		var card_h := 58.0
 		var gap := 8.0
 		var viewport_top := 156.0
@@ -255,15 +261,19 @@ func _draw_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
 	draw_string(mono, rail.position + Vector2(20.0, 26.0), "FIELD ENTRY // %s" % ("LOGGED" if seen else "LOCKED"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, Color(accent.r, accent.g, accent.b, 0.85))
 	draw_string(orbitron, rail.position + Vector2(20.0, 58.0), str(entry["name"]) if seen else "UNKNOWN PROCESS", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 220.0, 23, TacticalUIHelper.TEXT)
 	draw_string(mono, rail.position + Vector2(20.0, 82.0), "%d THREAT POINTS" % int(entry["threat"]) if seen else "PURGE THIS PROCESS TO REVEAL", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 220.0, 11, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.85 if seen else 0.45))
-	var glyph_pos := Vector2(rail.end.x - 94.0, rail.position.y + 74.0)
-	draw_set_transform(glyph_pos, 0.0, Vector2(2.7, 2.7))
+	var points_chip := Rect2(rail.position + Vector2(20.0, 100.0), Vector2(154.0, 36.0))
+	var points_frame := TacticalUIHelper.angular_points(points_chip, 7.0)
+	draw_polyline(points_frame + PackedVector2Array([points_frame[0]]), Color(accent.r, accent.g, accent.b, 0.72), 1.2, true)
+	draw_string(orbitron, points_chip.position + Vector2(14.0, 24.0), "%d PTS" % int(entry["threat"]) if seen else "??? PTS", HORIZONTAL_ALIGNMENT_LEFT, points_chip.size.x - 28.0, 15, accent)
+	var glyph_pos := Vector2(rail.end.x - 118.0, rail.position.y + 120.0)
+	draw_set_transform(glyph_pos, 0.0, Vector2(3.5, 3.5))
 	_draw_glyph(id, Color(accent.r, accent.g, accent.b, 0.9 if seen else 0.2))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	draw_line(rail.position + Vector2(20.0, 104.0), rail.position + Vector2(rail.size.x - 20.0, 104.0), Color(accent.r, accent.g, accent.b, 0.28), 1.0)
-	draw_string(mono, rail.position + Vector2(20.0, 132.0), "BEHAVIOR", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
-	draw_multiline_string(mono, rail.position + Vector2(20.0, 156.0), str(entry["desc"]) if seen else "No field data available. The first sighting will unlock this behavior report.", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 13, 3, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.78 if seen else 0.42))
-	draw_string(mono, rail.position + Vector2(20.0, 218.0), "BUG REPORT", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
-	draw_multiline_string(mono, rail.position + Vector2(20.0, 242.0), str(entry["bugs"]) if seen else "LOCKED // COMPLETE A SIGHTING TO ACCESS NOTES", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 12, 3, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.64 if seen else 0.36))
+	draw_line(rail.position + Vector2(20.0, 152.0), rail.position + Vector2(rail.size.x - 20.0, 152.0), Color(accent.r, accent.g, accent.b, 0.28), 1.0)
+	draw_string(mono, rail.position + Vector2(20.0, 180.0), "BEHAVIOR", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
+	draw_multiline_string(mono, rail.position + Vector2(20.0, 204.0), "> " + (str(entry["desc"]) if seen else "No field data available. The first sighting will unlock this behavior report."), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 13, 3, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.78 if seen else 0.42))
+	draw_string(mono, rail.position + Vector2(20.0, 278.0), "BUG REPORT", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
+	draw_multiline_string(mono, rail.position + Vector2(20.0, 302.0), "> " + (str(entry["bugs"]) if seen else "LOCKED // COMPLETE A SIGHTING TO ACCESS NOTES"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 12, 3, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.64 if seen else 0.36))
 
 func _draw_glyph(id: String, c: Color) -> void:
 	match id:

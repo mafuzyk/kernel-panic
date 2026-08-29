@@ -2,6 +2,7 @@ class_name StoryPanel
 extends Control
 
 const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
+const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 
 signal stage_selected(index: int)
 
@@ -17,6 +18,11 @@ var _act_filter := "unix"
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	var chrome: Control = TacticalChromeScript.new()
+	chrome.set_anchors_preset(Control.PRESET_FULL_RECT)
+	chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chrome.call("configure_shell", TacticalUIHelper.CYAN, 0.0)
+	add_child(chrome)
 
 func available_stage_indices() -> Array:
 	var result: Array = []
@@ -58,10 +64,10 @@ func _columns() -> int:
 
 func _content_metrics() -> Dictionary:
 	if _is_wide():
-		var route_w := size.x * 0.62
-		var gap := 14.0
-		var cols := 3
-		var card_h := 122.0
+		var route_w := size.x * 0.42
+		var gap := 10.0
+		var cols := 6
+		var card_h := 250.0
 		var card_w: float = (route_w - 48.0 - gap * float(cols - 1)) / float(cols)
 		var visible_count := _visible_stage_indices().size()
 		var rows := ceili(float(maxi(visible_count, 1)) / float(cols))
@@ -199,7 +205,7 @@ func _draw() -> void:
 	if _is_wide():
 		var tab_x := 28.0
 		var tab_y := 154.0
-		var tab_w := minf(196.0, (size.x - 56.0) / 3.0)
+		var tab_w := (float(metrics["route_w"]) - 20.0) / 3.0
 		for act_id in ["unix", "windows", "templeos"]:
 			var tab := Rect2(tab_x, tab_y, tab_w, 34.0)
 			_tab_rects[act_id] = tab
@@ -247,19 +253,24 @@ func _draw() -> void:
 		if selected:
 			var selected_points := TacticalUIHelper.angular_points(rect.grow(-4.0), 7.0)
 			draw_polyline(selected_points + PackedVector2Array([selected_points[0]]), Color(border.r, border.g, border.b, 0.48), 1.0, true)
-		draw_circle(origin + Vector2(42.0, 43.0), 18.0, Color(border.r, border.g, border.b, 0.12))
-		draw_arc(origin + Vector2(42.0, 43.0), 18.0, 0.0, TAU, 20, border, 1.4, true)
-		draw_string(mono, origin + Vector2(31.0, 48.0), "%02d" % (stage_index + 1), HORIZONTAL_ALIGNMENT_LEFT, 24.0, 13, border)
 		var name_text := str(stage.get("path", "")) if unlocked else "LOCKED"
-		draw_string(orbitron, origin + Vector2(76.0, 36.0), name_text, HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 18, Balance.COL_TEXT if unlocked else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.42))
-		draw_string(mono, origin + Vector2(76.0, 59.0), str(stage.get("title", "STORY STAGE")) if unlocked else "CLEAR THE PREVIOUS STAGE", HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 11, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.35))
 		var waves: int = stage.get("waves", []).size()
 		if _is_wide():
-			var body := str(stage.get("intro", "")) if unlocked else "This process is not mounted yet."
-			draw_multiline_string(mono, origin + Vector2(76.0, 80.0), body, HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 10, 1, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.66 if unlocked else 0.32))
-			var footer := "%d WAVES // %s" % [waves, "READY" if unlocked else "LOCKED"]
-			draw_string(mono, origin + Vector2(76.0, card_h - 14.0), footer, HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 10, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.45))
+			draw_circle(origin + Vector2(card_w * 0.5, 42.0), 18.0, Color(border.r, border.g, border.b, 0.12))
+			draw_arc(origin + Vector2(card_w * 0.5, 42.0), 18.0, 0.0, TAU, 20, border, 1.4, true)
+			draw_string(mono, origin + Vector2(0.0, 47.0), "%02d" % (stage_index + 1), HORIZONTAL_ALIGNMENT_CENTER, card_w, 13, border)
+			draw_string(orbitron, origin + Vector2(6.0, 82.0), name_text, HORIZONTAL_ALIGNMENT_CENTER, card_w - 12.0, 14, Balance.COL_TEXT if unlocked else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.42))
+			draw_string(mono, origin + Vector2(6.0, 98.0), str(stage.get("title", "STORY STAGE")) if unlocked else "LOCKED", HORIZONTAL_ALIGNMENT_CENTER, card_w - 12.0, 9, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.35))
+			var body := str(stage.get("intro", "")) if unlocked else "NOT MOUNTED"
+			draw_multiline_string(mono, origin + Vector2(8.0, 105.0), body, HORIZONTAL_ALIGNMENT_CENTER, card_w - 16.0, 9, 4, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.66 if unlocked else 0.32))
+			var footer := "%d WAVES" % waves if unlocked else "LOCKED"
+			draw_string(mono, origin + Vector2(8.0, card_h - 18.0), footer, HORIZONTAL_ALIGNMENT_CENTER, card_w - 16.0, 9, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.45))
 		else:
+			draw_circle(origin + Vector2(42.0, 43.0), 18.0, Color(border.r, border.g, border.b, 0.12))
+			draw_arc(origin + Vector2(42.0, 43.0), 18.0, 0.0, TAU, 20, border, 1.4, true)
+			draw_string(mono, origin + Vector2(31.0, 48.0), "%02d" % (stage_index + 1), HORIZONTAL_ALIGNMENT_LEFT, 24.0, 13, border)
+			draw_string(orbitron, origin + Vector2(76.0, 36.0), name_text, HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 18, Balance.COL_TEXT if unlocked else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.42))
+			draw_string(mono, origin + Vector2(76.0, 59.0), str(stage.get("title", "STORY STAGE")) if unlocked else "CLEAR THE PREVIOUS STAGE", HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 11, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.35))
 			var body := str(stage.get("intro", "")) if unlocked else "This process is not mounted yet."
 			draw_multiline_string(mono, origin + Vector2(16.0, 93.0), body, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 12, 2, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.68 if unlocked else 0.32))
 			var footer := "%d FIXED WAVES // READY" % waves if unlocked else "[ LOCKED ]"
@@ -276,6 +287,15 @@ func _draw() -> void:
 		draw_rect(track, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.12))
 		draw_rect(Rect2(track.position.x, thumb_y, track.size.x, thumb_h), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.75))
 		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
+	if _is_wide():
+		var footer: Rect2 = TacticalUIHelper.shell_sections(size)["footer"]
+		var mount := Rect2(Vector2(size.x * 0.50, footer.position.y), Vector2(size.x * 0.46, footer.size.y - 4.0))
+		var mount_points := TacticalUIHelper.angular_points(mount, 9.0)
+		var mount_accent := _stage_color(_selected_stage)
+		draw_colored_polygon(mount_points, Color(mount_accent.r, mount_accent.g, mount_accent.b, 0.08))
+		draw_polyline(mount_points + PackedVector2Array([mount_points[0]]), mount_accent, 1.7, true)
+		draw_string(orbitron, mount.position + Vector2(20.0, 30.0), "MOUNT %s" % str(Game.story_stage_def(_selected_stage).get("path", "/boot")), HORIZONTAL_ALIGNMENT_LEFT, mount.size.x - 110.0, 16, mount_accent)
+		draw_string(mono, mount.position + Vector2(mount.size.x - 76.0, 30.0), "[ENTER]", HORIZONTAL_ALIGNMENT_RIGHT, 62.0, 10, TacticalUIHelper.TEXT)
 
 func _draw_stage_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
 	var route_w: float = metrics["route_w"]

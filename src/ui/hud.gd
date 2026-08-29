@@ -389,6 +389,15 @@ func _draw_angular_panel(rect: Rect2, color: Color, fill_alpha: float = 0.08) ->
 func _draw_tactical_shell(f: Font) -> void:
 	var layout := layout_snapshot()
 	var compact := bool(layout["compact"])
+	var outer := TacticalUIHelper.shell_rect(size)
+	var outer_points := TacticalUIHelper.angular_points(outer, 14.0)
+	draw_polyline(outer_points + PackedVector2Array([outer_points[0]]), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.68), 1.25, true)
+	draw_line(outer.position + Vector2(26.0, 7.0), outer.position + Vector2(170.0, 7.0), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.52), 1.0)
+	draw_line(Vector2(outer.end.x - 170.0, outer.position.y + 7.0), Vector2(outer.end.x - 26.0, outer.position.y + 7.0), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.52), 1.0)
+	draw_line(outer.position + Vector2(26.0, -7.0 + outer.size.y), outer.position + Vector2(170.0, outer.size.y - 7.0), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.52), 1.0)
+	draw_line(Vector2(outer.end.x - 170.0, outer.end.y - 7.0), outer.end - Vector2(26.0, 7.0), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.52), 1.0)
+	for corner in [Vector2(outer.position.x + 28.0, outer.position.y + 14.0), Vector2(outer.end.x - 28.0, outer.position.y + 14.0), Vector2(outer.position.x + 28.0, outer.end.y - 14.0), Vector2(outer.end.x - 28.0, outer.end.y - 14.0)]:
+		draw_circle(corner, 2.0, Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.82))
 	var integrity_rect: Rect2 = layout["integrity"]
 	var encounter_rect: Rect2 = layout["encounter"]
 	var score_rect: Rect2 = layout["score"]
@@ -477,8 +486,9 @@ func _patch_chips(f: Font) -> void:
 		var lvl := int(Game.patch_levels[id])
 		var txt := "%s%d" % [code, lvl]
 		var chip_rect: Rect2 = _patch_chip_rects[id]
-		draw_rect(chip_rect, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.10))
-		draw_rect(chip_rect, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.35), false, 1.0)
+		var chip_points := TacticalUIHelper.angular_points(chip_rect, minf(4.0, chip_rect.size.y * 0.25))
+		draw_colored_polygon(chip_points, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.10))
+		draw_polyline(chip_points + PackedVector2Array([chip_points[0]]), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.35), 1.0, true)
 		draw_string(f, chip_rect.position + Vector2(0.0, chip_rect.size.y * 0.68), txt, HORIZONTAL_ALIGNMENT_CENTER, chip_rect.size.x, 10, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.82))
 
 func _update_patch_chip_rects() -> void:

@@ -51,3 +51,21 @@ static func layout(viewport: Vector2) -> Dictionary:
 		"patches": Rect2(viewport.x - side - minf(330.0, viewport.x * 0.48), bottom - 76.0, minf(330.0, viewport.x * 0.48), 76.0),
 		"boss": Rect2((viewport.x - center_w) * 0.5, boss_y, center_w, 64.0),
 	}
+
+static func shell_rect(viewport: Vector2) -> Rect2:
+	var compact := viewport.x < 760.0
+	var side := 8.0 if compact else 16.0
+	var top := 12.0 if compact else 20.0
+	return Rect2(side, top, maxf(viewport.x - side * 2.0, 0.0), maxf(viewport.y - top * 2.0, 0.0))
+
+static func shell_sections(viewport: Vector2) -> Dictionary:
+	var shell := shell_rect(viewport)
+	var compact := viewport.x < 760.0
+	var header_h := 48.0 if compact else 68.0
+	var footer_h := 42.0 if compact else 58.0
+	var inset := 8.0 if compact else 10.0
+	return {
+		"header": Rect2(shell.position + Vector2(inset, inset), Vector2(maxf(shell.size.x - inset * 2.0, 0.0), header_h)),
+		"content": Rect2(shell.position + Vector2(inset, header_h + inset), Vector2(maxf(shell.size.x - inset * 2.0, 0.0), maxf(shell.size.y - header_h - footer_h - inset * 2.0, 0.0))),
+		"footer": Rect2(shell.position + Vector2(inset, shell.size.y - footer_h), Vector2(maxf(shell.size.x - inset * 2.0, 0.0), footer_h - inset)),
+	}

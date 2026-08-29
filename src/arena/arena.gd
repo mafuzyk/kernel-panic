@@ -3,6 +3,7 @@ extends Node2D
 
 const PatchCard = preload("res://src/ui/patch_card.gd")
 const TacticalStateSurfaceHelper = preload("res://src/ui/tactical_state_surface.gd")
+const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 
 var player: Player
 var cam: CameraRig
@@ -394,10 +395,10 @@ func _build_pause_panel() -> void:
 	var b_menu := _make_button("ABANDON PROCESS", 500)
 	b_menu.pressed.connect(_request_abandon_confirmation)
 	_pause_panel.add_child(b_menu)
-	_pause_panel.add_child(_make_volume_row("SFX", Sfx.sfx_vol, 432.0, func(v: float) -> void:
+	_pause_panel.add_child(_make_volume_row("SFX", Sfx.sfx_vol, 426.0, func(v: float) -> void:
 		Sfx.set_sfx_vol(v)
 	))
-	_pause_panel.add_child(_make_volume_row("MUSIC", Sfx.music_vol, 470.0, func(v: float) -> void:
+	_pause_panel.add_child(_make_volume_row("MUSIC", Sfx.music_vol, 464.0, func(v: float) -> void:
 		Sfx.set_music_vol(v)
 	))
 
@@ -444,6 +445,14 @@ func _make_volume_row(label_text: String, value: float, y: float, on_change: Cal
 	l.add_theme_font_size_override("font_size", 15)
 	l.add_theme_color_override("font_color", Balance.COL_TEXT)
 	row.add_child(l)
+	var value_label := Label.new()
+	value_label.text = "%d%%" % int(round(value * 100.0))
+	value_label.custom_minimum_size = Vector2(42, 0)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value_label.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	value_label.add_theme_font_size_override("font_size", 13)
+	value_label.add_theme_color_override("font_color", Balance.COL_TEXT)
+	row.add_child(value_label)
 	var s := HSlider.new()
 	s.min_value = 0.0
 	s.max_value = 1.0
@@ -453,7 +462,10 @@ func _make_volume_row(label_text: String, value: float, y: float, on_change: Cal
 	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	s.modulate = Color(0.55, 0.9, 1.0)
-	s.value_changed.connect(on_change)
+	s.value_changed.connect(func(next_value: float) -> void:
+		value_label.text = "%d%%" % int(round(next_value * 100.0))
+		on_change.call(next_value)
+	)
 	row.add_child(s)
 	return row
 
@@ -519,17 +531,17 @@ func _make_button(txt: String, y: float) -> Button:
 	b.add_theme_color_override("font_focus_color", Balance.COL_TEXT)
 	var accent := Balance.COL_DANGER if txt.contains("ABANDON") else Balance.COL_PLAYER
 	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(accent.r, accent.g, accent.b, 0.035)
-	normal.border_color = Color(accent.r, accent.g, accent.b, 0.72)
-	normal.set_border_width_all(1)
+	normal.bg_color = Color(accent.r, accent.g, accent.b, 0.0)
+	normal.border_color = Color(accent.r, accent.g, accent.b, 0.0)
+	normal.set_border_width_all(0)
 	normal.set_corner_radius_all(0)
 	normal.content_margin_left = 18.0
 	normal.content_margin_right = 18.0
 	b.add_theme_stylebox_override("normal", normal)
 	var hover := normal.duplicate()
-	hover.bg_color = Color(accent.r, accent.g, accent.b, 0.14)
-	hover.border_color = accent
-	hover.set_border_width_all(2)
+	hover.bg_color = Color(accent.r, accent.g, accent.b, 0.08)
+	hover.border_color = Color(accent.r, accent.g, accent.b, 0.0)
+	hover.set_border_width_all(0)
 	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", hover)
 	b.anchor_left = 0.5
@@ -538,6 +550,12 @@ func _make_button(txt: String, y: float) -> Button:
 	b.offset_right = 230.0
 	_center_panel_control(b, y, 40.0)
 	b.mouse_filter = Control.MOUSE_FILTER_STOP
+	var frame: Control = TacticalChromeScript.new()
+	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.z_index = 1
+	b.add_child(frame)
+	frame.call("configure_control", accent, 0.025)
 	return b
 
 func _position_game_over_button(button: Button, right_side: bool) -> void:

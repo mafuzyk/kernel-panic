@@ -2,6 +2,7 @@ class_name ProgramPanel
 extends Control
 
 const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
+const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 
 signal selection_changed(id: String)
 
@@ -14,6 +15,11 @@ var _card_rects: Dictionary = {}
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	var chrome: Control = TacticalChromeScript.new()
+	chrome.set_anchors_preset(Control.PRESET_FULL_RECT)
+	chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chrome.call("configure_shell", TacticalUIHelper.CYAN, 0.0)
+	add_child(chrome)
 
 func available_program_ids() -> Array:
 	var ids: Array = []
@@ -40,13 +46,13 @@ func _columns() -> int:
 
 func _content_metrics() -> Dictionary:
 	var cols := _columns()
-	var gap := 18.0
-	var card_h := 300.0
-	var card_w: float = minf(390.0, (size.x - 48.0 - gap * float(cols - 1)) / float(cols))
+	var gap := 22.0 if size.x >= 1080.0 else 18.0
+	var card_h := 440.0 if size.x >= 1080.0 else 300.0
+	var card_w: float = (size.x - 112.0 - gap * float(cols - 1)) / float(cols) if size.x >= 1080.0 else minf(390.0, (size.x - 48.0 - gap * float(cols - 1)) / float(cols))
 	var rows := ceili(float(Game.PROGRAM_DEFS.size()) / float(cols))
 	var content_h: float = rows * card_h + maxf(rows - 1, 0) * gap
-	var viewport_top := 140.0
-	var viewport_bottom: float = maxf(size.y - 130.0, viewport_top)
+	var viewport_top := 150.0
+	var viewport_bottom: float = maxf(size.y - 132.0, viewport_top + card_h)
 	var viewport_h: float = viewport_bottom - viewport_top
 	return {"cols": cols, "gap": gap, "card_h": card_h, "card_w": card_w, "rows": rows, "content_h": content_h, "viewport_top": viewport_top, "viewport_bottom": viewport_bottom, "viewport_h": viewport_h}
 
@@ -194,7 +200,19 @@ func _draw() -> void:
 		draw_rect(track, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.12))
 		draw_rect(Rect2(track.position.x, thumb_y, track.size.x, thumb_h), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.75))
 		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
-	draw_string(mono, Vector2(40.0, size.y - 94.0), "COMPARISON // INTEGRITY  SPEED  FIRE  RANGE  CORE", HORIZONTAL_ALIGNMENT_LEFT, minf(size.x - 80.0, 520.0), 10, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
+	var footer: Rect2 = TacticalUIHelper.shell_sections(size)["footer"]
+	var legend := Rect2(footer.position, Vector2(maxf(size.x * 0.66, 360.0), footer.size.y - 4.0))
+	var legend_points := TacticalUIHelper.angular_points(legend, 8.0)
+	draw_colored_polygon(legend_points, Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.025))
+	draw_polyline(legend_points + PackedVector2Array([legend_points[0]]), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.58), 1.0, true)
+	draw_string(mono, legend.position + Vector2(14.0, 20.0), "COMPARISON", HORIZONTAL_ALIGNMENT_LEFT, 112.0, 10, TacticalUIHelper.CYAN)
+	draw_string(mono, legend.position + Vector2(14.0, 36.0), "INTEGRITY   SPEED   FIRE   RANGE   CORE", HORIZONTAL_ALIGNMENT_LEFT, legend.size.x - 28.0, 10, TacticalUIHelper.MUTED)
+	var boot := Rect2(Vector2(legend.end.x + 14.0, footer.position.y), Vector2(maxf(size.x - legend.end.x - 30.0, 220.0), footer.size.y - 4.0))
+	var boot_points := TacticalUIHelper.angular_points(boot, 9.0)
+	draw_colored_polygon(boot_points, Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.08))
+	draw_polyline(boot_points + PackedVector2Array([boot_points[0]]), TacticalUIHelper.CYAN, 1.7, true)
+	draw_string(orbitron, boot.position + Vector2(22.0, 30.0), ">> BOOT KERNEL", HORIZONTAL_ALIGNMENT_LEFT, boot.size.x - 100.0, 16, TacticalUIHelper.CYAN)
+	draw_string(mono, boot.position + Vector2(boot.size.x - 74.0, 30.0), "[ENTER]", HORIZONTAL_ALIGNMENT_RIGHT, 62.0, 10, TacticalUIHelper.TEXT)
 
 func _draw_silhouette(key: String, c: Color) -> void:
 	match key:

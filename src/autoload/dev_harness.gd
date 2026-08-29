@@ -1217,6 +1217,29 @@ func _task9_test(arena: Arena) -> void:
 		_check(angular.size() == 8 and angular[0] == Vector2(20, 20), "angular frame returns stable clipped corners")
 		var segments: Array[Rect2] = tactical_script.segment_rects(Rect2(0, 0, 100, 10), 5, 2.0)
 		_check(segments.size() == 5 and segments[4].end.x <= 100.01, "segmented meter geometry stays inside bounds")
+		_check(tactical_script.has_method("shell_rect") and tactical_script.has_method("shell_sections"), "tactical shell exposes shared frame geometry")
+		if tactical_script.has_method("shell_rect") and tactical_script.has_method("shell_sections"):
+			var shell: Rect2 = tactical_script.shell_rect(Vector2(1366, 768))
+			var shell_bounds := Rect2(Vector2.ZERO, Vector2(1366, 768))
+			_check(shell == Rect2(16.0, 20.0, 1334.0, 728.0), "desktop shell uses the reference inset")
+			var sections: Dictionary = tactical_script.shell_sections(Vector2(1366, 768))
+			_check(sections.has("header") and sections.has("content") and sections.has("footer"), "tactical shell exposes header content and footer sections")
+			for section_id in ["header", "content", "footer"]:
+				_check(shell.encloses(sections[section_id]) and shell_bounds.encloses(sections[section_id]), "shell %s stays inside viewport" % section_id)
+	var chrome_script: Script = load("res://src/ui/tactical_chrome.gd")
+	_check(chrome_script != null, "tactical chrome script loads")
+	if chrome_script != null:
+		var chrome: Control = chrome_script.new()
+		chrome.size = Vector2(1366, 768)
+		_check(chrome.has_method("frame_points") and chrome.frame_points().size() == 8, "tactical chrome exposes clipped frame points")
+		_check(chrome.has_method("configure_control"), "tactical chrome adapts to button bounds")
+		if chrome.has_method("configure_control"):
+			var button_chrome: Control = chrome_script.new()
+			button_chrome.size = Vector2(460, 42)
+			button_chrome.call("configure_control", Color(0.1, 0.85, 1.0, 1.0), 0.02)
+			_check(button_chrome.frame_rect() == Rect2(Vector2.ZERO, Vector2(460, 42)), "button chrome follows control bounds")
+			button_chrome.queue_free()
+		chrome.queue_free()
 	var hud: Hud = arena.hud
 	var hud_layout_ready := hud.has_method("layout_snapshot") and hud.has_method("visible_event_lines") and hud.has_method("event_log_visible")
 	_check(hud_layout_ready, "HUD exposes tactical layout and event log APIs")
@@ -2723,11 +2746,42 @@ func _menu_shell_test(menu: Node) -> void:
 		_check(not str(main_snapshot.get("mode_explanation", "")).strip_edges().is_empty(), "main shell exposes mode explanation")
 		var routes: Array = main_snapshot.get("routes", [])
 		_check(routes.has("PROGRAM") and routes.has("STORY") and routes.has("BESTIARY"), "main shell exposes program story and bestiary routes")
+		_check(main_snapshot.has("shell_rect") and main_snapshot.has("footer_rect"), "main shell exposes shared frame and footer geometry")
+		_check(main_snapshot.has("score_rect") and main_snapshot.has("primary_rect"), "main shell exposes score and primary action geometry")
+		if main_snapshot.has("shell_rect") and main_snapshot.has("footer_rect"):
+			var main_shell: Rect2 = main_snapshot["shell_rect"]
+			_check(main_shell.encloses(main_snapshot["footer_rect"]), "main footer stays inside shared frame")
+		if main_snapshot.has("score_rect") and main_snapshot.has("primary_rect"):
+			_check(not Rect2(main_snapshot["score_rect"]).intersects(Rect2(main_snapshot["primary_rect"])), "main score clears the primary action")
 	if menu.has_method("settings_shell_snapshot"):
 		var settings_snapshot: Dictionary = menu.settings_shell_snapshot()
 		var groups: Array = settings_snapshot.get("groups", [])
 		_check(groups.has("AUDIO") and groups.has("CONTROL") and groups.has("DISPLAY") and groups.has("SAVE TRANSFER"), "settings shell exposes aligned option groups")
 		_check(bool(settings_snapshot.get("scrollable", false)), "settings shell remains scrollable")
+		_check(settings_snapshot.has("shell_rect") and settings_snapshot.has("navigation_rect") and settings_snapshot.has("content_rect") and settings_snapshot.has("footer_rect"), "settings shell exposes workstation geometry")
+		if settings_snapshot.has("shell_rect") and settings_snapshot.has("navigation_rect") and settings_snapshot.has("content_rect") and settings_snapshot.has("footer_rect"):
+			var settings_shell: Rect2 = settings_snapshot["shell_rect"]
+			_check(settings_shell.encloses(settings_snapshot["navigation_rect"]) and settings_shell.encloses(settings_snapshot["content_rect"]) and settings_shell.encloses(settings_snapshot["footer_rect"]), "settings workstation stays inside shared frame")
+			_check(settings_snapshot["navigation_rect"].position.x < settings_snapshot["content_rect"].position.x, "settings navigation rail precedes content canvas")
+		if menu.has_method("_open_settings"):
+			menu._open_settings()
+			await _ticks(1)
+			var settings_scroll_nodes := menu.find_children("SettingsScroll", "ScrollContainer", true, false)
+			_check(not settings_scroll_nodes.is_empty(), "settings workstation exposes its content scroll")
+			if not settings_scroll_nodes.is_empty():
+				var settings_scroll: ScrollContainer = settings_scroll_nodes[0]
+				_check(settings_scroll.anchor_left == 0.0 and settings_scroll.anchor_right == 0.0 and settings_scroll.anchor_top == 0.0 and settings_scroll.anchor_bottom == 0.0, "settings scroll uses absolute workstation coordinates")
+			menu._close_settings()
+	var tactical_surface_script: Script = load("res://src/ui/tactical_state_surface.gd")
+	_check(tactical_surface_script != null and tactical_surface_script.has_method("pause_section_rects"), "pause surface exposes separated volume and warning geometry")
+	if tactical_surface_script != null and tactical_surface_script.has_method("pause_section_rects"):
+		for viewport_size in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			var pause_sections: Dictionary = tactical_surface_script.pause_section_rects(viewport_size)
+			var pause_panel: Rect2 = tactical_surface_script.panel_rect_for_viewport(viewport_size, "pause")
+			var volume_rect: Rect2 = pause_sections["volume"]
+			var warning_rect: Rect2 = pause_sections["warning"]
+			_check(pause_panel.encloses(volume_rect) and pause_panel.encloses(warning_rect), "pause sections stay inside panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			_check(not volume_rect.intersects(warning_rect), "pause volume and abandon warning keep a visible gap at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 
 func _story_scene_test() -> void:
 	print("AT_STEP story_scene")
