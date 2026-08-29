@@ -1,7 +1,7 @@
 # Maintainer: mafuzyk
 pkgname=kernel-panic-bin
 pkgver=2.4.7
-pkgrel=1
+pkgrel=2
 pkgdesc='Neon arena shooter about keeping one stubborn process alive'
 arch=('x86_64')
 url='https://github.com/mafuzyk/kernel-panic'
@@ -13,8 +13,8 @@ provides=('kernel-panic')
 conflicts=('kernel-panic' 'kernel-panic-git')
 source=(
   'kernel-panic.desktop'
-  'LICENSE::https://raw.githubusercontent.com/mafuzyk/kernel-panic/v${pkgver}/LICENSE'
-  'launcher.png::https://raw.githubusercontent.com/mafuzyk/kernel-panic/v${pkgver}/assets/icons/launcher.png'
+  "LICENSE::https://raw.githubusercontent.com/mafuzyk/kernel-panic/v${pkgver}/LICENSE"
+  "launcher.png::https://raw.githubusercontent.com/mafuzyk/kernel-panic/v${pkgver}/assets/icons/launcher.png"
 )
 source_x86_64=(
   "kernel-panic::https://github.com/mafuzyk/kernel-panic/releases/download/v${pkgver}/kernel-panic"
