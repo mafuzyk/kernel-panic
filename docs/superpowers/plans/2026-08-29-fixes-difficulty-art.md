@@ -518,7 +518,7 @@ Interfaces:
 - Consumes: `arena.gd` `_era_color` sites — `_apply_story_theme()` (line ~773), `_on_wave_started()` endless branch (line ~842), `_process()` TempleOS/rainbow block (lines 1528-1534); `hud.gd` static `TacticalUIHelper.CYAN` draw references.
 - Produces: `Hud.set_era_accent(color)` / `Hud.era_accent()`; default stays `TacticalUI.CYAN`.
 
-- [ ] Step 1: Write the failing harness regression
+- [x] Step 1: Write the failing harness regression
 
 In `src/autoload/dev_harness.gd`, directly after the `await _hud_style_test(arena2)` line added in Task 2, add:
 
@@ -551,7 +551,7 @@ func _era_accent_test(arena: Arena) -> void:
 	hud_ref.call("set_era_accent", TacticalUI.CYAN)
 ~~~
 
-- [ ] Step 2: Run the test to verify it fails
+- [x] Step 2: Run the test to verify it fails
 
 Run:
 
@@ -561,7 +561,7 @@ godot --headless --path . -- --autotest
 
 Expected: AT_FAIL `hud exposes era accent controls`. No parse error.
 
-- [ ] Step 3: Add the accent to hud.gd
+- [x] Step 3: Add the accent to hud.gd
 
 3a. In `src/ui/hud.gd`, after the line `var _dash_icon: Control` (line ~47), add:
 
@@ -646,7 +646,7 @@ with:
 		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, _era_accent)
 ~~~
 
-- [ ] Step 4: Push the accent from arena.gd at all three era sites
+- [x] Step 4: Push the accent from arena.gd at all three era sites
 
 4a. In `_apply_story_theme()`, directly after `_era_color = accent` (line ~773), add:
 
@@ -671,7 +671,7 @@ with:
 
 The rainbow hue is derived from `Game.stats.get("time", 0.0)` (cosmetic time) — it never touches `Game.rng`.
 
-- [ ] Step 5: Run the full suite
+- [x] Step 5: Run the full suite
 
 Run:
 
@@ -681,7 +681,7 @@ godot --headless --path . -- --autotest
 
 Expected: `AUTOTEST_ALL_PASS` and zero `AT_FAIL`. Endless modes that resolve to CYAN look unchanged.
 
-- [ ] Step 6: Commit
+- [x] Step 6: Commit
 
 ~~~sh
 git add src/ui/hud.gd src/arena/arena.gd src/autoload/dev_harness.gd
