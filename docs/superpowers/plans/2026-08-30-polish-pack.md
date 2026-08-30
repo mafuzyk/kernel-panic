@@ -2202,7 +2202,7 @@ Interfaces:
 
 Frozen by this task (must NOT be edited): `_card_rects`, `_tab_rects`, `_gui_input`, `_content_metrics`, scroll mechanics, stage data, and the connector-line loop. Containment checks (wide + narrow) must stay green.
 
-- [ ] **Step 1: Write the failing harness check**
+- [x] **Step 1: Write the failing harness check**
 
 In `src/autoload/harness/sections_polish.gd`, append at the end of the class:
 
@@ -2240,7 +2240,7 @@ In `src/autoload/dev_harness.gd`, directly below the `await _sec_polish._bestiar
 	await _sec_polish._story_path_test()
 ~~~
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -2250,7 +2250,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_FAILED` with AT_FAIL `story rail draws node brackets` (and the state-glyph/label failures). No parse errors.
 
-- [ ] **Step 3: State + drawing helpers in story_panel.gd**
+- [x] **Step 3: State + drawing helpers in story_panel.gd**
 
 3a. Directly above `func _draw()`, add:
 
@@ -2348,7 +2348,7 @@ with:
 	out.append({"id": "story_state_labels", "fits": mono.get_string_size("CLEARED", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0 and mono.get_string_size("CURRENT", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0 and mono.get_string_size("LOCKED", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0})
 ~~~
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run:
 
@@ -2358,7 +2358,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_ALL_PASS`, zero `AT_FAIL`. New AT_STEP label `story_path`. All pre-existing story checks (selection, containment, scroll via `_card_rects`) stay green because only the draw pass changed.
 
-- [ ] **Step 5: Capture vs the approved mock (never committed)**
+- [x] **Step 5: Capture vs the approved mock (never committed)**
 
 ~~~sh
 KP_SHOT=menu KP_STORY=1 KP_SHOT_OUT=/tmp/opencode/story_rail_1366.png godot --path . --resolution 1366x768
@@ -2366,7 +2366,7 @@ KP_SHOT=menu KP_STORY=1 KP_SHOT_OUT=/tmp/opencode/story_rail_1366.png godot --pa
 
 Expected: `SHOT_SAVED`; wide rail shows bracketed nodes with CLEARED / CURRENT / LOCKED rings + labels matching mock `/home/mafu/.codex/generated_images/01a044e4-d316-7ef2-85d8-9aa85056ea3a/exec-e6d82072-a577-4578-876d-1a5e9bb5ba8a.png`; tapping and scrolling still select stages (hit rects untouched).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ~~~sh
 git add src/ui/story_panel.gd src/autoload/dev_harness.gd src/autoload/harness/sections_polish.gd
