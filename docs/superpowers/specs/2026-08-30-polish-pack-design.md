@@ -135,6 +135,7 @@ Unchanged by design: `src/player/`, `src/enemies/`, `src/arena/`, gameplay const
 - Teardown: profile → free offenders → recorded leak baseline with a no-increase guard; the achieved number is recorded, zero not required.
 - Sprite trial runs behind a new `entity_sprite` registry with single-switch glyph fallback; author-gated; white-base modulate tinting required or recorded as a finding.
 - Item 9 is questions-only: the gameplay ideas below are deferred pending the author's answers.
+- Long-term art direction (author decision 2026-08-30): progressive migration from code-drawn glyphs to real generated art after this polish pack; registries-with-fallback are the migration mechanism; this pack's sprite trial (item 8) is the first step.
 
 ## Appendix — Gameplay backlog design questionnaire (no implementation in this pack)
 
