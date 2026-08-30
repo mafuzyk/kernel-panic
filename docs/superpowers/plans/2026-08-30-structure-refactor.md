@@ -450,11 +450,11 @@ Verify `grep -c '^func _systems_test_b2\|^func _difficulty_test\|^func _debug_co
 
 These sections contain the `source_code` checks listed in constraint 5 — the moved checks keep working unchanged because they `load()` the production files by path; only the code doing the checking moves.
 
-- [ ] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T7.gd`
+- [x] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T7.gd`
 
-- [ ] **Step 2: Create section file** — G4 skeleton + `awk '/^func _hud_style_test\(/{f=1} /^func _story_menu_test\(/{f=0} f' /tmp/opencode/dh_T7.gd | <G3 perl>`
+- [x] **Step 2: Create section file** — G4 skeleton + `awk '/^func _hud_style_test\(/{f=1} /^func _story_menu_test\(/{f=0} f' /tmp/opencode/dh_T7.gd | <G3 perl>`
 
-- [ ] **Step 3: Delete from harness**
+- [x] **Step 3: Delete from harness**
 
 ```bash
 awk '/^func _hud_style_test\(/{s=1} /^func _story_menu_test\(/{s=0} !s{print}' src/autoload/dev_harness.gd > /tmp/opencode/dh_new.gd && mv /tmp/opencode/dh_new.gd src/autoload/dev_harness.gd
@@ -462,15 +462,15 @@ awk '/^func _hud_style_test\(/{s=1} /^func _story_menu_test\(/{s=0} !s{print}' s
 
 Verify `grep -c '^func _hud_style_test\|^func _charm_speedrun_test' src/autoload/dev_harness.gd` → `0`.
 
-- [ ] **Step 4: Plumbing** — `const HSectionVisual = preload("res://src/autoload/harness/sections_visual.gd")`; `var _sec_visual`; `_init_sections()` line.
+- [x] **Step 4: Plumbing** — `const HSectionVisual = preload("res://src/autoload/harness/sections_visual.gd")`; `var _sec_visual`; `_init_sections()` line.
 
-- [ ] **Step 5: Flow call sites** (10 unique-prefix edits): `await _hud_style_test(` → `await _sec_visual._hud_style_test(`; same pattern for `_era_accent_test(`, `_story_test(`, `_windows_test(`, `_temple_test(`, `_glyph_lib_test(`, `_icon_quality_test(`, `_raster_trial_test(`, `_charm_terminal_test(`, `_charm_speedrun_test(`.
+- [x] **Step 5: Flow call sites** (10 unique-prefix edits): `await _hud_style_test(` → `await _sec_visual._hud_style_test(`; same pattern for `_era_accent_test(`, `_story_test(`, `_windows_test(`, `_temple_test(`, `_glyph_lib_test(`, `_icon_quality_test(`, `_raster_trial_test(`, `_charm_terminal_test(`, `_charm_speedrun_test(`.
 
-- [ ] **Step 6: Sweep + byte-verify** (anchors `_hud_style_test`/`_story_menu_test`); label total `68`.
+- [x] **Step 6: Sweep + byte-verify** (anchors `_hud_style_test`/`_story_menu_test`); label total `68`.
 
-- [ ] **Step 7: Full autotest** — G1 with `at_T7.log`; expected `exit=0`, `1194`, `0`, `1`.
+- [x] **Step 7: Full autotest** — G1 with `at_T7.log`; expected `exit=0`, `1194`, `0`, `1`.
 
-- [ ] **Step 8: Commit** — `git commit -m "refactor: move visual/era test sections into sections_visual"`
+- [x] **Step 8: Commit** — `git commit -m "refactor: move visual/era test sections into sections_visual"`
 
 ---
 
@@ -480,11 +480,11 @@ Verify `grep -c '^func _hud_style_test\|^func _charm_speedrun_test' src/autoload
 - Create: `src/autoload/harness/sections_scene.gd` (~391 lines: `_story_menu_test`, `_menu_shell_test`, `_story_scene_test`, `_story_intro_auto_test`, `_story_intro_layout_test`, `_temple_scene_test`, `_text_overflow_test`, `_touch_hud_layout_test`, `_charm_save_transfer_test`, 9 AT_STEPs)
 - Modify: `src/autoload/dev_harness.gd`
 
-- [ ] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T8.gd`
+- [x] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T8.gd`
 
-- [ ] **Step 2: Create section file** — G4 skeleton + `awk '/^func _story_menu_test\(/{f=1} /^func _touch_test\(/{f=0} f' /tmp/opencode/dh_T8.gd | <G3 perl>`
+- [x] **Step 2: Create section file** — G4 skeleton + `awk '/^func _story_menu_test\(/{f=1} /^func _touch_test\(/{f=0} f' /tmp/opencode/dh_T8.gd | <G3 perl>`
 
-- [ ] **Step 3: Delete from harness**
+- [x] **Step 3: Delete from harness**
 
 ```bash
 awk '/^func _story_menu_test\(/{s=1} /^func _touch_test\(/{s=0} !s{print}' src/autoload/dev_harness.gd > /tmp/opencode/dh_new.gd && mv /tmp/opencode/dh_new.gd src/autoload/dev_harness.gd
@@ -492,15 +492,15 @@ awk '/^func _story_menu_test\(/{s=1} /^func _touch_test\(/{s=0} !s{print}' src/a
 
 Verify `grep -c '^func _story_menu_test\|^func _charm_save_transfer_test' src/autoload/dev_harness.gd` → `0`.
 
-- [ ] **Step 4: Plumbing** — `const HSectionScene = preload("res://src/autoload/harness/sections_scene.gd")`; `var _sec_scene`; `_init_sections()` line.
+- [x] **Step 4: Plumbing** — `const HSectionScene = preload("res://src/autoload/harness/sections_scene.gd")`; `var _sec_scene`; `_init_sections()` line.
 
-- [ ] **Step 5: Flow call sites** (9 unique-prefix edits): `await _story_menu_test(`, `await _menu_shell_test(`, `await _story_scene_test(`, `await _story_intro_auto_test(`, `await _story_intro_layout_test(`, `await _temple_scene_test(`, `await _text_overflow_test(`, `await _touch_hud_layout_test(`, `await _charm_save_transfer_test(` — all → `await _sec_scene.<same name>(`.
+- [x] **Step 5: Flow call sites** (9 unique-prefix edits): `await _story_menu_test(`, `await _menu_shell_test(`, `await _story_scene_test(`, `await _story_intro_auto_test(`, `await _story_intro_layout_test(`, `await _temple_scene_test(`, `await _text_overflow_test(`, `await _touch_hud_layout_test(`, `await _charm_save_transfer_test(` — all → `await _sec_scene.<same name>(`.
 
-- [ ] **Step 6: Sweep + byte-verify** (anchors `_story_menu_test`/`_touch_test`); label total `68`.
+- [x] **Step 6: Sweep + byte-verify** (anchors `_story_menu_test`/`_touch_test`); label total `68`.
 
-- [ ] **Step 7: Full autotest** — G1 with `at_T8.log`; expected `exit=0`, `1194`, `0`, `1`.
+- [x] **Step 7: Full autotest** — G1 with `at_T8.log`; expected `exit=0`, `1194`, `0`, `1`.
 
-- [ ] **Step 8: Commit** — `git commit -m "refactor: move scene/ui test sections into sections_scene"`
+- [x] **Step 8: Commit** — `git commit -m "refactor: move scene/ui test sections into sections_scene"`
 
 ---
 
@@ -512,14 +512,14 @@ Verify `grep -c '^func _story_menu_test\|^func _charm_save_transfer_test' src/au
 
 `_finish`, `_autopilot`, `_populate`, `_spawn_boss` stay on the harness (shared helpers; sections reach them via `h.` per G3). The `_ready()` env-mode dispatch moves to the section object, so `_init_sections()` must run before dispatch.
 
-- [ ] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T9.gd`
+- [x] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T9.gd`
 
-- [ ] **Step 2: Create section file** — G4 skeleton, then append in order (each through the G3 perl):
+- [x] **Step 2: Create section file** — G4 skeleton, then append in order (each through the G3 perl):
   1. `awk '/^func _touch_test\(/{f=1} /^func _finish\(/{f=0} f' /tmp/opencode/dh_T9.gd`
   2. `awk '/^func _stress\(/{f=1} /^func _autopilot\(/{f=0} f' /tmp/opencode/dh_T9.gd`
   3. `awk '/^func _achievements_panel_test\(/{f=1} f' /tmp/opencode/dh_T9.gd` (runs to EOF)
 
-- [ ] **Step 3: Delete the three blocks from harness**
+- [x] **Step 3: Delete the three blocks from harness**
 
 ```bash
 awk '/^func _touch_test\(/{s=1} /^func _finish\(/{s=0} /^func _stress\(/{s=1} /^func _autopilot\(/{s=0} /^func _achievements_panel_test\(/{s=1} !s{print}' src/autoload/dev_harness.gd > /tmp/opencode/dh_new.gd && mv /tmp/opencode/dh_new.gd src/autoload/dev_harness.gd
@@ -527,13 +527,13 @@ awk '/^func _touch_test\(/{s=1} /^func _finish\(/{s=0} /^func _stress\(/{s=1} /^
 
 Verify `grep -c '^func _touch_test\|^func _press\|^func _drag\|^func _to_window\|^func _stress\|^func _capture\|^func _demo\|^func _achievements_panel_test' src/autoload/dev_harness.gd` → `0`, and `grep -c '^func _finish\|^func _autopilot\|^func _populate\|^func _spawn_boss' src/autoload/dev_harness.gd` → `4`.
 
-- [ ] **Step 4: Plumbing + dispatch** — `const HSectionModes = preload("res://src/autoload/harness/sections_modes.gd")`; `var _sec_modes`; `_init_sections()` line `_sec_modes = HSectionModes.new(self)`. Move the `_init_sections()` invocation from `_autotest()` to the top of `_ready()` (delete the line `\t_init_sections()` from `_autotest()`, add it as the first statement of `_ready()` before `process_mode = Node.PROCESS_MODE_ALWAYS`). Rewrite the three dispatch calls: `_demo.call_deferred()` → `_sec_modes._demo.call_deferred()`; `_stress.call_deferred()` → `_sec_modes._stress.call_deferred()`; `_capture.call_deferred()` → `_sec_modes._capture.call_deferred()`. Flow call sites: `await _touch_test(` → `await _sec_modes._touch_test(`; `await _achievements_panel_test(` → `await _sec_modes._achievements_panel_test(`.
+- [x] **Step 4: Plumbing + dispatch** — `const HSectionModes = preload("res://src/autoload/harness/sections_modes.gd")`; `var _sec_modes`; `_init_sections()` line `_sec_modes = HSectionModes.new(self)`. Move the `_init_sections()` invocation from `_autotest()` to the top of `_ready()` (delete the line `\t_init_sections()` from `_autotest()`, add it as the first statement of `_ready()` before `process_mode = Node.PROCESS_MODE_ALWAYS`). Rewrite the three dispatch calls: `_demo.call_deferred()` → `_sec_modes._demo.call_deferred()`; `_stress.call_deferred()` → `_sec_modes._stress.call_deferred()`; `_capture.call_deferred()` → `_sec_modes._capture.call_deferred()`. Flow call sites: `await _touch_test(` → `await _sec_modes._touch_test(`; `await _achievements_panel_test(` → `await _sec_modes._achievements_panel_test(`.
 
-- [ ] **Step 5: Sweep + byte-verify** (three block anchors); label total `68`. Also `grep -c '^func ' src/autoload/dev_harness.gd` → expected `23` (helpers, `_ready`, `_init_sections`, `_autotest`, `_finish`, `_autopilot`, `_populate`, `_spawn_boss`, and the six config-snapshot helpers remain).
+- [x] **Step 5: Sweep + byte-verify** (three block anchors); label total `68`. Also `grep -c '^func ' src/autoload/dev_harness.gd` → expected `23` (helpers, `_ready`, `_init_sections`, `_autotest`, `_finish`, `_autopilot`, `_populate`, `_spawn_boss`, and the six config-snapshot helpers remain).
 
-- [ ] **Step 6: Full autotest** — G1 with `at_T9.log`; expected `exit=0`, `1194`, `0`, `1`.
+- [x] **Step 6: Full autotest** — G1 with `at_T9.log`; expected `exit=0`, `1194`, `0`, `1`.
 
-- [ ] **Step 7: Commit** — `git commit -m "refactor: move mode-entry and touch test sections out of dev_harness"`
+- [x] **Step 7: Commit** — `git commit -m "refactor: move mode-entry and touch test sections out of dev_harness"`
 
 ---
 
