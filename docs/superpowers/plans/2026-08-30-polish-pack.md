@@ -1464,7 +1464,7 @@ Interfaces:
 - Consumes: `TacticalUIHelper.angular_points`, `TacticalChromeScript.configure_panel`, the existing `achievement_rows()` / `progress_header()` / `refresh()` / ScrollContainer / back button / ESC chain (`menu.gd` `_open_achievements` / `_unhandled_input`).
 - Produces: `achievements_panel.gd` `awards_panel_rect(viewport) -> Rect2` (Rect2((vp.x−w)/2, 102, w, vp.y−216) with w = min(680, vp.x−56)), `award_row_rects() -> Array[Rect2]` (row rects in GLOBAL space), `AwardsDim`/`AwardsChrome` named nodes preserved across `refresh()`, `_row_controls: Array[Control]`, and TacticalIcon kind `"check"` (metrics `{"min_stroke": 2.0, "contrast": 0.55}`, bounds `Rect2(0.22, 0.24, 0.56, 0.52)`).
 
-- [ ] **Step 1: Write the failing harness check**
+- [x] **Step 1: Write the failing harness check**
 
 In `src/autoload/harness/sections_polish.gd`, append at the end of the class:
 
@@ -1528,7 +1528,7 @@ with:
 			menu._open_achievements()
 ~~~
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -1538,7 +1538,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_FAILED` with AT_FAIL `awards panel exposes its chrome rect and row rect helpers` plus the `check`-kind icon failures. No parse errors.
 
-- [ ] **Step 3: Add the "check" icon kind**
+- [x] **Step 3: Add the "check" icon kind**
 
 3a. In `src/ui/tactical_icon.gd` `ICON_METRICS`, below the `"awards"` entry, add:
 
@@ -1567,7 +1567,7 @@ func _draw_check(center: Vector2, radius: float) -> void:
 	draw_line(center + Vector2(-radius * 0.10, radius * 0.36), center + Vector2(radius * 0.46, -radius * 0.30), _line_color(), 2.4, true)
 ~~~
 
-- [ ] **Step 4: AWARDS chrome in achievements_panel.gd**
+- [x] **Step 4: AWARDS chrome in achievements_panel.gd**
 
 4a. Directly below the existing `const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")` line, add:
 
@@ -1743,7 +1743,7 @@ func award_row_rects() -> Array[Rect2]:
 	return out
 ~~~
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run:
 
@@ -1753,7 +1753,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_ALL_PASS`, zero `AT_FAIL`. The pre-existing `achievements_panel` AT_STEP (rows/header/scroll checks, source contains `ScrollContainer`) stays green.
 
-- [ ] **Step 6: Capture both resolutions (never committed)**
+- [x] **Step 6: Capture both resolutions (never committed)**
 
 ~~~sh
 KP_SHOT=menu KP_AWARDS=1 KP_SHOT_OUT=/tmp/opencode/awards_1366.png godot --path . --resolution 1366x768
@@ -1762,7 +1762,7 @@ KP_SHOT=menu KP_AWARDS=1 KP_SHOT_OUT=/tmp/opencode/awards_432.png godot --path .
 
 Expected: `SHOT_SAVED` twice; dim over the menu, framed centered panel, lime unlocked rows with check glyphs, muted locked rows with hint text, scroll intact at 432×720.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ~~~sh
 git add src/ui/achievements_panel.gd src/ui/tactical_icon.gd src/autoload/dev_harness.gd src/autoload/harness/sections_polish.gd src/autoload/harness/sections_modes.gd src/autoload/harness/sections_visual.gd
@@ -1783,7 +1783,7 @@ Interfaces:
 - Consumes: `bestiary_panel.gd::_draw_detail` (glyph today drawn at `rail.end.x − 118`, scale 3.5, unit radius 16 — the lancer's 2.4-unit lance pokes ~22px past the rail's right edge), `text_overflow_report()`.
 - Produces: `GlyphLib.glyph_extent(kind) -> float` + `GLYPH_EXTENT` table; bestiary `DETAIL_METRICS` dict + `_detail_glyph_box(rail)`; fit scale `min(3.5, (box half − 6) / (16 × extent))`; `text_overflow_report()` entry `glyph_contained`.
 
-- [ ] **Step 1: Write the failing harness check**
+- [x] **Step 1: Write the failing harness check**
 
 In `src/autoload/harness/sections_polish.gd`, append at the end of the class:
 
@@ -1817,7 +1817,7 @@ In `src/autoload/dev_harness.gd`, directly below the line `await _sec_scene._tex
 	await _sec_polish._bestiary_glyph_test()
 ~~~
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -1827,7 +1827,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_FAILED` with AT_FAIL `glyph library exposes per-kind extent factors` and `bestiary report carries the glyph_contained entry`. No parse errors.
 
-- [ ] **Step 3: Extent table in glyph_lib.gd**
+- [x] **Step 3: Extent table in glyph_lib.gd**
 
 In `src/ui/glyph_lib.gd`, directly below the closing line of `static func glyph_kinds()`, add:
 
@@ -1847,7 +1847,7 @@ static func glyph_extent(kind: String) -> float:
 	return float(GLYPH_EXTENT.get(kind, 1.0))
 ~~~
 
-- [ ] **Step 4: Bestiary detail box + metrics + report**
+- [x] **Step 4: Bestiary detail box + metrics + report**
 
 4a. In `src/ui/bestiary_panel.gd`, directly above `func _entry_color`, add:
 
@@ -1924,7 +1924,7 @@ with:
 
 (The 1.4 floor keeps silhouettes readable — clipping is the last resort, never the default. At 1366×768 the lancer fits at fit_scale ≈ 1.72.)
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run:
 
@@ -1934,7 +1934,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_ALL_PASS`, zero `AT_FAIL`. New AT_STEP label `bestiary_glyph`. If `glyph_contained` reports fits=false at any probed viewport, re-check the box math against `rail_w` — never widen the rail or lower the 1.4 readability floor.
 
-- [ ] **Step 6: Capture check (never committed)**
+- [x] **Step 6: Capture check (never committed)**
 
 ~~~sh
 KP_SHOT=menu KP_BESTIARY=1 KP_SHOT_OUT=/tmp/opencode/bestiary_glyph_1366.png godot --path . --resolution 1366x768
@@ -1942,7 +1942,7 @@ KP_SHOT=menu KP_BESTIARY=1 KP_SHOT_OUT=/tmp/opencode/bestiary_glyph_1366.png god
 
 Expected: `SHOT_SAVED`; with Lancer, OOM_KILLER, and ROOT DAEMON selected in the capture session, every detail glyph stays inside the rail and the PTS chip baseline aligns with the glyph box bottom. Compare the rail against `exec-6582ea9f-...png` (approved bestiary mock).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ~~~sh
 git add src/ui/glyph_lib.gd src/ui/bestiary_panel.gd src/autoload/dev_harness.gd src/autoload/harness/sections_polish.gd
