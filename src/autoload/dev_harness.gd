@@ -393,6 +393,7 @@ func _autotest() -> void:
 	await _temple_test(arena2)
 	await _glyph_lib_test()
 	await _icon_quality_test()
+	await _raster_trial_test()
 	await _charm_terminal_test(arena2)
 	await _charm_speedrun_test(arena2)
 	await _touch_test()
@@ -2919,6 +2920,42 @@ func _icon_quality_test() -> void:
 	_check(icon_script.has_method("raster_path") and patch_script.has_method("patch_raster_path"), "icon raster registries keep the code-drawn fallback")
 	var probe_path: String = icon_script.call("raster_path", "resume")
 	_check(probe_path.is_empty() or ResourceLoader.exists(probe_path), "raster registry only resolves existing assets")
+
+func _raster_trial_test() -> void:
+	print("AT_STEP raster_trial")
+	var icon_script: Script = load("res://src/ui/tactical_icon.gd")
+	var patch_script: Script = load("res://src/ui/patch_card.gd")
+	_check(icon_script != null and icon_script.has_method("raster_path"), "tactical icon exposes the raster registry")
+	_check(patch_script != null and patch_script.has_method("patch_raster_path"), "patch card exposes the raster registry")
+	if icon_script == null or patch_script == null or not icon_script.has_method("raster_path") or not patch_script.has_method("patch_raster_path"):
+		return
+	var icon_resolved := 0
+	var icon_fallback := 0
+	for kind in icon_script.call("icon_kinds"):
+		var path: String = icon_script.call("raster_path", str(kind))
+		if path.is_empty():
+			icon_fallback += 1
+			continue
+		icon_resolved += 1
+		var tex: Texture2D = load(path)
+		_check(tex != null, "%s raster resolves to a loadable texture" % str(kind))
+	_check(icon_resolved > 0, "generated ui icon rasters resolve through the registry when the asset exists")
+	_check(icon_fallback > 0, "ui icon kinds without a generated asset keep the code-drawn fallback")
+	var patch_resolved := 0
+	var patch_fallback := 0
+	for id in Game.PATCH_CODES:
+		var path: String = patch_script.call("patch_raster_path", str(id))
+		if path.is_empty():
+			patch_fallback += 1
+			continue
+		patch_resolved += 1
+		var tex: Texture2D = load(path)
+		_check(tex != null, "patch %s raster resolves to a loadable texture" % str(id))
+	_check(patch_resolved >= 6, "the six generated patch-family rasters resolve through the registry")
+	_check(patch_fallback > 0, "patch ids without a generated asset keep the code-drawn fallback")
+	_check(str(icon_script.source_code).contains("match _kind"), "tactical icon keeps the code-drawn draw dispatch")
+	_check(str(patch_script.source_code).contains("match patch_icon_family"), "patch card keeps the code-drawn family dispatch")
+	_check(str(icon_script.source_code).contains("framed: bool = false"), "tactical icon configure exposes the framed overlay switch (default off)")
 
 func _charm_terminal_test(arena: Arena) -> void:
 	print("AT_STEP charm_terminal")

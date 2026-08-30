@@ -106,7 +106,10 @@ func _draw_icon(center: Vector2, accent: Color) -> void:
 	var id := str(_def.get("id", ""))
 	var raster := patch_raster_path(id)
 	if raster != "":
-		var tex: Texture2D = load(raster)
+		if not _raster_tex_cache.has(raster):
+			_raster_tex_cache[raster] = load(raster)
+			queue_redraw()
+		var tex: Texture2D = _raster_tex_cache[raster]
 		if tex != null:
 			draw_texture_rect(tex, Rect2(center - Vector2(26.0, 26.0), Vector2(52.0, 52.0)), false)
 			return
@@ -136,6 +139,12 @@ const PATCH_ICON_FAMILIES := {
 }
 
 const RASTER_DIR := "res://assets/icons/generated/"
+
+## Textures must finish loading before the frame that draws them: a load() first
+## issued inside _draw() records the command before the GPU upload exists and
+## samples the engine's white placeholder for that pass (same quirk as
+## tactical_icon; the cache primes + queues one healing redraw instead).
+static var _raster_tex_cache := {}
 
 static func patch_icon_family(id: String) -> String:
 	return str(PATCH_ICON_FAMILIES.get(id, "utility"))

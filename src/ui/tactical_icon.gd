@@ -5,13 +5,18 @@ const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
 
 var _kind := "settings"
 var _accent := TacticalUIHelper.CYAN
+var _framed := false
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-func configure(icon_kind: String, color: Color = TacticalUIHelper.CYAN) -> void:
+func configure(icon_kind: String, color: Color = TacticalUIHelper.CYAN, framed: bool = false) -> void:
 	_kind = icon_kind
 	_accent = color
+	_framed = framed
+	var raster := raster_path(icon_kind)
+	if raster != "" and not _raster_tex_cache.has(raster):
+		_raster_tex_cache[raster] = load(raster)
 	queue_redraw()
 
 func icon_kind() -> String:
@@ -60,8 +65,15 @@ static func icon_bounds(icon_kind: String) -> Rect2:
 
 const RASTER_DIR := "res://assets/icons/generated/"
 
-## Raster registry: proven-win rasters only; empty string keeps the code-drawn
-## identity as the active path. Never used as a placeholder.
+## Textures must finish loading before the frame that draws them: a load() first
+## issued inside _draw() records the command before the GPU upload exists and
+## samples the engine's white placeholder for that pass. Pre-heat the cache in
+## configure() and let _draw() only consume (or prime + queue a healing redraw).
+static var _raster_tex_cache := {}
+
+## Raster registry: trial rasters only; empty string keeps the code-drawn fallback
+## active. Never used as a placeholder. The identity is the neon geometric terminal
+## style, not the drawing technique (author correction, 2026-08-29).
 static func raster_path(icon_kind: String) -> String:
 	var path := RASTER_DIR + icon_kind + ".png"
 	return path if ResourceLoader.exists(path) else ""
@@ -81,6 +93,17 @@ func _points_closed(points: PackedVector2Array, color: Color = _line_color(), wi
 func _draw() -> void:
 	if size.x <= 2.0 or size.y <= 2.0:
 		return
+	var raster := raster_path(_kind)
+	if raster != "":
+		if not _raster_tex_cache.has(raster):
+			_raster_tex_cache[raster] = load(raster)
+			queue_redraw()
+		var tex: Texture2D = _raster_tex_cache[raster]
+		if tex != null:
+			draw_texture_rect(tex, Rect2(Vector2.ZERO, size), false)
+			if _framed:
+				_draw_frame_overlay()
+			return
 	var center := size * 0.5
 	var radius := minf(size.x, size.y) * 0.34
 	match _kind:
@@ -106,6 +129,30 @@ func _draw() -> void:
 			_draw_warning(center, radius)
 		_:
 			_draw_bestiary(center, radius)
+	if _framed:
+		_draw_frame_overlay()
+
+## Angular corner-bracket frame with cross ticks, drawn in code as a conditional
+## overlay (hybrid contextual icons, author decision 2026-08-29). Only enabled
+## for placements that have no existing frame; placements already framed by
+## panel/button/touch chrome keep the default false so nothing is double framed.
+func _draw_frame_overlay() -> void:
+	var unit := minf(size.x, size.y)
+	var inset := unit * 0.06
+	var arm := unit * 0.16
+	var rect := Rect2(Vector2(inset, inset), size - Vector2(inset * 2.0, inset * 2.0))
+	var color := _line_color(0.66)
+	var mid := rect.get_center()
+	for corner in [rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]:
+		var x_dir := 1.0 if corner.x < mid.x else -1.0
+		var y_dir := 1.0 if corner.y < mid.y else -1.0
+		draw_line(corner, corner + Vector2(x_dir * arm, 0.0), color, 1.6, true)
+		draw_line(corner, corner + Vector2(0.0, y_dir * arm), color, 1.6, true)
+	var tick := arm * 0.34
+	draw_line(Vector2(mid.x, rect.position.y - tick), Vector2(mid.x, rect.position.y + tick), color, 1.4, true)
+	draw_line(Vector2(mid.x, rect.end.y - tick), Vector2(mid.x, rect.end.y + tick), color, 1.4, true)
+	draw_line(Vector2(rect.position.x - tick, mid.y), Vector2(rect.position.x + tick, mid.y), color, 1.4, true)
+	draw_line(Vector2(rect.end.x - tick, mid.y), Vector2(rect.end.x + tick, mid.y), color, 1.4, true)
 
 func _draw_settings(center: Vector2, radius: float) -> void:
 	var gear := PackedVector2Array()
