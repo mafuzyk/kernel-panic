@@ -7,6 +7,20 @@ extends RefCounted
 static func glyph_kinds() -> Array:
 	return ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "recursor", "firewall", "bloatware", "update_loop", "page", "root", "boss", "segfault", "bluescreen", "pagefault", "god", "kernel", "daemon", "rootlet"]
 
+## Maximum silhouette reach per kind, in multiples of the draw radius.
+## Conservative outer bounds (lancer's lance tip reaches 2.4x, oom horns 1.6x,
+## segfault jitter 1.45x); detail views use this to fit glyphs into fixed boxes.
+const GLYPH_EXTENT := {
+	"drone": 1.5, "lancer": 2.4, "spewer": 1.1, "splitter": 1.05, "bulwark": 1.05,
+	"trojan": 1.25, "oom": 1.6, "recursor": 1.05, "firewall": 1.05, "bloatware": 1.05,
+	"update_loop": 1.05, "page": 1.25, "root": 1.05, "boss": 1.05, "segfault": 1.45,
+	"bluescreen": 0.95, "pagefault": 1.15, "god": 1.35, "kernel": 1.5, "daemon": 1.45,
+	"rootlet": 1.1,
+}
+
+static func glyph_extent(kind: String) -> float:
+	return float(GLYPH_EXTENT.get(kind, 1.0))
+
 static func era_mix(base: Color, era: Color, amount: float = 0.25) -> Color:
 	if era.a <= 0.0 or amount <= 0.0:
 		return base

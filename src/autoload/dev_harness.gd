@@ -448,6 +448,7 @@ func _autotest() -> void:
 	await _sec_polish._settings_chips_test(menu_scene)
 	await _sec_polish._menu_reflow_test(menu_scene)
 	await _sec_scene._text_overflow_test()
+	await _sec_polish._bestiary_glyph_test()
 	await _sec_scene._touch_hud_layout_test()
 	await _sec_modes._achievements_panel_test()
 	await _sec_polish._awards_chrome_test(menu_scene)

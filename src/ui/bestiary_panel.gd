@@ -33,6 +33,14 @@ var _scroll_start := 0.0
 var _card_rects: Dictionary = {}
 var _selected_id := "root"
 
+## Detail-column vertical rhythm + glyph box geometry (single source of truth
+## for _draw_detail and text_overflow_report).
+const DETAIL_METRICS := {"inset": 20.0, "header_y": 26.0, "name_y": 58.0, "threat_y": 82.0, "divider_y": 152.0, "behavior_y": 180.0, "desc_y": 204.0, "bugs_label_y": 278.0, "bugs_y": 302.0, "glyph_box_w": 156.0, "glyph_box_h": 120.0}
+
+func _detail_glyph_box(rail: Rect2) -> Rect2:
+	var w := minf(float(DETAIL_METRICS["glyph_box_w"]), maxf(rail.size.x - 2.0 * float(DETAIL_METRICS["inset"]), 0.0))
+	return Rect2(rail.position + Vector2(rail.size.x - w - float(DETAIL_METRICS["inset"]), 32.0), Vector2(w, float(DETAIL_METRICS["glyph_box_h"])))
+
 func _entry_color(id: String) -> Color:
 	match id:
 		"drone": return Balance.COL_DRONE
@@ -261,15 +269,17 @@ func _draw_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
 	draw_string(mono, rail.position + Vector2(20.0, 26.0), "FIELD ENTRY // %s" % ("LOGGED" if seen else "LOCKED"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, Color(accent.r, accent.g, accent.b, 0.85))
 	draw_string(orbitron, rail.position + Vector2(20.0, 58.0), str(entry["name"]) if seen else "UNKNOWN PROCESS", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 220.0, 23, TacticalUIHelper.TEXT)
 	draw_string(mono, rail.position + Vector2(20.0, 82.0), "%d THREAT POINTS" % int(entry["threat"]) if seen else "PURGE THIS PROCESS TO REVEAL", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 220.0, 11, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.85 if seen else 0.45))
-	var points_chip := Rect2(rail.position + Vector2(20.0, 100.0), Vector2(154.0, 36.0))
+	var glyph_box := _detail_glyph_box(rail)
+	var points_chip := Rect2(Vector2(rail.position.x + float(DETAIL_METRICS["inset"]), glyph_box.end.y - 36.0), Vector2(154.0, 36.0))
 	var points_frame := TacticalUIHelper.angular_points(points_chip, 7.0)
 	draw_polyline(points_frame + PackedVector2Array([points_frame[0]]), Color(accent.r, accent.g, accent.b, 0.72), 1.2, true)
 	draw_string(orbitron, points_chip.position + Vector2(14.0, 24.0), "%d PTS" % int(entry["threat"]) if seen else "??? PTS", HORIZONTAL_ALIGNMENT_LEFT, points_chip.size.x - 28.0, 15, accent)
-	var glyph_pos := Vector2(rail.end.x - 118.0, rail.position.y + 120.0)
-	draw_set_transform(glyph_pos, 0.0, Vector2(3.5, 3.5))
+	var extent: float = GlyphLib.glyph_extent(id)
+	var fit_scale: float = minf(3.5, minf((glyph_box.size.x * 0.5 - 6.0) / (16.0 * extent), (glyph_box.size.y * 0.5 - 6.0) / (16.0 * extent)))
+	draw_set_transform(glyph_box.get_center(), 0.0, Vector2(fit_scale, fit_scale))
 	_draw_glyph(id, Color(accent.r, accent.g, accent.b, 0.9 if seen else 0.2))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	draw_line(rail.position + Vector2(20.0, 152.0), rail.position + Vector2(rail.size.x - 20.0, 152.0), Color(accent.r, accent.g, accent.b, 0.28), 1.0)
+	draw_line(rail.position + Vector2(float(DETAIL_METRICS["inset"]), float(DETAIL_METRICS["divider_y"])), rail.position + Vector2(rail.size.x - float(DETAIL_METRICS["inset"]), float(DETAIL_METRICS["divider_y"])), Color(accent.r, accent.g, accent.b, 0.28), 1.0)
 	draw_string(mono, rail.position + Vector2(20.0, 180.0), "BEHAVIOR", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
 	var desc_text := "> " + (str(entry["desc"]) if seen else "No field data available. The first sighting will unlock this behavior report.")
 	var desc_size: int = TacticalUI.fit_block(mono, desc_text, rail.size.x - 40.0, 64.0, 13, 10)["font_size"]
@@ -388,6 +398,15 @@ func text_overflow_report() -> Array:
 	var out: Array = []
 	var metrics := _content_metrics()
 	var rail_w: float = size.x - float(metrics.get("list_w", size.x * 0.4)) - 86.0
+	var rail_rect := Rect2(float(metrics.get("list_w", size.x * 0.4)) + 58.0, 146.0, rail_w, size.y - 258.0)
+	var box := _detail_glyph_box(rail_rect)
+	var glyph_ok: bool = rail_rect.grow(-2.0).encloses(box)
+	var min_scale := 99.0
+	for entry in ENTRIES:
+		var extent: float = GlyphLib.glyph_extent(str(entry["id"]))
+		min_scale = minf(min_scale, minf((box.size.x * 0.5 - 6.0) / (16.0 * extent), (box.size.y * 0.5 - 6.0) / (16.0 * extent)))
+	glyph_ok = glyph_ok and min_scale >= 1.4
+	out.append({"id": "glyph_contained", "fits": glyph_ok})
 	var longest_desc := ""
 	var longest_bugs := ""
 	for entry in ENTRIES:

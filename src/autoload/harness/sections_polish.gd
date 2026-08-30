@@ -135,3 +135,25 @@ func _awards_chrome_test(menu: Node) -> void:
 		h._check(row_found, "awards panel exposes live row rects for containment probes")
 		h._check(contained, "awards rows sit inside the chrome at the live viewport")
 		menu.call("_close_achievements")
+
+func _bestiary_glyph_test() -> void:
+	print("AT_STEP bestiary_glyph")
+	var glyph_script: Script = load("res://src/ui/glyph_lib.gd")
+	h._check(glyph_script != null and glyph_script.has_method("glyph_extent"), "glyph library exposes per-kind extent factors")
+	var panel_script: Script = load("res://src/ui/bestiary_panel.gd")
+	var panel = panel_script.new() if panel_script != null else null
+	h._check(panel != null and panel.has_method("text_overflow_report"), "bestiary keeps text_overflow_report")
+	if panel == null:
+		return
+	var all_fit := true
+	var saw_glyph_entry := false
+	for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+		panel.size = vp
+		for entry in panel.call("text_overflow_report"):
+			if str(entry.get("id", "")) == "glyph_contained":
+				saw_glyph_entry = true
+			if not bool(entry.get("fits", false)):
+				all_fit = false
+	h._check(saw_glyph_entry, "bestiary report carries the glyph_contained entry")
+	h._check(all_fit, "bestiary detail stays contained including glyphs at 1366x768, 720x720, and 432x720")
+	panel.free()
