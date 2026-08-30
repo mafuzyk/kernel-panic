@@ -2707,7 +2707,7 @@ git commit -m "feat: scaffold the entity sprite trial registry"
 - Modify: `docs/superpowers/plans/2026-08-30-polish-pack.md` (tick checkboxes)
 - Create: `docs/superpowers/reports/2026-08-30-polish-pack.md`
 
-- [ ] **Step 1: Full autotest with recorded numbers**
+- [x] **Step 1: Full autotest with recorded numbers**
 
 ~~~sh
 godot --headless --path . -- --autotest 2>&1 | tee /tmp/opencode/final_polish.txt | tail -3
@@ -2718,7 +2718,7 @@ grep -c "AT_STEP" /tmp/opencode/final_polish.txt
 
 Expected: `AUTOTEST_ALL_PASS`, `0` AT_FAIL, AT_PASS strictly above 1194 (every task added checks), AT_STEP labels above 68, including `settings_tabs`, `settings_chips`, `menu_reflow`, `awards_chrome`, `bestiary_glyph`, `raster_optical`, `story_path`, `leak_guard`, `sprite_trial`.
 
-- [ ] **Step 2: Captures of every changed surface at both hard-gate resolutions**
+- [x] **Step 2: Captures of every changed surface at both hard-gate resolutions**
 
 ~~~sh
 KP_SHOT=menu KP_SHOT_OUT=/tmp/opencode/final_menu_1366.png godot --path . --resolution 1366x768
@@ -2735,7 +2735,7 @@ pkill -f "godot --path ."
 
 Expected: nine `SHOT_SAVED` lines. Visual gates: settings shows the five tabs at 1366 and the chips row at 432; AWARDS shows dim + framed chrome + card rows; bestiary detail glyphs contained; story rail shows the connected-node path; menu shows no title/klog/controls/best/mode_info overlaps; game shows the padded rasters.
 
-- [ ] **Step 3: Mock comparison + leak re-check**
+- [x] **Step 3: Mock comparison + leak re-check**
 
 Compare against the approved references in `/home/mafu/.codex/generated_images/01a044e4-d316-7ef2-85d8-9aa85056ea3a/`: story rail vs `exec-e6d82072-a577-4578-876d-1a5e9bb5ba8a.png`, bestiary vs `exec-6582ea9f-...png`, programs vs `exec-450f92b7-...png`, combat vs `exec-10cafd61-...png`. Then re-check the leak guard:
 
@@ -2746,7 +2746,7 @@ godot --headless --path . -- --autotest --verbose 2>&1 | grep -E "ObjectDB insta
 
 Expected: the count does not increase vs the Task 11 recorded N1 and stays clearly below the pre-fix N0. Both numbers go into the report.
 
-- [ ] **Step 4: Tick the plan and write the report**
+- [x] **Step 4: Tick the plan and write the report**
 
 Mark every `- [ ]` checkbox in `docs/superpowers/plans/2026-08-30-polish-pack.md` as `- [x]`:
 
@@ -2795,7 +2795,7 @@ Create `docs/superpowers/reports/2026-08-30-polish-pack.md` with exactly this sk
 - Not implemented: the gameplay questionnaire is surfaced separately by the orchestrator.
 ~~~
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ~~~sh
 git add docs/superpowers/plans/2026-08-30-polish-pack.md docs/superpowers/reports/2026-08-30-polish-pack.md
