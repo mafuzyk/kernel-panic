@@ -254,6 +254,8 @@ func _build_button_row() -> void:
 	var ach_btn := Button.new()
 	_style_card_button(ach_btn, TacticalUIHelper.LIME, Vector2(bottom_button_w, 48.0))
 	ach_btn.text = "AWARDS"
+	_set_button_text_inset(ach_btn, 92.0)
+	_add_button_icon(ach_btn, "awards", TacticalUIHelper.LIME, 52.0)
 	ach_btn.z_index = 2
 	ach_btn.pressed.connect(m._open_achievements)
 	row.add_child(ach_btn)

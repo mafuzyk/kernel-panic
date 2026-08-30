@@ -208,7 +208,7 @@ func _icon_quality_test() -> void:
 		return
 	var icon_src := str(icon_script.source_code)
 	var kinds: Array = icon.call("icon_kinds")
-	for kind in ["settings", "bestiary", "dash", "back", "resume", "restart", "terminal", "audio", "music", "warning"]:
+	for kind in ["settings", "bestiary", "dash", "back", "resume", "restart", "terminal", "audio", "music", "warning", "awards"]:
 		h._check(kinds.has(kind), "tactical icon covers the %s kind" % kind)
 		h._check(icon_src.contains("\t\t\"%s\":" % kind), "%s icon resolves to a non-empty drawing routine" % kind)
 		var metrics: Dictionary = icon.call("icon_metrics", str(kind))

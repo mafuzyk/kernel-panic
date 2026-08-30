@@ -36,6 +36,7 @@ const ICON_METRICS := {
 	"audio": {"min_stroke": 1.8, "contrast": 0.55},
 	"music": {"min_stroke": 1.8, "contrast": 0.55},
 	"warning": {"min_stroke": 2.0, "contrast": 0.55},
+	"awards": {"min_stroke": 1.8, "contrast": 0.55},
 }
 
 ## Documented silhouette bounds per kind in unit space (fractions of size);
@@ -51,6 +52,7 @@ const ICON_BOUNDS := {
 	"audio": Rect2(0.16, 0.26, 0.68, 0.48),
 	"music": Rect2(0.24, 0.12, 0.52, 0.76),
 	"warning": Rect2(0.14, 0.16, 0.72, 0.68),
+	"awards": Rect2(0.16, 0.14, 0.68, 0.72),
 }
 
 static func icon_kinds() -> Array:
@@ -127,6 +129,8 @@ func _draw() -> void:
 			_draw_music(center, radius)
 		"warning":
 			_draw_warning(center, radius)
+		"awards":
+			_draw_awards(center, radius)
 		_:
 			_draw_bestiary(center, radius)
 	if _framed:
@@ -260,3 +264,20 @@ func _draw_warning(center: Vector2, radius: float) -> void:
 	_points_closed(triangle, _line_color(), 2.2)
 	draw_rect(Rect2(center + Vector2(-1.6, -radius * 0.36), Vector2(3.2, radius * 0.58)), _line_color())
 	draw_circle(center + Vector2(0.0, radius * 0.43), radius * 0.10, _line_color())
+
+func _draw_awards(center: Vector2, radius: float) -> void:
+	var cup := PackedVector2Array([
+		center + Vector2(-radius * 0.52, -radius * 0.66),
+		center + Vector2(radius * 0.52, -radius * 0.66),
+		center + Vector2(radius * 0.40, radius * 0.10),
+		center + Vector2(0.0, radius * 0.30),
+		center + Vector2(-radius * 0.40, radius * 0.10),
+	])
+	draw_colored_polygon(cup, Color(_accent.r, _accent.g, _accent.b, 0.14))
+	_points_closed(cup, _line_color(), 2.0)
+	draw_line(center + Vector2(-radius * 0.52, -radius * 0.66), center + Vector2(-radius * 0.78, -radius * 0.36), _line_color(), 1.8, true)
+	draw_line(center + Vector2(-radius * 0.78, -radius * 0.36), center + Vector2(-radius * 0.42, -radius * 0.06), _line_color(), 1.8, true)
+	draw_line(center + Vector2(radius * 0.52, -radius * 0.66), center + Vector2(radius * 0.78, -radius * 0.36), _line_color(), 1.8, true)
+	draw_line(center + Vector2(radius * 0.78, -radius * 0.36), center + Vector2(radius * 0.42, -radius * 0.06), _line_color(), 1.8, true)
+	draw_line(center + Vector2(0.0, radius * 0.30), center + Vector2(0.0, radius * 0.58), _line_color(), 2.0)
+	draw_line(center + Vector2(-radius * 0.30, radius * 0.58), center + Vector2(radius * 0.30, radius * 0.58), _line_color(), 2.2)
