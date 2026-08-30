@@ -12,6 +12,7 @@ var m
 
 const SETTINGS_SECTIONS := ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"]
 const SECTION_CHIP_LABELS := {"AUDIO": "AUDIO", "GAMEPLAY": "GAME", "CONTROLS": "KEYS", "ACCESSIBILITY": "ACCESS", "SAVE DATA": "DATA"}
+const COMPACT_BREAKPOINT := 760.0
 var _active_section := "AUDIO"
 var _section_members := {}
 var _viewport_override := Vector2.ZERO
@@ -25,7 +26,7 @@ func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
 	var panel_height := minf(680.0, maxf(viewport.y - 48.0, 240.0))
 	var workstation := Rect2((viewport.x - panel_width) * 0.5, (viewport.y - panel_height) * 0.5, panel_width, panel_height)
 	var footer := Rect2(workstation.position + Vector2(10.0, workstation.size.y - 68.0), Vector2(workstation.size.x - 20.0, 56.0))
-	var compact: bool = viewport.x < 760.0
+	var compact: bool = viewport.x < COMPACT_BREAKPOINT
 	var navigation := Rect2()
 	var chips := Rect2()
 	var content := Rect2()
@@ -60,7 +61,7 @@ func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
 func _layout_settings() -> void:
 	if m._settings_panel == null or not is_instance_valid(m._settings_panel):
 		return
-	var settings_layout := settings_layout_for_viewport(_current_viewport())
+	var settings_layout := _live_settings_layout()
 	var workstation: Rect2 = settings_layout["workstation"]
 	var navigation: Rect2 = settings_layout["navigation"]
 	var content: Rect2 = settings_layout["content"]
@@ -126,7 +127,7 @@ func _build_settings() -> void:
 	outer_chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	outer_chrome.call("configure_shell", TacticalUIHelper.CYAN, 0.0)
 	m._settings_panel.add_child(outer_chrome)
-	var settings_layout := settings_layout_for_viewport(_current_viewport())
+	var settings_layout := _live_settings_layout()
 	var workstation: Rect2 = settings_layout["workstation"]
 	var navigation: Rect2 = settings_layout["navigation"]
 	var content: Rect2 = settings_layout["content"]
@@ -411,6 +412,8 @@ func _build_settings() -> void:
 		m._update_best()
 		reset.text = "CLEARED"
 	)
+	assign_section(reset, "SAVE DATA")
+	box.add_child(reset)
 	var back := Button.new()
 	back.text = "BACK"
 	back.flat = true
@@ -424,16 +427,12 @@ func _build_settings() -> void:
 	footer_row.size = footer.size
 	footer_row.add_theme_constant_override("separation", 12)
 	m._style_settings_footer_button(back, TacticalUIHelper.CYAN)
-	m._style_settings_footer_button(reset, TacticalUIHelper.MAGENTA)
 	back.custom_minimum_size = Vector2(196.0, 42.0)
-	reset.custom_minimum_size = Vector2(250.0, 42.0)
 	m._add_button_icon(back, "back", TacticalUIHelper.CYAN, 36.0)
-	m._add_button_icon(reset, "warning", TacticalUIHelper.MAGENTA, 36.0)
 	footer_row.add_child(back)
 	var footer_spacer := Control.new()
 	footer_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	footer_row.add_child(footer_spacer)
-	footer_row.add_child(reset)
 	m._settings_panel.add_child(footer_row)
 	m._settings_footer_row = footer_row
 	m._settings_nav_buttons.clear()
@@ -652,6 +651,7 @@ func _make_slider_row(label_text: String, value: float, on_change: Callable) -> 
 	return row
 
 func _open_settings() -> void:
+	_layout_settings()
 	m._set_main_menu_controls_visible(false)
 	m._settings_panel.visible = true
 	Sfx.play("ui", 1.1, -6.0)
@@ -743,3 +743,29 @@ func apply_viewport(viewport: Vector2) -> void:
 
 func _current_viewport() -> Vector2:
 	return _viewport_override if _viewport_override != Vector2.ZERO else m.size
+
+func _physical_window_size() -> Vector2:
+	var window_size := Vector2(DisplayServer.window_get_size())
+	return window_size if window_size.x > 0.0 and window_size.y > 0.0 else Vector2.ZERO
+
+## Layout for the live panel. Real windows render through canvas_items
+## stretch, so the logical canvas never narrows below the 1280x720 base even
+## in narrow windows — compact therefore has to come from the physical window,
+## with its rects mapped back into canvas space (uniform stretch scale).
+## The apply_viewport probe keeps full authority while an override is set.
+func _live_settings_layout() -> Dictionary:
+	var viewport := _current_viewport()
+	if _viewport_override != Vector2.ZERO:
+		return settings_layout_for_viewport(viewport)
+	var window_size := _physical_window_size()
+	if window_size == Vector2.ZERO or window_size.x >= COMPACT_BREAKPOINT or viewport.x < COMPACT_BREAKPOINT:
+		return settings_layout_for_viewport(viewport)
+	var design := settings_layout_for_viewport(window_size)
+	# canvas_items stretch scales uniformly, so map with one factor even if the
+	# canvas logical size has not caught up with the window yet.
+	var factor := viewport.x / window_size.x
+	for rect_key in ["workstation", "navigation", "content", "footer", "title", "chips"]:
+		var rect: Rect2 = design[rect_key]
+		design[rect_key] = Rect2(rect.position * factor, rect.size * factor)
+	design["title_size"] = maxi(int(round(float(design["title_size"]) * factor)), 8)
+	return design

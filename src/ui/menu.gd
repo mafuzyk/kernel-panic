@@ -64,6 +64,10 @@ func _notification(what: int) -> void:
 		if _chrome_kit != null:
 			_chrome_kit.apply_menu_layout.call_deferred()
 
+func _on_window_size_changed() -> void:
+	if _settings_panel != null and is_instance_valid(_settings_panel):
+		_settings_kit._layout_settings.call_deferred()
+
 func _desktop_keybinds_enabled() -> bool:
 	return Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
 
@@ -116,6 +120,9 @@ func _ready() -> void:
 	_settings_kit = MenuSettingsKitScript.new(self)
 	_chrome_kit = MenuChromeKitScript.new(self)
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Window resizes that keep the logical canvas size (uniform scale changes)
+	# never reach NOTIFICATION_RESIZED, so track the window signal too.
+	get_window().size_changed.connect(_on_window_size_changed)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for i in 5:
 		_drifters.append({

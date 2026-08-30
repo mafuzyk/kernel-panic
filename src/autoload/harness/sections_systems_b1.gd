@@ -238,6 +238,18 @@ func _systems_test_b1(arena: Arena) -> void:
 		e.queue_free()
 	for o in h.get_tree().get_nodes_in_group("enemy_orbs"):
 		o.queue_free()
+	# Flake guard: leftover motes magnetize into whichever live player is in
+	# the "player" group — the rootlet below — and a load-stretched fixed
+	# tick window let one arrive and inflate shield_meter before the
+	# assertion. Drain both mote systems and wait until they are actually
+	# empty instead of trusting a fixed tick count; the assertion itself
+	# stays strict.
+	for mote in h.get_tree().get_nodes_in_group("motes"):
+		mote.queue_free()
+	for slot in range(arena.mote_field.count() - 1, -1, -1):
+		arena.mote_field.kill_slot(slot)
+	await h._until(func() -> bool:
+		return arena.mote_field.count() == 0 and h.get_tree().get_nodes_in_group("motes").is_empty(), 5.0, "mote drain before rootlet probe")
 	await h._ticks(2)
 	var p3 := Player.new()
 	p3.position = arena.player.global_position + Vector2(200, 0) if is_instance_valid(arena.player) else Vector2(200, 0)

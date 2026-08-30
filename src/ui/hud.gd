@@ -46,9 +46,15 @@ var _tooltip_touch_index := -1
 var _tooltip_hold_t := 0.0
 var _dash_icon: Control
 var _era_accent: Color = TacticalUIHelper.CYAN
+var _surface_scale := 1.0
+var _banner_base_y := 120.0
+var _aux_size := Vector2.ZERO
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_apply_surface_transform()
+	if is_inside_tree():
+		get_viewport().size_changed.connect(_apply_surface_transform)
 	_score_font = load("res://assets/fonts/Orbitron.ttf")
 	_mono = load("res://assets/fonts/ShareTechMono.ttf")
 	_score_label = _mk_label(30, Balance.COL_TEXT, Vector2(0, 14))
@@ -113,7 +119,24 @@ func _ready() -> void:
 	Game.patch_picked.connect(func(_id: String) -> void:
 		_build_label.text = Game.build_string()
 	)
+	_refresh_aux_anchors()
 	_on_score(Game.score, Game.mult)
+
+## The stretch viewport keeps the 1280-wide design space on narrow windows
+## (aspect "expand"), which shrinks every design-px metric. Mount the HUD in
+## window pixels instead: local units == on-screen pixels, so margins, panels
+## and fonts keep their designed size and the compact grid engages below 760.
+func _apply_surface_transform() -> void:
+	var win := Vector2(DisplayServer.window_get_size())
+	var vp := get_viewport_rect().size
+	if win.x < 1.0 or win.y < 1.0 or vp.x < 1.0 or vp.y < 1.0:
+		return
+	_surface_scale = vp.x / win.x
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
+	position = Vector2.ZERO
+	size = win
+	scale = Vector2(_surface_scale, _surface_scale)
+	_refresh_aux_anchors()
 
 func _mk_label(size: int, col: Color, pos: Vector2) -> Label:
 	var l := Label.new()
@@ -133,13 +156,54 @@ func _layout_height() -> float:
 	return size.y if size.y > 0.0 else get_viewport_rect().size.y
 
 func _safe_top_margin() -> float:
-	return clampf(_layout_height() * 0.025, 18.0, 28.0)
+	return TacticalUIHelper.frame_margins(size).y
 
 func _safe_bottom_margin() -> float:
-	return clampf(_layout_height() * 0.025, 18.0, 28.0)
+	return TacticalUIHelper.frame_margins(size).y
 
 func _safe_side_margin() -> float:
-	return clampf(size.x * 0.01875, 16.0, 24.0)
+	return TacticalUIHelper.frame_margins(size).x
+
+## Anchor the floating HUD labels to the panel grid instead of hard-coded
+## offsets: announce below the encounter panel, achievement toast under the
+## top-left stack, run info under the score/event column, build string above
+## the dash module — all sharing the single 8px gutter.
+func _refresh_aux_anchors() -> void:
+	if size.x < 1.0 or size.y < 1.0:
+		return
+	var lay := layout_snapshot()
+	var integrity: Rect2 = lay["integrity"]
+	var encounter: Rect2 = lay["encounter"]
+	var score: Rect2 = lay["score"]
+	var dash: Rect2 = lay["dash"]
+	var side := _safe_side_margin()
+	var vert := _safe_top_margin()
+	_banner_base_y = encounter.end.y + 16.0
+	if _banner != null and is_instance_valid(_banner):
+		_banner.offset_top = _banner_base_y
+		_banner.offset_bottom = _banner_base_y + 52.0
+	if _banner_sub_l != null and is_instance_valid(_banner_sub_l):
+		_banner_sub_l.offset_top = _banner_base_y + 60.0
+		_banner_sub_l.offset_bottom = _banner_base_y + 82.0
+	if _achievement_label != null and is_instance_valid(_achievement_label):
+		var toast_y := maxf(integrity.end.y, encounter.end.y) + 8.0
+		_achievement_label.offset_left = side
+		_achievement_label.offset_right = side + 430.0
+		_achievement_label.offset_top = toast_y
+		_achievement_label.offset_bottom = toast_y + 24.0
+	if _run_info_label != null and is_instance_valid(_run_info_label):
+		var stack_end := score.end.y + 92.0
+		_run_info_label.offset_right = -side
+		_run_info_label.offset_left = -side - 308.0
+		_run_info_label.offset_top = stack_end + 8.0
+		_run_info_label.offset_bottom = stack_end + 30.0
+	if _build_label != null and is_instance_valid(_build_label):
+		_build_label.anchor_left = 0.0
+		_build_label.anchor_right = 0.0
+		_build_label.offset_left = side
+		_build_label.offset_right = side + 420.0
+		_build_label.offset_top = -(vert + dash.size.y + 22.0)
+		_build_label.offset_bottom = -(vert + dash.size.y + 6.0)
 
 func hud_top_y(gap: float) -> float:
 	return _safe_top_margin() + gap
@@ -274,6 +338,9 @@ func _prune_boss_fragments() -> void:
 	_boss_split = _boss_fragments.size() > 0
 
 func _process(delta: float) -> void:
+	if size != _aux_size:
+		_aux_size = size
+		_refresh_aux_anchors()
 	_score_pop = maxf(_score_pop - delta * 4.0, 0.0)
 	if _achievement_t > 0.0:
 		_achievement_t = maxf(_achievement_t - delta, 0.0)
@@ -293,7 +360,7 @@ func _process(delta: float) -> void:
 			_banner_sub_l.offset_top = 186 + (1.0 - minf(a_in, 1.0)) * -14.0
 			_banner_sub_l.offset_bottom = _banner_sub_l.offset_top + 22
 		else:
-			_banner.offset_top = 120 + (1.0 - minf(a_in, 1.0)) * -14.0
+			_banner.offset_top = _banner_base_y + (1.0 - minf(a_in, 1.0)) * -14.0
 			_banner.offset_bottom = _banner.offset_top + 52
 	else:
 		_banner.modulate.a = 0.0
@@ -335,10 +402,12 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _input(event: InputEvent) -> void:
+	# The HUD surface is scaled (window-px local space), so map event
+	# positions into local coordinates before hit-testing patch chips.
 	if event is InputEventMouseMotion:
 		if DisplayServer.is_touchscreen_available():
 			return
-		var mouse_id := _patch_id_at(event.position)
+		var mouse_id := _patch_id_at(make_input_local(event).position)
 		if mouse_id.is_empty():
 			_dismiss_patch_tooltip()
 		else:
@@ -348,7 +417,7 @@ func _input(event: InputEvent) -> void:
 		var touch := event as InputEventScreenTouch
 		if touch.pressed:
 			_dismiss_patch_tooltip()
-			var touch_id := _patch_id_at(touch.position)
+			var touch_id := _patch_id_at(make_input_local(event).position)
 			if not touch_id.is_empty():
 				_tooltip_touch_index = touch.index
 				_tooltip_patch_id = touch_id
@@ -554,7 +623,7 @@ func _draw_patch_tooltip(f: Font) -> void:
 	var pos := chip_rect.position + Vector2(0, chip_rect.size.y + 8.0)
 	if pos.y + height > size.y - 8.0:
 		pos.y = chip_rect.position.y - height - 8.0
-	pos.x = clampf(pos.x, 12.0, maxf(12.0, size.x - width - 12.0))
+	pos.x = clampf(pos.x, _safe_side_margin(), maxf(_safe_side_margin(), size.x - width - _safe_side_margin()))
 	var panel := Rect2(pos, Vector2(width, height))
 	draw_rect(panel, Color(0.01, 0.02, 0.05, 0.96))
 	draw_rect(panel, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.8), false, 1.5)
@@ -568,7 +637,7 @@ func _mult_chip(f: Font) -> void:
 	var c := Balance.COL_MOTE
 	var pop := 1.0 + 0.25 * _score_pop
 	var rx := size.x - _safe_side_margin()
-	var combo_y := hud_top_y(66.0)
+	var combo_y := hud_top_y(78.0)
 	draw_string(f, Vector2(rx - 140.0, combo_y), "COMBO x%d" % _mult, HORIZONTAL_ALIGNMENT_LEFT, -1, int(16 * pop), c)
 	var bar := Rect2(rx - 140.0, combo_y + 6.0, 140, 4)
 	draw_rect(bar, Color(c.r, c.g, c.b, 0.15))

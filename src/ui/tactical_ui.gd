@@ -33,29 +33,36 @@ static func segment_rects(rect: Rect2, count: int, gap: float = 2.0) -> Array[Re
 		result.append(Rect2(rect.position + Vector2(float(index) * (width + gap), 0.0), Vector2(width, rect.size.y)))
 	return result
 
+## Shared margin grid: every surface mounts on the same frame inset so the
+## four screen corners sit on one common baseline pair (side, vertical).
+static func frame_margins(viewport: Vector2) -> Vector2:
+	var compact := viewport.x < 760.0
+	return Vector2(8.0, 12.0) if compact else Vector2(16.0, 20.0)
+
 static func layout(viewport: Vector2, touch: bool = false, touch_scale: float = 1.0) -> Dictionary:
 	var compact := viewport.x < 760.0
-	var side := clampf(viewport.x * 0.012, 8.0, 16.0)
-	var top := clampf(viewport.y * 0.025, 12.0, 20.0)
-	var bottom := viewport.y - clampf(viewport.y * 0.025, 12.0, 20.0)
+	var frame := frame_margins(viewport)
+	var side := frame.x
+	var top := frame.y
+	var bottom := viewport.y - frame.y
 	var corner_w := minf(245.0, viewport.x * (0.46 if compact else 0.19))
+	var bottom_w := minf(330.0, viewport.x * 0.46)
 	var center_w := minf(460.0, viewport.x - side * 2.0)
 	var encounter_h := 58.0 if compact else 76.0
 	var encounter_y := top + 100.0 if compact else top
-	var boss_y := bottom - 152.0 if compact else bottom - 88.0
-	var patch_w := minf(330.0, viewport.x * 0.48)
-	var patches := Rect2(viewport.x - side - patch_w, bottom - 76.0, patch_w, 76.0)
+	var boss_y := bottom - 148.0 if compact else bottom - 88.0
+	var patches := Rect2(viewport.x - side - bottom_w, bottom - 76.0, bottom_w, 76.0)
 	if touch:
 		var max_right := touch_dash_rect(viewport, touch_scale).position.x - 12.0
-		patches.size.x = clampf(max_right - patches.position.x, minf(120.0, patch_w), patch_w)
+		patches.size.x = clampf(max_right - patches.position.x, minf(120.0, bottom_w), bottom_w)
 		if patches.end.x > max_right:
 			patches.position.x = max_right - patches.size.x
 	return {
 		"compact": compact,
 		"integrity": Rect2(side, top, corner_w, 92.0 if compact else 112.0),
 		"encounter": Rect2((viewport.x - center_w) * 0.5, encounter_y, center_w, encounter_h),
-		"score": Rect2(viewport.x - side - corner_w, top, corner_w, 92.0 if compact else 120.0),
-		"dash": Rect2(side, bottom - 76.0, minf(225.0, viewport.x * 0.45), 76.0),
+		"score": Rect2(viewport.x - side - corner_w, top, corner_w, 92.0 if compact else 112.0),
+		"dash": Rect2(side, bottom - 76.0, bottom_w, 76.0),
 		"patches": patches,
 		"boss": Rect2((viewport.x - center_w) * 0.5, boss_y, center_w, 64.0),
 	}
@@ -71,10 +78,8 @@ static func touch_boost_rect(viewport: Vector2, touch_scale: float = 1.0) -> Rec
 	return Rect2(viewport.x - s - 40.0 * sc, viewport.y - s * 2.0 - 36.0 - 22.0, s, s)
 
 static func shell_rect(viewport: Vector2) -> Rect2:
-	var compact := viewport.x < 760.0
-	var side := 8.0 if compact else 16.0
-	var top := 12.0 if compact else 20.0
-	return Rect2(side, top, maxf(viewport.x - side * 2.0, 0.0), maxf(viewport.y - top * 2.0, 0.0))
+	var frame := frame_margins(viewport)
+	return Rect2(frame.x, frame.y, maxf(viewport.x - frame.x * 2.0, 0.0), maxf(viewport.y - frame.y * 2.0, 0.0))
 
 static func shell_sections(viewport: Vector2) -> Dictionary:
 	var shell := shell_rect(viewport)
