@@ -30,7 +30,7 @@ Spec: docs/superpowers/specs/2026-08-30-polish-pack-design.md
 **Files:**
 - Modify: `docs/superpowers/specs/2026-08-30-polish-pack-design.md` (Decision Summary, last bullet)
 
-- [ ] **Step 1: Append the author decision to the spec's Decision Summary**
+- [x] **Step 1: Append the author decision to the spec's Decision Summary**
 
 In `docs/superpowers/specs/2026-08-30-polish-pack-design.md`, find the last line of the `## Decision Summary` section:
 
@@ -45,7 +45,7 @@ and replace it with:
 - Long-term art direction (author decision 2026-08-30): progressive migration from code-drawn glyphs to real generated art after this polish pack; registries-with-fallback are the migration mechanism; this pack's sprite trial (item 8) is the first step.
 ```
 
-- [ ] **Step 2: Confirm the autotest baseline**
+- [x] **Step 2: Confirm the autotest baseline**
 
 Run:
 
@@ -58,7 +58,7 @@ grep -c "AT_STEP" /tmp/opencode/baseline_polish.txt
 
 Expected: final line `AUTOTEST_ALL_PASS`, `1194` AT_PASS, `0` AT_FAIL, `68` AT_STEP labels. Record these three numbers — every later task re-checks against them.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ~~~sh
 git add docs/superpowers/specs/2026-08-30-polish-pack-design.md
@@ -80,7 +80,7 @@ Interfaces:
 - Consumes: `menu_settings_kit.gd` `_build_settings()` content block, the scroll-only `nav_targets = [0, 0, 0, 0, 100000]`, `m._settings_nav_buttons`, `m._settings_title`, `m._keybind_box`, `m._desktop_keybinds_enabled()`.
 - Produces: kit API `SETTINGS_SECTIONS`, `SECTION_CHIP_LABELS`, `assign_section(control, section)`, `set_active_section(section)`, `active_section()`, `section_names()`, `section_controls(section)`, `settings_section_snapshot()`; menu wrapper `settings_section_snapshot()`; updated `settings_shell_snapshot()` groups. Content mapping: AUDIO = SFX/MUSIC/MUTE ALL/"M = MUTE IN GAME" hint; GAMEPLAY = HAPTICS, AIM MODE, TOUCH SIZE (touch-only via meta), SCREEN SHAKE, SPEEDRUN HUD; CONTROLS = desktop keybind grid + RESET KEYBINDS, else a "DESKTOP ONLY" note; ACCESSIBILITY = COLOR ASSIST; SAVE DATA = transfer field, COPY EXPORT / IMPORT PASTE, transfer status, RESET HIGH SCORE, lifetime stats. Every control stays in the tree, only visibility-filtered; ESC chain untouched; difficulty stays in the menu.
 
-- [ ] **Step 1: Write the failing harness checks**
+- [x] **Step 1: Write the failing harness checks**
 
 Create `src/autoload/harness/sections_polish.gd` with exactly:
 
@@ -166,7 +166,7 @@ with:
 		h._check(groups.has("AUDIO") and groups.has("GAMEPLAY") and groups.has("CONTROLS") and groups.has("ACCESSIBILITY") and groups.has("SAVE DATA"), "settings shell exposes the five real sections")
 ~~~
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -176,7 +176,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_FAILED` with AT_FAIL lines including `settings shell exposes the five real sections` and `settings kit exposes the section state machine`. No parse errors.
 
-- [ ] **Step 3: Add the section state machine to menu_settings_kit.gd**
+- [x] **Step 3: Add the section state machine to menu_settings_kit.gd**
 
 In `src/ui/menu_settings_kit.gd`, directly below `var m` (line 11), add:
 
@@ -252,7 +252,7 @@ func settings_section_snapshot() -> Dictionary:
 	return {"active": _active_section, "sections": section_names(), "visible_controls": visible_controls}
 ~~~
 
-- [ ] **Step 4: Rewrite the settings content build with section assignment**
+- [x] **Step 4: Rewrite the settings content build with section assignment**
 
 In `src/ui/menu_settings_kit.gd`, replace the ENTIRE `_build_settings()` function (from `func _build_settings() -> void:` through the `\t_layout_settings()` line that ends it) with:
 
@@ -620,7 +620,7 @@ Then in the same file, at the very end of `_build_keybind_settings`, directly be
 	assign_section(m._keybind_box, "CONTROLS")
 ~~~
 
-- [ ] **Step 5: Update menu.gd snapshot + wrapper**
+- [x] **Step 5: Update menu.gd snapshot + wrapper**
 
 In `src/ui/menu.gd`, directly below the `settings_layout_for_viewport` function (after its closing brace), add:
 
@@ -641,7 +641,7 @@ with:
 		"groups": ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"],
 ~~~
 
-- [ ] **Step 6: Run the full suite**
+- [x] **Step 6: Run the full suite**
 
 Run:
 
@@ -651,7 +651,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_ALL_PASS`, zero `AT_FAIL`. New AT_STEP label `settings_tabs` present; AT_PASS count grows above 1194.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ~~~sh
 git add src/ui/menu_settings_kit.gd src/ui/menu.gd src/autoload/dev_harness.gd src/autoload/harness/sections_polish.gd src/autoload/harness/sections_scene.gd
@@ -673,7 +673,7 @@ Interfaces:
 - Consumes: `settings_layout_for_viewport` (kit); the 760 compact breakpoint used by `TacticalUI.layout` / `TacticalUI.shell_rect` (`tactical_ui.gd` line 37/74).
 - Produces: layout keys `compact` (bool) and `chips` (Rect2); kit `apply_viewport(viewport)` / `_current_viewport()`; menu members `_settings_chips_row: HBoxContainer`, `_settings_chip_buttons: Array[Button]`, `_settings_nav_hint: Label`. Below 760 px the sidebar (nav buttons + rail chrome + hint) hides and a horizontal chips row above the content shares `_active_section` with it.
 
-- [ ] **Step 1: Write the failing harness check**
+- [x] **Step 1: Write the failing harness check**
 
 In `src/autoload/harness/sections_polish.gd`, append at the end of the class:
 
@@ -731,7 +731,7 @@ with:
 				h._check(settings_layout["navigation"].position.x < settings_layout["content"].position.x, "settings navigation precedes content at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 ~~~
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -741,7 +741,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_FAILED` with AT_FAIL `settings kit exposes a viewport override for layout probes`. No parse errors.
 
-- [ ] **Step 3: Compact layout + chips in menu_settings_kit.gd**
+- [x] **Step 3: Compact layout + chips in menu_settings_kit.gd**
 
 3a. In `settings_layout_for_viewport`, replace everything from the line `\tvar navigation_width := minf(230.0, maxf(132.0, workstation.size.x * 0.27))` through the line `\tvar content := Rect2(Vector2(content_x, navigation.position.y), Vector2(maxf(workstation.end.x - content_x - 10.0, 0.0), navigation.size.y))` with:
 
@@ -901,7 +901,7 @@ func _refresh_nav_selection() -> void:
 		nav_button.size = Vector2(maxf(navigation.size.x - 20.0, 96.0), 38.0)
 ~~~
 
-- [ ] **Step 4: Menu state refs**
+- [x] **Step 4: Menu state refs**
 
 In `src/ui/menu.gd`, directly below `var _settings_nav_buttons: Array[Button] = []` (line 48), add:
 
@@ -911,7 +911,7 @@ var _settings_chips_row: HBoxContainer
 var _settings_nav_hint: Label
 ~~~
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run:
 
@@ -921,7 +921,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_ALL_PASS`, zero `AT_FAIL`. New AT_STEP label `settings_chips`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ~~~sh
 git add src/ui/menu_settings_kit.gd src/ui/menu.gd src/autoload/dev_harness.gd src/autoload/harness/sections_polish.gd src/autoload/harness/sections_scene.gd
