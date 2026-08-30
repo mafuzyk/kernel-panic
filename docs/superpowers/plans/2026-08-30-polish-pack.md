@@ -944,7 +944,7 @@ Interfaces:
 
 Layout math (verified disjoint at all four probe sizes): title top 104 desktop / 84 compact, font 76 / 58 (x<1100) / 44 (x<760), height = size×1.45; klog Rect2(16, 12, min(340, vp.x−32), 68); subtitle = title.end+4, h 30; controls = subtitle.end+4, h 26; best = controls.end+4, h 24; mode_info = Rect2(24, vp.y−95−8−mi_h, vp.x−48, mi_h) with mi_h = 44 (vp.y ≥ 700) else 24; button_row = Rect2((vp.x−row_w)/2, vp.y−95, row_w, 48). The three review fixes: (a) klog (y 12–80) sits fully above the title band (84/104+); (b) controls line moves into the top stack, disjoint from `mode_info` (bottom stack); (c) mode_info is clamped clear of the footer row at every probed height.
 
-- [ ] **Step 1: Write the failing harness check**
+- [x] **Step 1: Write the failing harness check**
 
 In `src/autoload/harness/sections_polish.gd`, append at the end of the class:
 
@@ -977,7 +977,7 @@ In `src/autoload/dev_harness.gd`, directly below the `await _sec_polish._setting
 	await _sec_polish._menu_reflow_test(menu_scene)
 ~~~
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -987,7 +987,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_FAILED` with AT_FAIL `menu exposes the central layout dict`. No parse errors.
 
-- [ ] **Step 3: Layout dict + apply in menu_chrome_kit.gd**
+- [x] **Step 3: Layout dict + apply in menu_chrome_kit.gd**
 
 3a. Directly below `var m` (line 12), add:
 
@@ -1225,7 +1225,7 @@ with:
 	m.draw_circle(menu_layout()["mode_dot"], 4.0, Balance.COL_MOTE)
 ~~~
 
-- [ ] **Step 4: Menu element refs + resize wiring**
+- [x] **Step 4: Menu element refs + resize wiring**
 
 In `src/ui/menu.gd`:
 
@@ -1282,7 +1282,7 @@ func menu_layout_for_viewport(viewport: Vector2) -> Dictionary:
 	return _chrome_kit.menu_layout_for_viewport(viewport)
 ~~~
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run:
 
@@ -1292,7 +1292,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_ALL_PASS`, zero `AT_FAIL`. New AT_STEP label `menu_reflow`. The pre-existing `menu_shell` checks stay green — the best label moved to y 282–306 and never intersects the purge rect (purge top = center−52 ≥ 332 at 768).
 
-- [ ] **Step 6: Resize smoke capture (visual, images never committed)**
+- [x] **Step 6: Resize smoke capture (visual, images never committed)**
 
 Run on the author desktop (DP-1 rules per Global Constraints):
 
@@ -1303,7 +1303,7 @@ KP_SHOT=menu KP_SHOT_OUT=/tmp/opencode/reflow_menu_432.png godot --path . --reso
 
 Expected: both prints contain `SHOT_SAVED`; title, klog, controls line, best label, and footer row show no overlaps at either size. Kill the processes after the `SHOT_SAVED` lines.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ~~~sh
 git add src/ui/menu_chrome_kit.gd src/ui/menu.gd src/autoload/dev_harness.gd src/autoload/harness/sections_polish.gd
@@ -1322,7 +1322,7 @@ git commit -m "feat: reflow the menu from one layout dict"
 
 Spec correction applied: the trophy raster does NOT exist (verified 2026-08-30 — no `awards.png`/`trophy` under `assets/icons/generated/`), so the code-drawn "awards" kind ships first; the registry fallback covers the raster automatically if the author later approves one.
 
-- [ ] **Step 1: Extend the icon kind list in the harness (failing)**
+- [x] **Step 1: Extend the icon kind list in the harness (failing)**
 
 In `src/autoload/harness/sections_visual.gd`, replace (line 211):
 
@@ -1336,7 +1336,7 @@ with:
 	for kind in ["settings", "bestiary", "dash", "back", "resume", "restart", "terminal", "audio", "music", "warning", "awards"]:
 ~~~
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -1346,7 +1346,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_FAILED` with AT_FAIL lines `tactical icon covers the awards kind`, `awards icon resolves to a non-empty drawing routine`, `awards icon has documented quality metrics`, `awards icon documents a minimum stroke of at least 1.5`, `awards icon documents panel contrast of at least 0.55`, and the two `awards icon silhouette stays contained at 24px/52px` failures. No parse errors.
 
-- [ ] **Step 3: Implement the "awards" kind in tactical_icon.gd**
+- [x] **Step 3: Implement the "awards" kind in tactical_icon.gd**
 
 3a. In `ICON_METRICS`, directly below the `"warning"` entry, add:
 
@@ -1388,7 +1388,7 @@ func _draw_awards(center: Vector2, radius: float) -> void:
 	draw_line(center + Vector2(-radius * 0.30, radius * 0.58), center + Vector2(radius * 0.30, radius * 0.58), _line_color(), 2.2)
 ~~~
 
-- [ ] **Step 4: Wire the icon into the AWARDS card**
+- [x] **Step 4: Wire the icon into the AWARDS card**
 
 In `src/ui/menu_chrome_kit.gd` `_build_button_row()`, replace:
 
@@ -1410,7 +1410,7 @@ with:
 	ach_btn.z_index = 2
 ~~~
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run:
 
@@ -1420,7 +1420,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_ALL_PASS`, zero `AT_FAIL`.
 
-- [ ] **Step 6: OPTIONAL raster trial (author-gated; skip to Step 7 if the author declines)**
+- [x] **Step 6: OPTIONAL raster trial (author-gated; skip to Step 7 if the author declines)**
 
 Generate one candidate in `/tmp` only, show it side-by-side with the code-drawn icon, and copy it into the repo ONLY after the author approves:
 
@@ -1439,7 +1439,7 @@ KP_SHOT=menu KP_SHOT_OUT=/tmp/opencode/awards_code.png godot --path . --resoluti
 
 Decision rule: without author approval, nothing under `assets/icons/generated/` changes; the code-drawn kind ships. `raster_path("awards")` resolves the raster automatically the moment the file exists (Task 7c registry pattern) — no further wiring needed either way.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ~~~sh
 git add src/ui/tactical_icon.gd src/ui/menu_chrome_kit.gd src/autoload/harness/sections_visual.gd
