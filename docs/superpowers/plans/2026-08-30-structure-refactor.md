@@ -545,9 +545,9 @@ Verify `grep -c '^func _touch_test\|^func _press\|^func _drag\|^func _to_window\
 
 Interfaces kept on Arena via delegates (constraint 7: `pause_input_router.gd` dispatches `handle_pause_input` dynamically; harness calls `arena.state_panel_rect` / `state_action_rects` / `pause_action_labels` / `game_over_action_labels` at dev_harness lines 1338-1373). All state (`_pause_*`, `_over_*`, `_terminal_panel`, `_debug_panel`, constants) stays on Arena.
 
-- [ ] **Step 1: Snapshot** — `cp src/arena/arena.gd /tmp/opencode/arena_T10.gd`
+- [x] **Step 1: Snapshot** — `cp src/arena/arena.gd /tmp/opencode/arena_T10.gd`
 
-- [ ] **Step 2: Create `src/arena/panel_kit.gd`** — header:
+- [x] **Step 2: Create `src/arena/panel_kit.gd`** — header:
 
 ```gdscript
 extends RefCounted
@@ -569,7 +569,7 @@ Then append the two blocks extracted from `/tmp/opencode/arena_T10.gd`, each pip
   1. `awk '/^func _panel_viewport_height\(/{f=1} /^func patch_box_rect_for_viewport\(/{f=0} f' /tmp/opencode/arena_T10.gd`
   2. `awk '/^func _build_pause_panel\(/{f=1} /^func _build_intro\(/{f=0} f' /tmp/opencode/arena_T10.gd`
 
-- [ ] **Step 3: Delete the two blocks from `arena.gd`**
+- [x] **Step 3: Delete the two blocks from `arena.gd`**
 
 ```bash
 awk '/^func _panel_viewport_height\(/{s=1} /^func patch_box_rect_for_viewport\(/{s=0} /^func _build_pause_panel\(/{s=1} /^func _build_intro\(/{s=0} !s{print}' src/arena/arena.gd > /tmp/opencode/arena_new.gd && mv /tmp/opencode/arena_new.gd src/arena/arena.gd
@@ -577,7 +577,7 @@ awk '/^func _panel_viewport_height\(/{s=1} /^func patch_box_rect_for_viewport\(/
 
 Verify: `grep -c '^func _build_pause_panel\|^func _make_button\|^func handle_pause_input\|^func state_panel_rect\|^func panel_control_rect' src/arena/arena.gd` → `0`.
 
-- [ ] **Step 4: Wire the kit into Arena** — four exact edits:
+- [x] **Step 4: Wire the kit into Arena** — four exact edits:
 
 1. After the line `const PauseInputRouterScript = preload("res://src/arena/pause_input_router.gd")` add:
 
@@ -633,7 +633,7 @@ func game_over_action_labels() -> Array[String]:
 
 ```
 
-- [ ] **Step 5: Rewrite remaining internal call sites in `arena.gd`**
+- [x] **Step 5: Rewrite remaining internal call sites in `arena.gd`**
 
 ```bash
 grep -nE '\b(_build_pause_panel|_place_pause_control|_layout_pause_panel|_build_terminal_panel|_open_terminal|_close_terminal|_make_volume_row|_build_game_over_panel|_make_panel|_make_button|_position_game_over_button|_position_game_over_stat|_make_label|_center_panel_control|_panel_viewport_height)\(' src/arena/arena.gd
@@ -641,11 +641,11 @@ grep -nE '\b(_build_pause_panel|_place_pause_control|_layout_pause_panel|_build_
 
 Prefix every hit **outside the new delegate block** with `_panel_kit.`. Baseline inventory of expected external hits (line numbers shift as earlier hits are edited — re-grep each time): `_ready()` 114–116 (`_build_pause_panel/_build_terminal_panel/_build_game_over_panel`); `_refresh_responsive_layout()` 363 (`_layout_pause_panel`); `_build_intro()`/`_build_story_intro()` 717–762 and `_show_tip()` 1027–1028, `_build_patch_ui()` 1058/1068, `_show_game_over()` 1233–1234 (`_make_label`/`_center_panel_control`/`_make_panel` — the intro builders move out in Task 11, whose chain rule converts these to `a._panel_kit.`); `_close_terminal()` 1190, 1442, 1481. Re-run the grep until the only bare hits are inside the delegates themselves.
 
-- [ ] **Step 6: Call-token audit on the kit** — run the G5 audit command on `src/arena/panel_kit.gd`; every token must satisfy rule (a)/(b)/(c). Typical non-member fixes expected: `debug_controls_enabled` / `_terminal_top` / `restart_hold_duration` style calls become `a.debug_controls_enabled(...)` etc. if present.
+- [x] **Step 6: Call-token audit on the kit** — run the G5 audit command on `src/arena/panel_kit.gd`; every token must satisfy rule (a)/(b)/(c). Typical non-member fixes expected: `debug_controls_enabled` / `_terminal_top` / `restart_hold_duration` style calls become `a.debug_controls_enabled(...)` etc. if present.
 
-- [ ] **Step 7: .uid + autotest** — `--import`, stage `.uid`; G1 with `at_T10.log`; expected `exit=0`, `1194`, `0`, `1`.
+- [x] **Step 7: .uid + autotest** — `--import`, stage `.uid`; G1 with `at_T10.log`; expected `exit=0`, `1194`, `0`, `1`.
 
-- [ ] **Step 8: Commit** — `git commit -m "refactor: extract arena pause/terminal/game-over panel kit"`
+- [x] **Step 8: Commit** — `git commit -m "refactor: extract arena pause/terminal/game-over panel kit"`
 
 ---
 
@@ -657,16 +657,16 @@ Prefix every hit **outside the new delegate block** with `_panel_kit.`. Baseline
 
 State (`_story_stage`, `_story_intro_*`, `_intro_bars`, `_intro_label`, `_intro_quote`, `_story_victory`, `_story_next_stage`) stays on Arena — harness reads `_story_stage`/`_story_intro_panel` via `arena.get(...)` (constraint 6). Public delegates: `story_intro_active`, `dismiss_story_intro`.
 
-- [ ] **Step 1: Snapshot** — `cp src/arena/arena.gd /tmp/opencode/arena_T11.gd`
+- [x] **Step 1: Snapshot** — `cp src/arena/arena.gd /tmp/opencode/arena_T11.gd`
 
-- [ ] **Step 2: Create `src/arena/intro_kit.gd`** — same header shape as Task 10 (comment text: "Arena intro/story kit: wave-intro bars, story intro card, boss intro, event banner"), `var a` / `_init(arena)`, then the three blocks through the **RW-ARENA perl (G5) plus this chain rule appended to the same perl invocation**: `; s/(?<![.\w])_panel_kit\./a._panel_kit./g` (the moved intro builders call `_panel_kit._make_label(...)` after Task 10; through the kit they reach it as `a._panel_kit.`). The `STORY_INTRO_*` constants stay on Arena and are reached as `a.STORY_INTRO_*` via RW-ARENA.
+- [x] **Step 2: Create `src/arena/intro_kit.gd`** — same header shape as Task 10 (comment text: "Arena intro/story kit: wave-intro bars, story intro card, boss intro, event banner"), `var a` / `_init(arena)`, then the three blocks through the **RW-ARENA perl (G5) plus this chain rule appended to the same perl invocation**: `; s/(?<![.\w])_panel_kit\./a._panel_kit./g` (the moved intro builders call `_panel_kit._make_label(...)` after Task 10; through the kit they reach it as `a._panel_kit.`). The `STORY_INTRO_*` constants stay on Arena and are reached as `a.STORY_INTRO_*` via RW-ARENA.
   1. `awk '/^func _build_intro\(/{f=1} /^func windows_stage_profile\(/{f=0} f' /tmp/opencode/arena_T11.gd`
   2. `awk '/^func _run_boss_intro\(/{f=1} /^func _on_wave_cleared\(/{f=0} f' /tmp/opencode/arena_T11.gd`
   3. `awk '/^func show_event_banner\(/{f=1} /^func _on_player_hp\(/{f=0} f' /tmp/opencode/arena_T11.gd`
 
-- [ ] **Step 3: Delete the three blocks from `arena.gd`** (same awk range-pair technique with anchors `_build_intro`/`windows_stage_profile`, `_run_boss_intro`/`_on_wave_cleared`, `show_event_banner`/`_on_player_hp`); verify `grep -c '^func _build_intro\|^func _build_story_intro\|^func story_intro_active\|^func _run_boss_intro\|^func show_event_banner' src/arena/arena.gd` → `0`.
+- [x] **Step 3: Delete the three blocks from `arena.gd`** (same awk range-pair technique with anchors `_build_intro`/`windows_stage_profile`, `_run_boss_intro`/`_on_wave_cleared`, `show_event_banner`/`_on_player_hp`); verify `grep -c '^func _build_intro\|^func _build_story_intro\|^func story_intro_active\|^func _run_boss_intro\|^func show_event_banner' src/arena/arena.gd` → `0`.
 
-- [ ] **Step 4: Wire the kit** — after `const PanelKitScript = preload(...)` add `const IntroKitScript = preload("res://src/arena/intro_kit.gd")`; after `var _panel_kit` add `var _intro_kit`; in `_ready()` right after the `_panel_kit = ...` line add `\t_intro_kit = IntroKitScript.new(self)`; replace the string dispatch `call_deferred("_show_story_intro")` (unique) with `_intro_kit._show_story_intro.call_deferred()`; add delegates before `func windows_stage_profile() -> void:`:
+- [x] **Step 4: Wire the kit** — after `const PanelKitScript = preload(...)` add `const IntroKitScript = preload("res://src/arena/intro_kit.gd")`; after `var _panel_kit` add `var _intro_kit`; in `_ready()` right after the `_panel_kit = ...` line add `\t_intro_kit = IntroKitScript.new(self)`; replace the string dispatch `call_deferred("_show_story_intro")` (unique) with `_intro_kit._show_story_intro.call_deferred()`; add delegates before `func windows_stage_profile() -> void:`:
 
 ```gdscript
 func story_intro_active() -> bool:
@@ -678,13 +678,13 @@ func dismiss_story_intro() -> bool:
 
 ```
 
-- [ ] **Step 5: Rewrite internal call sites** — `grep -nE '\b(_build_intro|_build_story_intro|_show_story_intro|_fit_story_intro_text|_finish_story_intro|_begin_story_spawning|_tick_story_intro|_apply_story_theme|_run_boss_intro|show_event_banner)\(' src/arena/arena.gd` → prefix every hit outside the delegate block with `_intro_kit.`. Baseline inventory of expected external hits: `_ready()` 117/120/121; `_on_wave_started()` 923 (`_run_boss_intro`); `_on_story_wave_started()` 941 (`_apply_story_theme`); `_process()` 1610 (`_tick_story_intro`). (`dismiss_story_intro` at 1415 keeps calling the bare Arena delegate; `_fit_story_intro_text`/`_finish_story_intro`/`_begin_story_spawning` hits at 771–826 are kit-internal.)
+- [x] **Step 5: Rewrite internal call sites** — `grep -nE '\b(_build_intro|_build_story_intro|_show_story_intro|_fit_story_intro_text|_finish_story_intro|_begin_story_spawning|_tick_story_intro|_apply_story_theme|_run_boss_intro|show_event_banner)\(' src/arena/arena.gd` → prefix every hit outside the delegate block with `_intro_kit.`. Baseline inventory of expected external hits: `_ready()` 117/120/121; `_on_wave_started()` 923 (`_run_boss_intro`); `_on_story_wave_started()` 941 (`_apply_story_theme`); `_process()` 1610 (`_tick_story_intro`). (`dismiss_story_intro` at 1415 keeps calling the bare Arena delegate; `_fit_story_intro_text`/`_finish_story_intro`/`_begin_story_spawning` hits at 771–826 are kit-internal.)
 
-- [ ] **Step 6: Call-token audit** (G5 command on `src/arena/intro_kit.gd`).
+- [x] **Step 6: Call-token audit** (G5 command on `src/arena/intro_kit.gd`).
 
-- [ ] **Step 7: .uid + autotest** — G1 with `at_T11.log`; expected `exit=0`, `1194`, `0`, `1`.
+- [x] **Step 7: .uid + autotest** — G1 with `at_T11.log`; expected `exit=0`, `1194`, `0`, `1`.
 
-- [ ] **Step 8: Commit** — `git commit -m "refactor: extract arena intro/story kit"`
+- [x] **Step 8: Commit** — `git commit -m "refactor: extract arena intro/story kit"`
 
 ---
 
@@ -696,16 +696,16 @@ func dismiss_story_intro() -> bool:
 
 Public delegates: `windows_stage_profile`, `temple_stage_profile` (harness `_windows_test`/`_temple_test` call them on the arena). `_dust`/`_windows_watermark`/`_temple_mode` state stays on Arena; `_process()` keeps updating corruption through the arena-owned state.
 
-- [ ] **Step 1: Snapshot** — `cp src/arena/arena.gd /tmp/opencode/arena_T12.gd`
+- [x] **Step 1: Snapshot** — `cp src/arena/arena.gd /tmp/opencode/arena_T12.gd`
 
-- [ ] **Step 2: Create `src/arena/stage_kit.gd`** — header shape as Task 10 (comment: "Arena stage/era visual kit: background dust, Windows and Temple stage dressing"), then three blocks through the **RW-ARENA perl (G5) plus these chain rules appended to the same perl invocation**: `; s/(?<![.\w])_panel_kit\./a._panel_kit./g; s/(?<![.\w])_intro_kit\./a._intro_kit./g` (moved stage builders may call the earlier kits through the Arena reference):
+- [x] **Step 2: Create `src/arena/stage_kit.gd`** — header shape as Task 10 (comment: "Arena stage/era visual kit: background dust, Windows and Temple stage dressing"), then three blocks through the **RW-ARENA perl (G5) plus these chain rules appended to the same perl invocation**: `; s/(?<![.\w])_panel_kit\./a._panel_kit./g; s/(?<![.\w])_intro_kit\./a._intro_kit./g` (moved stage builders may call the earlier kits through the Arena reference):
   1. `awk '/^func _build_background\(/{f=1} /^func patch_box_rect_for_viewport\(/{f=0} f' /tmp/opencode/arena_T12.gd` (after Task 10 removed the panel-rect block, `patch_box_rect_for_viewport` is the successor of `_build_background`)
   2. `awk '/^func windows_stage_profile\(/{f=1} /^func _on_wave_started\(/{f=0} f' /tmp/opencode/arena_T12.gd`
   3. `awk '/^func background_corruption_for_wave\(/{f=1} /^func _request_abandon_confirmation\(/{f=0} f' /tmp/opencode/arena_T12.gd`
 
-- [ ] **Step 3: Delete the three blocks** (same range-pair awk technique with the three anchor pairs above); verify `grep -c '^func _build_background\|^func windows_stage_profile\|^func _build_windows_visuals\|^func temple_stage_profile\|^func _build_temple_visuals\|^func background_corruption_for_wave' src/arena/arena.gd` → `0`.
+- [x] **Step 3: Delete the three blocks** (same range-pair awk technique with the three anchor pairs above); verify `grep -c '^func _build_background\|^func windows_stage_profile\|^func _build_windows_visuals\|^func temple_stage_profile\|^func _build_temple_visuals\|^func background_corruption_for_wave' src/arena/arena.gd` → `0`.
 
-- [ ] **Step 4: Wire the kit** — `const StageKitScript = preload("res://src/arena/stage_kit.gd")`; `var _stage_kit`; `_ready()` init line after `_intro_kit = ...`; delegates placed directly after the Task 11 delegates:
+- [x] **Step 4: Wire the kit** — `const StageKitScript = preload("res://src/arena/stage_kit.gd")`; `var _stage_kit`; `_ready()` init line after `_intro_kit = ...`; delegates placed directly after the Task 11 delegates:
 
 ```gdscript
 func windows_stage_profile() -> Dictionary:
@@ -717,11 +717,11 @@ func temple_stage_profile() -> Dictionary:
 
 ```
 
-- [ ] **Step 5: Rewrite internal call sites** — `grep -nE '\b(_build_background|_build_windows_visuals|_build_temple_visuals|background_corruption_for_wave)\(' src/arena/arena.gd` → prefix every hit with `_stage_kit.`. Baseline inventory of expected hits: `_ready()` 88/122/123; `_on_wave_started()` 917; `_process()` 1651 (`background_corruption_for_wave`).
+- [x] **Step 5: Rewrite internal call sites** — `grep -nE '\b(_build_background|_build_windows_visuals|_build_temple_visuals|background_corruption_for_wave)\(' src/arena/arena.gd` → prefix every hit with `_stage_kit.`. Baseline inventory of expected hits: `_ready()` 88/122/123; `_on_wave_started()` 917; `_process()` 1651 (`background_corruption_for_wave`).
 
-- [ ] **Step 6: Call-token audit + .uid + autotest** — G1 with `at_T12.log`; expected `exit=0`, `1194`, `0`, `1`.
+- [x] **Step 6: Call-token audit + .uid + autotest** — G1 with `at_T12.log`; expected `exit=0`, `1194`, `0`, `1`.
 
-- [ ] **Step 7: Commit** — `git commit -m "refactor: extract arena stage/era visual kit"`
+- [x] **Step 7: Commit** — `git commit -m "refactor: extract arena stage/era visual kit"`
 
 ---
 
