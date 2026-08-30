@@ -4,6 +4,8 @@ const HSectionTasksA = preload("res://src/autoload/harness/sections_tasks_a.gd")
 const HSectionTasksB = preload("res://src/autoload/harness/sections_tasks_b.gd")
 const HSectionSystemsA = preload("res://src/autoload/harness/sections_systems_a.gd")
 const HSectionSystemsB1 = preload("res://src/autoload/harness/sections_systems_b1.gd")
+const HSectionSystemsB2 = preload("res://src/autoload/harness/sections_systems_b2.gd")
+const HSectionMisc = preload("res://src/autoload/harness/sections_misc.gd")
 
 var active := false
 var _fails := 0
@@ -12,6 +14,8 @@ var _sec_tasks_a
 var _sec_tasks_b
 var _sec_systems_a
 var _sec_systems_b1
+var _sec_systems_b2
+var _sec_misc
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -74,6 +78,8 @@ func _init_sections() -> void:
 	_sec_tasks_b = HSectionTasksB.new(self)
 	_sec_systems_a = HSectionSystemsA.new(self)
 	_sec_systems_b1 = HSectionSystemsB1.new(self)
+	_sec_systems_b2 = HSectionSystemsB2.new(self)
+	_sec_misc = HSectionMisc.new(self)
 
 func _autotest() -> void:
 	_watchdog()
@@ -385,11 +391,11 @@ func _autotest() -> void:
 	await _era_accent_test(arena2)
 	await _sec_systems_a._systems_test_a(arena2)
 	await _sec_systems_b1._systems_test_b1(arena2)
-	await _systems_test_b2(arena2)
-	await _difficulty_test()
-	await _debug_controls_test(arena2)
-	await _mote_sweep_test(arena2)
-	await _oom_steal_identity_test(arena2)
+	await _sec_systems_b2._systems_test_b2(arena2)
+	await _sec_misc._difficulty_test()
+	await _sec_misc._debug_controls_test(arena2)
+	await _sec_misc._mote_sweep_test(arena2)
+	await _sec_misc._oom_steal_identity_test(arena2)
 	await _story_test(arena2)
 	await _windows_test(arena2)
 	await _temple_test(arena2)
@@ -527,317 +533,6 @@ func _restore_config_snapshot(section: String, key: String, snapshot: Dictionary
 	if not bool(snapshot["has_section"]) and cf.has_section(section) and cf.get_section_keys(section).is_empty():
 		cf.erase_section(section)
 	cf.save(Sfx.SAVE_PATH)
-
-func _systems_test_b2(arena: Arena) -> void:
-	var player: Player = arena.player
-	print("AT_STEP oom")
-	var oom: EnemyBase = arena.spawner._make_enemy("oom")
-	_check(oom is OomKiller, "OOM_KILLER builds")
-	oom.position = arena.player.global_position + Vector2(320, 0)
-	arena.enemy_container.add_child(oom)
-	await _ticks(2)
-	var target_field: MoteField = arena.mote_field
-	for i in range(target_field.count() - 1, -1, -1):
-		target_field.kill_slot(i)
-	var near_idx := target_field.spawn(oom.global_position + Vector2(12, 0))
-	var selected_idx := target_field.spawn(oom.global_position + Vector2(160, 0))
-	oom._steal(selected_idx)
-	_check(target_field.is_stolen(selected_idx) and not target_field.is_stolen(near_idx), "OOM_KILLER steals selected mote slot")
-	target_field.free_all_stolen()
-	target_field.kill_slot(near_idx)
-	oom.carried_ids.clear()
-	var steal_box := [-1]
-	arena.mote_field.spawn(oom.global_position + Vector2(12, 0))
-	await _until(func() -> bool:
-		var f = arena.mote_field
-		for i in range(f.count()):
-			if f.is_stolen(i):
-				steal_box[0] = i
-				return true
-		return false, 4.0, "oom steal")
-	var field_ref = arena.mote_field
-	var stolen_idx: int = steal_box[0]
-	_check(stolen_idx >= 0 and field_ref.is_stolen(stolen_idx), "OOM_KILLER steals motes")
-	oom.take_hit(99, oom.global_position)
-	await _ticks(3)
-	if stolen_idx >= 0:
-		_check(not field_ref.is_stolen(stolen_idx), "killed OOM_KILLER returns motes")
-	print("AT_STEP ricochet")
-	Game.patch_levels = {"ricochet": 1}
-	var b := PlayerBullet.new()
-	b.setup(Vector2(-560, 0), Vector2(-1, 0), false)
-	b.vel = Vector2(-Balance.BULLET_SPEED, 0)
-	b.bounces = 1
-	arena.add_child(b)
-	await _ticks(30)
-	_check(is_instance_valid(b) and b.vel.x > 0, "ricochet reflects off wall")
-	if is_instance_valid(b):
-		b.queue_free()
-	print("AT_STEP heavy")
-	Game.patch_levels = {"heavy": 1}
-	player.fire_cd = 0.0
-	var shots0: int = Game.stats["shots"]
-	player._shoot()
-	var hb_found := false
-	for c in arena.get_children():
-		if c is PlayerBullet and c.dmg == 2:
-			hb_found = true
-			c.queue_free()
-	_check(hb_found and Game.stats["shots"] == shots0 + 1, "heavy rounds add damage")
-	Game.patch_levels = {}
-	print("AT_STEP drag")
-	player.touch_mode = true
-	print("AT_STEP freeze")
-	player.apply_freeze(1.0)
-	_check(player.slow_factor < 1.0, "freeze slows player")
-	await _simulation_seconds(1.1)
-	_check(absf(player.slow_factor - 1.0) < 0.01, "freeze expires")
-	print("AT_STEP wave1")
-	var sp := arena.spawner
-	sp.wave = 1
-	sp._build_queue()
-	_check(sp._queue.size() <= 9, "wave 1 is gentle (<=9 spawns)")
-	sp._queue.clear()
-	var seed_a: Array = []
-	Game.mode = "weekly"
-	Game.rng.seed = 424242
-	for i in 3:
-		seed_a.append(Game.roll_patch_offer()[0]["id"])
-	Game.rng.seed = 424242
-	var seed_b: Array = []
-	for i in 3:
-		seed_b.append(Game.roll_patch_offer()[0]["id"])
-	_check(str(seed_a) == str(seed_b), "weekly seed is deterministic")
-	Game.best = 4242
-	var cf_reset := ConfigFile.new()
-	cf_reset.set_value("run", "best_classic", 4242)
-	cf_reset.set_value("run", "best", 4242)
-	cf_reset.save(Sfx.SAVE_PATH)
-	print("AT_STEP weekly_det")
-	var comp_a: Array = []
-	var events_a: Array = []
-	Game.rng.seed = 777
-	for w in range(1, 7):
-		sp.wave = w
-		sp._roll_wave_event(false, w)
-		events_a.append(sp._next_event)
-		sp._build_queue()
-		comp_a.append(" ".join(sp._queue))
-	var comp_b: Array = []
-	var events_b: Array = []
-	Game.rng.seed = 777
-	for w in range(1, 7):
-		sp.wave = w
-		sp._roll_wave_event(false, w)
-		events_b.append(sp._next_event)
-		sp._build_queue()
-		comp_b.append(" ".join(sp._queue))
-	_check(str(comp_a) == str(comp_b), "weekly wave composition deterministic")
-	_check(str(events_a) == str(events_b), "weekly wave events deterministic")
-	var l1 := LancerEnemy.new()
-	l1.phase_t = Game.rng.randf_range(0.6, 1.1)
-	Game.rng.seed = 99
-	l1.phase_t = Game.rng.randf_range(0.6, 1.1)
-	Game.rng.seed = 99
-	var l2 := LancerEnemy.new()
-	l2.phase_t = Game.rng.randf_range(0.6, 1.1)
-	_check(absf(l1.phase_t - l2.phase_t) < 0.0001, "enemy rng uses seeded stream")
-	Game.mode = "classic"
-	Game.patch_levels = {}
-	await _ticks(2)
-	var trojan := arena.spawner._make_enemy("trojan")
-	_check(trojan is TrojanEnemy, "trojan enemy builds")
-	trojan.queue_free()
-	arena.spawner.wave = 5
-	arena.spawner._roll_wave_event(false)
-	arena._on_wave_cleared(1)
-	var before_vacuum: int = arena.mote_field.count()
-	_check(before_vacuum > 0, "motes exist before vacuum")
-	arena._on_wave_cleared(2)
-	for vi in 180:
-		await get_tree().process_frame
-		if arena.mote_field.count() == 0:
-			break
-	_check(arena.mote_field.count() == 0, "wave clear vacuums motes")
-	arena.offer_patch()
-	await _until(func() -> bool: return arena._patch_open, 4.0, "patch panel opens")
-	await _ticks(20)
-	_check(arena._patch_open and arena._patch_panel.visible and arena._patch_panel.modulate.a > 0.5, "patch panel opens and is visible")
-	_check(get_tree().paused, "patch pauses world")
-	var build_before: String = arena.hud._build_label.text
-	arena._pick_patch(0)
-	await _ticks(2)
-	_check(not get_tree().paused and not arena._patch_open, "patch pick resumes world")
-	_check(arena.hud._build_label != null and arena.hud._build_label.text != "NO PATCHES", "hud shows active patches")
-	_check(Game.patch_levels.size() > 0 or true, "patch applied")
-	Sfx.haptic(10)
-	_check(Sfx._stems.size() == 3, "three music stems loaded")
-	var music_streams: Array[AudioStreamWAV] = []
-	for stem in Sfx._stems:
-		var stream := stem.stream as AudioStreamWAV
-		if stream != null:
-			music_streams.append(stream)
-	_check(music_streams.size() == 3, "three music streams expose WAV data")
-	if music_streams.size() == 3:
-		var first := music_streams[0]
-		_check(first.get_length() >= 30.0, "music stems are at least 30 seconds")
-		var expected_loop_end := int(round(first.get_length() * first.mix_rate))
-		_check(absf(float(first.loop_end - expected_loop_end)) <= 1.0, "music loop covers the full imported duration")
-		for i in music_streams.size():
-			var stream := music_streams[i]
-			_check(stream.loop_mode == AudioStreamWAV.LOOP_FORWARD, "music stem %d loops forward" % i)
-			_check(stream.mix_rate == first.mix_rate, "music stem %d sample rate matches" % i)
-			_check(stream.stereo == first.stereo, "music stem %d channel layout matches" % i)
-			_check(absf(stream.get_length() - first.get_length()) < 0.001, "music stem %d duration matches" % i)
-			_check(stream.data.size() == first.data.size(), "music stem %d length matches" % i)
-			_check(stream.loop_end == first.loop_end, "music stem %d loop end matches" % i)
-	Sfx.set_intensity(2)
-	Sfx.set_intensity(0)
-	await _ticks(2)
-
-func _difficulty_test() -> void:
-	print("AT_STEP difficulty")
-	var balance_script: Script = load("res://src/autoload/balance.gd")
-	var has_helpers: bool = balance_script != null and balance_script.has_method("difficulty_max_alive") and balance_script.has_method("difficulty_wave_budget") and balance_script.has_method("difficulty_elite_chance") and balance_script.has_method("difficulty_cadence")
-	_check(has_helpers, "balance exposes difficulty-aware read helpers")
-	if not has_helpers:
-		return
-	var saved_mode := Game.mode
-	var saved_difficulty := str(Game.get("difficulty"))
-	var alive_caps := {"easy": 7, "normal": 10, "hard": 13}
-	var budget_mults := {"easy": 0.8, "normal": 1.0, "hard": 1.2}
-	var elite_mults := {"easy": 0.6, "normal": 1.0, "hard": 1.4}
-	var cadence_floors := {"easy": 0.90, "normal": 0.78, "hard": 0.70}
-	Game.mode = "classic"
-	for difficulty in ["easy", "normal", "hard"]:
-		Game.set("difficulty", difficulty)
-		_check(balance_script.call("difficulty_max_alive", 2) == int(alive_caps[difficulty]), "difficulty %s caps wave 2 alive at %d" % [difficulty, alive_caps[difficulty]])
-		var expected_budget: int = int(floor(float(Balance.wave_budget(5)) * float(budget_mults[difficulty])))
-		_check(balance_script.call("difficulty_wave_budget", 5) == expected_budget, "difficulty %s scales the wave budget" % difficulty)
-		var expected_elite: float = clampf(Balance.elite_chance(10) * float(elite_mults[difficulty]), 0.0, 1.0)
-		_check(absf(float(balance_script.call("difficulty_elite_chance", 10)) - expected_elite) < 0.0001, "difficulty %s scales the elite chance" % difficulty)
-		_check(absf(float(balance_script.call("difficulty_cadence", 1)) - 1.0) < 0.001, "difficulty %s keeps wave 1 cadence at 1.0" % difficulty)
-		_check(absf(float(balance_script.call("difficulty_cadence", 30)) - float(cadence_floors[difficulty])) < 0.005, "difficulty %s lands wave 30 cadence on %.2f" % [difficulty, cadence_floors[difficulty]])
-	Game.mode = "story"
-	for difficulty in ["easy", "normal", "hard"]:
-		Game.set("difficulty", difficulty)
-		var story_unscaled: bool = balance_script.call("difficulty_max_alive", 30) == Balance.max_alive(30) and balance_script.call("difficulty_wave_budget", 30) == Balance.wave_budget(30) and absf(float(balance_script.call("difficulty_cadence", 30)) - Balance.attack_cadence_factor(30)) < 0.0001 and absf(float(balance_script.call("difficulty_elite_chance", 10)) - Balance.elite_chance(10)) < 0.0001
-		_check(story_unscaled, "story ignores difficulty %s" % difficulty)
-	Game.mode = "classic"
-	if Game.has_method("set_difficulty"):
-		Game.call("set_difficulty", "hard")
-		_check(str(Game.get("difficulty")) == "hard", "set_difficulty stores a new difficulty")
-		var cf_probe := ConfigFile.new()
-		cf_probe.load(Sfx.SAVE_PATH)
-		_check(str(cf_probe.get_value("game", "difficulty", "")) == "hard", "difficulty persists to the save config")
-		Game.call("set_difficulty", "normal")
-		_check(str(Game.get("difficulty")) == "normal", "set_difficulty restores normal")
-	Game.mode = saved_mode
-	Game.set("difficulty", saved_difficulty)
-
-func _debug_controls_test(arena: Arena) -> void:
-	print("AT_STEP debug_controls")
-	var debug_panel_script := load("res://src/ui/debug_panel.gd")
-	_check(debug_panel_script != null, "debug panel script loads")
-	_check(arena.has_method("debug_controls_enabled"), "arena exposes debug controls gate")
-	if arena.has_method("debug_controls_enabled"):
-		_check(not bool(arena.call("debug_controls_enabled")), "headless run keeps debug controls disabled")
-	var sp: Spawner = arena.spawner
-	var debug_api_ready := sp.has_method("debug_skip_to_wave") and sp.has_method("debug_spawn_enemy") and sp.has_method("debug_spawn_boss") and sp.has_method("debug_spawn_root_split")
-	_check(debug_api_ready, "spawner exposes debug wave and spawn controls")
-	if not debug_api_ready:
-		return
-	sp.start(arena, arena.enemy_container, 1)
-	for child in arena.enemy_container.get_children():
-		child.queue_free()
-	await _ticks(3)
-	var skip_ok := bool(sp.call("debug_skip_to_wave", 7))
-	_check(skip_ok and sp.wave == 7 and not sp._queue.is_empty(), "debug skip starts the requested wave")
-	var spawned = sp.call("debug_spawn_enemy", "oom")
-	await _ticks(2)
-	_check(spawned is OomKiller and is_instance_valid(spawned) and spawned.threat_wave == 7, "debug spawn creates the selected enemy at current wave")
-	var boss = sp.call("debug_spawn_boss", 2)
-	await _ticks(2)
-	_check(boss is RootBoss and is_instance_valid(boss) and boss.boss_index == 2 and sp._boss == boss, "debug spawn creates the selected boss")
-	var split_ok := bool(sp.call("debug_spawn_root_split"))
-	await _ticks(4)
-	var mini_count := 0
-	for candidate in get_tree().get_nodes_in_group("boss"):
-		if is_instance_valid(candidate) and candidate.get("mini") == true:
-			mini_count += 1
-	_check(split_ok and mini_count == 2, "debug root split creates two mini bosses")
-	for child in arena.enemy_container.get_children():
-		child.queue_free()
-	await _ticks(3)
-
-func _mote_sweep_test(arena: Arena) -> void:
-	print("AT_STEP mote_sweep")
-	arena.spawner.stop()
-	arena.spawner.debug_clear_encounter()
-	for node in get_tree().get_nodes_in_group("enemies"):
-		if is_instance_valid(node):
-			node.queue_free()
-	await _ticks(2)
-	var mf: MoteField = arena.mote_field
-	var player_ref: Player = arena.player
-	player_ref.invuln = 9999.0
-	Game.patch_levels = {}
-	player_ref.meter = 0.0
-	player_ref.overclock_active = false
-	for i in range(mf.count() - 1, -1, -1):
-		mf.kill_slot(i)
-	var start := player_ref.global_position
-	var far_idx := mf.spawn(start + Vector2(400.0, 0.0))
-	var mid_idx := mf.spawn(start + Vector2(130.0, 0.0))
-	await _ticks(3)
-	player_ref.global_position = start + Vector2(260.0, 0.0)
-	var collected := await _until(func() -> bool: return not mf.alive_at(mid_idx), 3.0, "swept mote pickup")
-	_check(collected, "a dash-speed position jump collects a mote centered in the swept segment")
-	_check(mf.alive_at(far_idx), "a distant mote is not collected by the swept segment")
-	if far_idx >= 0 and mf.alive_at(far_idx):
-		mf.kill_slot(far_idx)
-	player_ref.invuln = 0.0
-
-func _oom_steal_identity_test(arena: Arena) -> void:
-	print("AT_STEP oom_identity")
-	var mf: MoteField = arena.mote_field
-	_check(mf.has_method("uid_of") and mf.has_method("idx_of_uid"), "mote field exposes identity handles")
-	if not (mf.has_method("uid_of") and mf.has_method("idx_of_uid")):
-		return
-	arena.spawner.stop()
-	arena.spawner.debug_clear_encounter()
-	for node in get_tree().get_nodes_in_group("enemies"):
-		if is_instance_valid(node):
-			node.queue_free()
-	await _ticks(2)
-	var oom: EnemyBase = arena.spawner._make_enemy("oom")
-	oom.position = arena.player.global_position + Vector2(320, 0)
-	arena.enemy_container.add_child(oom)
-	await _ticks(2)
-	for i in range(mf.count() - 1, -1, -1):
-		mf.kill_slot(i)
-	var near_idx := mf.spawn(oom.global_position + Vector2(12.0, 0.0))
-	var target_idx := mf.spawn(oom.global_position + Vector2(160.0, 0.0))
-	var target_pos := mf.pos_of(target_idx)
-	var target_uid: int = mf.call("uid_of", target_idx)
-	oom.call("_steal", target_idx, target_uid)
-	_check(mf.is_stolen(target_idx), "oom steals the targeted mote")
-	mf.kill_slot(near_idx)
-	var resolved: int = mf.call("idx_of_uid", target_uid)
-	_check(resolved >= 0 and mf.alive_at(resolved) and mf.is_stolen(resolved), "the stolen mote keeps its identity after a slot swap")
-	_check(mf.pos_of(resolved).distance_to(target_pos) < 0.01, "the carried slot still points at the stolen mote's position")
-	var third_idx := mf.spawn(oom.global_position + Vector2(300.0, 0.0))
-	var wrong_uid: int = int(target_uid) + 1000000
-	oom.call("_steal", third_idx, wrong_uid)
-	_check(not mf.is_stolen(third_idx), "a stale identity never steals a live free mote")
-	oom.call("_steal", third_idx, mf.call("uid_of", third_idx))
-	_check(mf.is_stolen(third_idx), "a matching identity steals normally")
-	var probe: int = mf.nearest_free(oom.global_position)
-	_check(probe < 0 or (mf.alive_at(probe) and not mf.is_stolen(probe)), "re-resolution only targets live free motes")
-	oom.carried_ids.clear()
-	mf.free_all_stolen()
-	oom.queue_free()
-	await _ticks(2)
 
 func _hud_style_test(_arena: Arena) -> void:
 	print("AT_STEP hud_style")
