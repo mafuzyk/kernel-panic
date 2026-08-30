@@ -852,9 +852,11 @@ done
 **Files:**
 - Modify: `docs/superpowers/plans/2026-08-30-structure-refactor.md` (append report)
 
-- [ ] **Step 1: Full autotest** — G1 with `at_T16.log`; expected `exit=0`, `1194`, `0`, `1`. Also re-run the label check: `cat src/autoload/dev_harness.gd src/autoload/harness/*.gd | grep -c 'print("AT_STEP'` → `68`.
+- [x] **Step 1: Full autotest** — G1 with `at_T16.log`; expected `exit=0`, `1194`, `0`, `1`. Also re-run the label check: `cat src/autoload/dev_harness.gd src/autoload/harness/*.gd | grep -c 'print("AT_STEP'` → `68`.
 
-- [ ] **Step 2: Produce the after-table**
+  Verified 2026-08-30: `exit=0`, `1194` `AT_PASS`, `0` `AT_FAIL`, 1× `AUTOTEST_ALL_PASS`; label count `68`, labels byte-identical as a set to baseline commit `7f0c4b9`. Additional KP_DEMO smoke boot (graphical, Hyprland): window class `KERNEL PANIC` fullscreen on DP-1 via runtime `hl.window_rule()` eval, `DEMO_END t=10 wave=1 score=700 dead=false`, zero `SCRIPT ERROR` lines, process killed after.
+
+- [x] **Step 2: Produce the after-table**
 
 ```bash
 wc -l src/*/*.gd src/*.gd | sort -rn > /tmp/opencode/wc_after.txt
@@ -862,7 +864,7 @@ diff /tmp/opencode/wc_before.txt /tmp/opencode/wc_after.txt
 git log --oneline | head -20
 ```
 
-- [ ] **Step 3: Append the structure report** to this plan document below this task — a markdown table with columns `file | before | after | delta` for the top-10 baseline files plus every new `src/autoload/harness/*.gd`, `src/arena/*_kit.gd`, `src/ui/menu_*_kit.gd` file, filled from `/tmp/opencode/wc_after.txt`, followed by the `git log --oneline` list of the `refactor:` commits produced by Tasks 1–15. Commit:
+- [x] **Step 3: Append the structure report** to this plan document below this task — a markdown table with columns `file | before | after | delta` for the top-10 baseline files plus every new `src/autoload/harness/*.gd`, `src/arena/*_kit.gd`, `src/ui/menu_*_kit.gd` file, filled from `/tmp/opencode/wc_after.txt`, followed by the `git log --oneline` list of the `refactor:` commits produced by Tasks 1–15. Commit:
 
 ```bash
 git add docs/superpowers/plans/2026-08-30-structure-refactor.md
@@ -883,3 +885,60 @@ git commit -m "docs: append structure refactor report"
 | new: 2 menu kits | 0 | ~970 |
 
 Every intermediate state is committed, green (`AUTOTEST_ALL_PASS`, 1194/0), and independently revertable. No production behavior, save format, visual, public API, signal, or group name changes at any point.
+
+---
+
+## Structure report (Task 16, measured 2026-08-30, branch `main`)
+
+Line counts `src/*/*.gd` + `src/autoload/harness/*.gd`; before = baseline commit `7f0c4b9`, after = commit `c8aebca` (T15).
+
+| file | before | after | delta |
+|---|---:|---:|---:|
+| src/autoload/dev_harness.gd | 3867 | 624 | -3243 |
+| src/arena/arena.gd | 1672 | 1146 | -526 |
+| src/ui/menu.gd | 1615 | 730 | -885 |
+| src/autoload/game.gd | 832 | 832 | 0 |
+| src/enemies/root_boss.gd | 763 | 763 | 0 |
+| src/ui/hud.gd | 642 | 642 | 0 |
+| src/player/player.gd | 581 | 581 | 0 |
+| src/arena/spawner.gd | 466 | 466 | 0 |
+| src/ui/bestiary_panel.gd | 400 | 400 | 0 |
+| src/ui/story_panel.gd | 363 | 363 | 0 |
+| new: src/autoload/harness/sections_boot.gd | 0 | 350 | +350 |
+| new: src/autoload/harness/sections_tasks_a.gd | 0 | 398 | +398 |
+| new: src/autoload/harness/sections_tasks_b.gd | 0 | 315 | +315 |
+| new: src/autoload/harness/sections_systems_a.gd | 0 | 446 | +446 |
+| new: src/autoload/harness/sections_systems_b1.gd | 0 | 435 | +435 |
+| new: src/autoload/harness/sections_systems_b2.gd | 0 | 180 | +180 |
+| new: src/autoload/harness/sections_misc.gd | 0 | 157 | +157 |
+| new: src/autoload/harness/sections_visual.gd | 0 | 368 | +368 |
+| new: src/autoload/harness/sections_scene.gd | 0 | 392 | +392 |
+| new: src/autoload/harness/sections_modes.gd | 0 | 373 | +373 |
+| new: src/arena/panel_kit.gd | 0 | 358 | +358 |
+| new: src/arena/intro_kit.gd | 0 | 179 | +179 |
+| new: src/arena/stage_kit.gd | 0 | 89 | +89 |
+| new: src/ui/menu_settings_kit.gd | 0 | 595 | +595 |
+| new: src/ui/menu_chrome_kit.gd | 0 | 367 | +367 |
+| **total** | **16521** | **16866** | **+345** |
+
+Notes: the plan projected 9 harness section scripts; the split of `_systems_test` into a/b1/b2 plus boot/tasks_a/tasks_b/misc yields 10 (3414 lines, vs ~3450 projected). `src/ui/terminal_panel.gd` changed 351 → 348 (-3) via the T15 dead-code removal of `_panel_position`; every other unlisted production file is byte-identical to baseline. Net +345 lines = section/kit headers, skeleton plumbing, and delegate wrappers.
+
+`refactor:` commits produced by Tasks 1–15 (oldest first):
+
+```
+93a69c6 refactor: split harness boot sections into a preloaded section script
+5c7a017 refactor: split harness task sections into sections_tasks_a
+c2d0039 refactor: split harness task9/task6 into sections_tasks_b
+feb8a66 refactor: split systems test into sections and move part A
+9927a05 refactor: move systems test part b1 into a section script
+5f6ec7c refactor: move systems tail and misc tests into section scripts
+3a88dc4 refactor: move visual/era test sections into sections_visual
+a57ea76 refactor: move scene/ui test sections into sections_scene
+6365896 refactor: move mode-entry and touch test sections out of dev_harness
+36ce5c4 refactor: extract arena pause/terminal/game-over panel kit
+40afdd5 refactor: extract arena intro/story kit
+5be4a76 refactor: extract arena stage/era visual kit
+83c9b48 refactor: extract menu settings kit
+0493e45 refactor: extract menu chrome/shell kit
+c8aebca refactor: remove provably unused private helpers
+```
