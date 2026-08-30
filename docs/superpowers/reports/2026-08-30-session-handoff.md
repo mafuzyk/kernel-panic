@@ -1,5 +1,16 @@
 # KERNEL PANIC — Session Handoff (2026-08-30, parada segura pré-migração CachyOS)
 
+> **⚠️ RESOLVIDO EM 2026-08-30 (CachyOS, pós-migração) — este doc é histórico.**
+> T13 foi CONCLUÍDO (ver `reports/2026-08-30-polish-pack.md`), as decisões
+> author-gated 1-2 foram tomadas e aplicadas (ícones v2 adotados, sprites
+> migrados — direção: glifo é fallback, sprite é o padrão), o questionário do
+> apêndice 9 foi respondido (`specs/2026-08-30-gameplay-backlog-answers.md`),
+> o lote de arte batch 1 + passada de polimento P2 estão commitados
+> (`reports/2026-08-30-art-migration-batch1.md`). Estado atual do projeto:
+> roadmap e specs em `docs/superpowers/`; o backlog de gameplay aguarda
+> implementação; branch `wip/polish-pack` com tudo commitado.
+> As seções abaixo descrevem o estado da PARADA pré-migração — leia como histórico.
+
 ## Por que esta branch existe
 A autora migrou Artix → CachyOS. Esta branch (`wip/polish-pack`) preserva TUDO da
 sessão de 2026-08-30 antes do wipe: assets gerados que aguardam decisão author-gated,
