@@ -265,9 +265,6 @@ func _initial_output() -> String:
 func _panel_size() -> Vector2:
 	return workstation_rect(get_viewport_rect().size).size
 
-func _panel_position() -> Vector2:
-	return workstation_rect(get_viewport_rect().size).position
-
 func _layout_panel() -> void:
 	var rect := workstation_rect(get_viewport_rect().size)
 	_panel.position = rect.position
