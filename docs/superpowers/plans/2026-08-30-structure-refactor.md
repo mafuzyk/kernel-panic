@@ -325,9 +325,9 @@ Verify `grep -c '^func _task9_test\|^func _task6_test' src/autoload/dev_harness.
 
 `_systems_test` is one 1015-line function; it is split at two statement boundaries verified against the current file: line before `print("AT_STEP programs")` (preceded by `Game.patch_levels = {}`) and line before `print("AT_STEP oom")` (preceded by `player.hp = player.max_hp`). The split inserts only two function signature lines — statements, order, and labels are untouched, and the flow calls a→b1→b2 sequentially, so runtime behavior is identical.
 
-- [ ] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T4.gd`
+- [x] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T4.gd`
 
-- [ ] **Step 2: Split the function in `dev_harness.gd`** (three exact edits; each oldString must be unique — Edit tool errors otherwise)
+- [x] **Step 2: Split the function in `dev_harness.gd`** (three exact edits; each oldString must be unique — Edit tool errors otherwise)
 
 Edit A — rename: `func _systems_test(arena: Arena) -> void:` → `func _systems_test_a(arena: Arena) -> void:`
 
@@ -363,7 +363,7 @@ func _systems_test_b2(arena: Arena) -> void:
 	print("AT_STEP oom")
 ```
 
-- [ ] **Step 3: Rewire the flow call** — replace `await _systems_test(arena2)` (unique) with:
+- [x] **Step 3: Rewire the flow call** — replace `await _systems_test(arena2)` (unique) with:
 
 ```gdscript
 	await _sec_systems_a._systems_test_a(arena2)
@@ -371,17 +371,17 @@ func _systems_test_b2(arena: Arena) -> void:
 	await _systems_test_b2(arena2)
 ```
 
-- [ ] **Step 4: Move `_systems_test_a` into the section file** — first re-snapshot the split file: `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T4b.gd`. Then write the G4 skeleton and append `awk '/^func _systems_test_a\(/{f=1} /^func _systems_test_b1\(/{f=0} f' /tmp/opencode/dh_T4b.gd | <G3 perl>`.
+- [x] **Step 4: Move `_systems_test_a` into the section file** — first re-snapshot the split file: `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T4b.gd`. Then write the G4 skeleton and append `awk '/^func _systems_test_a\(/{f=1} /^func _systems_test_b1\(/{f=0} f' /tmp/opencode/dh_T4b.gd | <G3 perl>`.
 
-- [ ] **Step 5: Delete from harness** — `awk '/^func _systems_test_a\(/{s=1} /^func _systems_test_b1\(/{s=0} !s{print}' src/autoload/dev_harness.gd > /tmp/opencode/dh_new.gd && mv /tmp/opencode/dh_new.gd src/autoload/dev_harness.gd`; verify `grep -c '^func _systems_test_a' src/autoload/dev_harness.gd` → `0`.
+- [x] **Step 5: Delete from harness** — `awk '/^func _systems_test_a\(/{s=1} /^func _systems_test_b1\(/{s=0} !s{print}' src/autoload/dev_harness.gd > /tmp/opencode/dh_new.gd && mv /tmp/opencode/dh_new.gd src/autoload/dev_harness.gd`; verify `grep -c '^func _systems_test_a' src/autoload/dev_harness.gd` → `0`.
 
-- [ ] **Step 6: Plumbing** — `const HSectionSystemsA = preload("res://src/autoload/harness/sections_systems_a.gd")`; `var _sec_systems_a`; `_sec_systems_a = HSectionSystemsA.new(self)`.
+- [x] **Step 6: Plumbing** — `const HSectionSystemsA = preload("res://src/autoload/harness/sections_systems_a.gd")`; `var _sec_systems_a`; `_sec_systems_a = HSectionSystemsA.new(self)`.
 
-- [ ] **Step 7: Sweep + byte-verify** — anchors `_systems_test_a`/`_systems_test_b1` between `/tmp/opencode/dh_T4b.gd` and the section file. Expected: greps empty, diff empty. Label total still `68`.
+- [x] **Step 7: Sweep + byte-verify** — anchors `_systems_test_a`/`_systems_test_b1` between `/tmp/opencode/dh_T4b.gd` and the section file. Expected: greps empty, diff empty. Label total still `68`.
 
-- [ ] **Step 8: Full autotest** — G1 with `at_T4.log`; expected `exit=0`, `1194`, `0`, `1`. (This run exercises the split: all systems AT_STEPs must still appear, in order.)
+- [x] **Step 8: Full autotest** — G1 with `at_T4.log`; expected `exit=0`, `1194`, `0`, `1`. (This run exercises the split: all systems AT_STEPs must still appear, in order.)
 
-- [ ] **Step 9: Commit** — `git commit -m "refactor: split systems test into sections and move part A"`
+- [x] **Step 9: Commit** — `git commit -m "refactor: split systems test into sections and move part A"`
 
 ---
 
@@ -391,21 +391,21 @@ func _systems_test_b2(arena: Arena) -> void:
 - Create: `src/autoload/harness/sections_systems_b1.gd` (~431 lines: `_systems_test_b1`, 7 AT_STEPs)
 - Modify: `src/autoload/dev_harness.gd`
 
-- [ ] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T5.gd`
+- [x] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T5.gd`
 
-- [ ] **Step 2: Create section file** — G4 skeleton + `awk '/^func _systems_test_b1\(/{f=1} /^func _systems_test_b2\(/{f=0} f' /tmp/opencode/dh_T5.gd | <G3 perl>`
+- [x] **Step 2: Create section file** — G4 skeleton + `awk '/^func _systems_test_b1\(/{f=1} /^func _systems_test_b2\(/{f=0} f' /tmp/opencode/dh_T5.gd | <G3 perl>`
 
-- [ ] **Step 3: Delete from harness** — `awk '/^func _systems_test_b1\(/{s=1} /^func _systems_test_b2\(/{s=0} !s{print}' src/autoload/dev_harness.gd > /tmp/opencode/dh_new.gd && mv /tmp/opencode/dh_new.gd src/autoload/dev_harness.gd`; verify `grep -c '^func _systems_test_b1' src/autoload/dev_harness.gd` → `0`.
+- [x] **Step 3: Delete from harness** — `awk '/^func _systems_test_b1\(/{s=1} /^func _systems_test_b2\(/{s=0} !s{print}' src/autoload/dev_harness.gd > /tmp/opencode/dh_new.gd && mv /tmp/opencode/dh_new.gd src/autoload/dev_harness.gd`; verify `grep -c '^func _systems_test_b1' src/autoload/dev_harness.gd` → `0`.
 
-- [ ] **Step 4: Plumbing** — `const HSectionSystemsB1 = preload("res://src/autoload/harness/sections_systems_b1.gd")`; `var _sec_systems_b1`; `_init_sections()` line.
+- [x] **Step 4: Plumbing** — `const HSectionSystemsB1 = preload("res://src/autoload/harness/sections_systems_b1.gd")`; `var _sec_systems_b1`; `_init_sections()` line.
 
-- [ ] **Step 5: Flow call site:** `await _systems_test_b1(arena2)` → `await _sec_systems_b1._systems_test_b1(arena2)`.
+- [x] **Step 5: Flow call site:** `await _systems_test_b1(arena2)` → `await _sec_systems_b1._systems_test_b1(arena2)`.
 
-- [ ] **Step 6: Sweep + byte-verify** (anchors `_systems_test_b1`/`_systems_test_b2`); label total `68`.
+- [x] **Step 6: Sweep + byte-verify** (anchors `_systems_test_b1`/`_systems_test_b2`); label total `68`.
 
-- [ ] **Step 7: Full autotest** — G1 with `at_T5.log`; expected `exit=0`, `1194`, `0`, `1`.
+- [x] **Step 7: Full autotest** — G1 with `at_T5.log`; expected `exit=0`, `1194`, `0`, `1`.
 
-- [ ] **Step 8: Commit** — `git commit -m "refactor: move systems test part b1 into a section script"`
+- [x] **Step 8: Commit** — `git commit -m "refactor: move systems test part b1 into a section script"`
 
 ---
 
@@ -416,13 +416,13 @@ func _systems_test_b2(arena: Arena) -> void:
 - Create: `src/autoload/harness/sections_misc.gd` (~156 lines: `_difficulty_test`, `_debug_controls_test`, `_mote_sweep_test`, `_oom_steal_identity_test`, 4 labels)
 - Modify: `src/autoload/dev_harness.gd`
 
-- [ ] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T6.gd`
+- [x] **Step 1: Snapshot** — `cp src/autoload/dev_harness.gd /tmp/opencode/dh_T6.gd`
 
-- [ ] **Step 2: Create `sections_systems_b2.gd`** — G4 skeleton + `awk '/^func _systems_test_b2\(/{f=1} /^func _difficulty_test\(/{f=0} f' /tmp/opencode/dh_T6.gd | <G3 perl>`
+- [x] **Step 2: Create `sections_systems_b2.gd`** — G4 skeleton + `awk '/^func _systems_test_b2\(/{f=1} /^func _difficulty_test\(/{f=0} f' /tmp/opencode/dh_T6.gd | <G3 perl>`
 
-- [ ] **Step 3: Create `sections_misc.gd`** — G4 skeleton + one block through the G3 perl: `awk '/^func _difficulty_test\(/{f=1} /^func _hud_style_test\(/{f=0} f' /tmp/opencode/dh_T6.gd`
+- [x] **Step 3: Create `sections_misc.gd`** — G4 skeleton + one block through the G3 perl: `awk '/^func _difficulty_test\(/{f=1} /^func _hud_style_test\(/{f=0} f' /tmp/opencode/dh_T6.gd`
 
-- [ ] **Step 4: Delete both blocks from harness**
+- [x] **Step 4: Delete both blocks from harness**
 
 ```bash
 awk '/^func _systems_test_b2\(/{s=1} /^func _difficulty_test\(/{s=0} /^func _difficulty_test\(/{s=1} /^func _hud_style_test\(/{s=0} !s{print}' src/autoload/dev_harness.gd > /tmp/opencode/dh_new.gd && mv /tmp/opencode/dh_new.gd src/autoload/dev_harness.gd
@@ -430,15 +430,15 @@ awk '/^func _systems_test_b2\(/{s=1} /^func _difficulty_test\(/{s=0} /^func _dif
 
 Verify `grep -c '^func _systems_test_b2\|^func _difficulty_test\|^func _debug_controls_test\|^func _mote_sweep_test\|^func _oom_steal_identity_test' src/autoload/dev_harness.gd` → `0`.
 
-- [ ] **Step 5: Plumbing** — after the Task 4 const add `const HSectionSystemsB2 = preload("res://src/autoload/harness/sections_systems_b2.gd")` and `const HSectionMisc = preload("res://src/autoload/harness/sections_misc.gd")`; after `var _sec_systems_b1` add `var _sec_systems_b2` and `var _sec_misc`; add `_sec_systems_b2 = HSectionSystemsB2.new(self)` and `_sec_misc = HSectionMisc.new(self)` inside `_init_sections()`.
+- [x] **Step 5: Plumbing** — after the Task 4 const add `const HSectionSystemsB2 = preload("res://src/autoload/harness/sections_systems_b2.gd")` and `const HSectionMisc = preload("res://src/autoload/harness/sections_misc.gd")`; after `var _sec_systems_b1` add `var _sec_systems_b2` and `var _sec_misc`; add `_sec_systems_b2 = HSectionSystemsB2.new(self)` and `_sec_misc = HSectionMisc.new(self)` inside `_init_sections()`.
 
-- [ ] **Step 6: Flow call sites:** `await _systems_test_b2(arena2)` → `await _sec_systems_b2._systems_test_b2(arena2)`; `await _difficulty_test(` → `await _sec_misc._difficulty_test(`; `await _debug_controls_test(` → `await _sec_misc._debug_controls_test(`; `await _mote_sweep_test(` → `await _sec_misc._mote_sweep_test(`; `await _oom_steal_identity_test(` → `await _sec_misc._oom_steal_identity_test(`.
+- [x] **Step 6: Flow call sites:** `await _systems_test_b2(arena2)` → `await _sec_systems_b2._systems_test_b2(arena2)`; `await _difficulty_test(` → `await _sec_misc._difficulty_test(`; `await _debug_controls_test(` → `await _sec_misc._debug_controls_test(`; `await _mote_sweep_test(` → `await _sec_misc._mote_sweep_test(`; `await _oom_steal_identity_test(` → `await _sec_misc._oom_steal_identity_test(`.
 
-- [ ] **Step 7: Sweep + byte-verify** both files; label total `68`.
+- [x] **Step 7: Sweep + byte-verify** both files; label total `68`.
 
-- [ ] **Step 8: Full autotest** — G1 with `at_T6.log`; expected `exit=0`, `1194`, `0`, `1`.
+- [x] **Step 8: Full autotest** — G1 with `at_T6.log`; expected `exit=0`, `1194`, `0`, `1`.
 
-- [ ] **Step 9: Commit** — `git commit -m "refactor: move systems tail and misc tests into section scripts"`
+- [x] **Step 9: Commit** — `git commit -m "refactor: move systems tail and misc tests into section scripts"`
 
 ---
 
