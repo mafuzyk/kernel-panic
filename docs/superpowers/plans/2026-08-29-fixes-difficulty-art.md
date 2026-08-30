@@ -2483,7 +2483,7 @@ Interfaces:
 - Consumes: each enemy's `_draw()` silhouette section (telegraph, elite ring, color-assist, HP arc, and hit-flash `_flash_col()` code stays); `bestiary_panel.gd` `_draw_glyph(id, c)`; `program_panel.gd` `_draw_silhouette(key, c)`; `player.gd` `_ship_draw(node, c)`.
 - Produces: `GlyphLib.draw_glyph(canvas, kind, center, radius, color, t)`, `GlyphLib.era_mix(base, era, amount)`, `GlyphLib.glyph_kinds()`; era-tinted story glyphs via `EnemyBase.era_accent`.
 
-- [ ] Step 1: Write the failing harness regression
+- [x] Step 1: Write the failing harness regression
 
 In `src/autoload/dev_harness.gd`, after the line `await _temple_test(arena2)` add:
 
@@ -2521,7 +2521,7 @@ func _glyph_lib_test() -> void:
 	_check(program_source.contains("GlyphLib.draw_glyph"), "program cards reuse glyph_lib")
 ~~~
 
-- [ ] Step 2: Run the test to verify it fails
+- [x] Step 2: Run the test to verify it fails
 
 Run:
 
@@ -2531,7 +2531,7 @@ godot --headless --path . -- --autotest
 
 Expected: AT_FAIL `glyph library exposes draw_glyph, glyph_kinds, and era_mix`. No parse error.
 
-- [ ] Step 3: Create src/ui/glyph_lib.gd with the full content
+- [x] Step 3: Create src/ui/glyph_lib.gd with the full content
 
 Create `src/ui/glyph_lib.gd`:
 
@@ -2709,7 +2709,7 @@ static func _horn(canvas: CanvasItem, base: Vector2, size: float, c: Color, mirr
 	canvas.draw_colored_polygon(pts, c)
 ~~~
 
-- [ ] Step 4: Route enemy silhouettes through glyph_lib
+- [x] Step 4: Route enemy silhouettes through glyph_lib
 
 For each enemy file, replace only the silhouette statements inside `_draw()` with the
 `GlyphLib.draw_glyph(...)` call shown; keep every flash, telegraph, HP arc, elite ring,
@@ -2877,7 +2877,7 @@ func _configure_story_enemy(e: EnemyBase) -> void:
 
 TempleOS enemies pick up the live rainbow hue at spawn (cosmetic time only, never `Game.rng`); other story acts mix ~0.25 toward the stage accent.
 
-- [ ] Step 5: Reuse glyph_lib in the UI panels and the player ship
+- [x] Step 5: Reuse glyph_lib in the UI panels and the player ship
 
 5a. In `src/ui/bestiary_panel.gd`, at the top of `_draw_glyph(id: String, c: Color)`, immediately after the opening brace, add:
 
@@ -2908,7 +2908,7 @@ The existing match body stays below as a fallback for any id glyph_lib does not 
 
 The existing match arms stay as a fallback for any unlisted silhouette key.
 
-- [ ] Step 6: Run the full suite
+- [x] Step 6: Run the full suite
 
 Run:
 
@@ -2919,7 +2919,7 @@ godot --headless --path . -- --autotest
 Expected: `AUTOTEST_ALL_PASS` and zero `AT_FAIL` — every hitbox, telegraph,
 color-assist, and hit-flash test stays green unchanged.
 
-- [ ] Step 7: Visual comparison against the approved mocks
+- [x] Step 7: Visual comparison against the approved mocks
 
 Run (desktop, windowed):
 
@@ -2940,7 +2940,7 @@ segmented broken-ring ROOT bosses, KERNEL cyan hex-core dart, DAEMON magenta
 tri-dart, ROOTLET lime shield. Hitboxes are untouched (visual-only change).
 Captures stay in `/tmp/opencode/` and are never committed.
 
-- [ ] Step 8: Commit
+- [x] Step 8: Commit
 
 ~~~sh
 git add src/ui/glyph_lib.gd src/enemies src/ui/bestiary_panel.gd src/ui/program_panel.gd src/player/player.gd src/arena/spawner.gd src/autoload/dev_harness.gd
