@@ -208,7 +208,28 @@ func _leak_guard_test() -> void:
 	var game_src := str(load("res://src/autoload/game.gd").source_code)
 	h._check(game_src.contains("TacticalIcon.clear_raster_cache()"), "teardown clears the tactical icon raster cache")
 	h._check(game_src.contains("PatchCard.clear_raster_cache()"), "teardown clears the patch card raster cache")
+	h._check(game_src.contains("EntitySprite.clear_sprite_cache()"), "teardown clears the sprite trial cache")
 	var orphans: int = int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
 	var objects: int = int(Performance.get_monitor(Performance.OBJECT_COUNT))
 	print("AT_DEBUG leak_guard orphans=%d objects=%d" % [orphans, objects])
 	h._check(orphans <= h.LEAK_GUARD_MAX_ORPHANS, "orphan node count stays under the recorded baseline (%d)" % h.LEAK_GUARD_MAX_ORPHANS)
+
+func _sprite_trial_test() -> void:
+	print("AT_STEP sprite_trial")
+	var sprite_script: Script = load("res://src/ui/entity_sprite.gd")
+	h._check(sprite_script != null and sprite_script.has_method("sprite_path") and sprite_script.has_method("has_sprite"), "entity sprite registry exposes the path lookup")
+	if sprite_script == null:
+		return
+	var seed_before := Game.rng.seed
+	for kind in ["drone", "lancer", "root", "god", "kernel"]:
+		var has := bool(sprite_script.call("has_sprite", str(kind)))
+		var path := str(sprite_script.call("sprite_path", str(kind)))
+		h._check(has == (path != ""), "sprite registry lookup stays file-driven for %s (glyph fallback when absent)" % str(kind))
+		if has:
+			h._check(sprite_script.call("sprite_texture", str(kind)) != null, "sprite registry loads the texture for %s" % str(kind))
+			h._check(str(path).begins_with("res://assets/sprites/generated/"), "sprite registry resolves %s inside the generated dir" % str(kind))
+	h._check(Game.rng.seed == seed_before, "sprite registry lookups never advance the gameplay rng")
+	var probe = sprite_script.call("draw_entity", null, "drone", Vector2.ZERO, 24.0, Color.WHITE)
+	h._check(not bool(probe), "draw_entity reports the glyph fallback for a null canvas (empty or missing sprite keeps current visuals)")
+	var glyph_src := str(load("res://src/ui/glyph_lib.gd").source_code)
+	h._check(glyph_src.contains("EntitySprite.draw_entity"), "glyph library routes through the single sprite switch")

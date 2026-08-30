@@ -93,6 +93,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	TacticalIcon.clear_raster_cache()
 	PatchCard.clear_raster_cache()
+	EntitySprite.clear_sprite_cache()
 
 const PROGRAM_DEFS := {
 	"kernel": {

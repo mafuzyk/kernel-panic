@@ -29,6 +29,11 @@ static func era_mix(base: Color, era: Color, amount: float = 0.25) -> Color:
 static func draw_glyph(canvas: CanvasItem, kind: String, center: Vector2, radius: float, color: Color, t: float = 0.0) -> void:
 	if canvas == null or radius <= 0.0:
 		return
+	# Single sprite-trial switch: when the registry holds a sprite for this
+	# kind it is drawn axis-aligned (non-rotating) and the code silhouette is
+	# skipped; an empty/missing sprite keeps exactly the current visuals.
+	if EntitySprite.draw_entity(canvas, kind, center, radius * 2.4, color):
+		return
 	var c := color
 	match kind:
 		"drone":
