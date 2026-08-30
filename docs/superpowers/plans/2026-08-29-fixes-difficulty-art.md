@@ -2961,7 +2961,7 @@ Interfaces:
 - Consumes: `tactical_icon.gd` `configure(icon_kind, color)` + the `_draw()` `match _kind` (line ~37; kinds settings, bestiary, dash, back, resume, restart, terminal, audio, music, warning); `patch_card.gd` `_draw_icon(center, accent)` (line 96; hex radius 34, today staticf dot grid / splitshot rays / "+" cross fallback); `Game.PATCH_CODES` (26 ids); `program_panel.gd` `_draw_silhouette` (line ~217, routed through GlyphLib by Task 7 Step 5b) and its call site (line ~181).
 - Produces: `tactical_icon.gd` `icon_kinds()`, `icon_metrics(kind)`, `icon_bounds(kind)`, `raster_path(kind)` registry (code-drawn fallback intact); `patch_card.gd` `patch_icon_family(id)`, `patch_icon_metrics(id)`, `patch_raster_path(id)` and six family glyph draws; refined code-drawn icons; harness `_icon_quality_test()`.
 
-- [ ] Step 1: Write the failing harness regression
+- [x] Step 1: Write the failing harness regression
 
 In `src/autoload/dev_harness.gd`, after the line `await _glyph_lib_test()` add:
 
@@ -3016,7 +3016,7 @@ func _icon_quality_test() -> void:
 	_check(probe_path.is_empty() or ResourceLoader.exists(probe_path), "raster registry only resolves existing assets")
 ~~~
 
-- [ ] Step 2: Run the test to verify it fails
+- [x] Step 2: Run the test to verify it fails
 
 Run:
 
@@ -3027,7 +3027,7 @@ godot --headless --path . -- --autotest
 Expected: AT_FAIL `tactical icon exposes icon_kinds, icon_metrics, and icon_bounds`
 (the early return stops the function). No parse error.
 
-- [ ] Step 3: Intake concept sheets and refine the code-drawn icons
+- [x] Step 3: Intake concept sheets and refine the code-drawn icons
 
 3a. Append to `.gitignore` (so orchestrator-provided concept sheets never get
 committed) — replace:
@@ -3241,7 +3241,7 @@ replace that `16.0` with the measured radius (one-number edit). No other
 program_panel changes are in scope; if a concept sheet wins for a program glyph,
 wire it through `tactical_icon.gd`'s `raster_path` pattern in Step 4.
 
-- [ ] Step 4: Wire proven-win rasters (only after same-size comparison approval)
+- [x] Step 4: Wire proven-win rasters (only after same-size comparison approval)
 
 For each icon where the approved verdict is "beats code" at BOTH 52px and 24px:
 save the trimmed, transparent PNG at `assets/icons/generated/<kind>.png` (or
@@ -3279,7 +3279,7 @@ func _draw() -> void:
 failed texture always falls through to it. If no raster wins, skip this step and
 leave `assets/icons/generated/` uncreated.
 
-- [ ] Step 5: Containment/readability probes at 1366x768 and 432x720
+- [x] Step 5: Containment/readability probes at 1366x768 and 432x720
 
 Run (desktop, windowed):
 
@@ -3298,7 +3298,7 @@ pause glyphs are distinct at a glance, and check one patch-pick screen to confir
 the family hex icons are clean (no "+"-cross mush) and contained in the card.
 Captures stay in `/tmp/opencode/` and are never committed.
 
-- [ ] Step 6: Run the full suite
+- [x] Step 6: Run the full suite
 
 Run:
 
@@ -3310,7 +3310,7 @@ Expected: `AUTOTEST_ALL_PASS` and zero `AT_FAIL`, with the new `icon_quality`
 `AT_STEP` section present (10 kinds x 7 checks + 26 patch ids x 4 checks + family
 draws + containment + raster registry probes).
 
-- [ ] Step 7: Commit
+- [x] Step 7: Commit
 
 ~~~sh
 git add src/ui/tactical_icon.gd src/ui/patch_card.gd src/ui/program_panel.gd src/autoload/dev_harness.gd .gitignore
