@@ -84,3 +84,24 @@ func _settings_chips_test(menu: Node) -> void:
 	kit.call("apply_viewport", Vector2.ZERO)
 	kit.call("set_active_section", "AUDIO")
 	menu.call("_close_settings")
+
+func _menu_reflow_test(menu: Node) -> void:
+	print("AT_STEP menu_reflow")
+	h._check(menu.has_method("menu_layout_for_viewport"), "menu exposes the central layout dict")
+	if not menu.has_method("menu_layout_for_viewport"):
+		return
+	for vp in [Vector2(1366, 768), Vector2(1024, 640), Vector2(760, 720), Vector2(432, 720)]:
+		var lay: Dictionary = menu.call("menu_layout_for_viewport", vp)
+		var view := Rect2(Vector2.ZERO, vp)
+		for key in ["title", "klog", "subtitle", "controls", "best", "mode_info", "button_row", "purge", "story", "mode", "program", "diff"]:
+			h._check(view.encloses(Rect2(lay[key])), "menu %s stays inside the viewport at %dx%d" % [str(key), int(vp.x), int(vp.y)])
+		var band_keys := ["title", "klog", "controls", "best", "mode_info", "button_row"]
+		for i in band_keys.size():
+			for j in range(i + 1, band_keys.size()):
+				var a: Rect2 = lay[band_keys[i]]
+				var b: Rect2 = lay[band_keys[j]]
+				h._check(not a.intersects(b), "menu %s and %s stay disjoint at %dx%d" % [str(band_keys[i]), str(band_keys[j]), int(vp.x), int(vp.y)])
+		h._check(int(lay["title_size"]) >= 44, "menu title scales down with the viewport at %dx%d" % [int(vp.x), int(vp.y)])
+	var src := str(load("res://src/ui/menu_chrome_kit.gd").source_code)
+	h._check(src.contains("apply_menu_layout"), "menu chrome kit applies the layout dict on resize")
+	h._check(not src.contains("m.size.y * 0.44"), "draw_shell derives its decorative anchors from the shared dict")

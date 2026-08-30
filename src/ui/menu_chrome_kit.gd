@@ -10,6 +10,7 @@ const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 ## owner reference avoids a preload cycle. No behavior changes.
 
 var m
+var _layout: Dictionary = {}
 
 
 func _init(menu) -> void:
@@ -58,6 +59,7 @@ func _add_menu_frame(rect: Rect2, accent: Color, alpha: float = 0.025) -> Contro
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.call("configure_panel", Rect2(Vector2.ZERO, rect.size), accent, alpha)
 	m.add_child(frame)
+	m._menu_frames.append(frame)
 	return frame
 
 func _set_button_text_inset(button: Button, inset: float) -> void:
@@ -120,7 +122,8 @@ func footer_button_layout_for_viewport(viewport_size: Vector2) -> Dictionary:
 	}
 
 func _build_button_row() -> void:
-	var purge_width := minf(430.0, maxf(m.size.x * 0.30, 280.0))
+	var lay := menu_layout_for_viewport(m.size)
+	var purge_width: float = (lay["purge"] as Rect2).size.x
 	m._purge_btn = Button.new()
 	_style_card_button(m._purge_btn, Balance.COL_PLAYER, Vector2(purge_width, 88.0))
 	m._purge_btn.text = ">> PURGE"
@@ -135,25 +138,25 @@ func _build_button_row() -> void:
 	m._purge_btn.offset_bottom = 36.0
 	m._purge_btn.pressed.connect(m._start)
 	m.add_child(m._purge_btn)
-	_add_menu_frame(Rect2(Vector2((m.size.x - purge_width) * 0.5, m.size.y * 0.5 - 52.0), Vector2(purge_width, 88.0)), Balance.COL_PLAYER, 0.035)
+	_add_menu_frame(lay["purge"], Balance.COL_PLAYER, 0.035)
 	m._story_btn = Button.new()
-	_style_card_button(m._story_btn, Balance.COL_PLAYER, Vector2(minf(360.0, purge_width * 0.84), 58.0))
+	_style_card_button(m._story_btn, Balance.COL_PLAYER, Vector2((lay["story"] as Rect2).size.x, 58.0))
 	m._story_btn.text = "STORY // ACTS"
 	m._story_btn.add_theme_font_size_override("font_size", 19)
 	m._story_btn.anchor_left = 0.5
 	m._story_btn.anchor_right = 0.5
 	m._story_btn.anchor_top = 0.5
 	m._story_btn.anchor_bottom = 0.5
-	var story_width := minf(360.0, purge_width * 0.84)
+	var story_width: float = (lay["story"] as Rect2).size.x
 	m._story_btn.offset_left = -story_width * 0.5
 	m._story_btn.offset_right = story_width * 0.5
 	m._story_btn.offset_top = 44.0
 	m._story_btn.offset_bottom = 102.0
 	m._story_btn.pressed.connect(m._open_story_selector)
 	m.add_child(m._story_btn)
-	_add_menu_frame(Rect2(Vector2((m.size.x - story_width) * 0.5, m.size.y * 0.5 + 44.0), Vector2(story_width, 58.0)), Balance.COL_PLAYER, 0.025)
+	_add_menu_frame(lay["story"], Balance.COL_PLAYER, 0.025)
 	m._mode_btn = Button.new()
-	_style_card_button(m._mode_btn, Balance.COL_MOTE, Vector2(minf(440.0, maxf(m.size.x * 0.42, 300.0)), 50.0))
+	_style_card_button(m._mode_btn, Balance.COL_MOTE, Vector2((lay["mode"] as Rect2).size.x, 50.0))
 	m._mode_btn.text = "MODE: CLASSIC"
 	m._mode_btn.add_theme_font_size_override("font_size", 16)
 	m._mode_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -161,7 +164,7 @@ func _build_button_row() -> void:
 	m._mode_btn.anchor_right = 0.5
 	m._mode_btn.anchor_top = 0.5
 	m._mode_btn.anchor_bottom = 0.5
-	var mode_width := minf(440.0, maxf(m.size.x * 0.42, 300.0))
+	var mode_width: float = (lay["mode"] as Rect2).size.x
 	m._mode_btn.offset_left = -mode_width * 0.5
 	m._mode_btn.offset_right = mode_width * 0.5
 	m._mode_btn.offset_top = 112.0
@@ -177,7 +180,7 @@ func _build_button_row() -> void:
 	var mode_pressed: StyleBox = m._mode_btn.get_theme_stylebox("pressed").duplicate()
 	mode_pressed.content_margin_left = 40.0
 	m._mode_btn.add_theme_stylebox_override("pressed", mode_pressed)
-	_add_menu_frame(Rect2(Vector2((m.size.x - mode_width) * 0.5, m.size.y * 0.5 + 112.0), Vector2(mode_width, 50.0)), Balance.COL_MOTE, 0.03)
+	_add_menu_frame(lay["mode"], Balance.COL_MOTE, 0.03)
 	m._program_btn = Button.new()
 	m._program_btn.flat = true
 	m._program_btn.z_index = 2
@@ -215,10 +218,9 @@ func _build_button_row() -> void:
 	m._diff_btn.pressed.connect(m._cycle_difficulty)
 	m.add_child(m._diff_btn)
 	m._refresh_difficulty_label()
-	var footer_layout := footer_button_layout_for_viewport(m.size)
-	var bottom_width: float = footer_layout["total_width"]
-	var bottom_gap: float = footer_layout["gap"]
-	var bottom_button_w: float = footer_layout["button_width"]
+	var bottom_width: float = (lay["button_row"] as Rect2).size.x
+	var bottom_gap: float = lay["gap"]
+	var bottom_button_w: float = lay["button_width"]
 	var row := HBoxContainer.new()
 	row.anchor_left = 0.5
 	row.anchor_right = 0.5
@@ -230,6 +232,7 @@ func _build_button_row() -> void:
 	row.offset_bottom = -47.0
 	row.add_theme_constant_override("separation", int(bottom_gap))
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	m._footer_row = row
 	m.add_child(row)
 	m._refresh_program_label()
 	var settings_btn := Button.new()
@@ -268,14 +271,122 @@ func _build_button_row() -> void:
 	m._mode_info.anchor_right = 0.0
 	m._mode_info.anchor_top = 0.5
 	m._mode_info.anchor_bottom = 0.5
-	m._mode_info.offset_left = 24.0
-	m._mode_info.offset_right = m.size.x - 24.0
-	m._mode_info.offset_top = 190.0
-	m._mode_info.offset_bottom = 234.0
+	m._mode_info.offset_left = (lay["mode_info"] as Rect2).position.x
+	m._mode_info.offset_right = (lay["mode_info"] as Rect2).end.x
+	m._mode_info.offset_top = (lay["mode_info"] as Rect2).position.y
+	m._mode_info.offset_bottom = (lay["mode_info"] as Rect2).end.y
 	m._mode_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	m._mode_info.visible = false
 	m.add_child(m._mode_info)
 	m._refresh_mode_ui()
+
+func menu_layout_for_viewport(viewport: Vector2) -> Dictionary:
+	var compact := viewport.x < 760.0
+	var title_size := 76
+	if viewport.x < 1100.0:
+		title_size = 58
+	if compact:
+		title_size = 44
+	var title_top := 104.0 if not compact else 84.0
+	var title_h := float(title_size) * 1.45
+	var title := Rect2(0.0, title_top, viewport.x, title_h)
+	var klog := Rect2(16.0, 12.0, minf(340.0, maxf(viewport.x - 32.0, 0.0)), 68.0)
+	var subtitle := Rect2(0.0, title.end.y + 4.0, viewport.x, 30.0)
+	var controls := Rect2(0.0, subtitle.end.y + 4.0, viewport.x, 26.0)
+	var best := Rect2(0.0, controls.end.y + 4.0, viewport.x, 24.0)
+	var mi_h := 44.0 if viewport.y >= 700.0 else 24.0
+	var mode_info := Rect2(24.0, viewport.y - 95.0 - 8.0 - mi_h, viewport.x - 48.0, mi_h)
+	var center := Vector2(viewport.x * 0.5, viewport.y * 0.5)
+	var purge_w := minf(430.0, maxf(viewport.x * 0.30, 280.0))
+	var purge := Rect2(center.x - purge_w * 0.5, center.y - 52.0, purge_w, 88.0)
+	var story_w := minf(360.0, purge_w * 0.84)
+	var story := Rect2(center.x - story_w * 0.5, center.y + 44.0, story_w, 58.0)
+	var mode_w := minf(440.0, maxf(viewport.x * 0.42, 300.0))
+	var mode := Rect2(center.x - mode_w * 0.5, center.y + 112.0, mode_w, 50.0)
+	var program_w := minf(178.0, maxf(viewport.x - (center.x + 42.0) - 6.0, 0.0))
+	var program := Rect2(center.x + 42.0, center.y + 112.0, program_w, 50.0)
+	var diff := Rect2(center.x - 110.0, center.y + 166.0, 220.0, 26.0)
+	var footer_layout := footer_button_layout_for_viewport(viewport)
+	var row_w: float = footer_layout["total_width"]
+	var button_row := Rect2((viewport.x - row_w) * 0.5, viewport.y - 95.0, row_w, 48.0)
+	var ring_center := Vector2(maxf(150.0, center.x - 470.0), viewport.y * 0.44)
+	var mode_dot := Vector2(center.x, center.y + 130.0)
+	return {"viewport": viewport, "compact": compact, "title": title, "title_size": title_size, "klog": klog, "subtitle": subtitle, "controls": controls, "best": best, "mode_info": mode_info, "purge": purge, "story": story, "mode": mode, "program": program, "diff": diff, "button_row": button_row, "button_width": float(footer_layout["button_width"]), "gap": float(footer_layout["gap"]), "ring_center": ring_center, "mode_dot": mode_dot}
+
+func menu_layout() -> Dictionary:
+	return _layout if not _layout.is_empty() else menu_layout_for_viewport(m.size)
+
+func apply_menu_layout() -> void:
+	_layout = menu_layout_for_viewport(m.size)
+	var lay := _layout
+	var center := Vector2(m.size.x * 0.5, m.size.y * 0.5)
+	for title_label in [m._title, m._title_r, m._title_b]:
+		if title_label != null and is_instance_valid(title_label):
+			title_label.offset_top = (lay["title"] as Rect2).position.y
+			title_label.offset_bottom = (lay["title"] as Rect2).end.y
+			title_label.add_theme_font_size_override("font_size", int(lay["title_size"]))
+	if m._subtitle != null and is_instance_valid(m._subtitle):
+		m._subtitle.offset_top = (lay["subtitle"] as Rect2).position.y
+		m._subtitle.offset_bottom = (lay["subtitle"] as Rect2).end.y
+	if m._controls_line != null and is_instance_valid(m._controls_line):
+		m._controls_line.anchor_top = 0.0
+		m._controls_line.anchor_bottom = 0.0
+		m._controls_line.offset_top = (lay["controls"] as Rect2).position.y
+		m._controls_line.offset_bottom = (lay["controls"] as Rect2).end.y
+	if m._best_label != null and is_instance_valid(m._best_label):
+		m._best_label.offset_top = (lay["best"] as Rect2).position.y
+		m._best_label.offset_bottom = (lay["best"] as Rect2).end.y
+	if m._klog != null and is_instance_valid(m._klog):
+		m._klog.offset_left = (lay["klog"] as Rect2).position.x
+		m._klog.offset_right = (lay["klog"] as Rect2).end.x
+		m._klog.offset_top = (lay["klog"] as Rect2).position.y
+		m._klog.offset_bottom = (lay["klog"] as Rect2).end.y
+	if m._mode_info != null and is_instance_valid(m._mode_info):
+		m._mode_info.anchor_top = 0.0
+		m._mode_info.anchor_bottom = 0.0
+		m._mode_info.offset_left = (lay["mode_info"] as Rect2).position.x
+		m._mode_info.offset_right = (lay["mode_info"] as Rect2).end.x
+		m._mode_info.offset_top = (lay["mode_info"] as Rect2).position.y
+		m._mode_info.offset_bottom = (lay["mode_info"] as Rect2).end.y
+	_place_center_button(m._purge_btn, lay["purge"], center)
+	_place_center_button(m._story_btn, lay["story"], center)
+	_place_center_button(m._mode_btn, lay["mode"], center)
+	_place_center_button(m._program_btn, lay["program"], center)
+	_place_center_button(m._diff_btn, lay["diff"], center)
+	if m._footer_row != null and is_instance_valid(m._footer_row):
+		m._footer_row.anchor_left = 0.0
+		m._footer_row.anchor_right = 0.0
+		m._footer_row.anchor_top = 0.0
+		m._footer_row.anchor_bottom = 0.0
+		m._footer_row.position = (lay["button_row"] as Rect2).position
+		m._footer_row.size = (lay["button_row"] as Rect2).size
+	var row_rect := lay["button_row"] as Rect2
+	var slots := [
+		row_rect.position,
+		Vector2(row_rect.position.x + float(lay["button_width"]) + float(lay["gap"]), row_rect.position.y),
+		Vector2(row_rect.position.x + (float(lay["button_width"]) + float(lay["gap"])) * 2.0, row_rect.position.y),
+	]
+	var frame_rects: Array = [lay["purge"], lay["story"], lay["mode"]]
+	for slot in slots:
+		frame_rects.append(Rect2(slot, Vector2(float(lay["button_width"]), 48.0)))
+	for i in mini(m._menu_frames.size(), frame_rects.size()):
+		var frame: Control = m._menu_frames[i]
+		if frame != null and is_instance_valid(frame):
+			frame.position = (frame_rects[i] as Rect2).position
+			frame.size = (frame_rects[i] as Rect2).size
+
+func _place_center_button(button: Button, rect: Rect2, center: Vector2) -> void:
+	if button == null or not is_instance_valid(button):
+		return
+	button.anchor_left = 0.5
+	button.anchor_right = 0.5
+	button.anchor_top = 0.5
+	button.anchor_bottom = 0.5
+	button.offset_left = rect.position.x - center.x
+	button.offset_right = rect.end.x - center.x
+	button.offset_top = rect.position.y - center.y
+	button.offset_bottom = rect.end.y - center.y
+	button.pivot_offset = rect.size * 0.5
 
 func _style_overlay_back(back: Button) -> void:
 	back.text = "BACK // ESC"
@@ -351,7 +462,7 @@ func draw_shell(m) -> void:
 		var score_y := score_rect.position.y + score_rect.size.y * 0.58
 		m.draw_line(Vector2(center_x - 112.0, score_y), Vector2(center_x - 72.0, score_y), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.72), 1.2)
 		m.draw_line(Vector2(center_x + 72.0, score_y), Vector2(center_x + 112.0, score_y), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.72), 1.2)
-	var ring_center := Vector2(maxf(150.0, center_x - 470.0), m.size.y * 0.44)
+	var ring_center: Vector2 = menu_layout()["ring_center"]
 	for arc_index in 3:
 		var start := -PI * 0.82 + arc_index * TAU / 3.0
 		m.draw_arc(ring_center, 64.0, start, start + PI * 0.48, 18, Color(Balance.COL_DANGER.r, Balance.COL_DANGER.g, Balance.COL_DANGER.b, 0.5), 5.0, true)
@@ -362,6 +473,5 @@ func draw_shell(m) -> void:
 	])
 	m.draw_polyline(ring_triangle + PackedVector2Array([ring_triangle[0]]), Color(Balance.COL_DANGER.r, Balance.COL_DANGER.g, Balance.COL_DANGER.b, 0.58), 2.0, true)
 	m.draw_circle(ring_center, 9.0, Color(Balance.COL_DANGER.r, Balance.COL_DANGER.g, Balance.COL_DANGER.b, 0.42))
-	var mode_y: float = m.size.y * 0.5 + 130.0
-	m.draw_circle(Vector2(center_x, mode_y), 4.0, Balance.COL_MOTE)
+	m.draw_circle(menu_layout()["mode_dot"], 4.0, Balance.COL_MOTE)
 

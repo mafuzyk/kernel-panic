@@ -21,6 +21,10 @@ var _mode_btn: Button
 var _diff_btn: Button
 var _mode_info: Label
 var _klog: Label
+var _subtitle: Label
+var _controls_line: RichTextLabel
+var _menu_frames: Array[Control] = []
+var _footer_row: Control
 var _klog_t := 0.0
 var _esc_armed := 0.0
 var _bestiary_panel: BestiaryPanel
@@ -54,8 +58,11 @@ var _settings_kit
 var _chrome_kit
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_RESIZED and _settings_panel != null and is_instance_valid(_settings_panel):
-		_settings_kit._layout_settings.call_deferred()
+	if what == NOTIFICATION_RESIZED:
+		if _settings_panel != null and is_instance_valid(_settings_panel):
+			_settings_kit._layout_settings.call_deferred()
+		if _chrome_kit != null:
+			_chrome_kit.apply_menu_layout.call_deferred()
 
 func _desktop_keybinds_enabled() -> bool:
 	return Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
@@ -68,6 +75,9 @@ func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
 
 func settings_section_snapshot() -> Dictionary:
 	return _settings_kit.settings_section_snapshot()
+
+func menu_layout_for_viewport(viewport: Vector2) -> Dictionary:
+	return _chrome_kit.menu_layout_for_viewport(viewport)
 
 func footer_button_layout_for_viewport(viewport_size: Vector2) -> Dictionary:
 	return _chrome_kit.footer_button_layout_for_viewport(viewport_size)
@@ -161,6 +171,7 @@ func _ready() -> void:
 	sub.offset_top = 220.0
 	sub.offset_bottom = 250.0
 	add_child(sub)
+	_subtitle = sub
 	_prompt = Label.new()
 	_prompt.text = "PRESS [ENTER] OR HIT >> PURGE"
 	_prompt.add_theme_font_override("font", mono)
@@ -191,6 +202,7 @@ func _ready() -> void:
 	controls.offset_top = 193.0
 	controls.offset_bottom = 219.0
 	add_child(controls)
+	_controls_line = controls
 	_best_label = Label.new()
 	_best_label.add_theme_font_override("font", mono)
 	_best_label.add_theme_font_size_override("font_size", 14)
@@ -242,6 +254,7 @@ func _ready() -> void:
 	_klog.offset_bottom = 190.0
 	_klog.text = "[    0.000000] kernel panic daemon online"
 	add_child(_klog)
+	_chrome_kit.apply_menu_layout()
 	if not DevHarness.active and DisplayServer.get_name() != "headless":
 		_boot = BootOverlay.new()
 		var bl := CanvasLayer.new()
