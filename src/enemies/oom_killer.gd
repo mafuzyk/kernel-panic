@@ -123,12 +123,7 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	draw_circle(Vector2.ZERO, r, Color(c.r, c.g, c.b, 0.2))
-	draw_arc(Vector2.ZERO, r, 0, TAU, 24, c, 2.2, true)
-	var horn := PackedVector2Array([Vector2(-r * 0.5, -r * 0.7), Vector2(-r * 0.9, -r * 1.6), Vector2(-r * 0.05, -r * 0.95)])
-	draw_colored_polygon(horn, c)
-	var horn2 := PackedVector2Array([Vector2(r * 0.5, -r * 0.7), Vector2(r * 0.9, -r * 1.6), Vector2(r * 0.05, -r * 0.95)])
-	draw_colored_polygon(horn2, c)
+	GlyphLib.draw_glyph(self, "oom", Vector2.ZERO, r, c, t)
 	var look := _v.angle() if _v.length() > 10.0 else aim_at_player().angle()
 	var eo := Vector2.from_angle(look) * r * 0.25
 	draw_circle(eo + Vector2(-3.5, -3.0), 2.6, Color(1, 1, 1, 0.95))

@@ -521,6 +521,10 @@ func _die() -> void:
 
 func _ship_draw(node: Node2D, c: Color) -> void:
 	var r := Balance.PLAYER_RADIUS
+	var program_kind: String = {"kernel_arrow": "kernel", "daemon_fork": "daemon", "rootlet_block": "rootlet"}.get(visual_silhouette_key(), "")
+	if program_kind != "":
+		GlyphLib.draw_glyph(node, program_kind, Vector2.ZERO, r, c)
+		return
 	match visual_silhouette_key():
 		"daemon_fork":
 			var body := PackedVector2Array([Vector2(r * 1.35, 0), Vector2(r * 0.1, r * 0.34), Vector2(-r * 0.95, r * 0.82), Vector2(-r * 0.55, 0), Vector2(-r * 0.95, -r * 0.82), Vector2(r * 0.1, -r * 0.34)])

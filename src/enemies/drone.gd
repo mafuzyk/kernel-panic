@@ -48,12 +48,7 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	var pts := PackedVector2Array([
-		Vector2(r * 1.15, 0), Vector2(-r * 0.7, r * 0.85), Vector2(-r * 0.25, 0), Vector2(-r * 0.7, -r * 0.85)
-	])
-	draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.22))
-	draw_polyline(pts + PackedVector2Array([pts[0]]), c, 2.0, true)
-	draw_circle(Vector2(r * 0.15, 0), r * 0.3, c)
+	GlyphLib.draw_glyph(self, "drone", Vector2.ZERO, r, _glyph_color(c), t)
 	if elite and elite_kind == "volatile":
 		var pulse := 0.5 + 0.5 * absf(sin(t * 8.0))
 		draw_circle(Vector2(r * 0.15, 0), r * (0.42 + 0.2 * pulse), Color(1.0, 0.6, 0.1, 0.5 + 0.5 * pulse))

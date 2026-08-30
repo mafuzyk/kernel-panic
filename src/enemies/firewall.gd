@@ -76,12 +76,7 @@ func _refresh_wall() -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	var pts := PackedVector2Array()
-	for i in 8:
-		pts.push_back(Vector2.from_angle(TAU * i / 8.0 + t * 0.4) * r)
-	draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.18))
-	draw_polyline(pts + PackedVector2Array([pts[0]]), c, 2.4, true)
-	draw_rect(Rect2(-r * 0.3, -r * 0.3, r * 0.6, r * 0.6), Color(c.r, c.g, c.b, 0.8), false, 2.0)
+	GlyphLib.draw_glyph(self, "firewall", Vector2.ZERO, r, _glyph_color(c), t)
 	for i in WALL_ARMS:
 		var p := Vector2.from_angle(_wall_angle + TAU * i / float(WALL_ARMS)) * (WALL_RADIUS - 14.0)
 		draw_circle(p, 3.5, Color(c.r, c.g, c.b, 0.55))

@@ -25,6 +25,7 @@ var display_name := "DAEMON"
 var last_pdash_id := -1
 var player: Node2D
 var glow: Sprite2D
+var era_accent := Color(0, 0, 0, 0)
 
 func configure(wave_scale_f: float, is_elite: bool) -> void:
 	hp = int(ceil(hp * wave_scale_f * (2.0 if is_elite else 1.0)))
@@ -272,6 +273,9 @@ func _flash_col(base: Color) -> Color:
 	if hit_flash > 0.0:
 		return base.lerp(Color(1, 1, 1, 1), clampf(hit_flash, 0.0, 1.0))
 	return base
+
+func _glyph_color(flash_col: Color) -> Color:
+	return GlyphLib.era_mix(flash_col, era_accent, 0.25)
 
 func _draw() -> void:
 	pass

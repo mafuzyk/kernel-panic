@@ -695,18 +695,7 @@ func _draw() -> void:
 			_draw_root(c, r)
 
 func _draw_root(c: Color, r: float) -> void:
-	var spin := t * 0.8
-	var segs := 6
-	for i in segs:
-		var a0 := spin + TAU * i / segs
-		draw_arc(Vector2.ZERO, r, a0, a0 + TAU / segs * 0.62, 10, Color(c.r, c.g, c.b, 0.9), 5.0, true)
-	var tri := PackedVector2Array()
-	var spin2 := -t * 1.3
-	for i in 3:
-		tri.push_back(Vector2.from_angle(spin2 + TAU * i / 3.0) * r * 0.62)
-	draw_polyline(tri + PackedVector2Array([tri[0]]), Color(c.r, c.g, c.b, 0.75), 3.5, true)
-	draw_circle(Vector2.ZERO, r * 0.34, Color(c.r, c.g, c.b, 0.25))
-	draw_arc(Vector2.ZERO, r * 0.34, 0, TAU, 28, c, 2.6, true)
+	GlyphLib.draw_glyph(self, "root", Vector2.ZERO, r, _glyph_color(c), t)
 	var look := aim_at_player().angle()
 	var eye := Vector2.from_angle(look) * r * 0.1
 	if _exposed > 0.0:
@@ -726,16 +715,7 @@ func _draw_root(c: Color, r: float) -> void:
 
 func _draw_segfault(c: Color, r: float) -> void:
 	var off := _glitch_off
-	for half in 2:
-		var shift := off if half == 0 else -off * 1.4
-		var pts := PackedVector2Array()
-		var start := half * 3
-		for i in 4:
-			var a := TAU * (start + i) / 6.0 + t * 0.5
-			pts.push_back(Vector2.from_angle(a) * r + shift)
-		if pts.size() > 2:
-			draw_polyline(pts, Color(c.r, c.g, c.b, 0.85 if half == 0 else 0.5), 4.0, true)
-	draw_circle(Vector2.ZERO, r * 0.3, Color(c.r, c.g, c.b, 0.3))
+	GlyphLib.draw_glyph(self, "segfault", Vector2.ZERO, r, _glyph_color(c), t)
 	var blink := fmod(t, 1.0) < 0.12
 	if blink:
 		draw_circle(Vector2.ZERO, r * 0.18, Color(1, 1, 1, 0.8))
@@ -754,13 +734,8 @@ func _draw_segfault(c: Color, r: float) -> void:
 		draw_line(Vector2.ZERO, _lance_dir.rotated(-rotation) * 860.0, Color(1, 1, 1, la * 0.4), 1.0)
 
 func _draw_bluescreen(c: Color, r: float) -> void:
-	var rr := r * 0.92
-	var rect := Rect2(-rr, -rr * 0.72, rr * 2.0, rr * 1.44)
-	draw_rect(rect, Color(c.r, c.g, c.b, 0.10))
-	draw_rect(rect, Color(c.r, c.g, c.b, 0.9), false, 4.0)
-	for i in 5:
-		var ly := rect.position.y + rect.size.y * (0.15 + 0.18 * i) + sin(t * 3.0 + i) * 3.0
-		draw_line(Vector2(rect.position.x + 10.0, ly), Vector2(rect.end.x - 10.0, ly), Color(c.r, c.g, c.b, 0.14), 1.5)
+	GlyphLib.draw_glyph(self, "bluescreen", Vector2.ZERO, r, _glyph_color(c), t)
+	var rect := Rect2(-r * 0.92, -r * 0.6624, r * 1.84, r * 1.3248)
 	var eye_h := r * 0.16
 	var eye_w := r * 0.07
 	var eye_y := -r * 0.18
@@ -775,11 +750,7 @@ func _draw_bluescreen(c: Color, r: float) -> void:
 
 func _draw_pagefault(c: Color, r: float) -> void:
 	var pages := _pages_alive()
-	for i in 3:
-		var off := Vector2.from_angle(t * (0.6 + i * 0.25)) * r * 0.12 * i
-		var rect := Rect2(Vector2(-r * 0.7, -r * 0.5) + off, Vector2(r * 1.4, r))
-		draw_rect(rect, Color(c.r, c.g, c.b, 0.10 + 0.06 * i), false, 2.0)
-	draw_circle(Vector2.ZERO, r * 0.3, Color(c.r, c.g, c.b, 0.3))
+	GlyphLib.draw_glyph(self, "pagefault", Vector2.ZERO, r, _glyph_color(c), t)
 	if pages > 0:
 		draw_arc(Vector2.ZERO, r * 0.55, 0, TAU, 32, Color(0.8, 0.65, 1.0, 0.5 + 0.3 * sin(t * 6.0)), 3.0, true)
 		draw_string(Fx.mono_font, Vector2(-14, 6), "%d" % pages, HORIZONTAL_ALIGNMENT_CENTER, 28, 20, Color(1, 1, 1, 0.9))

@@ -66,16 +66,7 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	var pts := PackedVector2Array()
-	for i in 4:
-		pts.push_back(Vector2.from_angle(TAU * i / 4.0 + PI / 4.0) * r)
-	draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.16))
-	draw_polyline(pts + PackedVector2Array([pts[0]]), c, 3.0, true)
-	for i in 4:
-		var a := TAU * i / 4.0 + PI / 4.0
-		var p := Vector2.from_angle(a) * r
-		draw_line(p * 0.45, p * 0.85, Color(c.r, c.g, c.b, 0.7), 2.5)
-	draw_arc(Vector2.ZERO, r * 0.4, 0, TAU, 20, Color(c.r, c.g, c.b, 0.8), 2.0, true)
+	GlyphLib.draw_glyph(self, "bulwark", Vector2.ZERO, r, _glyph_color(c), t)
 	var hp_frac := float(hp) / float(max_hp)
 	draw_arc(Vector2.ZERO, r + 7.0, -PI / 2, -PI / 2 + TAU * hp_frac, 28, Color(c.r, c.g, c.b, 0.5), 2.0, true)
 	if elite:

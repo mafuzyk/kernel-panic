@@ -81,12 +81,7 @@ func _physics_process(delta: float) -> void:
 
 func _draw() -> void:
 	var c := _flash_col(col)
-	var halo := Color(1.0, 0.78, 0.26, 0.22 + 0.08 * sin(t * 3.0))
-	for i in 3:
-		draw_arc(Vector2.ZERO, radius * (0.9 + i * 0.22), -t * (0.35 + i * 0.12), TAU - t * (0.35 + i * 0.12), 40, Color(c.r, c.g, c.b, 0.34 - i * 0.08), 2.0, true)
-	draw_circle(Vector2.ZERO, radius * 0.7, halo)
-	draw_circle(Vector2.ZERO, radius * 0.38, Color(c.r, c.g, c.b, 0.22))
-	draw_arc(Vector2.ZERO, radius * 0.38, 0.0, TAU, 32, c, 3.0, true)
+	GlyphLib.draw_glyph(self, "god", Vector2.ZERO, radius, _glyph_color(c), t)
 	var eye := aim_at_player().normalized() * radius * 0.16
 	draw_circle(eye, radius * 0.18, Color(1.0, 0.92, 0.62, 0.94))
 	draw_circle(eye, radius * 0.07, Color(1.0, 0.25, 0.35, 1.0))

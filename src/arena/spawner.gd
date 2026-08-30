@@ -337,6 +337,11 @@ func _configure_enemy(e: EnemyBase, is_elite: bool) -> void:
 func _configure_story_enemy(e: EnemyBase) -> void:
 	e.threat_wave = wave
 	e.configure(_story_wave_scale, false)
+	var theme: Dictionary = story_stage.get("theme", {})
+	if str(story_stage.get("act", "")) == "templeos":
+		e.era_accent = Color.from_hsv(fmod(float(Game.stats.get("time", 0.0)) * 0.08, 1.0), 0.78, 1.0)
+	else:
+		e.era_accent = theme.get("accent", Balance.COL_PLAYER)
 
 func _make_enemy(kind: String) -> EnemyBase:
 	match kind:

@@ -48,12 +48,6 @@ func _draw() -> void:
 	var c := _flash_col(col)
 	var s := radius
 	rotation = sin(t * 2.0 + orbit_idx) * 0.2
-	var pts := PackedVector2Array([
-		Vector2(-s, -s * 1.2), Vector2(s * 0.8, -s), Vector2(s, s * 1.2), Vector2(-s * 0.8, s)
-	])
-	draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.18))
-	draw_polyline(pts + PackedVector2Array([pts[0]]), c, 2.0, true)
-	for i in 2:
-		draw_line(Vector2(-s * 0.5, -s * 0.4 + i * s * 0.6), Vector2(s * 0.5, -s * 0.4 + i * s * 0.6), Color(c.r, c.g, c.b, 0.5), 1.5)
+	GlyphLib.draw_glyph(self, "page", Vector2.ZERO, s, _glyph_color(c), t)
 	if hp <= 1:
 		draw_arc(Vector2.ZERO, s + 4.0, 0, TAU, 20, Color(1, 1, 1, 0.4), 1.5, true)

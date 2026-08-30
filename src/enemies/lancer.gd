@@ -78,11 +78,7 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	var pts := PackedVector2Array([
-		Vector2(r * 1.6, 0), Vector2(-r, r * 0.7), Vector2(-r * 0.45, 0), Vector2(-r, -r * 0.7)
-	])
-	draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.22))
-	draw_polyline(pts + PackedVector2Array([pts[0]]), c, 2.0, true)
+	GlyphLib.draw_glyph(self, "lancer", Vector2.ZERO, r, _glyph_color(c), t)
 	if phase == Phase.AIM:
 		var a := 0.35 + 0.4 * absf(sin(t * 30.0))
 		draw_line(Vector2.ZERO, Vector2(560.0, 0), Color(c.r, c.g, c.b, a), 1.6)

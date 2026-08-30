@@ -65,15 +65,10 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	var body := PackedVector2Array([Vector2(-r, -r * 0.72), Vector2(r, -r * 0.72), Vector2(r * 0.72, r * 0.72), Vector2(-r * 0.72, r * 0.72)])
-	draw_colored_polygon(body, Color(c.r, c.g, c.b, 0.2))
-	draw_polyline(body + PackedVector2Array([body[0]]), c, 2.0, true)
+	GlyphLib.draw_glyph(self, "update_loop", Vector2.ZERO, r, _glyph_color(c), t)
 	if _reinstalling:
 		var progress := 1.0 - _reinstall_t / reinstall_duration()
 		draw_arc(Vector2.ZERO, r + 7.0, -PI / 2.0, -PI / 2.0 + TAU * progress, 20, c, 3.0, true)
 		draw_string(ThemeDB.fallback_font, Vector2(-34, r + 18), "UPDATING", HORIZONTAL_ALIGNMENT_CENTER, 68.0, 9, c)
-	else:
-		draw_line(Vector2(-r * 0.55, 0), Vector2(r * 0.55, 0), c, 2.0)
-		draw_circle(Vector2.ZERO, r * 0.2, Color(1, 1, 1, 0.85))
 	if elite:
 		draw_arc(Vector2.ZERO, r + 5.0, 0, TAU, 24, Color(1, 1, 1, 0.75), 1.6, true)

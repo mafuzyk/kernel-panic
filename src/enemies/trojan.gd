@@ -43,13 +43,7 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	var body := PackedVector2Array([
-		Vector2(0, -r * 1.2), Vector2(r * 0.75, 0), Vector2(0, r * 1.2), Vector2(-r * 0.75, 0)
-	])
-	draw_colored_polygon(body, Color(c.r, c.g, c.b, 0.22))
-	draw_polyline(body + PackedVector2Array([body[0]]), c, 2.0, true)
-	draw_line(Vector2(-r * 0.9, -r * 0.5), Vector2(r * 0.9, r * 0.5), Color(c.r, c.g, c.b, 0.8), 2.0)
-	draw_line(Vector2(-r * 0.9, r * 0.5), Vector2(r * 0.9, -r * 0.5), Color(c.r, c.g, c.b, 0.8), 2.0)
+	GlyphLib.draw_glyph(self, "trojan", Vector2.ZERO, r, _glyph_color(c), t)
 	var drop_glow := clampf(1.0 - _drop_t / 2.4, 0.0, 1.0)
 	draw_circle(Vector2.ZERO, r * 0.35 * (0.6 + 0.6 * drop_glow), Color(1.0, 0.25, 0.4, 0.4 + 0.4 * drop_glow))
 	if elite:

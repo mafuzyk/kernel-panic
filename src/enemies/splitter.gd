@@ -49,12 +49,7 @@ func die() -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius * (1.0 + 0.06 * sin(_pulse))
-	draw_circle(Vector2.ZERO, r, Color(c.r, c.g, c.b, 0.18))
-	draw_arc(Vector2.ZERO, r, 0, TAU, 32, c, 2.2, true)
-	var split := 0.5 + 0.5 * sin(_pulse * 0.7)
-	draw_line(Vector2(-r * 0.55 * split, 0), Vector2(r * 0.55 * split, 0), c, 2.0)
-	draw_circle(Vector2(-r * 0.3, 0), r * 0.22, c)
-	draw_circle(Vector2(r * 0.3, 0), r * 0.22, c)
+	GlyphLib.draw_glyph(self, "splitter", Vector2.ZERO, r, _glyph_color(c), t)
 	if elite:
 		draw_arc(Vector2.ZERO, r + 5.0, 0, TAU, 24, Color(1, 1, 1, 0.75), 1.6, true)
 	_draw_color_assist_marker(c)

@@ -280,6 +280,8 @@ func _draw_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
 	draw_multiline_string(mono, rail.position + Vector2(20.0, 302.0), bugs_text, HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, bugs_size, 6, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.64 if seen else 0.36))
 
 func _draw_glyph(id: String, c: Color) -> void:
+	GlyphLib.draw_glyph(self, id, Vector2.ZERO, 16.0, c)
+	return
 	match id:
 		"drone":
 			var pts := PackedVector2Array([Vector2(16, 0), Vector2(-10, 11), Vector2(-3, 0), Vector2(-10, -11)])

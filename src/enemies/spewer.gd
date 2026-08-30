@@ -76,11 +76,7 @@ func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
 	rotation = t * 0.9
-	var pts := PackedVector2Array()
-	for i in 6:
-		pts.push_back(Vector2.from_angle(float(i) / 6.0 * TAU) * r)
-	draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.2))
-	draw_polyline(pts + PackedVector2Array([pts[0]]), c, 2.0, true)
+	GlyphLib.draw_glyph(self, "spewer", Vector2.ZERO, r, _glyph_color(c), t)
 	var eye_r := r * 0.42
 	if _telegraph > 0.0:
 		eye_r = r * (0.42 + 0.5 * (1.0 - _telegraph / 0.42))

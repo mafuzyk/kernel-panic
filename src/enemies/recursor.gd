@@ -175,11 +175,7 @@ func vel() -> Vector2:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(0, -r), Vector2(r, 0), Vector2(0, r), Vector2(-r, 0)
-	]), Color(c.r, c.g, c.b, 0.25))
-	draw_polyline(PackedVector2Array([Vector2(0, -r), Vector2(r, 0), Vector2(0, r), Vector2(-r, 0), Vector2(0, -r)]), c, 2.0, true)
-	draw_circle(Vector2.ZERO, r * 0.3, c)
+	GlyphLib.draw_glyph(self, "recursor", Vector2.ZERO, r, _glyph_color(c), t)
 	if phase == Phase.WIND:
 		var a := 0.35 + 0.45 * absf(sin(t * 30.0))
 		draw_arc(Vector2.ZERO, r + 6.0 + (1.0 - phase_t / 0.35) * 14.0, 0, TAU, 24, Color(c.r, c.g, c.b, a), 2.0, true)

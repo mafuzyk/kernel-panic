@@ -391,6 +391,7 @@ func _autotest() -> void:
 	await _story_test(arena2)
 	await _windows_test(arena2)
 	await _temple_test(arena2)
+	await _glyph_lib_test()
 	await _charm_terminal_test(arena2)
 	await _charm_speedrun_test(arena2)
 	await _touch_test()
@@ -2848,6 +2849,32 @@ func _temple_test(arena: Arena) -> void:
 	_check(Balance.arena_rect().size == Vector2(640.0, 640.0), "arena override changes only the active combat rectangle")
 	Balance.clear_arena_size_override()
 	_check(Balance.arena_rect().size == old_size, "arena override restores the default rectangle")
+
+func _glyph_lib_test() -> void:
+	print("AT_STEP glyph_lib")
+	var glyph_script: Script = load("res://src/ui/glyph_lib.gd")
+	var glyph = glyph_script.new() if glyph_script != null else null
+	_check(glyph != null and glyph.has_method("draw_glyph") and glyph.has_method("glyph_kinds") and glyph.has_method("era_mix"), "glyph library exposes draw_glyph, glyph_kinds, and era_mix")
+	if glyph == null or not glyph.has_method("draw_glyph"):
+		return
+	var required := ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "recursor", "firewall", "bloatware", "update_loop", "page", "root", "boss", "segfault", "bluescreen", "pagefault", "god", "kernel", "daemon", "rootlet"]
+	var kinds: Array = glyph.call("glyph_kinds")
+	var missing := false
+	for kind in required:
+		if not kinds.has(kind):
+			missing = true
+	_check(not missing, "glyph library covers every enemy and program kind")
+	var seed_before := Game.rng.seed
+	for kind in required:
+		glyph.call("draw_glyph", null, kind, Vector2.ZERO, 4.0, Color.CYAN, 0.0)
+		glyph.call("draw_glyph", null, kind, Vector2.ZERO, 64.0, Color.CYAN, 1.0)
+	_check(Game.rng.seed == seed_before, "glyph drawing never advances the gameplay rng")
+	var mixed: Color = glyph.call("era_mix", Color.RED, Color.CYAN, 0.25)
+	_check(not mixed.is_equal_approx(Color.RED) and not mixed.is_equal_approx(Color.CYAN), "era_mix blends identity colors toward the era accent")
+	var bestiary_source := str(load("res://src/ui/bestiary_panel.gd").source_code)
+	var program_source := str(load("res://src/ui/program_panel.gd").source_code)
+	_check(bestiary_source.contains("GlyphLib.draw_glyph"), "bestiary detail views reuse glyph_lib")
+	_check(program_source.contains("GlyphLib.draw_glyph"), "program cards reuse glyph_lib")
 
 func _charm_terminal_test(arena: Arena) -> void:
 	print("AT_STEP charm_terminal")

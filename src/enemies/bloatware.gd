@@ -42,16 +42,7 @@ func die() -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	var body := Rect2(-r, -r * 0.78, r * 2.0, r * 1.56)
-	draw_rect(body, Color(c.r, c.g, c.b, 0.18))
-	draw_rect(body, c, false, 3.0)
-	draw_line(Vector2(-r * 0.72, -r * 0.22), Vector2(r * 0.72, -r * 0.22), Color(c.r, c.g, c.b, 0.7), 2.0)
-	draw_line(Vector2(-r * 0.72, r * 0.24), Vector2(r * 0.4, r * 0.24), Color(c.r, c.g, c.b, 0.6), 2.0)
-	var spin := t * 3.2
-	for i in 8:
-		var a := spin + TAU * i / 8.0
-		var alpha := 0.18 + 0.72 * float(i + 1) / 8.0
-		draw_line(Vector2.from_angle(a) * (r * 0.72), Vector2.from_angle(a) * (r * 0.93), Color(c.r, c.g, c.b, alpha), 3.0)
+	GlyphLib.draw_glyph(self, "bloatware", Vector2.ZERO, r, _glyph_color(c), t)
 	draw_string(ThemeDB.fallback_font, Vector2(-28, r + 18), "LOADING", HORIZONTAL_ALIGNMENT_CENTER, 56.0, 9, c)
 	if elite:
 		draw_arc(Vector2.ZERO, r + 8.0, 0, TAU, 32, Color(1, 1, 1, 0.75), 1.8, true)
