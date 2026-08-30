@@ -1963,7 +1963,7 @@ Interfaces:
 - Consumes: `raster_path()` (tactical_icon.gd line 77), the edge-to-edge `draw_texture_rect(tex, Rect2(Vector2.ZERO, size))` raster draw (line 103), `patch_card.gd::_draw_icon` raster branch (line 114).
 - Produces: `ICON_OPTICAL` per-kind pad table + `optical_pad(kind)`; `RASTER_OPTOUT` per-kind × per-size opt-out list + `raster_optouts()`; `raster_path(kind, render_size := 0)` returning `""` for opted-out sizes; padded raster rects in both draw sites.
 
-- [ ] **Step 1: Write the failing harness check**
+- [x] **Step 1: Write the failing harness check**
 
 In `src/autoload/harness/sections_polish.gd`, append at the end of the class:
 
@@ -1994,7 +1994,7 @@ In `src/autoload/dev_harness.gd`, directly below the line `await _sec_visual._ra
 	await _sec_polish._raster_optical_test()
 ~~~
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -2004,7 +2004,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_FAILED` with AT_FAIL `tactical icon exposes optical padding and the per-size opt-out registry` (the remaining checks return early). No parse errors.
 
-- [ ] **Step 3: Implement the optical registry in tactical_icon.gd**
+- [x] **Step 3: Implement the optical registry in tactical_icon.gd**
 
 3a. Directly below the `ICON_BOUNDS` const, add:
 
@@ -2075,7 +2075,7 @@ with:
 
 (`configure()` keeps calling `raster_path(icon_kind)` with the default size — the cache prime stays valid.)
 
-- [ ] **Step 4: Patch card padded raster**
+- [x] **Step 4: Patch card padded raster**
 
 In `src/ui/patch_card.gd`:
 
@@ -2104,7 +2104,7 @@ with:
 			return
 ~~~
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run:
 
@@ -2114,7 +2114,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_ALL_PASS`, zero `AT_FAIL`. New AT_STEP label `raster_optical`. The pre-existing `raster_trial` and `icon_quality` AT_STEPs stay green (they call `raster_path(kind)` with the default size, which still resolves).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ~~~sh
 git add src/ui/tactical_icon.gd src/ui/patch_card.gd src/autoload/dev_harness.gd src/autoload/harness/sections_polish.gd
@@ -2133,7 +2133,7 @@ Interfaces:
 - Consumes: the `assets/icons/generated/` PNGs imported by Godot; `raster_path` / `patch_raster_path` registries.
 - Produces: tight re-exports with baked glow halos removed so hit rects hug the glyph; `ICON_BOUNDS` remains the containment contract. Author gate before commit (spec: "nothing commits without her gate").
 
-- [ ] **Step 1: Record before captures**
+- [x] **Step 1: Record before captures**
 
 ~~~sh
 KP_SHOT=menu KP_SHOT_OUT=/tmp/opencode/trim_before_menu.png godot --path . --resolution 1366x768
@@ -2142,7 +2142,7 @@ KP_SHOT=game KP_SHOT_OUT=/tmp/opencode/trim_before_game.png godot --path . --res
 
 Expected: two `SHOT_SAVED` lines; kill the processes after.
 
-- [ ] **Step 2: Trim the base rasters**
+- [x] **Step 2: Trim the base rasters**
 
 ~~~sh
 for f in assets/icons/generated/*.png; do
@@ -2154,7 +2154,7 @@ magick identify -format "%f %wx%h\n" assets/icons/generated/*.png | grep -v -e -
 
 Expected: each listed file reports `128x128` (trimmed, then re-centered on a transparent 128×128 canvas).
 
-- [ ] **Step 3: Reimport and verify the suite**
+- [x] **Step 3: Reimport and verify the suite**
 
 ~~~sh
 godot --headless --path . -- --import
@@ -2163,7 +2163,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: import exits clean; `AUTOTEST_ALL_PASS`, zero `AT_FAIL` (containment contracts in `icon_quality` still hold — the textures are only re-exported inside the same 128×128 frame).
 
-- [ ] **Step 4: After captures + side-by-side montage**
+- [x] **Step 4: After captures + side-by-side montage**
 
 ~~~sh
 KP_SHOT=menu KP_SHOT_OUT=/tmp/opencode/trim_after_menu.png godot --path . --resolution 1366x768
@@ -2173,11 +2173,11 @@ magick montage /tmp/opencode/trim_before_menu.png /tmp/opencode/trim_after_menu.
 
 Expected: `SHOT_SAVED` twice + `/tmp/opencode/icons_trim_sbs.png` written.
 
-- [ ] **Step 5: Author gate**
+- [ ] **Step 5: Author gate** (PENDING author verdict — montage at `/tmp/opencode/icons_trim_sbs.png`, raw shots `/tmp/opencode/trim_{before,after}_{menu,game}.png`; per-kind rollback: `git checkout a474f89^ -- assets/icons/generated/<kind>.png` then re-import)
 
 Show `/tmp/opencode/icons_trim_sbs.png` to the author. If she approves: proceed to Step 6. If she rejects specific kinds: restore them with `git checkout -- assets/icons/generated/` (all) or extend `RASTER_OPTOUT` in `tactical_icon.gd` (per-kind × per-size, e.g. `"music": [24, 52]` to drop a kind's raster entirely), re-run the full autotest green, and record the outcome in the Task 13 report.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ~~~sh
 git add assets/icons/generated/
