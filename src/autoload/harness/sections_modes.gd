@@ -245,6 +245,25 @@ func _capture() -> void:
 				h._spawn_boss(arena, 2)
 				h._populate(arena, 3)
 				Input.action_press("fire")
+			"god":
+				var god: GodBoss = GodBoss.new()
+				god.configure(1.0, false)
+				god.position = arena.player.global_position + Vector2(0, -170)
+				arena.enemy_container.add_child(god)
+				arena.hud.boss = god
+				h._populate(arena, 3)
+				Input.action_press("fire")
+			"batch1":
+				var kinds_b1: Array[String] = ["oom", "trojan", "update_loop"]
+				var player_b1: Player = arena.player
+				for i in kinds_b1.size():
+					var e_b1: EnemyBase = arena.spawner.call("_make_enemy", kinds_b1[i])
+					if e_b1 != null:
+						e_b1.position = player_b1.global_position + Vector2(-240 + i * 240, -130)
+						e_b1.configure(1.2, false)
+						arena.enemy_container.add_child(e_b1)
+				h._populate(arena, 2)
+				Input.action_press("fire")
 			"patch":
 				arena.offer_patch()
 			"trojan":

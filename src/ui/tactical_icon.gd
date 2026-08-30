@@ -69,7 +69,7 @@ const ICON_OPTICAL := {
 ## Per-kind x per-size opt-out list: where a raster reads blurry at a size, the
 ## registry returns "" for that size and the code fallback renders. Documented
 ## and harness-visible; the author may extend it after the trim review (Task 9).
-const RASTER_OPTOUT := {"music": [24]}
+const RASTER_OPTOUT := {"music": [24], "bestiary": [24]}
 
 static func optical_pad(icon_kind: String) -> float:
 	return float(ICON_OPTICAL.get(icon_kind, 0.06))
@@ -127,7 +127,7 @@ func _draw() -> void:
 		var tex: Texture2D = _raster_tex_cache[raster]
 		if tex != null:
 			var pad := optical_pad(_kind) * minf(size.x, size.y)
-			draw_texture_rect(tex, Rect2(Vector2(pad, pad), size - Vector2(pad * 2.0, pad * 2.0)), false)
+			draw_texture_rect(tex, Rect2(Vector2(pad, pad), size - Vector2(pad * 2.0, pad * 2.0)), false, _accent)
 			if _framed:
 				_draw_frame_overlay()
 			return
