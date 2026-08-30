@@ -8,6 +8,7 @@ const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 const PauseInputRouterScript = preload("res://src/arena/pause_input_router.gd")
 const PanelKitScript = preload("res://src/arena/panel_kit.gd")
 const IntroKitScript = preload("res://src/arena/intro_kit.gd")
+const StageKitScript = preload("res://src/arena/stage_kit.gd")
 
 var player: Player
 var cam: CameraRig
@@ -80,18 +81,20 @@ var _restart_hold_t := 0.0
 var _restart_triggered := false
 var _panel_kit
 var _intro_kit
+var _stage_kit
 const RESTART_HOLD_DURATION := 0.75
 
 func _ready() -> void:
 	add_to_group("arena")
 	_panel_kit = PanelKitScript.new(self)
 	_intro_kit = IntroKitScript.new(self)
+	_stage_kit = StageKitScript.new(self)
 	if Game.mode == "story":
 		var opening_stage := Game.story_stage_def(Game.story_stage_index)
 		var opening_size = opening_stage.get("arena_size", Vector2.ZERO)
 		if opening_size is Vector2 and opening_size.x > 0.0 and opening_size.y > 0.0:
 			Balance.set_arena_size_override(opening_size)
-	_build_background()
+	_stage_kit._build_background()
 	walls = ArenaWalls.new()
 	add_child(walls)
 	mote_container = Node2D.new()
@@ -125,8 +128,8 @@ func _ready() -> void:
 		_story_stage = Game.story_stage_def(Game.story_stage_index)
 		_intro_kit._build_story_intro()
 		_intro_kit._apply_story_theme(_story_stage.get("theme", {}))
-		_build_windows_visuals()
-		_build_temple_visuals()
+		_stage_kit._build_windows_visuals()
+		_stage_kit._build_temple_visuals()
 	if debug_controls_enabled():
 		var debug_panel = load("res://src/ui/debug_panel.gd").new()
 		debug_panel.arena = self
@@ -287,31 +290,6 @@ func _update_quality(delta: float) -> void:
 var _bg_mat: ShaderMaterial
 var _era_color := Color("4ff2ff")
 
-func _build_background() -> void:
-	var layer := CanvasLayer.new()
-	layer.layer = -10
-	var rect := ColorRect.new()
-	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bg_mat = ShaderMaterial.new()
-	_bg_mat.shader = load("res://shaders/bg_grid.gdshader")
-	rect.material = _bg_mat
-	layer.add_child(rect)
-	add_child(layer)
-	_dust = CPUParticles2D.new()
-	_dust.amount = 36
-	_dust.lifetime = 7.0
-	_dust.preprocess = 7.0
-	_dust.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	_dust.emission_rect_extents = Vector2(700, 400)
-	_dust.gravity = Vector2.ZERO
-	_dust.initial_velocity_min = 6.0
-	_dust.initial_velocity_max = 22.0
-	_dust.scale_amount_min = 1.0
-	_dust.scale_amount_max = 2.4
-	_dust.color = Color(0.4, 0.55, 0.75, 0.22)
-	add_child(_dust)
-
 func patch_box_rect_for_viewport(viewport_size: Vector2) -> Rect2:
 	var horizontal_margin := clampf(viewport_size.x * 0.04, 16.0, 48.0)
 	var width := minf(PATCH_MAX_WIDTH, maxf(0.0, viewport_size.x - horizontal_margin * 2.0))
@@ -415,52 +393,16 @@ func dismiss_story_intro() -> bool:
 
 
 func windows_stage_profile() -> Dictionary:
-	if _story_stage.is_empty():
-		return {}
-	return {"id": _story_stage.get("id", ""), "path": _story_stage.get("path", ""), "grid_style": _story_stage.get("theme", {}).get("grid_style", "clean"), "crt": _story_stage.get("theme", {}).get("crt", {})}
+	return _stage_kit.windows_stage_profile()
 
-func _build_windows_visuals() -> void:
-	if str(_story_stage.get("act", "")) != "windows":
-		return
-	var theme: Dictionary = _story_stage.get("theme", {})
-	var style := str(theme.get("grid_style", "clean"))
-	Sfx.set_music_variant(style)
-	if style == "crt_heavy" or style == "crt_soft":
-		_crt_overlay = CrtOverlay.new()
-		add_child(_crt_overlay)
-		_crt_overlay.configure(theme.get("crt", {}))
-	if bool(_story_stage.get("watermark", false)):
-		var watermark_layer := CanvasLayer.new()
-		watermark_layer.layer = 76
-		_windows_watermark = Label.new()
-		_windows_watermark.text = "ACTIVATE WINDOWS // GO TO SETTINGS"
-		_windows_watermark.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		_windows_watermark.add_theme_font_size_override("font_size", 11)
-		_windows_watermark.add_theme_color_override("font_color", Color(0.2, 0.65, 0.85, 0.6))
-		_windows_watermark.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		_windows_watermark.anchor_left = 1.0
-		_windows_watermark.anchor_right = 1.0
-		_windows_watermark.offset_left = -380.0
-		_windows_watermark.offset_right = -18.0
-		_windows_watermark.offset_top = 18.0
-		_windows_watermark.offset_bottom = 40.0
-		_windows_watermark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		watermark_layer.add_child(_windows_watermark)
-		add_child(watermark_layer)
 
 func temple_stage_profile() -> Dictionary:
-	if str(_story_stage.get("act", "")) != "templeos":
-		return {}
-	return {"id": _story_stage.get("id", ""), "path": _story_stage.get("path", ""), "arena_size": _story_stage.get("arena_size", Vector2.ZERO), "grid_style": _story_stage.get("theme", {}).get("grid_style", "holy"), "crt": _story_stage.get("theme", {}).get("crt", {})}
+	return _stage_kit.temple_stage_profile()
 
-func _build_temple_visuals() -> void:
-	if str(_story_stage.get("act", "")) != "templeos":
-		return
-	_temple_mode = true
-	Sfx.set_music_variant("holy")
-	_crt_overlay = CrtOverlay.new()
-	add_child(_crt_overlay)
-	_crt_overlay.configure(_story_stage.get("theme", {}).get("crt", {}))
+
+func background_corruption_for_wave(target_wave: int) -> float:
+	return _stage_kit.background_corruption_for_wave(target_wave)
+
 
 func _on_wave_started(wave: int, is_boss: bool) -> void:
 	if Game.mode == "story":
@@ -475,7 +417,7 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 		hud.set_era_accent(_era_color)
 	walls.set_tint(_era_color)
 	if _bg_mat != null:
-		_bg_mat.set_shader_parameter("corruption", background_corruption_for_wave(wave))
+		_bg_mat.set_shader_parameter("corruption", _stage_kit.background_corruption_for_wave(wave))
 	Game.log_event("CYCLE %02d START" % wave)
 	if is_boss:
 		Game.log_event("ANOMALY INBOUND // %s" % RootBoss.title_for_index(int(Game.wave / float(Balance.BOSS_EVERY))))
@@ -1103,9 +1045,6 @@ func _terminal_rm_rf() -> String:
 func restart_hold_duration() -> float:
 	return RESTART_HOLD_DURATION
 
-func background_corruption_for_wave(target_wave: int) -> float:
-	return clampf(float(maxi(target_wave - 1, 0)) / 40.0, 0.0, 0.8)
-
 func _request_abandon_confirmation() -> void:
 	if not get_tree().paused or _state != "play":
 		return
@@ -1183,7 +1122,7 @@ func _process(delta: float) -> void:
 		if OS.get_environment("KP_NOTINT") == "":
 			_bg_mat.set_shader_parameter("era_tint", Vector3(c.r, c.g, c.b))
 		_bg_mat.set_shader_parameter("era_mix", 0.28 if Game.mode == "story" else 0.75)
-		_bg_mat.set_shader_parameter("corruption", 0.0 if Game.mode == "story" else background_corruption_for_wave(Game.wave))
+		_bg_mat.set_shader_parameter("corruption", 0.0 if Game.mode == "story" else _stage_kit.background_corruption_for_wave(Game.wave))
 	if _state == "play":
 		Game.stats["time"] += delta
 		var level := 0
