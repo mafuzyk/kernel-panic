@@ -202,3 +202,13 @@ func _story_path_test() -> void:
 	h._check(saw_labels, "story report carries the story_state_labels entry")
 	h._check(ok, "story rail report stays green including the state labels")
 	panel.free()
+
+func _leak_guard_test() -> void:
+	print("AT_STEP leak_guard")
+	var game_src := str(load("res://src/autoload/game.gd").source_code)
+	h._check(game_src.contains("TacticalIcon.clear_raster_cache()"), "teardown clears the tactical icon raster cache")
+	h._check(game_src.contains("PatchCard.clear_raster_cache()"), "teardown clears the patch card raster cache")
+	var orphans: int = int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
+	var objects: int = int(Performance.get_monitor(Performance.OBJECT_COUNT))
+	print("AT_DEBUG leak_guard orphans=%d objects=%d" % [orphans, objects])
+	h._check(orphans <= h.LEAK_GUARD_MAX_ORPHANS, "orphan node count stays under the recorded baseline (%d)" % h.LEAK_GUARD_MAX_ORPHANS)

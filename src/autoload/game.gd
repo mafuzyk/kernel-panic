@@ -90,6 +90,10 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	_load_run_config()
 
+func _exit_tree() -> void:
+	TacticalIcon.clear_raster_cache()
+	PatchCard.clear_raster_cache()
+
 const PROGRAM_DEFS := {
 	"kernel": {
 		"name": "KERNEL", "desc": "balanced standard process", "hp": 4, "speed_mul": 1.0, "dmg_bonus": 0, "rate_mul": 1.0, "range_mul": 1.0, "dash_charges": 1,

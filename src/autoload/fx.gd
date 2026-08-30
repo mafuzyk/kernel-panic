@@ -4,6 +4,7 @@ var _glow_tex: GradientTexture2D
 var _add_mat: CanvasItemMaterial
 var _flash_layer: CanvasLayer
 var _flash_rect: ColorRect
+var _flash_tween: Tween
 var _hitstop_token := 0
 var mono_font: Font
 var quality_scale := 1.0
@@ -137,7 +138,7 @@ func ghost(pos: Vector2, rot: float, draw_fn: Callable, color: Color, life: floa
 	_attach(g)
 
 func flash(color: Color, alpha: float, dur: float) -> void:
-	if _flash_layer == null:
+	if _flash_layer == null or not is_instance_valid(_flash_layer) or not is_instance_valid(_flash_rect):
 		_flash_layer = CanvasLayer.new()
 		_flash_layer.layer = 90
 		_flash_rect = ColorRect.new()
@@ -147,9 +148,11 @@ func flash(color: Color, alpha: float, dur: float) -> void:
 		_flash_layer.add_child(_flash_rect)
 		var root := get_tree().current_scene if get_tree().current_scene != null else get_tree().root
 		root.add_child(_flash_layer)
+	if _flash_tween != null and _flash_tween.is_valid():
+		_flash_tween.kill()
 	_flash_rect.color = Color(color.r, color.g, color.b, alpha)
-	var tw := create_tween()
-	tw.tween_property(_flash_rect, "modulate:a", 0.0, dur).set_ease(Tween.EASE_OUT)
+	_flash_tween = create_tween()
+	_flash_tween.tween_property(_flash_rect, "modulate:a", 0.0, dur).set_ease(Tween.EASE_OUT)
 
 func shake(amount: float) -> void:
 	get_tree().call_group("cam_rig", "add_trauma", amount)

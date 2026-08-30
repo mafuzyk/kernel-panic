@@ -312,3 +312,6 @@ func _draw_awards(center: Vector2, radius: float) -> void:
 func _draw_check(center: Vector2, radius: float) -> void:
 	draw_line(center + Vector2(-radius * 0.42, radius * 0.02), center + Vector2(-radius * 0.10, radius * 0.36), _line_color(), 2.4, true)
 	draw_line(center + Vector2(-radius * 0.10, radius * 0.36), center + Vector2(radius * 0.46, -radius * 0.30), _line_color(), 2.4, true)
+
+static func clear_raster_cache() -> void:
+	_raster_tex_cache.clear()

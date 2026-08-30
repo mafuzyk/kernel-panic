@@ -12,6 +12,7 @@ const HSectionModes = preload("res://src/autoload/harness/sections_modes.gd")
 const HSectionPolish = preload("res://src/autoload/harness/sections_polish.gd")
 
 var active := false
+const LEAK_GUARD_MAX_ORPHANS := 40
 var _fails := 0
 var _sec_boot
 var _sec_tasks_a
@@ -487,6 +488,7 @@ func _autotest() -> void:
 	if final_scene != null and is_instance_valid(final_scene):
 		final_scene.queue_free()
 	await _ticks(4)
+	await _sec_polish._leak_guard_test()
 	_finish()
 
 func _config_snapshot(section: String, key: String, default_value) -> Dictionary:

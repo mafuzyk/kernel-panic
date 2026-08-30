@@ -211,3 +211,6 @@ func text_overflow_report() -> Array:
 			longest_desc = str(definition.get("desc", ""))
 	out.append({"id": "patch_desc", "fits": TacticalUI.wrapped_height(mono, longest_desc, size.x - 148.0, 13) <= 54.0 or TacticalUI.wrapped_height(mono, longest_desc, size.x - 148.0, 10) <= 54.0})
 	return out
+
+static func clear_raster_cache() -> void:
+	_raster_tex_cache.clear()
