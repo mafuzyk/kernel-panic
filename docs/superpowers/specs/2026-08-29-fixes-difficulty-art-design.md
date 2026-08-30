@@ -494,3 +494,31 @@ banner shows only the subtitle below the encounter panel.
   enemies/programs stays scheduled post-pack; entity glyphs are untouched.
 - A generated-sprite trial for enemies/bosses/playable programs is approved and
   scheduled for a future session after this pack (do not implement now).
+- Task 8 completed (2026-08-29): full headless suite green — `AUTOTEST_ALL_PASS`
+  with 1194 checks passed (`AT_PASS` lines), zero `AT_FAIL`, and all expected
+  `AT_STEP` sections present (`hud_style`, `era_accent`, `text_overflow`,
+  `touch_hud_layout`, `mote_sweep`, `oom_identity`, `difficulty`,
+  `achievements_panel`, `glyph_lib`, `icon_quality`, `raster_trial`,
+  `story_intro_auto`, `story_intro_layout`). Tree integrity: only
+  `.SRCINFO`/`.omo/` untracked (intentional), `media/concepts/` ignored, no
+  captures tracked; one stray was fixed (`src/ui/achievements_panel.gd.uid`,
+  missed by the Task 6 commit, tracked separately). Save config default remains
+  NORMAL.
+- Task 8 visual acceptance (2026-08-29): all seven approved mocks matched at
+  metric level at 1366x768 (fullscreen DP-1 via runtime `hl.window_rule()` eval,
+  no config edits) and 432x720 (floating window) — combat HUD, menu, patch
+  selection, pause, program select, story select, bestiary; no alignment/
+  spacing fixes were needed, so no production change or autotest re-run was
+  required. Side-by-side montages (never committed) live at
+  `/tmp/opencode/final-acceptance/montage_<surface>.png`. Logged finding
+  (non-blocking, unchanged): the story selector's stage rail renders as card
+  chips rather than the mock's connector-node path — a structural variant
+  outside this pack's scope; the intro "PRESS ANY KEY" hint, dismiss gating,
+  and 8s auto-dismiss are verified by the green `story_intro_auto`/
+  `story_intro_layout`/`story_scene` sections.
+- Task 7c raster keep-or-revert remains AUTHOR-GATED/PENDING after this pack;
+  review evidence: `/tmp/opencode/trial_side_menu.png`,
+  `/tmp/opencode/trial_side_pause.png`, `/tmp/opencode/trial_side_patch.png`
+  plus the `montage_*` surfaces in `/tmp/opencode/final-acceptance/`. The
+  post-pack generated-sprite trial for enemies/programs stays scheduled for a
+  future session.

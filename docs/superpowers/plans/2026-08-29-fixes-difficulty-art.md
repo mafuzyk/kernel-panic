@@ -3586,7 +3586,7 @@ Interfaces:
 - Consumes: every prior task's production code and harness checks; the three approved mocks.
 - Produces: a verified green suite, visual evidence in `/tmp/opencode/`, and a clean working tree.
 
-- [ ] Step 1: Full autotest from a clean state
+- [x] Step 1: Full autotest from a clean state
 
 Run:
 
@@ -3596,7 +3596,7 @@ godot --headless --path . -- --autotest
 
 Expected: the final line is `AUTOTEST_ALL_PASS`, with zero `AT_FAIL` lines anywhere in the output and all `AT_STEP` sections (including `hud_style`, `era_accent`, `text_overflow`, `touch_hud_layout`, `mote_sweep`, `oom_identity`, `difficulty`, `achievements_panel`, `glyph_lib`, `icon_quality`, `raster_trial`, `story_intro_auto`, `story_intro_layout`) present.
 
-- [ ] Step 2: Repeat at default settings integrity
+- [x] Step 2: Repeat at default settings integrity
 
 Run:
 
@@ -3607,7 +3607,7 @@ git diff --check
 
 Expected: only the files touched by Tasks 1-7b are modified; no `.godot/`, captures, binaries, or private paths are staged or tracked. The save config default remains NORMAL (delete `~/.local/share/godot/app_userdata/` save only if a manual test left `game/difficulty` set; the harness restores it itself).
 
-- [ ] Step 3: Final visual pass against the mocks
+- [x] Step 3: Final visual pass against the mocks
 
 Run:
 
@@ -3622,7 +3622,7 @@ enemies appear until dismissal, dismiss with a key/tap, and confirm an idle run
 auto-dismisses after 8 seconds), fitted text at all three reference resolutions,
 and reworked glyphs — all matching the approved mocks.
 
-- [ ] Step 4: Release prep is out of scope
+- [x] Step 4: Release prep is out of scope
 
 Do not bump `application/config/version`, do not edit the changelog section of
 README.md beyond the Task 6 difficulty paragraph, and do not create release
