@@ -2389,7 +2389,7 @@ Interfaces:
 - Consumes: the exit ObjectDB/RID report; static caches `tactical_icon.gd::_raster_tex_cache` and `patch_card.gd::_raster_tex_cache` (the only `static var` resource caches in the repo); `fx.gd::flash()` which stacks a fresh `create_tween()` per call and parents `_flash_layer` to a scene that gets freed.
 - Produces: `TacticalIcon.clear_raster_cache()` / `PatchCard.clear_raster_cache()`; `Game._exit_tree()` teardown hook; `Fx._flash_tween`; harness `LEAK_GUARD_MAX_ORPHANS` + `_leak_guard_test()`.
 
-- [ ] **Step 1: Profile first (one fixed invocation)**
+- [x] **Step 1: Profile first (one fixed invocation)**
 
 ~~~sh
 godot --headless --path . -- --autotest --verbose > /tmp/opencode/leak_profile_before.txt 2>&1
@@ -2399,7 +2399,7 @@ tail -5 /tmp/opencode/leak_profile_before.txt
 
 Expected: `AUTOTEST_ALL_PASS` in the tail plus an exit report line like `ObjectDB instances leaked at exit: N` — record that number as **N0** (the overnight review measured ~199) and note the RID/resource lines. Attribute each leaked class printed by the verbose report to an owner; the two known owners are fixed below, and any additional owner gets fixed with the same two patterns (static caches cleared in `Game._exit_tree`; owner-held tweens/layers stored, validated, and killed/recreated — never hidden orphans) and recorded in the Task 13 report.
 
-- [ ] **Step 2: Write the failing harness guard**
+- [x] **Step 2: Write the failing harness guard**
 
 In `src/autoload/harness/sections_polish.gd`, append at the end of the class:
 
@@ -2429,7 +2429,7 @@ Insert the call in `_autotest()` directly above the final `\t_finish()` line (af
 	await _sec_polish._leak_guard_test()
 ~~~
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 Run:
 
@@ -2439,7 +2439,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AT_DEBUG leak_gu
 
 Expected: `AUTOTEST_FAILED` with AT_FAIL `teardown clears the tactical icon raster cache` and `teardown clears the patch card raster cache`. Note the printed `orphans=M objects=K` values.
 
-- [ ] **Step 4: Free the offenders**
+- [x] **Step 4: Free the offenders**
 
 4a. In `src/ui/tactical_icon.gd`, append at the end of the file:
 
@@ -2499,7 +2499,7 @@ with:
 	_flash_tween.tween_property(_flash_rect, "modulate:a", 0.0, dur).set_ease(Tween.EASE_OUT)
 ~~~
 
-- [ ] **Step 5: Run green and record the achieved numbers**
+- [x] **Step 5: Run green and record the achieved numbers**
 
 Run:
 
@@ -2510,7 +2510,7 @@ grep -E "ObjectDB instances leaked" /tmp/opencode/leak_after.txt
 
 Expected: `AUTOTEST_ALL_PASS`, zero `AT_FAIL`, new AT_STEP `leak_guard`. The exit report prints a new instance count — record it as **N1**. Reduction target: N1 clearly below N0 (~199); zero is not chased. If `AT_DEBUG leak_guard` printed orphans > 40 before the fix, set `LEAK_GUARD_MAX_ORPHANS` to that measured baseline and re-run green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ~~~sh
 git add src/ui/tactical_icon.gd src/ui/patch_card.gd src/autoload/game.gd src/autoload/fx.gd src/autoload/dev_harness.gd src/autoload/harness/sections_polish.gd
