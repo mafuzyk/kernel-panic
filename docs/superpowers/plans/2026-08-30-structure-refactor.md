@@ -733,14 +733,14 @@ func temple_stage_profile() -> Dictionary:
 
 Sizing note (constraint 10): this exceeds the ~400 target because the settings family is one contiguous block (787–1361 in the baseline); splitting it would strand half-built wiring between tasks. The block is verbatim-moved, so review cost stays low. Public delegate on Menu: `settings_layout_for_viewport`. `_open_achievements` is not touched — the menu source-scan check (`dev_harness.gd:3844`) keeps passing. State (`_settings_*`, `_keybind_*`, `_capture_action`, …) stays on Menu — harness probes `menu.get("_capture_action")`, `menu.get("_keybind_status")`, `menu.get("_mode_info")` etc. (constraint 6).
 
-- [ ] **Step 1: Snapshot** — `cp src/ui/menu.gd /tmp/opencode/menu_T13.gd`
+- [x] **Step 1: Snapshot** — `cp src/ui/menu.gd /tmp/opencode/menu_T13.gd`
 
-- [ ] **Step 2: Create `src/ui/menu_settings_kit.gd`** — header shape as Task 10 with `var m` / `_init(menu)` and comment "Menu settings kit: settings panel build/layout, keybind capture, slider rows. Moved verbatim from src/ui/menu.gd; Menu-owned state and non-moved calls prefixed `m.` (plan G5).", then two blocks through the **RW-MENU-1 perl (G5)**:
+- [x] **Step 2: Create `src/ui/menu_settings_kit.gd`** — header shape as Task 10 with `var m` / `_init(menu)` and comment "Menu settings kit: settings panel build/layout, keybind capture, slider rows. Moved verbatim from src/ui/menu.gd; Menu-owned state and non-moved calls prefixed `m.` (plan G5).", then two blocks through the **RW-MENU-1 perl (G5)**:
   `awk '/^func settings_layout_for_viewport\(/{f=1} /^func _set_main_menu_controls_visible\(/{f=0} f' /tmp/opencode/menu_T13.gd` **plus** `awk '/^func _refresh_color_assist_label\(/{f=1} /^func _mk_title\(/{f=0} f' /tmp/opencode/menu_T13.gd`
 
-- [ ] **Step 3: Delete the two blocks from `menu.gd`** (range-pair awk with anchors `settings_layout_for_viewport`/`_set_main_menu_controls_visible` and `_refresh_color_assist_label`/`_mk_title`); verify `grep -c '^func _build_settings\|^func _build_keybind_settings\|^func _handle_keybind_capture\|^func _make_slider_row\|^func _layout_settings\|^func settings_layout_for_viewport' src/ui/menu.gd` → `0`.
+- [x] **Step 3: Delete the two blocks from `menu.gd`** (range-pair awk with anchors `settings_layout_for_viewport`/`_set_main_menu_controls_visible` and `_refresh_color_assist_label`/`_mk_title`); verify `grep -c '^func _build_settings\|^func _build_keybind_settings\|^func _handle_keybind_capture\|^func _make_slider_row\|^func _layout_settings\|^func settings_layout_for_viewport' src/ui/menu.gd` → `0`.
 
-- [ ] **Step 4: Wire the kit** — after `const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")` add `const MenuSettingsKitScript = preload("res://src/ui/menu_settings_kit.gd")`; after `var _settings_keybind_grid: GridContainer` add `var _settings_kit`; in `_ready()`, add `_settings_kit = MenuSettingsKitScript.new(self)` as the **first statement of the function body** (the `_build_settings()` call at baseline line 186 lives in `_ready()`, so the kit must exist before it); add delegate after the (retained) `keybind_capture_visible()` function:
+- [x] **Step 4: Wire the kit** — after `const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")` add `const MenuSettingsKitScript = preload("res://src/ui/menu_settings_kit.gd")`; after `var _settings_keybind_grid: GridContainer` add `var _settings_kit`; in `_ready()`, add `_settings_kit = MenuSettingsKitScript.new(self)` as the **first statement of the function body** (the `_build_settings()` call at baseline line 186 lives in `_ready()`, so the kit must exist before it); add delegate after the (retained) `keybind_capture_visible()` function:
 
 ```gdscript
 func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
@@ -748,13 +748,13 @@ func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
 
 ```
 
-- [ ] **Step 5: Rewrite internal call sites** — `grep -nE '\b(settings_layout_for_viewport|_layout_settings|_build_settings|_settings_group_label|_build_keybind_settings|_keybind_action_label|_keybind_key_name|_refresh_keybind_buttons|_begin_keybind_capture|_handle_keybind_capture|_make_slider_row|_open_settings|_close_settings|_refresh_color_assist_label)\(' src/ui/menu.gd` → prefix every hit outside the delegate with `_settings_kit.`. Baseline inventory of expected external hits: `_ready()` 186 (`_build_settings`); `_build_button_row()` 716 (`settings_layout_for_viewport`); `_input()` 1529 and `_unhandled_input()` 1565 (`_close_settings`); `_unhandled_input()` 1561 (`_handle_keybind_capture`). (Hits inside 817–1314 are kit-internal after the move.)
+- [x] **Step 5: Rewrite internal call sites** — `grep -nE '\b(settings_layout_for_viewport|_layout_settings|_build_settings|_settings_group_label|_build_keybind_settings|_keybind_action_label|_keybind_key_name|_refresh_keybind_buttons|_begin_keybind_capture|_handle_keybind_capture|_make_slider_row|_open_settings|_close_settings|_refresh_color_assist_label)\(' src/ui/menu.gd` → prefix every hit outside the delegate with `_settings_kit.`. Baseline inventory of expected external hits: `_ready()` 186 (`_build_settings`); `_build_button_row()` 716 (`settings_layout_for_viewport`); `_input()` 1529 and `_unhandled_input()` 1565 (`_close_settings`); `_unhandled_input()` 1561 (`_handle_keybind_capture`). (Hits inside 817–1314 are kit-internal after the move.)
 
-- [ ] **Step 6: Preload consts + call-token audit** — the moved settings code references menu-level preloads (baseline shows `TacticalUIHelper.CYAN`/`MAGENTA` at 1116–1146). Run `grep -oE 'TacticalUIHelper|TacticalChromeScript|TacticalIconScript|TacticalStateSurfaceHelper|PatchCard' src/ui/menu_settings_kit.gd | sort -u` and copy each hit's matching preload line verbatim from the top of `menu.gd` into the kit header below `extends RefCounted` (e.g. `const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")`). Duplicating a preload const is a pure move-safe change. Then run the G5 audit command on the kit file.
+- [x] **Step 6: Preload consts + call-token audit** — the moved settings code references menu-level preloads (baseline shows `TacticalUIHelper.CYAN`/`MAGENTA` at 1116–1146). Run `grep -oE 'TacticalUIHelper|TacticalChromeScript|TacticalIconScript|TacticalStateSurfaceHelper|PatchCard' src/ui/menu_settings_kit.gd | sort -u` and copy each hit's matching preload line verbatim from the top of `menu.gd` into the kit header below `extends RefCounted` (e.g. `const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")`). Duplicating a preload const is a pure move-safe change. Then run the G5 audit command on the kit file.
 
-- [ ] **Step 7: .uid + autotest** — G1 with `at_T13.log`; expected `exit=0`, `1194`, `0`, `1`.
+- [x] **Step 7: .uid + autotest** — G1 with `at_T13.log`; expected `exit=0`, `1194`, `0`, `1`.
 
-- [ ] **Step 8: Commit** — `git commit -m "refactor: extract menu settings kit"`
+- [x] **Step 8: Commit** — `git commit -m "refactor: extract menu settings kit"`
 
 ---
 
@@ -766,17 +766,17 @@ func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
 
 `Menu._draw()` stays as a two-line method delegating to `MenuChromeKit.draw_shell(self)` — same draw calls, same order, zero visual change. The `_process()` drifter update loop is NOT moved (keeps `_process` intact). Public delegate on Menu: `footer_button_layout_for_viewport`. The source-scan check `menu_src.contains("_open_achievements")` is unaffected.
 
-- [ ] **Step 1: Snapshot** — `cp src/ui/menu.gd /tmp/opencode/menu_T14.gd`
+- [x] **Step 1: Snapshot** — `cp src/ui/menu.gd /tmp/opencode/menu_T14.gd`
 
-- [ ] **Step 2: Create `src/ui/menu_chrome_kit.gd`** — header shape as Task 13 (comment: "Menu shell/chrome kit: card buttons, frames, button row, overlay back styling, decorative `_draw` output. Moved verbatim from src/ui/menu.gd."), then four blocks through the **RW-MENU-2 perl (G5)** — it already carries the member group, the reduced method group, the `_settings_kit` chain rule, the Node/CanvasItem rewrites, and the `size` rewrite (audit every `size` hit — if a moved body declares a local named `size`, revert that one rewrite to the local):
+- [x] **Step 2: Create `src/ui/menu_chrome_kit.gd`** — header shape as Task 13 (comment: "Menu shell/chrome kit: card buttons, frames, button row, overlay back styling, decorative `_draw` output. Moved verbatim from src/ui/menu.gd."), then four blocks through the **RW-MENU-2 perl (G5)** — it already carries the member group, the reduced method group, the `_settings_kit` chain rule, the Node/CanvasItem rewrites, and the `size` rewrite (audit every `size` hit — if a moved body declares a local named `size`, revert that one rewrite to the local):
   1. `awk '/^func _style_card_button\(/{f=1} /^func _refresh_program_label\(/{f=0} f' /tmp/opencode/menu_T14.gd`
   2. `awk '/^func _style_overlay_back\(/{f=1} /^func main_shell_snapshot\(/{f=0} f' /tmp/opencode/menu_T14.gd`
   3. `awk '/^func _mk_title\(/{f=1} /^func _reset_scores\(/{f=0} f' /tmp/opencode/menu_T14.gd`
   4. `_draw` body as `draw_shell`: `awk '/^func _draw\(/{f=1} /^func _input\(/{f=0} f' /tmp/opencode/menu_T14.gd | sed '1s/^func _draw() -> void:/func draw_shell(m) -> void:/' | <rewrites>` (the moved `_draw` header becomes `draw_shell(m)`; its body references `size` and draw methods, rewritten as above).
 
-- [ ] **Step 3: Delete the four blocks from `menu.gd`** (range-pair awk: `_style_card_button`/`_refresh_program_label`, `_style_overlay_back`/`main_shell_snapshot`, `_mk_title`/`_reset_scores`, `_draw`/`_input`); verify `grep -c '^func _style_card_button\|^func _build_button_row\|^func _style_overlay_back\|^func _mk_title\|^func _draw' src/ui/menu.gd` → `0`.
+- [x] **Step 3: Delete the four blocks from `menu.gd`** (range-pair awk: `_style_card_button`/`_refresh_program_label`, `_style_overlay_back`/`main_shell_snapshot`, `_mk_title`/`_reset_scores`, `_draw`/`_input`); verify `grep -c '^func _style_card_button\|^func _build_button_row\|^func _style_overlay_back\|^func _mk_title\|^func _draw' src/ui/menu.gd` → `0`.
 
-- [ ] **Step 4: Wire the kit + keep `_draw`** — `const MenuChromeKitScript = preload("res://src/ui/menu_chrome_kit.gd")`; `var _chrome_kit`; `_ready()` init line after `_settings_kit = ...`; replace the deleted `_draw` with:
+- [x] **Step 4: Wire the kit + keep `_draw`** — `const MenuChromeKitScript = preload("res://src/ui/menu_chrome_kit.gd")`; `var _chrome_kit`; `_ready()` init line after `_settings_kit = ...`; replace the deleted `_draw` with:
 
 ```gdscript
 func _draw() -> void:
@@ -793,7 +793,7 @@ func footer_button_layout_for_viewport(viewport_size: Vector2) -> Dictionary:
 
 ```
 
-- [ ] **Step 5: Rewrite internal call sites + settings-kit bridges** — first prefix: `grep -nE '\b(_style_card_button|_add_menu_frame|_set_button_text_inset|_settings_nav_style|_add_button_chrome|_add_button_icon|_style_settings_footer_button|_build_button_row|_style_overlay_back|_mk_title)\(' src/ui/menu.gd` → prefix every remaining hit in `menu.gd` with `_chrome_kit.`. Baseline inventory of expected hits: `_ready()` 105–107 (`_mk_title` ×3) and 185 (`_build_button_row`); `_open_program_selector()` 505, `_open_story_selector()` 554, `_open_bestiary()` 609, `_open_achievements()` 641 (`_style_overlay_back`). Second, the bridge: Task 13's settings kit calls four chrome helpers through the Menu reference (`grep -nE 'm\._(style_card_button|add_button_chrome|add_button_icon|add_menu_frame|settings_nav_style|set_button_text_inset|style_settings_footer_button|mk_title)' src/ui/menu_settings_kit.gd` — baseline data says `_style_settings_footer_button`, `_add_button_icon`, `_add_button_chrome`, `_settings_nav_style`). Add a `_chrome_kit.`-delegating method on Menu for **every** name that grep returns, using this exact shape (shown for the four baseline-known names):
+- [x] **Step 5: Rewrite internal call sites + settings-kit bridges** — first prefix: `grep -nE '\b(_style_card_button|_add_menu_frame|_set_button_text_inset|_settings_nav_style|_add_button_chrome|_add_button_icon|_style_settings_footer_button|_build_button_row|_style_overlay_back|_mk_title)\(' src/ui/menu.gd` → prefix every remaining hit in `menu.gd` with `_chrome_kit.`. Baseline inventory of expected hits: `_ready()` 105–107 (`_mk_title` ×3) and 185 (`_build_button_row`); `_open_program_selector()` 505, `_open_story_selector()` 554, `_open_bestiary()` 609, `_open_achievements()` 641 (`_style_overlay_back`). Second, the bridge: Task 13's settings kit calls four chrome helpers through the Menu reference (`grep -nE 'm\._(style_card_button|add_button_chrome|add_button_icon|add_menu_frame|settings_nav_style|set_button_text_inset|style_settings_footer_button|mk_title)' src/ui/menu_settings_kit.gd` — baseline data says `_style_settings_footer_button`, `_add_button_icon`, `_add_button_chrome`, `_settings_nav_style`). Add a `_chrome_kit.`-delegating method on Menu for **every** name that grep returns, using this exact shape (shown for the four baseline-known names):
 
 ```gdscript
 func _style_settings_footer_button(button: Button, border: Color) -> void:
@@ -815,11 +815,11 @@ func _settings_nav_style(border: Color) -> StyleBoxFlat:
 
 (Copy each delegate's signature verbatim from the moved function's original signature in `/tmp/opencode/menu_T14.gd`.)
 
-- [ ] **Step 6: Preload consts + call-token audit** — same as Task 13 Step 6 against `src/ui/menu_chrome_kit.gd` (baseline shows `TacticalUIHelper` at 441/450; `TacticalIconScript` may appear via `_add_button_icon`), then the G5 audit command on the kit file.
+- [x] **Step 6: Preload consts + call-token audit** — same as Task 13 Step 6 against `src/ui/menu_chrome_kit.gd` (baseline shows `TacticalUIHelper` at 441/450; `TacticalIconScript` may appear via `_add_button_icon`), then the G5 audit command on the kit file.
 
-- [ ] **Step 7: .uid + autotest** — G1 with `at_T14.log`; expected `exit=0`, `1194`, `0`, `1`.
+- [x] **Step 7: .uid + autotest** — G1 with `at_T14.log`; expected `exit=0`, `1194`, `0`, `1`.
 
-- [ ] **Step 8: Commit** — `git commit -m "refactor: extract menu chrome/shell kit"`
+- [x] **Step 8: Commit** — `git commit -m "refactor: extract menu chrome/shell kit"`
 
 ---
 
@@ -828,7 +828,7 @@ func _settings_nav_style(border: Color) -> StyleBoxFlat:
 **Files:**
 - Modify: only files with a proven-unused private function.
 
-- [ ] **Step 1: Run the candidate scan** (private funcs referenced only by their own definition):
+- [x] **Step 1: Run the candidate scan** (private funcs referenced only by their own definition):
 
 ```bash
 for f in $(grep -rhoE '^func _[a-z_0-9]+' src/*/*.gd src/*.gd | sed 's/func //' | sort -u); do
@@ -837,13 +837,13 @@ for f in $(grep -rhoE '^func _[a-z_0-9]+' src/*/*.gd src/*.gd | sed 's/func //' 
 done
 ```
 
-- [ ] **Step 2: Verify each candidate individually** — for each `CANDIDATE` output, run `grep -rn '\bNAME\b' src project.godot` (must return exactly one hit: the `func` definition line) and `grep -rn 'NAME' --include='*.tscn' .` (must return nothing). Baseline scan (pre-refactor) found exactly one candidate: `_panel_position` in `src/ui/terminal_panel.gd:268`. Re-run the scan after Tasks 1–14 — if a moved function was orphaned by the moves, it appears here and gets the same treatment; if a candidate is referenced by any harness check or scene, it is NOT dead — leave it and record why in the commit message body.
+- [x] **Step 2: Verify each candidate individually** — for each `CANDIDATE` output, run `grep -rn '\bNAME\b' src project.godot` (must return exactly one hit: the `func` definition line) and `grep -rn 'NAME' --include='*.tscn' .` (must return nothing). Baseline scan (pre-refactor) found exactly one candidate: `_panel_position` in `src/ui/terminal_panel.gd:268`. Re-run the scan after Tasks 1–14 — if a moved function was orphaned by the moves, it appears here and gets the same treatment; if a candidate is referenced by any harness check or scene, it is NOT dead — leave it and record why in the commit message body.
 
-- [ ] **Step 3: Delete each confirmed candidate** with the Edit tool (exact function text) — e.g. for `_panel_position`, delete `func _panel_position() -> Vector2:` plus its body lines in `src/ui/terminal_panel.gd`.
+- [x] **Step 3: Delete each confirmed candidate** with the Edit tool (exact function text) — e.g. for `_panel_position`, delete `func _panel_position() -> Vector2:` plus its body lines in `src/ui/terminal_panel.gd`.
 
-- [ ] **Step 4: Full autotest** — G1 with `at_T15.log`; expected `exit=0`, `1194`, `0`, `1`.
+- [x] **Step 4: Full autotest** — G1 with `at_T15.log`; expected `exit=0`, `1194`, `0`, `1`.
 
-- [ ] **Step 5: Commit** — `git commit -m "refactor: remove provably unused private helpers"` (list each removed name in the body).
+- [x] **Step 5: Commit** — `git commit -m "refactor: remove provably unused private helpers"` (list each removed name in the body).
 
 ---
 
