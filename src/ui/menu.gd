@@ -63,6 +63,9 @@ func keybind_capture_visible() -> bool:
 func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
 	return _settings_kit.settings_layout_for_viewport(viewport)
 
+func settings_section_snapshot() -> Dictionary:
+	return _settings_kit.settings_section_snapshot()
+
 func footer_button_layout_for_viewport(viewport_size: Vector2) -> Dictionary:
 	return _chrome_kit.footer_button_layout_for_viewport(viewport_size)
 
@@ -459,7 +462,7 @@ func settings_shell_snapshot() -> Dictionary:
 	var sections := TacticalUIHelper.shell_sections(size)
 	var settings_layout: Dictionary = _settings_kit.settings_layout_for_viewport(size)
 	return {
-		"groups": ["AUDIO", "CONTROL", "DISPLAY", "SAVE TRANSFER"],
+		"groups": ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"],
 		"scrollable": _settings_panel != null and _settings_panel.find_child("SettingsScroll", true, false) != null,
 		"shell_rect": shell,
 		"navigation_rect": settings_layout["navigation"],

@@ -9,6 +9,7 @@ const HSectionMisc = preload("res://src/autoload/harness/sections_misc.gd")
 const HSectionVisual = preload("res://src/autoload/harness/sections_visual.gd")
 const HSectionScene = preload("res://src/autoload/harness/sections_scene.gd")
 const HSectionModes = preload("res://src/autoload/harness/sections_modes.gd")
+const HSectionPolish = preload("res://src/autoload/harness/sections_polish.gd")
 
 var active := false
 var _fails := 0
@@ -22,6 +23,7 @@ var _sec_misc
 var _sec_visual
 var _sec_scene
 var _sec_modes
+var _sec_polish
 
 func _ready() -> void:
 	_init_sections()
@@ -90,6 +92,7 @@ func _init_sections() -> void:
 	_sec_visual = HSectionVisual.new(self)
 	_sec_scene = HSectionScene.new(self)
 	_sec_modes = HSectionModes.new(self)
+	_sec_polish = HSectionPolish.new(self)
 
 func _autotest() -> void:
 	_watchdog()
@@ -441,6 +444,7 @@ func _autotest() -> void:
 	_check(ver_ok, "menu version matches project setting (%s)" % expected_ver)
 	await _sec_scene._story_menu_test(menu_scene)
 	await _sec_scene._menu_shell_test(menu_scene)
+	await _sec_polish._settings_tabs_test(menu_scene)
 	await _sec_scene._text_overflow_test()
 	await _sec_scene._touch_hud_layout_test()
 	await _sec_modes._achievements_panel_test()

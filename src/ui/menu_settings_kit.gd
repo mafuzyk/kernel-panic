@@ -10,6 +10,11 @@ const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 
 var m
 
+const SETTINGS_SECTIONS := ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"]
+const SECTION_CHIP_LABELS := {"AUDIO": "AUDIO", "GAMEPLAY": "GAME", "CONTROLS": "KEYS", "ACCESSIBILITY": "ACCESS", "SAVE DATA": "DATA"}
+var _active_section := "AUDIO"
+var _section_members := {}
+
 
 func _init(menu) -> void:
 	m = menu
@@ -154,7 +159,7 @@ func _build_settings() -> void:
 	box.add_theme_constant_override("separation", 20)
 	scroll.add_child(box)
 	var title := Label.new()
-	title.text = "SETTINGS // SYSTEM CONFIG"
+	title.text = "SETTINGS // AUDIO"
 	title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
 	title.add_theme_font_size_override("font_size", 34)
 	title.add_theme_color_override("font_color", Balance.COL_TEXT)
@@ -166,15 +171,20 @@ func _build_settings() -> void:
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m._settings_title = title
 	m._settings_panel.add_child(title)
-	box.add_child(_settings_group_label("AUDIO // MIX"))
-	box.add_child(_make_slider_row("SFX", Sfx.sfx_vol, func(v: float) -> void:
+	var audio_label := _settings_group_label("AUDIO // MIX")
+	assign_section(audio_label, "AUDIO")
+	box.add_child(audio_label)
+	var sfx_row := _make_slider_row("SFX", Sfx.sfx_vol, func(v: float) -> void:
 		Sfx.set_sfx_vol(v)
 		Sfx.play("ui", 1.0, -6.0)
-	))
-	box.add_child(_make_slider_row("MUSIC", Sfx.music_vol, func(v: float) -> void:
+	)
+	assign_section(sfx_row, "AUDIO")
+	box.add_child(sfx_row)
+	var music_row := _make_slider_row("MUSIC", Sfx.music_vol, func(v: float) -> void:
 		Sfx.set_music_vol(v)
-	))
-	box.add_child(_settings_group_label("CONTROL // INPUT"))
+	)
+	assign_section(music_row, "AUDIO")
+	box.add_child(music_row)
 	var mute := CheckButton.new()
 	mute.text = "MUTE ALL"
 	mute.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
@@ -184,7 +194,16 @@ func _build_settings() -> void:
 	mute.toggled.connect(func(on: bool) -> void:
 		Sfx.set_muted(on)
 	)
+	assign_section(mute, "AUDIO")
 	box.add_child(mute)
+	var mute_hint := _settings_group_label("M = MUTE IN GAME")
+	mute_hint.add_theme_font_size_override("font_size", 12)
+	mute_hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.4))
+	assign_section(mute_hint, "AUDIO")
+	box.add_child(mute_hint)
+	var gameplay_label := _settings_group_label("GAMEPLAY // FEEL")
+	assign_section(gameplay_label, "GAMEPLAY")
+	box.add_child(gameplay_label)
 	var haptics := CheckButton.new()
 	haptics.text = "HAPTICS"
 	haptics.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
@@ -195,20 +214,8 @@ func _build_settings() -> void:
 		Sfx.haptics_enabled = on
 		Sfx.save_settings()
 	)
+	assign_section(haptics, "GAMEPLAY")
 	box.add_child(haptics)
-	m._color_assist_btn = Button.new()
-	m._color_assist_btn.flat = true
-	m._color_assist_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	m._color_assist_btn.add_theme_font_size_override("font_size", 17)
-	m._color_assist_btn.add_theme_color_override("font_color", Balance.COL_TEXT)
-	m._color_assist_btn.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
-	m._color_assist_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	m._color_assist_btn.pressed.connect(func() -> void:
-		Sfx.set_color_assist(not Sfx.color_assist)
-		_refresh_color_assist_label()
-	)
-	_refresh_color_assist_label()
-	box.add_child(m._color_assist_btn)
 	var aim_btn := Button.new()
 	aim_btn.flat = true
 	aim_btn.text = "AIM MODE: %s" % Sfx.aim_mode.to_upper()
@@ -225,10 +232,8 @@ func _build_settings() -> void:
 	)
 	m._aim_btn_ref = aim_btn
 	m._refresh_aim_label(aim_btn)
+	assign_section(aim_btn, "GAMEPLAY")
 	box.add_child(aim_btn)
-	if m._desktop_keybinds_enabled():
-		_build_keybind_settings(box)
-	box.add_child(_settings_group_label("DISPLAY // READABILITY"))
 	var touch_sz := Button.new()
 	touch_sz.flat = true
 	touch_sz.text = "TOUCH SIZE: %s" % ["SMALL", "NORMAL", "BIG"][m._touch_scale_idx(Sfx.touch_scale)]
@@ -243,6 +248,8 @@ func _build_settings() -> void:
 		touch_sz.text = "TOUCH SIZE: %s" % ["SMALL", "NORMAL", "BIG"][idx]
 		Sfx.save_settings()
 	)
+	touch_sz.set_meta("touch_only", true)
+	assign_section(touch_sz, "GAMEPLAY")
 	box.add_child(touch_sz)
 	var shake_btn := Button.new()
 	shake_btn.flat = true
@@ -257,6 +264,7 @@ func _build_settings() -> void:
 		shake_btn.text = "SCREEN SHAKE: %s" % ["OFF", "LOW", "FULL"][Sfx.shake_level]
 		Sfx.save_settings()
 	)
+	assign_section(shake_btn, "GAMEPLAY")
 	box.add_child(shake_btn)
 	var run_info := Button.new()
 	run_info.flat = true
@@ -271,13 +279,34 @@ func _build_settings() -> void:
 		run_info.text = "SPEEDRUN HUD: %s" % ("ON" if Sfx.show_run_info else "OFF")
 		Sfx.save_settings()
 	)
+	assign_section(run_info, "GAMEPLAY")
 	box.add_child(run_info)
-	box.add_child(_settings_group_label("SAVE TRANSFER // PHONE ↔ PC"))
+	var access_label := _settings_group_label("ACCESSIBILITY // VISION")
+	assign_section(access_label, "ACCESSIBILITY")
+	box.add_child(access_label)
+	m._color_assist_btn = Button.new()
+	m._color_assist_btn.flat = true
+	m._color_assist_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	m._color_assist_btn.add_theme_font_size_override("font_size", 17)
+	m._color_assist_btn.add_theme_color_override("font_color", Balance.COL_TEXT)
+	m._color_assist_btn.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+	m._color_assist_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	m._color_assist_btn.pressed.connect(func() -> void:
+		Sfx.set_color_assist(not Sfx.color_assist)
+		_refresh_color_assist_label()
+	)
+	_refresh_color_assist_label()
+	assign_section(m._color_assist_btn, "ACCESSIBILITY")
+	box.add_child(m._color_assist_btn)
+	var save_label := _settings_group_label("SAVE TRANSFER // PHONE ↔ PC")
+	assign_section(save_label, "SAVE DATA")
+	box.add_child(save_label)
 	var transfer_title := Label.new()
 	transfer_title.text = "ENCODED PROGRESS // COPY OR PASTE"
 	transfer_title.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	transfer_title.add_theme_font_size_override("font_size", 14)
 	transfer_title.add_theme_color_override("font_color", Balance.COL_MOTE)
+	assign_section(transfer_title, "SAVE DATA")
 	box.add_child(transfer_title)
 	m._save_transfer_field = LineEdit.new()
 	m._save_transfer_field.placeholder_text = "BASE64 SAVE STRING // PASTE HERE"
@@ -285,6 +314,7 @@ func _build_settings() -> void:
 	m._save_transfer_field.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	m._save_transfer_field.add_theme_font_size_override("font_size", 11)
 	m._save_transfer_field.add_theme_color_override("font_color", Balance.COL_TEXT)
+	assign_section(m._save_transfer_field, "SAVE DATA")
 	box.add_child(m._save_transfer_field)
 	var transfer_row := HBoxContainer.new()
 	transfer_row.add_theme_constant_override("separation", 8)
@@ -308,6 +338,7 @@ func _build_settings() -> void:
 	import_btn.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
 	import_btn.pressed.connect(m._import_save_from_clipboard)
 	transfer_row.add_child(import_btn)
+	assign_section(transfer_row, "SAVE DATA")
 	box.add_child(transfer_row)
 	m._save_transfer_status = Label.new()
 	m._save_transfer_status.text = "EXPORT INCLUDES RECORDS, BESTIARY, PROGRAMS, ACHIEVEMENTS"
@@ -315,7 +346,34 @@ func _build_settings() -> void:
 	m._save_transfer_status.add_theme_font_size_override("font_size", 10)
 	m._save_transfer_status.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
 	m._save_transfer_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	assign_section(m._save_transfer_status, "SAVE DATA")
 	box.add_child(m._save_transfer_status)
+	var stats := Label.new()
+	stats.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	stats.add_theme_font_size_override("font_size", 12)
+	stats.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
+	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var cf2 := ConfigFile.new()
+	cf2.load(Sfx.SAVE_PATH)
+	var runs := int(cf2.get_value("lifetime", "runs", 0))
+	var kills := int(cf2.get_value("lifetime", "kills", 0))
+	var chain := int(cf2.get_value("lifetime", "best_chain", 0))
+	var kd: Dictionary = cf2.get_value("lifetime", "killers", {})
+	var top := "NONE"
+	var tk := 0
+	for k in kd:
+		if int(kd[k]) > tk:
+			tk = int(kd[k])
+			top = str(k)
+	stats.text = "LIFETIME  RUNS %d  KILLS %d  BEST CHAIN x%d  TOP THREAT %s" % [runs, kills, chain, top]
+	assign_section(stats, "SAVE DATA")
+	box.add_child(stats)
+	if m._desktop_keybinds_enabled():
+		_build_keybind_settings(box)
+	else:
+		var controls_note := _settings_group_label("DESKTOP ONLY // KEYBINDS ARE EDITABLE ON DESKTOP BUILDS")
+		assign_section(controls_note, "CONTROLS")
+		box.add_child(controls_note)
 	var reset := Button.new()
 	reset.flat = true
 	reset.text = "RESET HIGH SCORE"
@@ -356,12 +414,10 @@ func _build_settings() -> void:
 	footer_row.add_child(reset)
 	m._settings_panel.add_child(footer_row)
 	m._settings_footer_row = footer_row
-	var nav_labels := ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"]
-	var nav_targets := [0, 0, 0, 0, 100000]
 	m._settings_nav_buttons.clear()
-	for index in nav_labels.size():
+	for index in SETTINGS_SECTIONS.size():
 		var nav_button := Button.new()
-		nav_button.text = "  %s" % nav_labels[index]
+		nav_button.text = "  %s" % SETTINGS_SECTIONS[index]
 		nav_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		nav_button.position = navigation.position + Vector2(10.0, 12.0 + float(index) * 48.0)
 		nav_button.size = Vector2(navigation.size.x - 20.0, 38.0)
@@ -375,10 +431,7 @@ func _build_settings() -> void:
 		nav_button.add_theme_stylebox_override("pressed", m._settings_nav_style(TacticalUIHelper.CYAN))
 		m._add_button_chrome(nav_button, TacticalUIHelper.CYAN, 0.018)
 		m._settings_nav_buttons.append(nav_button)
-		var target: int = nav_targets[index]
-		nav_button.pressed.connect(func() -> void:
-			scroll.set_v_scroll(target)
-		)
+		nav_button.pressed.connect(set_active_section.bind(str(SETTINGS_SECTIONS[index])))
 		m._settings_panel.add_child(nav_button)
 	var nav_hint := Label.new()
 	nav_hint.text = "SYSTEM / CONFIG"
@@ -388,35 +441,10 @@ func _build_settings() -> void:
 	nav_hint.add_theme_font_size_override("font_size", 10)
 	nav_hint.add_theme_color_override("font_color", TacticalUIHelper.MUTED)
 	m._settings_panel.add_child(nav_hint)
-	var hint := Label.new()
-	hint.text = "M = MUTE IN GAME"
-	hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	hint.add_theme_font_size_override("font_size", 12)
-	hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.4))
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(hint)
-	var stats := Label.new()
-	stats.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	stats.add_theme_font_size_override("font_size", 12)
-	stats.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
-	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var cf2 := ConfigFile.new()
-	cf2.load(Sfx.SAVE_PATH)
-	var runs := int(cf2.get_value("lifetime", "runs", 0))
-	var kills := int(cf2.get_value("lifetime", "kills", 0))
-	var chain := int(cf2.get_value("lifetime", "best_chain", 0))
-	var kd: Dictionary = cf2.get_value("lifetime", "killers", {})
-	var top := "NONE"
-	var tk := 0
-	for k in kd:
-		if int(kd[k]) > tk:
-			tk = int(kd[k])
-			top = str(k)
-	stats.text = "LIFETIME  RUNS %d  KILLS %d  BEST CHAIN x%d  TOP THREAT %s" % [runs, kills, chain, top]
-	box.add_child(stats)
 	m.add_child(m._settings_panel)
+	_apply_section_visibility()
+	_refresh_nav_selection()
 	_layout_settings()
-
 func _settings_group_label(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
@@ -488,6 +516,7 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 	m._keybind_box.add_child(reset)
 	_refresh_keybind_buttons()
 	parent.add_child(m._keybind_box)
+	assign_section(m._keybind_box, "CONTROLS")
 
 func _keybind_action_label(action: String) -> String:
 	return {
@@ -592,4 +621,65 @@ func _close_settings() -> void:
 func _refresh_color_assist_label() -> void:
 	if m._color_assist_btn != null:
 		m._color_assist_btn.text = "COLOR ASSIST: %s" % ("ON" if Sfx.color_assist else "OFF")
+
+func assign_section(control: Control, section: String) -> void:
+	if control == null or not SETTINGS_SECTIONS.has(section):
+		return
+	if not _section_members.has(section):
+		_section_members[section] = []
+	_section_members[section].append(control)
+
+func active_section() -> String:
+	return _active_section
+
+func section_names() -> Array:
+	return SETTINGS_SECTIONS.duplicate()
+
+func section_controls(section: String) -> Array:
+	return _section_members.get(section, [])
+
+func set_active_section(section: String) -> void:
+	if not SETTINGS_SECTIONS.has(section):
+		return
+	_active_section = section
+	_apply_section_visibility()
+	_refresh_nav_selection()
+	if m._settings_title != null and is_instance_valid(m._settings_title):
+		m._settings_title.text = "SETTINGS // %s" % section
+	Sfx.play("ui", 1.0, -10.0)
+
+func _touch_only_controls_ok() -> bool:
+	return DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
+
+func _apply_section_visibility() -> void:
+	for section in _section_members:
+		var active: bool = section == _active_section
+		for control in _section_members[section]:
+			if control == null or not is_instance_valid(control):
+				continue
+			control.visible = active
+			if active and control.has_meta("touch_only") and not _touch_only_controls_ok():
+				control.visible = false
+	if m._keybind_box != null and is_instance_valid(m._keybind_box):
+		m._keybind_box.visible = _active_section == "CONTROLS"
+
+func _refresh_nav_selection() -> void:
+	var index := SETTINGS_SECTIONS.find(_active_section)
+	if not m._settings_nav_buttons.is_empty():
+		for i in m._settings_nav_buttons.size():
+			var nav_button: Button = m._settings_nav_buttons[i]
+			if not is_instance_valid(nav_button):
+				continue
+			var selected: bool = i == index
+			nav_button.text = ("▸ %s" % SETTINGS_SECTIONS[i]) if selected else "  %s" % SETTINGS_SECTIONS[i]
+			nav_button.add_theme_color_override("font_color", TacticalUIHelper.LIME if selected else TacticalUIHelper.TEXT)
+			nav_button.add_theme_stylebox_override("normal", m._settings_nav_style(TacticalUIHelper.LIME if selected else Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.18)))
+
+func settings_section_snapshot() -> Dictionary:
+	var visible_controls := 0
+	for section in _section_members:
+		for control in _section_members[section]:
+			if control != null and is_instance_valid(control) and control.visible:
+				visible_controls += 1
+	return {"active": _active_section, "sections": section_names(), "visible_controls": visible_controls}
 

@@ -66,7 +66,7 @@ func _menu_shell_test(menu: Node) -> void:
 	if menu.has_method("settings_shell_snapshot"):
 		var settings_snapshot: Dictionary = menu.settings_shell_snapshot()
 		var groups: Array = settings_snapshot.get("groups", [])
-		h._check(groups.has("AUDIO") and groups.has("CONTROL") and groups.has("DISPLAY") and groups.has("SAVE TRANSFER"), "settings shell exposes aligned option groups")
+		h._check(groups.has("AUDIO") and groups.has("GAMEPLAY") and groups.has("CONTROLS") and groups.has("ACCESSIBILITY") and groups.has("SAVE DATA"), "settings shell exposes the five real sections")
 		h._check(bool(settings_snapshot.get("scrollable", false)), "settings shell remains scrollable")
 		h._check(settings_snapshot.has("shell_rect") and settings_snapshot.has("navigation_rect") and settings_snapshot.has("content_rect") and settings_snapshot.has("footer_rect"), "settings shell exposes workstation geometry")
 		if settings_snapshot.has("shell_rect") and settings_snapshot.has("navigation_rect") and settings_snapshot.has("content_rect") and settings_snapshot.has("footer_rect"):
