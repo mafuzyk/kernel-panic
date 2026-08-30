@@ -7,6 +7,7 @@ const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 const PauseInputRouterScript = preload("res://src/arena/pause_input_router.gd")
 const PanelKitScript = preload("res://src/arena/panel_kit.gd")
+const IntroKitScript = preload("res://src/arena/intro_kit.gd")
 
 var player: Player
 var cam: CameraRig
@@ -78,11 +79,13 @@ var _dust: CPUParticles2D
 var _restart_hold_t := 0.0
 var _restart_triggered := false
 var _panel_kit
+var _intro_kit
 const RESTART_HOLD_DURATION := 0.75
 
 func _ready() -> void:
 	add_to_group("arena")
 	_panel_kit = PanelKitScript.new(self)
+	_intro_kit = IntroKitScript.new(self)
 	if Game.mode == "story":
 		var opening_stage := Game.story_stage_def(Game.story_stage_index)
 		var opening_size = opening_stage.get("arena_size", Vector2.ZERO)
@@ -117,11 +120,11 @@ func _ready() -> void:
 	_panel_kit._build_pause_panel()
 	_panel_kit._build_terminal_panel()
 	_panel_kit._build_game_over_panel()
-	_build_intro()
+	_intro_kit._build_intro()
 	if Game.mode == "story":
 		_story_stage = Game.story_stage_def(Game.story_stage_index)
-		_build_story_intro()
-		_apply_story_theme(_story_stage.get("theme", {}))
+		_intro_kit._build_story_intro()
+		_intro_kit._apply_story_theme(_story_stage.get("theme", {}))
 		_build_windows_visuals()
 		_build_temple_visuals()
 	if debug_controls_enabled():
@@ -154,7 +157,7 @@ func _ready() -> void:
 	spawner.boss_spawned.connect(_on_boss_spawned)
 	spawner.story_cleared.connect(_on_story_cleared)
 	if Game.mode == "story":
-		call_deferred("_show_story_intro")
+		_intro_kit._show_story_intro.call_deferred()
 	else:
 		spawner.start(self, enemy_container, 1)
 	enemy_container.child_entered_tree.connect(_on_enemy_child)
@@ -391,30 +394,6 @@ func game_over_action_labels() -> Array[String]:
 	return _panel_kit.game_over_action_labels()
 
 
-func _build_intro() -> void:
-	for i in 2:
-		var bar := ColorRect.new()
-		bar.color = Color(0.005, 0.006, 0.015, 0.92)
-		bar.set_anchors_preset(Control.PRESET_FULL_RECT)
-		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var cl := CanvasLayer.new()
-		cl.layer = 55
-		cl.add_child(bar)
-		add_child(cl)
-		bar.scale.y = 0.001
-		bar.pivot_offset = Vector2(0, 0) if i == 0 else Vector2(0, get_viewport_rect().size.y)
-		_intro_bars.append(bar)
-	_intro_label = _panel_kit._make_label("", 30, Balance.COL_DANGER)
-	_panel_kit._center_panel_control(_intro_label, 290.0, 48.0)
-	_intro_label.modulate.a = 0.0
-	_intro_quote = _panel_kit._make_label("", 15, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.8))
-	_panel_kit._center_panel_control(_intro_quote, 344.0, 28.0)
-	_intro_quote.modulate.a = 0.0
-	var il_layer := CanvasLayer.new()
-	il_layer.layer = 56
-	il_layer.add_child(_intro_label)
-	add_child(il_layer)
-
 const STORY_INTRO_FADE_IN := 0.35
 const STORY_INTRO_MIN_HOLD := 0.8
 const STORY_INTRO_AUTO_DISMISS := 8.0
@@ -427,121 +406,13 @@ var _story_intro_t := 0.0
 var _story_intro_hint: Label = null
 var _story_spawn_started := false
 
-func _build_story_intro() -> void:
-	_story_intro_panel = _panel_kit._make_panel()
-	_story_intro_path = _panel_kit._make_label("", 16, Balance.COL_PLAYER)
-	_panel_kit._center_panel_control(_story_intro_path, 238.0, 30.0)
-	_story_intro_panel.add_child(_story_intro_path)
-	_story_intro_title = _panel_kit._make_label("", 34, Balance.COL_TEXT)
-	_panel_kit._center_panel_control(_story_intro_title, 278.0, 52.0)
-	_story_intro_panel.add_child(_story_intro_title)
-	_story_intro_text = _panel_kit._make_label("", 15, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.75))
-	_panel_kit._center_panel_control(_story_intro_text, 344.0, 54.0)
-	_story_intro_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_story_intro_panel.add_child(_story_intro_text)
-	_story_intro_hint = _panel_kit._make_label("PRESS ANY KEY", 12, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	_panel_kit._center_panel_control(_story_intro_hint, 392.0, 20.0)
-	_story_intro_hint.modulate.a = 0.0
-	_story_intro_panel.add_child(_story_intro_hint)
-	var act_label := "ACT 1 // UNIX RECOVERY LOG"
-	if str(_story_stage.get("act", "")) == "windows":
-		act_label = "ACT 2 // WINDOWS RECOVERY LOG"
-	elif str(_story_stage.get("act", "")) == "templeos":
-		act_label = "BONUS ACT // TEMPLEOS ORACLE LOG"
-	var footer: Label = _panel_kit._make_label(act_label, 12, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.7))
-	_panel_kit._center_panel_control(footer, 418.0, 24.0)
-	_story_intro_panel.add_child(footer)
-
-func _show_story_intro() -> void:
-	if _story_intro_panel == null or _story_stage.is_empty():
-		return
-	_story_intro_path.text = str(_story_stage.get("path", ""))
-	_story_intro_title.text = str(_story_stage.get("title", "STORY STAGE"))
-	_story_intro_text.text = str(_story_stage.get("intro", ""))
-	_fit_story_intro_text()
-	_story_intro_panel.modulate.a = 0.0
-	_story_intro_panel.visible = true
-	_story_intro_state = 1
-	_story_intro_t = 0.0
-
-func _fit_story_intro_text() -> void:
-	var font: Font = _story_intro_text.get_theme_font("font")
-	var text := _story_intro_text.text
-	var cap := minf(STORY_INTRO_MAX_HEIGHT, get_viewport_rect().size.y * 0.3)
-	var chosen := STORY_INTRO_FONT_FLOOR
-	for fs in [15, 13, 12]:
-		if TacticalUI.wrapped_height(font, text, 344.0, fs) <= cap:
-			chosen = fs
-			break
-	_story_intro_text.add_theme_font_size_override("font_size", chosen)
-	_story_intro_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_story_intro_text.offset_bottom = _story_intro_text.offset_top + TacticalUI.wrapped_height(font, text, 344.0, chosen) + 8.0
-
 func story_intro_active() -> bool:
-	return _story_intro_state != 0
+	return _intro_kit.story_intro_active()
+
 
 func dismiss_story_intro() -> bool:
-	if _story_intro_state != 2 or _story_intro_t < STORY_INTRO_MIN_HOLD:
-		return false
-	_finish_story_intro()
-	return true
+	return _intro_kit.dismiss_story_intro()
 
-func _finish_story_intro() -> void:
-	if _story_intro_state != 2:
-		return
-	_story_intro_state = 3
-	_story_intro_t = 0.0
-	if _story_intro_hint != null:
-		_story_intro_hint.modulate.a = 0.0
-	_begin_story_spawning()
-
-func _begin_story_spawning() -> void:
-	if _story_spawn_started or _story_stage.is_empty():
-		return
-	_story_spawn_started = true
-	spawner.start_story(self, enemy_container, _story_stage)
-
-func _tick_story_intro(delta: float) -> void:
-	_story_intro_t += delta
-	match _story_intro_state:
-		1:
-			_story_intro_panel.modulate.a = minf(_story_intro_t / STORY_INTRO_FADE_IN, 1.0)
-			if _story_intro_t >= STORY_INTRO_FADE_IN:
-				_story_intro_state = 2
-				_story_intro_t = 0.0
-		2:
-			if _story_intro_hint != null:
-				_story_intro_hint.modulate.a = 1.0 if _story_intro_t >= STORY_INTRO_MIN_HOLD else 0.0
-			if _story_intro_t >= STORY_INTRO_AUTO_DISMISS:
-				_finish_story_intro()
-		3:
-			_story_intro_panel.modulate.a = maxf(1.0 - _story_intro_t / STORY_INTRO_FADE_OUT, 0.0)
-			if _story_intro_t >= STORY_INTRO_FADE_OUT:
-				if _story_intro_panel != null and is_instance_valid(_story_intro_panel):
-					_story_intro_panel.visible = false
-				_story_intro_state = 0
-
-func _apply_story_theme(theme: Dictionary) -> void:
-	if theme.is_empty():
-		return
-	var base_col: Color = theme.get("base_col", Color("080b18"))
-	var grid_col: Color = theme.get("grid_col", Balance.COL_GRID)
-	var glow_col: Color = theme.get("glow_col", Color("0d4160"))
-	var accent: Color = theme.get("accent", Balance.COL_PLAYER)
-	_era_color = accent
-	if hud != null:
-		hud.set_era_accent(accent)
-	if _bg_mat != null:
-		_bg_mat.set_shader_parameter("base_col", base_col)
-		_bg_mat.set_shader_parameter("grid_col", grid_col)
-		_bg_mat.set_shader_parameter("glow_col", glow_col)
-		_bg_mat.set_shader_parameter("era_tint", Vector3(accent.r, accent.g, accent.b))
-		_bg_mat.set_shader_parameter("era_mix", 0.28)
-		_bg_mat.set_shader_parameter("corruption", 0.0)
-	if walls != null:
-		walls.set_tint(accent)
-	if _dust != null:
-		_dust.color = Color(accent.r, accent.g, accent.b, 0.18)
 
 func windows_stage_profile() -> Dictionary:
 	if _story_stage.is_empty():
@@ -610,7 +481,7 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 		Game.log_event("ANOMALY INBOUND // %s" % RootBoss.title_for_index(int(Game.wave / float(Balance.BOSS_EVERY))))
 		hud.show_banner("CYCLE %02d // ANOMALY" % wave, "ROOT DAEMON INBOUND", 2.2)
 		Sfx.play("boss", 1.0, 0.0)
-		_run_boss_intro()
+		_intro_kit._run_boss_intro()
 	else:
 		hud.show_banner("CYCLE %02d" % wave, "PURGE THE DAEMONS", 1.8)
 		Sfx.play("wave", 1.0 + wave * 0.01, -6.0)
@@ -628,7 +499,7 @@ func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 	Game.wave = current_wave
 	Game.stats["wave"] = current_wave
 	walls.pulse()
-	_apply_story_theme(_story_stage.get("theme", {}))
+	_intro_kit._apply_story_theme(_story_stage.get("theme", {}))
 	Game.log_event("STORY // %s // WAVE %02d START" % [_story_stage.get("path", ""), current_wave])
 	if is_boss:
 		Game.log_event("STORY BOSS INBOUND // %s" % _story_stage.get("boss", "ROOT DAEMON"))
@@ -641,28 +512,6 @@ func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 		player.heal(1)
 		Game.register_heal("story")
 		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
-
-func _run_boss_intro() -> void:
-	var idx := int(Game.wave / float(Balance.BOSS_EVERY))
-	_intro_label.text = RootBoss.title_for_index(idx) + " // KERNEL DAEMON"
-	_intro_quote.text = '"' + RootBoss.quote_for_index(idx) + '"'
-	var tw := create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(_intro_bars[0], "scale:y", 1.0, 0.4).from(0.001).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(_intro_bars[1], "scale:y", 1.0, 0.4).from(0.001).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(_intro_label, "modulate:a", 1.0, 0.5).set_delay(0.3)
-	tw.tween_property(_intro_quote, "modulate:a", 1.0, 0.5).set_delay(0.45)
-	var tw2 := create_tween()
-	tw2.tween_interval(2.0)
-	tw2.tween_property(_intro_label, "modulate:a", 0.0, 0.4)
-	tw2.parallel().tween_property(_intro_quote, "modulate:a", 0.0, 0.4)
-	tw2.tween_callback(func() -> void:
-		var tw3 := create_tween()
-		tw3.set_parallel(true)
-		tw3.tween_property(_intro_bars[0], "scale:y", 0.001, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-		tw3.tween_property(_intro_bars[1], "scale:y", 0.001, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	)
-	Fx.shake(0.25)
 
 const TIPS := [
 		"DASHING GRANTS INVULNERABILITY FRAMES",
@@ -865,10 +714,6 @@ func _on_boss_spawned(boss: RootBoss) -> void:
 
 func _on_boss_split(minis: Array) -> void:
 	hud.set_boss_fragments(minis)
-
-func show_event_banner(txt: String) -> void:
-	hud.show_banner("CYCLE %02d // %s" % [Game.wave, txt], "", 1.8)
-	Sfx.play("charge", 0.8, -8.0)
 
 func _on_player_hp(hp: int, _max_hp: int) -> void:
 	overlay.set_low_hp(1.0 if hp <= 1 else (0.45 if hp == 2 else 0.0))
@@ -1297,7 +1142,7 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	_refresh_responsive_layout()
 	if _story_intro_state != 0:
-		_tick_story_intro(delta)
+		_intro_kit._tick_story_intro(delta)
 	if _intro_bars.size() > 1 and is_instance_valid(_intro_bars[1]):
 		_intro_bars[1].pivot_offset.y = get_viewport_rect().size.y
 	if _abandon_armed and get_tree().paused:
