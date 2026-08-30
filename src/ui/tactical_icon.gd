@@ -37,6 +37,7 @@ const ICON_METRICS := {
 	"music": {"min_stroke": 1.8, "contrast": 0.55},
 	"warning": {"min_stroke": 2.0, "contrast": 0.55},
 	"awards": {"min_stroke": 1.8, "contrast": 0.55},
+	"check": {"min_stroke": 2.0, "contrast": 0.55},
 }
 
 ## Documented silhouette bounds per kind in unit space (fractions of size);
@@ -53,6 +54,7 @@ const ICON_BOUNDS := {
 	"music": Rect2(0.24, 0.12, 0.52, 0.76),
 	"warning": Rect2(0.14, 0.16, 0.72, 0.68),
 	"awards": Rect2(0.16, 0.14, 0.68, 0.72),
+	"check": Rect2(0.22, 0.24, 0.56, 0.52),
 }
 
 static func icon_kinds() -> Array:
@@ -131,6 +133,8 @@ func _draw() -> void:
 			_draw_warning(center, radius)
 		"awards":
 			_draw_awards(center, radius)
+		"check":
+			_draw_check(center, radius)
 		_:
 			_draw_bestiary(center, radius)
 	if _framed:
@@ -281,3 +285,7 @@ func _draw_awards(center: Vector2, radius: float) -> void:
 	draw_line(center + Vector2(radius * 0.78, -radius * 0.36), center + Vector2(radius * 0.42, -radius * 0.06), _line_color(), 1.8, true)
 	draw_line(center + Vector2(0.0, radius * 0.30), center + Vector2(0.0, radius * 0.58), _line_color(), 2.0)
 	draw_line(center + Vector2(-radius * 0.30, radius * 0.58), center + Vector2(radius * 0.30, radius * 0.58), _line_color(), 2.2)
+
+func _draw_check(center: Vector2, radius: float) -> void:
+	draw_line(center + Vector2(-radius * 0.42, radius * 0.02), center + Vector2(-radius * 0.10, radius * 0.36), _line_color(), 2.4, true)
+	draw_line(center + Vector2(-radius * 0.10, radius * 0.36), center + Vector2(radius * 0.46, -radius * 0.30), _line_color(), 2.4, true)

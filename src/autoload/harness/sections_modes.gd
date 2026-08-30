@@ -221,6 +221,8 @@ func _capture() -> void:
 			menu._open_bestiary()
 		elif OS.get_environment("KP_SETTINGS") != "" and menu.has_method("_open_settings"):
 			menu._open_settings()
+		elif OS.get_environment("KP_AWARDS") != "" and menu.has_method("_open_achievements"):
+			menu._open_achievements()
 	else:
 		Game.start_run()
 		await h._until(func() -> bool:

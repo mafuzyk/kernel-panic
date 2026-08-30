@@ -450,6 +450,7 @@ func _autotest() -> void:
 	await _sec_scene._text_overflow_test()
 	await _sec_scene._touch_hud_layout_test()
 	await _sec_modes._achievements_panel_test()
+	await _sec_polish._awards_chrome_test(menu_scene)
 	await _sec_scene._charm_save_transfer_test(menu_scene)
 	if menu_scene.has_method("_reset_scores"):
 		menu_scene._reset_scores()

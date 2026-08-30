@@ -105,3 +105,33 @@ func _menu_reflow_test(menu: Node) -> void:
 	var src := str(load("res://src/ui/menu_chrome_kit.gd").source_code)
 	h._check(src.contains("apply_menu_layout"), "menu chrome kit applies the layout dict on resize")
 	h._check(not src.contains("m.size.y * 0.44"), "draw_shell derives its decorative anchors from the shared dict")
+
+func _awards_chrome_test(menu: Node) -> void:
+	print("AT_STEP awards_chrome")
+	var panel_script: Script = load("res://src/ui/achievements_panel.gd")
+	var panel = panel_script.new() if panel_script != null else null
+	h._check(panel != null and panel.has_method("awards_panel_rect") and panel.has_method("award_row_rects"), "awards panel exposes its chrome rect and row rect helpers")
+	if panel == null:
+		return
+	for vp in [Vector2(1366, 768), Vector2(432, 720)]:
+		var rect: Rect2 = panel.call("awards_panel_rect", vp)
+		h._check(Rect2(Vector2.ZERO, vp).encloses(rect.grow(-2.0)), "awards chrome stays inside the viewport at %dx%d" % [int(vp.x), int(vp.y)])
+		h._check(rect.size.x >= 240.0 and rect.size.y >= 220.0, "awards chrome keeps a usable panel size at %dx%d" % [int(vp.x), int(vp.y)])
+	var src := str(panel_script.source_code)
+	h._check(src.contains("AwardsDim"), "awards panel draws a full-rect dim behind the chrome")
+	h._check(src.contains("configure_panel"), "awards rows use angular chrome frames")
+	panel.free()
+	if menu != null and menu.get("_ach_panel") != null:
+		menu.call("_open_achievements")
+		await h._ticks(2)
+		var live = menu.get("_ach_panel")
+		var chrome_rect: Rect2 = live.call("awards_panel_rect", live.size)
+		var contained := true
+		var row_found := false
+		for row in live.call("award_row_rects"):
+			row_found = true
+			if not chrome_rect.grow(-4.0).encloses(Rect2(row)):
+				contained = false
+		h._check(row_found, "awards panel exposes live row rects for containment probes")
+		h._check(contained, "awards rows sit inside the chrome at the live viewport")
+		menu.call("_close_achievements")
