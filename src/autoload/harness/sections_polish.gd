@@ -53,3 +53,34 @@ func _settings_tabs_test(menu: Node) -> void:
 	h.get_viewport().push_input(h._key_event(KEY_ESCAPE))
 	h._check(not bool(menu.get("_settings_panel").visible), "ESC still closes the whole settings panel")
 	menu.call("_close_settings")
+
+func _settings_chips_test(menu: Node) -> void:
+	print("AT_STEP settings_chips")
+	var kit = menu.get("_settings_kit")
+	h._check(kit != null and kit.has_method("apply_viewport"), "settings kit exposes a viewport override for layout probes")
+	if kit == null or not kit.has_method("apply_viewport"):
+		return
+	menu.call("_open_settings")
+	await h._ticks(1)
+	kit.call("apply_viewport", Vector2(432, 720))
+	await h._ticks(1)
+	var layout: Dictionary = menu.call("settings_layout_for_viewport", Vector2(432, 720))
+	h._check(bool(layout.get("compact", false)), "432x720 uses the compact settings layout")
+	var chips_row: Control = menu.get("_settings_chips_row")
+	h._check(chips_row != null and chips_row.visible, "compact layout shows the chips row")
+	var nav_buttons: Array = menu.get("_settings_nav_buttons")
+	var nav_hidden: bool = not nav_buttons.is_empty()
+	for btn in nav_buttons:
+		nav_hidden = nav_hidden and (is_instance_valid(btn) and not btn.visible)
+	h._check(nav_hidden, "compact layout hides the sidebar nav buttons")
+	kit.call("set_active_section", "SAVE DATA")
+	await h._ticks(1)
+	var chips: Array = menu.get("_settings_chip_buttons")
+	var chip_selected: bool = chips.size() == 5
+	for i in chips.size():
+		if (i == 4) != str(chips[i].text).begins_with("▸"):
+			chip_selected = false
+	h._check(chip_selected, "chips share the active section state with the sidebar")
+	kit.call("apply_viewport", Vector2.ZERO)
+	kit.call("set_active_section", "AUDIO")
+	menu.call("_close_settings")

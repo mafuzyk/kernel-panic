@@ -40,7 +40,10 @@ func _menu_shell_test(menu: Node) -> void:
 			var settings_bounds := Rect2(Vector2.ZERO, viewport_size)
 			for rect_key in ["workstation", "navigation", "content", "footer", "title"]:
 				h._check(settings_bounds.encloses(settings_layout[rect_key]), "settings %s stays inside viewport at %dx%d" % [rect_key, int(viewport_size.x), int(viewport_size.y)])
-			h._check(settings_layout["navigation"].position.x < settings_layout["content"].position.x, "settings navigation precedes content at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			if bool(settings_layout.get("compact", false)):
+				h._check(Rect2(settings_layout["chips"]).end.y <= settings_layout["content"].position.y, "settings chips row sits above the content at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			else:
+				h._check(settings_layout["navigation"].position.x < settings_layout["content"].position.x, "settings navigation precedes content at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 	if menu.has_method("main_shell_snapshot"):
 		var main_snapshot: Dictionary = menu.main_shell_snapshot()
 		h._check(str(main_snapshot.get("title", "")).contains("KERNEL PANIC"), "main shell exposes kernel panic title")

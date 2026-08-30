@@ -445,6 +445,7 @@ func _autotest() -> void:
 	await _sec_scene._story_menu_test(menu_scene)
 	await _sec_scene._menu_shell_test(menu_scene)
 	await _sec_polish._settings_tabs_test(menu_scene)
+	await _sec_polish._settings_chips_test(menu_scene)
 	await _sec_scene._text_overflow_test()
 	await _sec_scene._touch_hud_layout_test()
 	await _sec_modes._achievements_panel_test()

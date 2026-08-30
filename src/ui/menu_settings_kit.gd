@@ -14,6 +14,7 @@ const SETTINGS_SECTIONS := ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "S
 const SECTION_CHIP_LABELS := {"AUDIO": "AUDIO", "GAMEPLAY": "GAME", "CONTROLS": "KEYS", "ACCESSIBILITY": "ACCESS", "SAVE DATA": "DATA"}
 var _active_section := "AUDIO"
 var _section_members := {}
+var _viewport_override := Vector2.ZERO
 
 
 func _init(menu) -> void:
@@ -23,11 +24,19 @@ func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
 	var panel_width := minf(1080.0, maxf(viewport.x - 48.0, 280.0))
 	var panel_height := minf(680.0, maxf(viewport.y - 48.0, 240.0))
 	var workstation := Rect2((viewport.x - panel_width) * 0.5, (viewport.y - panel_height) * 0.5, panel_width, panel_height)
-	var navigation_width := minf(230.0, maxf(132.0, workstation.size.x * 0.27))
-	var navigation := Rect2(workstation.position + Vector2(10.0, 88.0), Vector2(navigation_width, maxf(workstation.size.y - 160.0, 0.0)))
-	var content_x := navigation.end.x + 14.0
-	var content := Rect2(Vector2(content_x, navigation.position.y), Vector2(maxf(workstation.end.x - content_x - 10.0, 0.0), navigation.size.y))
 	var footer := Rect2(workstation.position + Vector2(10.0, workstation.size.y - 68.0), Vector2(workstation.size.x - 20.0, 56.0))
+	var compact: bool = viewport.x < 760.0
+	var navigation := Rect2()
+	var chips := Rect2()
+	var content := Rect2()
+	if compact:
+		chips = Rect2(workstation.position + Vector2(10.0, 88.0), Vector2(workstation.size.x - 20.0, 40.0))
+		content = Rect2(Vector2(workstation.position.x + 10.0, chips.end.y + 8.0), Vector2(workstation.size.x - 20.0, maxf(footer.position.y - chips.end.y - 16.0, 0.0)))
+	else:
+		var navigation_width := minf(230.0, maxf(132.0, workstation.size.x * 0.27))
+		navigation = Rect2(workstation.position + Vector2(10.0, 88.0), Vector2(navigation_width, maxf(workstation.size.y - 160.0, 0.0)))
+		var content_x := navigation.end.x + 14.0
+		content = Rect2(Vector2(content_x, navigation.position.y), Vector2(maxf(workstation.end.x - content_x - 10.0, 0.0), navigation.size.y))
 	var title_height := 42.0
 	var title_size := 34
 	if viewport.x < 960.0:
@@ -44,12 +53,14 @@ func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
 		"footer": footer,
 		"title": title,
 		"title_size": title_size,
+		"compact": compact,
+		"chips": chips,
 	}
 
 func _layout_settings() -> void:
 	if m._settings_panel == null or not is_instance_valid(m._settings_panel):
 		return
-	var settings_layout := settings_layout_for_viewport(m.size)
+	var settings_layout := settings_layout_for_viewport(_current_viewport())
 	var workstation: Rect2 = settings_layout["workstation"]
 	var navigation: Rect2 = settings_layout["navigation"]
 	var content: Rect2 = settings_layout["content"]
@@ -80,13 +91,24 @@ func _layout_settings() -> void:
 	if m._settings_footer_row != null and is_instance_valid(m._settings_footer_row):
 		m._settings_footer_row.position = footer.position
 		m._settings_footer_row.size = footer.size
-	if not m._settings_nav_buttons.is_empty():
-		for index in m._settings_nav_buttons.size():
-			var nav_button: Button = m._settings_nav_buttons[index]
-			if not is_instance_valid(nav_button):
-				continue
-			nav_button.position = navigation.position + Vector2(10.0, 12.0 + float(index) * 48.0)
-			nav_button.size = Vector2(maxf(navigation.size.x - 20.0, 96.0), 38.0)
+	var compact: bool = bool(settings_layout.get("compact", false))
+	if m._settings_navigation_chrome != null and is_instance_valid(m._settings_navigation_chrome):
+		m._settings_navigation_chrome.visible = not compact
+	if m._settings_nav_hint != null and is_instance_valid(m._settings_nav_hint):
+		m._settings_nav_hint.visible = not compact
+	if m._settings_chips_row != null and is_instance_valid(m._settings_chips_row):
+		m._settings_chips_row.visible = compact
+		m._settings_chips_row.position = (settings_layout["chips"] as Rect2).position
+		m._settings_chips_row.size = (settings_layout["chips"] as Rect2).size
+	for index in m._settings_nav_buttons.size():
+		var nav_button: Button = m._settings_nav_buttons[index]
+		if not is_instance_valid(nav_button):
+			continue
+		nav_button.visible = not compact
+		if compact:
+			continue
+		nav_button.position = navigation.position + Vector2(10.0, 12.0 + float(index) * 48.0)
+		nav_button.size = Vector2(maxf(navigation.size.x - 20.0, 96.0), 38.0)
 	if m._settings_keybind_grid != null and is_instance_valid(m._settings_keybind_grid):
 		m._settings_keybind_grid.columns = 1 if content.size.x < 600.0 else 2
 
@@ -104,7 +126,7 @@ func _build_settings() -> void:
 	outer_chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	outer_chrome.call("configure_shell", TacticalUIHelper.CYAN, 0.0)
 	m._settings_panel.add_child(outer_chrome)
-	var settings_layout := settings_layout_for_viewport(m.size)
+	var settings_layout := settings_layout_for_viewport(_current_viewport())
 	var workstation: Rect2 = settings_layout["workstation"]
 	var navigation: Rect2 = settings_layout["navigation"]
 	var content: Rect2 = settings_layout["content"]
@@ -440,7 +462,29 @@ func _build_settings() -> void:
 	nav_hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	nav_hint.add_theme_font_size_override("font_size", 10)
 	nav_hint.add_theme_color_override("font_color", TacticalUIHelper.MUTED)
+	m._settings_nav_hint = nav_hint
 	m._settings_panel.add_child(nav_hint)
+	var chips_row := HBoxContainer.new()
+	chips_row.name = "SettingsChips"
+	chips_row.add_theme_constant_override("separation", 8)
+	m._settings_chips_row = chips_row
+	m._settings_panel.add_child(chips_row)
+	for section in SETTINGS_SECTIONS:
+		var chip := Button.new()
+		chip.text = str(SECTION_CHIP_LABELS[section])
+		chip.focus_mode = Control.FOCUS_NONE
+		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		chip.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		chip.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+		chip.add_theme_font_size_override("font_size", 11)
+		chip.add_theme_color_override("font_color", TacticalUIHelper.TEXT)
+		chip.add_theme_color_override("font_hover_color", TacticalUIHelper.CYAN)
+		chip.add_theme_stylebox_override("normal", m._settings_nav_style(Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.18)))
+		chip.add_theme_stylebox_override("hover", m._settings_nav_style(TacticalUIHelper.CYAN))
+		chip.add_theme_stylebox_override("pressed", m._settings_nav_style(TacticalUIHelper.CYAN))
+		chip.pressed.connect(set_active_section.bind(str(section)))
+		chips_row.add_child(chip)
+		m._settings_chip_buttons.append(chip)
 	m.add_child(m._settings_panel)
 	_apply_section_visibility()
 	_refresh_nav_selection()
@@ -674,6 +718,15 @@ func _refresh_nav_selection() -> void:
 			nav_button.text = ("▸ %s" % SETTINGS_SECTIONS[i]) if selected else "  %s" % SETTINGS_SECTIONS[i]
 			nav_button.add_theme_color_override("font_color", TacticalUIHelper.LIME if selected else TacticalUIHelper.TEXT)
 			nav_button.add_theme_stylebox_override("normal", m._settings_nav_style(TacticalUIHelper.LIME if selected else Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.18)))
+	if not m._settings_chip_buttons.is_empty():
+		for i in m._settings_chip_buttons.size():
+			var chip: Button = m._settings_chip_buttons[i]
+			if not is_instance_valid(chip):
+				continue
+			var chip_selected: bool = i == index
+			chip.text = ("▸ %s" % str(SECTION_CHIP_LABELS[SETTINGS_SECTIONS[i]])) if chip_selected else str(SECTION_CHIP_LABELS[SETTINGS_SECTIONS[i]])
+			chip.add_theme_color_override("font_color", TacticalUIHelper.LIME if chip_selected else TacticalUIHelper.TEXT)
+			chip.add_theme_stylebox_override("normal", m._settings_nav_style(TacticalUIHelper.LIME if chip_selected else Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.18)))
 
 func settings_section_snapshot() -> Dictionary:
 	var visible_controls := 0
@@ -683,3 +736,10 @@ func settings_section_snapshot() -> Dictionary:
 				visible_controls += 1
 	return {"active": _active_section, "sections": section_names(), "visible_controls": visible_controls}
 
+
+func apply_viewport(viewport: Vector2) -> void:
+	_viewport_override = viewport
+	_layout_settings()
+
+func _current_viewport() -> Vector2:
+	return _viewport_override if _viewport_override != Vector2.ZERO else m.size

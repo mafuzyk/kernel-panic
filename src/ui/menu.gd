@@ -46,6 +46,9 @@ var _settings_workstation_chrome: Control
 var _settings_navigation_chrome: Control
 var _settings_footer_row: HBoxContainer
 var _settings_nav_buttons: Array[Button] = []
+var _settings_chip_buttons: Array[Button] = []
+var _settings_chips_row: HBoxContainer
+var _settings_nav_hint: Label
 var _settings_keybind_grid: GridContainer
 var _settings_kit
 var _chrome_kit
