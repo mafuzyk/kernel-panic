@@ -2532,7 +2532,7 @@ Interfaces:
 - Consumes: every enemy/program/bestiary glyph call site already routes through `GlyphLib.draw_glyph` (enemy scripts, `player.gd`, `program_panel.gd`, `bestiary_panel.gd` — verified by `_glyph_lib_test`).
 - Produces: `EntitySprite.sprite_path(kind)`, `EntitySprite.has_sprite(kind)`, `EntitySprite.sprite_texture(kind)`, `EntitySprite.draw_entity(canvas, kind, center, size_px, tint) -> bool`, `EntitySprite.clear_sprite_cache()`; `GlyphLib.draw_glyph` dispatches through it as the single switch. Registry ships EMPTY — zero visual change. Arena sprites stay non-rotating; tinting is `draw_texture_rect` modulate and requires white-base art (recorded as a trial finding if a sheet cannot be tinted without artifacts).
 
-- [ ] **Step 1: Write the failing harness check**
+- [x] **Step 1: Write the failing harness check**
 
 In `src/autoload/harness/sections_polish.gd`, append at the end of the class:
 
@@ -2565,7 +2565,7 @@ In `src/autoload/dev_harness.gd`, directly below the line `await _sec_visual._ra
 	await _sec_polish._sprite_trial_test()
 ~~~
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -2575,7 +2575,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_FAILED` with AT_FAIL `entity sprite registry exposes the path lookup` and `teardown clears the sprite trial cache`. No parse errors.
 
-- [ ] **Step 3: Create the registry**
+- [x] **Step 3: Create the registry**
 
 Create `src/ui/entity_sprite.gd` with exactly:
 
@@ -2628,7 +2628,7 @@ static func draw_entity(canvas: CanvasItem, kind: String, center: Vector2, size_
 	return true
 ~~~
 
-- [ ] **Step 4: Single switch in glyph_lib.gd + teardown line**
+- [x] **Step 4: Single switch in glyph_lib.gd + teardown line**
 
 4a. In `src/ui/glyph_lib.gd`, replace the head of `draw_glyph`:
 
@@ -2661,7 +2661,7 @@ func _exit_tree() -> void:
 	EntitySprite.clear_sprite_cache()
 ~~~
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run:
 
@@ -2671,7 +2671,7 @@ godot --headless --path . -- --autotest 2>&1 | grep -E "AT_FAIL|AUTOTEST" | head
 
 Expected: `AUTOTEST_ALL_PASS`, zero `AT_FAIL`. New AT_STEP label `sprite_trial`. Visually nothing changes (registry empty). The pre-existing `glyph_lib` AT_STEP stays green — the dispatch is inside the same function every call site already uses.
 
-- [ ] **Step 6: Wire the crop pipeline for when the orchestrator delivers sheets**
+- [x] **Step 6: Wire the crop pipeline for when the orchestrator delivers sheets**
 
 The orchestrator's imagegen produces per-entity concept sheets OUTSIDE the repo (4×4 grid, white background, one cell per pose) at `/tmp/opencode/sheets/<kind>_sheet.png`. When they exist, crop + key + place with:
 
@@ -2692,7 +2692,7 @@ KP_SHOT=menu KP_BESTIARY=1 KP_SHOT_OUT=/tmp/opencode/sprite_trial_bestiary.png g
 
 If a sheet cannot be tinted via modulate without artifacts, record it as a trial finding (keep the glyph for that kind; a per-kind opt-out table can be added to `sprite_path` following the `RASTER_OPTOUT` pattern). Glyphs remain the shipped default until the author decides; the decision note goes in the Task 13 report.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ~~~sh
 git add src/ui/entity_sprite.gd src/ui/glyph_lib.gd src/autoload/game.gd src/autoload/dev_harness.gd src/autoload/harness/sections_polish.gd
