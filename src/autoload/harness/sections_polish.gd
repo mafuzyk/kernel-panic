@@ -176,3 +176,29 @@ func _raster_optical_test() -> void:
 	h._check(music_small.is_empty(), "24px opt-out kinds fall back to the code-drawn icon")
 	var music_big: String = icon_script.call("raster_path", "music", 52)
 	h._check(not music_big.is_empty() and ResourceLoader.exists(music_big), "52px keeps the raster for opt-out kinds")
+
+func _story_path_test() -> void:
+	print("AT_STEP story_path")
+	var script: Script = load("res://src/ui/story_panel.gd")
+	h._check(script != null, "story panel script loads")
+	if script == null:
+		return
+	var src := str(script.source_code)
+	h._check(src.contains("_draw_node_brackets"), "story rail draws node brackets")
+	h._check(src.contains("_draw_state_glyph"), "story rail draws state rings and glyphs")
+	h._check(src.contains("\"CLEARED\"") and src.contains("\"CURRENT\"") and src.contains("\"LOCKED\""), "story rail renders the three state labels")
+	h._check(src.contains("sin(t"), "story rail keeps the cosmetic-time pulse (no gameplay rng)")
+	var panel = script.new()
+	if panel == null:
+		return
+	var ok := true
+	var saw_labels := false
+	for vp in [Vector2(1366, 768), Vector2(432, 720)]:
+		panel.size = vp
+		for entry in panel.call("text_overflow_report"):
+			if str(entry.get("id", "")) == "story_state_labels":
+				saw_labels = true
+			ok = ok and bool(entry.get("fits", false))
+	h._check(saw_labels, "story report carries the story_state_labels entry")
+	h._check(ok, "story rail report stays green including the state labels")
+	panel.free()

@@ -179,12 +179,55 @@ func _select_at(position: Vector2) -> void:
 				Sfx.play("ui", 1.05, -8.0)
 			return
 
+var t := 0.0
+
 func _process(_delta: float) -> void:
+	t += _delta
 	queue_redraw()
 
 func _stage_color(index: int) -> Color:
 	var stage := Game.story_stage_def(index)
 	return stage.get("theme", {}).get("accent", Balance.COL_PLAYER)
+
+func _stage_state(index: int) -> String:
+	if not Game.story_stage_unlocked(index):
+		return "LOCKED"
+	if bool(Game.story_cleared.get(Game.story_stage_id(index), false)):
+		return "CLEARED"
+	return "CURRENT"
+
+func _draw_node_brackets(node: Vector2, radius: float, color: Color) -> void:
+	var arm := radius * 0.55
+	for sign_x in [-1.0, 1.0]:
+		for sign_y in [-1.0, 1.0]:
+			var corner := node + Vector2(sign_x * (radius + 5.0), sign_y * (radius + 5.0))
+			draw_line(corner, corner + Vector2(-sign_x * arm, 0.0), Color(color.r, color.g, color.b, 0.7), 1.2, true)
+			draw_line(corner, corner + Vector2(0.0, -sign_y * arm), Color(color.r, color.g, color.b, 0.7), 1.2, true)
+
+func _draw_state_glyph(node: Vector2, radius: float, state: String, color: Color) -> void:
+	match state:
+		"CLEARED":
+			draw_arc(node, radius + 3.0, 0.0, TAU, 24, Color(color.r, color.g, color.b, 0.95), 2.2, true)
+			var b := node + Vector2(radius + 6.0, -radius - 6.0)
+			draw_line(b + Vector2(-3.0, 0.0), b + Vector2(-0.5, 2.5), Color(color.r, color.g, color.b, 0.95), 2.0, true)
+			draw_line(b + Vector2(-0.5, 2.5), b + Vector2(3.5, -2.5), Color(color.r, color.g, color.b, 0.95), 2.0, true)
+		"CURRENT":
+			var pulse := radius + 3.0 + sin(t * 4.0) * 2.0
+			draw_arc(node, pulse, 0.0, TAU, 24, Color(color.r, color.g, color.b, 0.95), 2.6, true)
+		"LOCKED":
+			draw_arc(node, radius + 3.0, 0.0, TAU, 24, Color(color.r, color.g, color.b, 0.3), 2.0, true)
+			var lb := node + Vector2(radius + 6.0, -radius - 6.0)
+			draw_rect(Rect2(lb + Vector2(-3.0, -1.0), Vector2(6.0, 5.0)), Color(color.r, color.g, color.b, 0.6), false, 1.4)
+			draw_arc(lb + Vector2(0.0, -1.0), 2.2, PI, TAU, 10, Color(color.r, color.g, color.b, 0.6), 1.4, true)
+
+func _state_label_color(state: String, color: Color) -> Color:
+	match state:
+		"CLEARED":
+			return Color(color.r, color.g, color.b, 0.9)
+		"CURRENT":
+			return TacticalUIHelper.TEXT
+		_:
+			return Color(TacticalUIHelper.MUTED.r, TacticalUIHelper.MUTED.g, TacticalUIHelper.MUTED.b, 0.7)
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.01, 0.012, 0.03, 1.0))
@@ -256,9 +299,14 @@ func _draw() -> void:
 		var name_text := str(stage.get("path", "")) if unlocked else "LOCKED"
 		var waves: int = stage.get("waves", []).size()
 		if _is_wide():
-			draw_circle(origin + Vector2(card_w * 0.5, 42.0), 18.0, Color(border.r, border.g, border.b, 0.12))
-			draw_arc(origin + Vector2(card_w * 0.5, 42.0), 18.0, 0.0, TAU, 20, border, 1.4, true)
+			var node := origin + Vector2(card_w * 0.5, 42.0)
+			var state := _stage_state(stage_index)
+			draw_circle(node, 18.0, Color(border.r, border.g, border.b, 0.12))
+			draw_arc(node, 18.0, 0.0, TAU, 20, border, 1.4, true)
+			_draw_node_brackets(node, 18.0, border)
+			_draw_state_glyph(node, 18.0, state, border)
 			draw_string(mono, origin + Vector2(0.0, 47.0), "%02d" % (stage_index + 1), HORIZONTAL_ALIGNMENT_CENTER, card_w, 13, border)
+			draw_string(mono, origin + Vector2(0.0, 68.0), state, HORIZONTAL_ALIGNMENT_CENTER, card_w, 9, _state_label_color(state, border))
 			draw_string(orbitron, origin + Vector2(6.0, 82.0), name_text, HORIZONTAL_ALIGNMENT_CENTER, card_w - 12.0, 14, Balance.COL_TEXT if unlocked else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.42))
 			draw_string(mono, origin + Vector2(6.0, 98.0), str(stage.get("title", "STORY STAGE")) if unlocked else "LOCKED", HORIZONTAL_ALIGNMENT_CENTER, card_w - 12.0, 9, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.35))
 			var body := str(stage.get("intro", "")) if unlocked else "NOT MOUNTED"
@@ -266,9 +314,14 @@ func _draw() -> void:
 			var footer := "%d WAVES" % waves if unlocked else "LOCKED"
 			draw_string(mono, origin + Vector2(8.0, card_h - 18.0), footer, HORIZONTAL_ALIGNMENT_CENTER, card_w - 16.0, 9, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.45))
 		else:
-			draw_circle(origin + Vector2(42.0, 43.0), 18.0, Color(border.r, border.g, border.b, 0.12))
-			draw_arc(origin + Vector2(42.0, 43.0), 18.0, 0.0, TAU, 20, border, 1.4, true)
+			var node := origin + Vector2(42.0, 43.0)
+			var state := _stage_state(stage_index)
+			draw_circle(node, 18.0, Color(border.r, border.g, border.b, 0.12))
+			draw_arc(node, 18.0, 0.0, TAU, 20, border, 1.4, true)
+			_draw_node_brackets(node, 18.0, border)
+			_draw_state_glyph(node, 18.0, state, border)
 			draw_string(mono, origin + Vector2(31.0, 48.0), "%02d" % (stage_index + 1), HORIZONTAL_ALIGNMENT_LEFT, 24.0, 13, border)
+			draw_string(mono, origin + Vector2(12.0, 68.0), state, HORIZONTAL_ALIGNMENT_CENTER, 60.0, 9, _state_label_color(state, border))
 			draw_string(orbitron, origin + Vector2(76.0, 36.0), name_text, HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 18, Balance.COL_TEXT if unlocked else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.42))
 			draw_string(mono, origin + Vector2(76.0, 59.0), str(stage.get("title", "STORY STAGE")) if unlocked else "CLEAR THE PREVIOUS STAGE", HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 11, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.35))
 			var body := str(stage.get("intro", "")) if unlocked else "This process is not mounted yet."
@@ -360,4 +413,5 @@ func text_overflow_report() -> Array:
 	out.append({"id": "detail_title", "fits": orbitron.get_string_size(longest_title, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x <= rail_w - 36.0})
 	var klog_width: float = maxf(rail_w - (minf(rail_w - 36.0, 170.0) + 38.0) - 18.0, 0.0)
 	out.append({"id": "klog_lines", "fits": mono.get_string_size(TacticalUI.ellipsis_fit(mono, longest_klog, klog_width, 10), HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x <= klog_width})
+	out.append({"id": "story_state_labels", "fits": mono.get_string_size("CLEARED", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0 and mono.get_string_size("CURRENT", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0 and mono.get_string_size("LOCKED", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0})
 	return out
