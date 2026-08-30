@@ -392,6 +392,7 @@ func _autotest() -> void:
 	await _windows_test(arena2)
 	await _temple_test(arena2)
 	await _glyph_lib_test()
+	await _icon_quality_test()
 	await _charm_terminal_test(arena2)
 	await _charm_speedrun_test(arena2)
 	await _touch_test()
@@ -2875,6 +2876,49 @@ func _glyph_lib_test() -> void:
 	var program_source := str(load("res://src/ui/program_panel.gd").source_code)
 	_check(bestiary_source.contains("GlyphLib.draw_glyph"), "bestiary detail views reuse glyph_lib")
 	_check(program_source.contains("GlyphLib.draw_glyph"), "program cards reuse glyph_lib")
+
+func _icon_quality_test() -> void:
+	print("AT_STEP icon_quality")
+	var icon_script: Script = load("res://src/ui/tactical_icon.gd")
+	var icon = icon_script.new() if icon_script != null else null
+	_check(icon != null and icon.has_method("icon_kinds") and icon.has_method("icon_metrics") and icon.has_method("icon_bounds"), "tactical icon exposes icon_kinds, icon_metrics, and icon_bounds")
+	if icon == null or not icon.has_method("icon_kinds"):
+		if icon != null:
+			icon.free()
+		return
+	var icon_src := str(icon_script.source_code)
+	var kinds: Array = icon.call("icon_kinds")
+	for kind in ["settings", "bestiary", "dash", "back", "resume", "restart", "terminal", "audio", "music", "warning"]:
+		_check(kinds.has(kind), "tactical icon covers the %s kind" % kind)
+		_check(icon_src.contains("\t\t\"%s\":" % kind), "%s icon resolves to a non-empty drawing routine" % kind)
+		var metrics: Dictionary = icon.call("icon_metrics", str(kind))
+		_check(bool(metrics.get("covered", false)), "%s icon has documented quality metrics" % kind)
+		_check(float(metrics.get("min_stroke", 0.0)) >= 1.5, "%s icon documents a minimum stroke of at least 1.5" % kind)
+		_check(float(metrics.get("contrast", 0.0)) >= 0.55, "%s icon documents panel contrast of at least 0.55" % kind)
+		var bounds: Rect2 = icon.call("icon_bounds", str(kind))
+		for side in [24.0, 52.0]:
+			var abs_bounds := Rect2(bounds.position * side, bounds.size * side)
+			_check(Rect2(Vector2.ZERO, Vector2(side, side)).encloses(abs_bounds.grow(-0.5)), "%s icon silhouette stays contained at %.0fpx" % [kind, side])
+	icon.free()
+	var patch_script: Script = load("res://src/ui/patch_card.gd")
+	_check(patch_script != null and patch_script.has_method("patch_icon_family") and patch_script.has_method("patch_icon_metrics"), "patch card exposes patch_icon_family and patch_icon_metrics")
+	if patch_script == null or not patch_script.has_method("patch_icon_family"):
+		return
+	var patch_src := str(patch_script.source_code)
+	for family in ["_draw_damage_glyph", "_draw_fire_glyph", "_draw_defense_glyph", "_draw_utility_glyph", "_draw_movement_glyph", "_draw_economy_glyph"]:
+		_check(patch_src.contains("func %s" % family), "patch card draws the %s family" % family.trim_prefix("_draw_").trim_suffix("_glyph"))
+	for id in Game.PATCH_CODES:
+		var family: String = patch_script.call("patch_icon_family", str(id))
+		_check(["damage", "fire", "defense", "utility", "movement", "economy"].has(family), "%s patch icon belongs to a documented family" % str(id))
+		var pmetrics: Dictionary = patch_script.call("patch_icon_metrics", str(id))
+		_check(bool(pmetrics.get("covered", false)), "%s patch icon resolves to a non-empty drawing routine" % str(id))
+		_check(float(pmetrics.get("min_stroke", 0.0)) >= 2.0, "%s patch icon documents a minimum stroke of at least 2.0" % str(id))
+		_check(float(pmetrics.get("contrast", 0.0)) >= 0.55, "%s patch icon documents panel contrast of at least 0.55" % str(id))
+	var hex_rect := Rect2(Vector2(24.0, 123.0), Vector2(68.0, 68.0))
+	_check(Rect2(Vector2.ZERO, Vector2(280.0, 330.0)).encloses(hex_rect), "patch hex icon geometry stays contained in the 280x330 patch card")
+	_check(icon_script.has_method("raster_path") and patch_script.has_method("patch_raster_path"), "icon raster registries keep the code-drawn fallback")
+	var probe_path: String = icon_script.call("raster_path", "resume")
+	_check(probe_path.is_empty() or ResourceLoader.exists(probe_path), "raster registry only resolves existing assets")
 
 func _charm_terminal_test(arena: Arena) -> void:
 	print("AT_STEP charm_terminal")

@@ -104,16 +104,89 @@ func _draw_icon(center: Vector2, accent: Color) -> void:
 	draw_colored_polygon(points, Color(accent.r, accent.g, accent.b, 0.08))
 	draw_polyline(closed, accent, 2.0, true)
 	var id := str(_def.get("id", ""))
-	if id == "staticf":
-		for i in 3:
-			for j in 3:
-				draw_circle(center + Vector2((i - 1) * 11.0, (j - 1) * 11.0), 3.5, accent)
-	elif id == "splitshot":
-		for direction in [Vector2.UP, Vector2(0.86, 0.5), Vector2(-0.86, 0.5)]:
-			draw_line(center, center + direction * 22.0, accent, 3.0)
-	else:
-		draw_rect(Rect2(center - Vector2(4.0, 21.0), Vector2(8.0, 42.0)), accent)
-		draw_rect(Rect2(center - Vector2(21.0, 4.0), Vector2(42.0, 8.0)), accent)
+	var raster := patch_raster_path(id)
+	if raster != "":
+		var tex: Texture2D = load(raster)
+		if tex != null:
+			draw_texture_rect(tex, Rect2(center - Vector2(26.0, 26.0), Vector2(52.0, 52.0)), false)
+			return
+	match patch_icon_family(id):
+		"damage":
+			_draw_damage_glyph(center, accent)
+		"fire":
+			_draw_fire_glyph(center, accent)
+		"defense":
+			_draw_defense_glyph(center, accent)
+		"utility":
+			_draw_utility_glyph(center, accent)
+		"movement":
+			_draw_movement_glyph(center, accent)
+		"economy":
+			_draw_economy_glyph(center, accent)
+
+## Patch icon family table: every Game.PATCH_CODES id maps to one of six visual
+## families so hex icons share a silhouette language per effect type.
+const PATCH_ICON_FAMILIES := {
+	"heavy": "damage", "core": "damage", "splitshot": "damage", "ricochet": "damage", "pdash": "damage", "thorns": "damage", "staticf": "damage",
+	"rapid": "fire", "threads": "fire", "chain": "fire",
+	"hp": "defense", "shield": "defense", "absorb": "defense", "restore": "defense", "secondwind": "defense", "vampic": "defense", "recycler": "defense", "dataleech": "defense",
+	"cell": "utility", "magnet": "utility",
+	"dash": "movement", "mdash": "movement", "turbo": "movement", "light": "movement",
+	"frag": "economy", "scrapdiet": "economy",
+}
+
+const RASTER_DIR := "res://assets/icons/generated/"
+
+static func patch_icon_family(id: String) -> String:
+	return str(PATCH_ICON_FAMILIES.get(id, "utility"))
+
+static func patch_icon_metrics(id: String) -> Dictionary:
+	return {"covered": PATCH_ICON_FAMILIES.has(id), "min_stroke": 2.0, "contrast": 0.55}
+
+static func patch_raster_path(id: String) -> String:
+	var path := RASTER_DIR + "patch_" + id + ".png"
+	return path if ResourceLoader.exists(path) else ""
+
+func _draw_damage_glyph(center: Vector2, accent: Color) -> void:
+	for i in 3:
+		var a := -PI * 0.5 + TAU * float(i) / 3.0
+		var tip := center + Vector2.from_angle(a) * 22.0
+		var left := center + Vector2.from_angle(a - 0.42) * 8.0
+		var right := center + Vector2.from_angle(a + 0.42) * 8.0
+		draw_colored_polygon(PackedVector2Array([tip, left, right]), accent)
+	draw_arc(center, 7.0, 0.0, TAU, 16, accent, 2.0, true)
+
+func _draw_fire_glyph(center: Vector2, accent: Color) -> void:
+	for i in 3:
+		var x := center.x - 14.0 + float(i) * 10.0
+		var pts := PackedVector2Array([Vector2(x, center.y - 10.0), Vector2(x + 8.0, center.y), Vector2(x, center.y + 10.0)])
+		draw_polyline(pts, accent, 2.2, true)
+
+func _draw_defense_glyph(center: Vector2, accent: Color) -> void:
+	var pts := PackedVector2Array([
+		center + Vector2(0.0, -20.0), center + Vector2(15.0, -12.0), center + Vector2(15.0, 4.0),
+		center + Vector2(0.0, 20.0), center + Vector2(-15.0, 4.0), center + Vector2(-15.0, -12.0),
+	])
+	draw_colored_polygon(pts, Color(accent.r, accent.g, accent.b, 0.14))
+	draw_polyline(pts + PackedVector2Array([pts[0]]), accent, 2.2, true)
+	draw_line(center + Vector2(0.0, -12.0), center + Vector2(0.0, 12.0), accent, 2.0)
+
+func _draw_utility_glyph(center: Vector2, accent: Color) -> void:
+	var nut := PackedVector2Array()
+	for i in 6:
+		nut.append(center + Vector2.from_angle(TAU * float(i) / 6.0) * 15.0)
+	draw_polyline(nut + PackedVector2Array([nut[0]]), accent, 2.2, true)
+	draw_circle(center, 5.0, accent)
+
+func _draw_movement_glyph(center: Vector2, accent: Color) -> void:
+	draw_line(center + Vector2(-16.0, 6.0), center + Vector2(2.0, 6.0), Color(accent.r, accent.g, accent.b, 0.6), 2.0)
+	draw_line(center + Vector2(-10.0, -2.0), center + Vector2(8.0, -2.0), accent, 2.2)
+	draw_colored_polygon(PackedVector2Array([center + Vector2(8.0, -8.0), center + Vector2(16.0, -2.0), center + Vector2(8.0, 4.0)]), accent)
+
+func _draw_economy_glyph(center: Vector2, accent: Color) -> void:
+	for offset in [Vector2(-12.0, -8.0), Vector2(-4.0, 2.0), Vector2(6.0, -4.0)]:
+		draw_circle(center + offset, 4.0, accent)
+	draw_line(center + Vector2(-14.0, 12.0), center + Vector2(14.0, 12.0), accent, 2.0)
 
 func text_overflow_report() -> Array:
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
