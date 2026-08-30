@@ -69,7 +69,7 @@ const ICON_OPTICAL := {
 ## Per-kind x per-size opt-out list: where a raster reads blurry at a size, the
 ## registry returns "" for that size and the code fallback renders. Documented
 ## and harness-visible; the author may extend it after the trim review (Task 9).
-const RASTER_OPTOUT := {"music": [24], "bestiary": [24]}
+const RASTER_OPTOUT := {"music": [24]}
 
 static func optical_pad(icon_kind: String) -> float:
 	return float(ICON_OPTICAL.get(icon_kind, 0.06))
