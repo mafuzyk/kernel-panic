@@ -18,7 +18,7 @@ Spec: docs/superpowers/specs/2026-08-29-fixes-difficulty-art-design.md
 - Mobile-first: touch behavior unchanged; desktop-only conveniences stay gated by `Balance.is_desktop_display()`.
 - Locked balance constants (`WAVE_SCALE_CAP`, `wave_budget`, `max_alive`, `elite_chance`, cadence floor 0.78) are never edited — difficulty acts only through new multiplier read helpers.
 - Endless wave-intro bars (`_intro_label` path in `arena.gd`) are untouched.
-- No new binary assets; no raster sprites; all rendering stays code-drawn. No controller support work. (Task 7b exception: proven-win icon rasters under `assets/icons/generated/` plus their Godot `.import` sidecars, committed only after same-size comparison approval; `media/concepts/` stays gitignored.)
+- No controller support work. (Task 7b/7c exception: trial icon rasters under `assets/icons/generated/` plus their Godot `.import` sidecars, shipped only where a same-size in-game comparison proves they beat the code-drawn version; the identity is the neon geometric terminal style, not the drawing technique — code-drawn was only the original technique because sprites were harder to make, author statement 2026-08-29. `media/concepts/` stays gitignored.)
 - Approved visual mocks live outside the repo at
   `/home/mafu/.codex/generated_images/01a044e4-d316-7ef2-85d8-9aa85056ea3a/`
   (`exec-10cafd61-...png` combat HUD, `exec-6582ea9f-...png` bestiary, `exec-450f92b7-...png` programs).
@@ -3323,6 +3323,260 @@ is gitignored and must never appear in the commit.)
 
 ---
 
+### Task 7c: Raster icon trial (generated textures behind the registry fallback)
+
+Files:
+- Modify: `src/ui/tactical_icon.gd` (raster-first `_draw()` branch + registry comment correction)
+- Modify: `src/autoload/dev_harness.gd`
+- Create: `assets/icons/generated/*.png` (trial rasters + Godot `.import` sidecars)
+
+Interfaces:
+- Consumes: `tactical_icon.gd` `raster_path(kind)` / `ICON_BOUNDS` (tactical_icon.gd:61-67) and `_draw()` `match _kind` (line 86); `patch_card.gd` `patch_raster_path(id)` (line 146) and the raster branch in `_draw_icon` (lines 107-112, already present from Task 7b); orchestrator trial sheets `media/concepts/ui-icons-trial.png` (5x2 grid, pure black bg: play, restart, terminal, warning, chevrons, speaker, music note, low-poly skull, shield keyhole, trophy hexagon) and `media/concepts/patch-icons-trial.png` (3x2 grid: pierce hex magenta, dot-grid hex amber, chevron hex cyan, shield hex lime, fire-up hex orange, magnet hex cyan); `Game.PATCH_CODES`.
+- Produces: harness `_raster_trial_test()`; 13 wired trial rasters (7 UI kinds + 6 patch ids) at `assets/icons/generated/` resolving through the existing registries; side-by-side captures in `/tmp/opencode/` (never committed). The final ship-or-revert decision is author-gated after this task and is NOT part of it.
+
+- [x] Step 1: Write the failing harness regression
+
+In `src/autoload/dev_harness.gd`, after the line `await _icon_quality_test()` add:
+
+~~~gdscript
+	await _raster_trial_test()
+~~~
+
+Then append the new function anywhere at class level (for example directly after `_icon_quality_test`):
+
+~~~gdscript
+func _raster_trial_test() -> void:
+	print("AT_STEP raster_trial")
+	var icon_script: Script = load("res://src/ui/tactical_icon.gd")
+	var patch_script: Script = load("res://src/ui/patch_card.gd")
+	_check(icon_script != null and icon_script.has_method("raster_path"), "tactical icon exposes the raster registry")
+	_check(patch_script != null and patch_script.has_method("patch_raster_path"), "patch card exposes the raster registry")
+	if icon_script == null or patch_script == null or not icon_script.has_method("raster_path") or not patch_script.has_method("patch_raster_path"):
+		return
+	var icon_resolved := 0
+	var icon_fallback := 0
+	for kind in icon_script.call("icon_kinds"):
+		var path: String = icon_script.call("raster_path", str(kind))
+		if path.is_empty():
+			icon_fallback += 1
+			continue
+		icon_resolved += 1
+		var tex: Texture2D = load(path)
+		_check(tex != null, "%s raster resolves to a loadable texture" % str(kind))
+	_check(icon_resolved > 0, "generated ui icon rasters resolve through the registry when the asset exists")
+	_check(icon_fallback > 0, "ui icon kinds without a generated asset keep the code-drawn fallback")
+	var patch_resolved := 0
+	var patch_fallback := 0
+	for id in Game.PATCH_CODES:
+		var path: String = patch_script.call("patch_raster_path", str(id))
+		if path.is_empty():
+			patch_fallback += 1
+			continue
+		patch_resolved += 1
+		var tex: Texture2D = load(path)
+		_check(tex != null, "patch %s raster resolves to a loadable texture" % str(id))
+	_check(patch_resolved >= 6, "the six generated patch-family rasters resolve through the registry")
+	_check(patch_fallback > 0, "patch ids without a generated asset keep the code-drawn fallback")
+	_check(str(icon_script.source_code).contains("match _kind"), "tactical icon keeps the code-drawn draw dispatch")
+	_check(str(patch_script.source_code).contains("match patch_icon_family"), "patch card keeps the code-drawn family dispatch")
+~~~
+
+- [x] Step 2: Run the test to verify it fails
+
+Run:
+
+~~~sh
+godot --headless --path . -- --autotest
+~~~
+
+Expected: AT_FAIL `generated ui icon rasters resolve through the registry when the
+asset exists` and AT_FAIL `the six generated patch-family rasters resolve through
+the registry` (no assets exist yet, so `raster_path`/`patch_raster_path` return ""
+for everything and the resolved counts are 0; the two fallback probes and the two
+dispatch probes already pass). No parse error.
+
+- [x] Step 3: Crop the trial sheets into transparent PNGs with ImageMagick
+
+Run (ImageMagick 7 `magick` is at /usr/bin/magick; on IM6-only systems substitute `convert`):
+
+~~~sh
+mkdir -p /tmp/opencode/trial_icons/ui /tmp/opencode/trial_icons/patch /tmp/opencode/trial_icons/master /tmp/opencode/trial_icons/variant
+magick media/concepts/ui-icons-trial.png -crop 5x2@ +repage /tmp/opencode/trial_icons/ui/tile_%02d.png
+magick media/concepts/patch-icons-trial.png -crop 3x2@ +repage /tmp/opencode/trial_icons/patch/tile_%02d.png
+# Verify tile order against the sheets before wiring (tiles are row-major):
+magick montage /tmp/opencode/trial_icons/ui/tile_*.png -tile 5x2 -geometry +4+4 -background gray20 /tmp/opencode/trial_icons/ui_contact.png
+magick montage /tmp/opencode/trial_icons/patch/tile_*.png -tile 3x2 -geometry +4+4 -background gray20 /tmp/opencode/trial_icons/patch_contact.png
+~~~
+
+Expected: 10 ui tiles and 6 patch tiles; the two contact sheets in
+`/tmp/opencode/trial_icons/` match the sheet layouts listed above. If a contact
+sheet shows a different order, re-point the `key` lines below at the tile numbers
+that actually hold each motif — the names, not the numbers, are what the registries
+consume.
+
+Then key, trim, and size (black-keying `-fuzz 10% -transparent black` + `-trim`;
+raise toward 15% if black halos remain, lower toward 5% if edges get eaten):
+
+~~~sh
+key() {
+	magick "$1" -fuzz 10% -transparent black -trim +repage -resize 128x128 "/tmp/opencode/trial_icons/master/$2.png"
+	magick "/tmp/opencode/trial_icons/master/$2.png" -resize 52x52 "/tmp/opencode/trial_icons/variant/$2-52.png"
+	magick "/tmp/opencode/trial_icons/master/$2.png" -resize 24x24 "/tmp/opencode/trial_icons/variant/$2-24.png"
+}
+key /tmp/opencode/trial_icons/ui/tile_00.png resume    # play triangle
+key /tmp/opencode/trial_icons/ui/tile_01.png restart
+key /tmp/opencode/trial_icons/ui/tile_02.png terminal
+key /tmp/opencode/trial_icons/ui/tile_03.png warning
+key /tmp/opencode/trial_icons/ui/tile_04.png back      # chevrons
+key /tmp/opencode/trial_icons/ui/tile_05.png audio     # speaker
+key /tmp/opencode/trial_icons/ui/tile_06.png music     # music note
+# tiles 07-09 (low-poly skull, shield keyhole, trophy hexagon) match no icon kind:
+# they stay in /tmp/opencode/trial_icons/ for author review only and are NEVER
+# copied into assets/
+key /tmp/opencode/trial_icons/patch/tile_00.png patch_heavy   # pierce hex magenta (damage)
+key /tmp/opencode/trial_icons/patch/tile_01.png patch_staticf # dot-grid hex amber (damage)
+key /tmp/opencode/trial_icons/patch/tile_02.png patch_turbo   # chevron hex cyan (movement)
+key /tmp/opencode/trial_icons/patch/tile_03.png patch_shield  # shield hex lime (defense)
+key /tmp/opencode/trial_icons/patch/tile_04.png patch_rapid   # fire-up hex orange (fire)
+key /tmp/opencode/trial_icons/patch/tile_05.png patch_magnet  # magnet hex cyan (utility)
+mkdir -p assets/icons/generated
+cp /tmp/opencode/trial_icons/master/*.png assets/icons/generated/
+cp /tmp/opencode/trial_icons/variant/*.png assets/icons/generated/
+godot --headless --path . --import
+~~~
+
+Expected: 13 masters (`resume.png`, `restart.png`, `terminal.png`, `warning.png`,
+`back.png`, `audio.png`, `music.png`, `patch_heavy.png`, `patch_staticf.png`,
+`patch_turbo.png`, `patch_shield.png`, `patch_rapid.png`, `patch_magnet.png`) plus
+26 `-52`/`-24` variants in `assets/icons/generated/` (39 PNGs + 39 `.png.import`
+sidecars after `--import`; the variants are trial artifacts for the author's size
+review — the registries resolve only the masters). `-52`/`-24` variant names never
+collide with registry names. The economy family (`frag`, `scrapdiet`) and the
+`settings`/`bestiary`/`dash` kinds intentionally stay code-drawn so the fallback
+path stays exercised.
+
+- [x] Step 4: Wire the registries to the generated textures
+
+4a. In `src/ui/tactical_icon.gd`, replace:
+
+~~~gdscript
+func _draw() -> void:
+	if size.x <= 2.0 or size.y <= 2.0:
+		return
+	var center := size * 0.5
+	var radius := minf(size.x, size.y) * 0.34
+	match _kind:
+~~~
+
+with (same raster-first branch `patch_card._draw_icon` already uses; the code-drawn
+`match _kind` stays as the permanent fallback):
+
+~~~gdscript
+func _draw() -> void:
+	if size.x <= 2.0 or size.y <= 2.0:
+		return
+	var raster := raster_path(_kind)
+	if raster != "":
+		var tex: Texture2D = load(raster)
+		if tex != null:
+			draw_texture_rect(tex, Rect2(Vector2.ZERO, size), false)
+			return
+	var center := size * 0.5
+	var radius := minf(size.x, size.y) * 0.34
+	match _kind:
+~~~
+
+4b. In `src/ui/tactical_icon.gd`, replace:
+
+~~~gdscript
+## Raster registry: proven-win rasters only; empty string keeps the code-drawn
+## identity as the active path. Never used as a placeholder.
+~~~
+
+with:
+
+~~~gdscript
+## Raster registry: trial rasters only; empty string keeps the code-drawn fallback
+## active. Never used as a placeholder. The identity is the neon geometric terminal
+## style, not the drawing technique (author correction, 2026-08-29).
+~~~
+
+4c. `patch_card.gd` needs no code change: its `_draw_icon` raster branch (lines
+107-112) and `patch_raster_path(id)` (line 146) already consume
+`assets/icons/generated/patch_<id>.png`, and Step 3 landed six PNGs at those exact
+names. Do not rename `RASTER_DIR` or either registry function.
+
+- [x] Step 5: Side-by-side captures (code-drawn vs raster) at 1366x768
+
+Run (desktop, windowed):
+
+~~~sh
+mkdir -p /tmp/opencode
+KP_SHOT=menu KP_SHOT_OUT=/tmp/opencode/trial_menu_raster.png godot --path . --resolution 1366x768
+mv assets/icons/generated /tmp/opencode/generated_stash
+KP_SHOT=menu KP_SHOT_OUT=/tmp/opencode/trial_menu_code.png godot --path . --resolution 1366x768
+mv /tmp/opencode/generated_stash assets/icons/generated
+~~~
+
+Then, interactively, capture the pause panel and a patch-pick screen in both
+states (start a CLASSIC run; press ESC for the pause panel; play until a level-up
+offers patch selection; grab the screen with `import -window root <file>` — rerun
+the sequence once with the stash move applied and once after restoring):
+
+~~~sh
+import -window root /tmp/opencode/trial_pause_raster.png
+import -window root /tmp/opencode/trial_patch_raster.png
+mv assets/icons/generated /tmp/opencode/generated_stash
+# ... relaunch, repeat pause grab -> /tmp/opencode/trial_pause_code.png and
+# patch-pick grab -> /tmp/opencode/trial_patch_code.png, then restore:
+mv /tmp/opencode/generated_stash assets/icons/generated
+magick /tmp/opencode/trial_menu_code.png /tmp/opencode/trial_menu_raster.png +append /tmp/opencode/trial_side_menu.png
+magick /tmp/opencode/trial_pause_code.png /tmp/opencode/trial_pause_raster.png +append /tmp/opencode/trial_side_pause.png
+magick /tmp/opencode/trial_patch_code.png /tmp/opencode/trial_patch_raster.png +append /tmp/opencode/trial_side_patch.png
+~~~
+
+Expected: `trial_side_menu.png` (settings rows), `trial_side_pause.png` (pause
+panel), and `trial_side_patch.png` (patch selection) exist in `/tmp/opencode/`
+with code-drawn on the left and raster on the right, at 1366x768. These captures
+are for author review and are NEVER committed; `media/concepts/` never appears in
+`git status`. The `settings`/`bestiary`/`dash` kinds and the economy patch hexes
+must render identically in both halves (code-drawn in both — their fallback path).
+
+- [x] Step 6: Run the full suite
+
+Run:
+
+~~~sh
+godot --headless --path . -- --autotest
+~~~
+
+Expected: `AUTOTEST_ALL_PASS` and zero `AT_FAIL`, with the new `raster_trial`
+`AT_STEP` section present. The registries must not break headless runs where
+textures may be absent — proven by the `settings`/`bestiary`/`dash` kinds and
+`frag`/`scrapdiet` ids resolving "" and drawing via the code-drawn fallback, and
+by the pre-existing `raster registry only resolves existing assets` check staying
+green.
+
+- [x] Step 7: Commit
+
+~~~sh
+git add assets/icons/generated src/ui/tactical_icon.gd src/autoload/dev_harness.gd
+git commit -m "feat: trial generated raster icons behind registry fallback"
+~~~
+
+Expected: the commit contains the 39 trial PNGs + `.import` sidecars, the
+`tactical_icon.gd` raster branch + comment fix, and the harness check;
+`git status --short` afterward shows no `media/concepts/` and no captures.
+
+Author-gated follow-up (NOT part of this task, do not commit it now): after
+reviewing the `/tmp/opencode/` side-by-side captures, the author decides keep or
+revert in a SEPARATE follow-up commit — either keep the rasters (and optionally
+wire more kinds/ids, updating the `raster_trial` fallback-count probes if every
+kind/id gains an asset) or remove `assets/icons/generated/` entirely and revert
+to code-only.
+
+---
+
 ### Task 8: Final verification
 
 Files:
@@ -3340,7 +3594,7 @@ Run:
 godot --headless --path . -- --autotest
 ~~~
 
-Expected: the final line is `AUTOTEST_ALL_PASS`, with zero `AT_FAIL` lines anywhere in the output and all `AT_STEP` sections (including `hud_style`, `era_accent`, `text_overflow`, `touch_hud_layout`, `mote_sweep`, `oom_identity`, `difficulty`, `achievements_panel`, `glyph_lib`, `icon_quality`, `story_intro_auto`, `story_intro_layout`) present.
+Expected: the final line is `AUTOTEST_ALL_PASS`, with zero `AT_FAIL` lines anywhere in the output and all `AT_STEP` sections (including `hud_style`, `era_accent`, `text_overflow`, `touch_hud_layout`, `mote_sweep`, `oom_identity`, `difficulty`, `achievements_panel`, `glyph_lib`, `icon_quality`, `raster_trial`, `story_intro_auto`, `story_intro_layout`) present.
 
 - [ ] Step 2: Repeat at default settings integrity
 
@@ -3380,3 +3634,9 @@ git commit -m "fix: address final verification findings"
 ~~~
 
 (Only when a fix was actually needed; otherwise skip this commit.)
+
+---
+
+## Final Notes
+
+- A generated-sprite trial for enemies/bosses/playable programs is APPROVED and SCHEDULED for a future session after this pack — do not implement it now; the identity is the neon geometric terminal style, not the drawing technique, so raster assets are welcome wherever a same-size in-game comparison proves they look better.

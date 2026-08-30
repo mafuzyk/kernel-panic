@@ -7,16 +7,20 @@
 Fix six diagnosed bugs (story intro overflow/rushing/enemy pre-spawn, opaque combat
 HUD, HUD ignoring era color, mote pickup tunneling) and add two approved features
 (EASY/NORMAL/HARD difficulty for endless modes, code-drawn enemy/program glyph
-rework) while keeping every existing behavior, the code-drawn neon identity, and
-the full autotest suite green at default settings.
+rework) while keeping every existing behavior, the neon geometric terminal identity,
+and the full autotest suite green at default settings.
 
 ## Non-Goals
 
 - No changes to Story mode's fixed per-stage difficulty curve.
 - No touch control, controller, or input-remap work (controller remains unsupported).
-- No raster sprites, textures, or new binary assets; approved mocks are targets, not
-  committed assets. (Task 7b exception: proven-win icon rasters under
-  `assets/icons/generated/`, committed only after same-size comparison approval.)
+- Approved mocks are targets, not committed assets. Raster icon trials (Tasks 7b/7c)
+  ship under `assets/icons/generated/` only where a same-size in-game comparison
+  proves they look better than the code-drawn version — the identity is the neon
+  geometric terminal style, not the drawing technique (code-drawn was only the
+  original technique because sprites were harder to make; author statement
+  2026-08-29). No entity raster sprites in this pack; a generated-sprite trial for
+  enemies/bosses/playable programs is approved and scheduled for a future session.
 - No edits to locked balance constants (`WAVE_SCALE_CAP`, base `wave_budget`,
   `max_alive`, `elite_chance`, cadence floor 0.78) — difficulty acts as multipliers
   at read points only.
@@ -287,8 +291,11 @@ implementer never calls imagegen. Every candidate is judged critically at the
 same pixel size as the shipped icon. A raster ships only when the same-size
 comparison proves it beats the code-drawn version; otherwise the generated art
 serves as visual reference and the icon is implemented as a crisper code-drawn
-drawing. The code-drawn version always remains the identity and fallback; rasters
-are never placeholders. Any winning raster is trimmed, transparent-compatible,
+drawing. The code-drawn version always remains the fallback; rasters are never
+placeholders. The identity is the neon geometric terminal style, not the drawing
+technique — code-drawn was only the original technique because sprites were harder
+to make (author correction, 2026-08-29) — and rasters are welcome wherever a
+same-size in-game comparison proves they look better. Any winning raster is trimmed, transparent-compatible,
 stored at `assets/icons/generated/`, and committed only after the comparison is
 approved, wired through a registry that keeps the code path alive.
 
@@ -310,6 +317,52 @@ bounds stay contained at 24px and 52px; any raster resolves only through the
 registry with the code-drawn fallback intact. KP_SHOT captures of the menu and
 arena at 1366x768 and 432x720 plus an interactive pause/patch-card check confirm
 containment and readability at both sizes.
+
+## Task 7c — Raster icon trial (generated textures behind the registries)
+
+**Facts.** Task 7b shipped `raster_path(kind)` in `src/ui/tactical_icon.gd` and
+`patch_raster_path(id)` in `src/ui/patch_card.gd` (both fall back to the code-drawn
+drawing when no asset exists; only `patch_card._draw_icon` consumes a raster so far).
+The orchestrator generated two trial sheets (gitignored, never committed):
+`media/concepts/ui-icons-trial.png` (5x2 grid on pure black: play, restart, terminal,
+warning, chevrons, speaker, music note, low-poly skull, shield keyhole, trophy
+hexagon) and `media/concepts/patch-icons-trial.png` (3x2 grid: pierce hex magenta,
+dot-grid hex amber, chevron hex cyan, shield hex lime, fire-up hex orange, magnet
+hex cyan).
+
+**Design.** Six steps, one commit:
+
+1. Failing harness check: the `raster_path`/`patch_raster_path` registries resolve a
+   loadable texture for every icon kind / patch id that has a generated asset, and
+   return an empty path (code-drawn fallback) for every one that does not — both
+   paths exercised.
+2. Crop the two trial sheets into individual transparent-background PNGs with
+   ImageMagick (black-keying + trim; 128px masters downscaled to 52px and 24px
+   variants) into `assets/icons/generated/` — committed only in this task's commit
+   if the author approves; the task ships them on a visible trial basis wired
+   through the registries.
+3. Wire the registries to the generated textures: give `tactical_icon.gd` `_draw()`
+   the same raster-first branch `patch_card._draw_icon` already has, and land the
+   PNGs at the registry names (`<kind>.png`, `patch_<id>.png`).
+4. Side-by-side in-game captures (code-drawn vs raster) of the pause panel, settings
+   rows, and patch selection at 1366x768 — saved to `/tmp/opencode/` for author
+   review; captures are never committed.
+5. Full autotest `AUTOTEST_ALL_PASS` with zero `AT_FAIL` — the registries must not
+   break headless runs where textures may be absent.
+6. Commit `feat: trial generated raster icons behind registry fallback`.
+
+The final decision (ship raster vs revert to code-only) belongs to the author after
+reviewing the captures; the follow-up commit (either keep or remove the PNGs) is
+author-gated, separate, and not part of this task.
+
+**Files.** `src/ui/tactical_icon.gd` (raster draw branch + registry comment),
+`src/autoload/dev_harness.gd`; `assets/icons/generated/` (trial PNGs + `.import`
+sidecars).
+
+**Verification.** Harness: registry probes cover both paths (resolved texture for
+shipped assets; empty path / code-drawn fallback for the rest); full autotest
+`AUTOTEST_ALL_PASS` with zero `AT_FAIL`; side-by-side captures of pause, settings
+rows, and patch selection exist in `/tmp/opencode/` for the author.
 
 ## Task 4b — Mobile combat HUD adaptation
 
@@ -391,7 +444,8 @@ banner shows only the subtitle below the encounter panel.
 - Mobile-first: touch behavior unchanged; any desktop-only convenience is gated by
   `Balance.is_desktop_display()`.
 - Locked difficulty constants are never edited directly — multipliers at read
-  points only. No controller support. No new binary assets.
+  points only. No controller support. No new binary assets beyond the Task 7b/7c
+  trial icon rasters under `assets/icons/generated/`.
 - Visual tasks are verified by running the game fullscreen/windowed with the
   `KP_SHOT` capture hook and comparing screenshots against the approved mocks
   (references live outside the repo and are never committed).
@@ -421,6 +475,22 @@ banner shows only the subtitle below the encounter panel.
   (ScrollContainer body, X/Y header, hints) plus a harness guard that mid-run
   unlocks surface in the in-run HUD event log; persistence untouched.
 - Icon quality pass across tactical icons and patch hex icons: orchestrator-driven
-  imagegen concept sheets as reference only; rasters ship solely on proven
-  same-size wins into `assets/icons/generated/` with the code-drawn icons as the
-  permanent identity and fallback.
+  imagegen concept sheets; rasters ship on proven same-size wins into
+  `assets/icons/generated/` with the code-drawn icons as the permanent fallback —
+  the identity is the neon geometric terminal style, not the drawing technique.
+- Task 7c ships the generated icon rasters as a visible trial behind the registry
+  fallback; keep-or-revert is author-gated after reviewing the side-by-side
+  captures.
+- Task 7c author ruling (2026-08-29): the neon geometric terminal STYLE is the
+  identity; code-drawn was only the original technique.
+- Task 7c author ruling (2026-08-29): hybrid contextual icons — UI icon glyphs are
+  the clean frameless style; the angular corner-bracket frame (cross ticks) is
+  drawn in code by tactical_icon as a conditional overlay ONLY where the placement
+  has no existing frame (new placements), never where panel/button chrome already
+  frames it (pause buttons, HUD panels, touch rings — no double framing); a
+  `framed` parameter (default false) was added to tactical_icon's configure/draw
+  path.
+- Task 7c author ruling (2026-08-29): the generated-sprite trial for
+  enemies/programs stays scheduled post-pack; entity glyphs are untouched.
+- A generated-sprite trial for enemies/bosses/playable programs is approved and
+  scheduled for a future session after this pack (do not implement now).
