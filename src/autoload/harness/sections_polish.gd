@@ -157,3 +157,22 @@ func _bestiary_glyph_test() -> void:
 	h._check(saw_glyph_entry, "bestiary report carries the glyph_contained entry")
 	h._check(all_fit, "bestiary detail stays contained including glyphs at 1366x768, 720x720, and 432x720")
 	panel.free()
+
+func _raster_optical_test() -> void:
+	print("AT_STEP raster_optical")
+	var icon_script: Script = load("res://src/ui/tactical_icon.gd")
+	h._check(icon_script != null and icon_script.has_method("optical_pad") and icon_script.has_method("raster_optouts"), "tactical icon exposes optical padding and the per-size opt-out registry")
+	if icon_script == null:
+		return
+	for kind in icon_script.call("icon_kinds"):
+		var pad: float = icon_script.call("optical_pad", str(kind))
+		h._check(pad >= 0.02 and pad <= 0.14, "%s icon optical padding stays in the 0.02..0.14 band" % str(kind))
+	var src := str(icon_script.source_code)
+	h._check(src.contains("raster_path(_kind, int(minf(size.x, size.y)))"), "icon draw queries the registry with its rendered size")
+	h._check(src.contains("draw_texture_rect(tex, Rect2(Vector2(pad, pad)"), "icon raster draws into the padded rect")
+	var patch_script: Script = load("res://src/ui/patch_card.gd")
+	h._check(patch_script != null and str(patch_script.source_code).contains("PATCH_RASTER_PAD"), "patch card raster draws into the padded rect")
+	var music_small: String = icon_script.call("raster_path", "music", 24)
+	h._check(music_small.is_empty(), "24px opt-out kinds fall back to the code-drawn icon")
+	var music_big: String = icon_script.call("raster_path", "music", 52)
+	h._check(not music_big.is_empty() and ResourceLoader.exists(music_big), "52px keeps the raster for opt-out kinds")

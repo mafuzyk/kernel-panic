@@ -57,6 +57,26 @@ const ICON_BOUNDS := {
 	"check": Rect2(0.22, 0.24, 0.56, 0.52),
 }
 
+## Optical padding per kind (fraction of the icon size inset per side) so the
+## raster glyph's visual center and stroke weight match the code baseline at
+## 52px and 24px; the texture is drawn into the padded rect, never edge-to-edge.
+const ICON_OPTICAL := {
+	"settings": 0.06, "bestiary": 0.06, "dash": 0.05, "back": 0.08, "resume": 0.10,
+	"restart": 0.06, "terminal": 0.08, "audio": 0.07, "music": 0.10, "warning": 0.06,
+	"awards": 0.07, "check": 0.10,
+}
+
+## Per-kind x per-size opt-out list: where a raster reads blurry at a size, the
+## registry returns "" for that size and the code fallback renders. Documented
+## and harness-visible; the author may extend it after the trim review (Task 9).
+const RASTER_OPTOUT := {"music": [24]}
+
+static func optical_pad(icon_kind: String) -> float:
+	return float(ICON_OPTICAL.get(icon_kind, 0.06))
+
+static func raster_optouts() -> Dictionary:
+	return RASTER_OPTOUT.duplicate(true)
+
 static func icon_kinds() -> Array:
 	return ICON_METRICS.keys()
 
@@ -78,7 +98,9 @@ static var _raster_tex_cache := {}
 ## Raster registry: trial rasters only; empty string keeps the code-drawn fallback
 ## active. Never used as a placeholder. The identity is the neon geometric terminal
 ## style, not the drawing technique (author correction, 2026-08-29).
-static func raster_path(icon_kind: String) -> String:
+static func raster_path(icon_kind: String, render_size: int = 0) -> String:
+	if render_size > 0 and RASTER_OPTOUT.get(icon_kind, []).has(render_size):
+		return ""
 	var path := RASTER_DIR + icon_kind + ".png"
 	return path if ResourceLoader.exists(path) else ""
 
@@ -97,14 +119,15 @@ func _points_closed(points: PackedVector2Array, color: Color = _line_color(), wi
 func _draw() -> void:
 	if size.x <= 2.0 or size.y <= 2.0:
 		return
-	var raster := raster_path(_kind)
+	var raster := raster_path(_kind, int(minf(size.x, size.y)))
 	if raster != "":
 		if not _raster_tex_cache.has(raster):
 			_raster_tex_cache[raster] = load(raster)
 			queue_redraw()
 		var tex: Texture2D = _raster_tex_cache[raster]
 		if tex != null:
-			draw_texture_rect(tex, Rect2(Vector2.ZERO, size), false)
+			var pad := optical_pad(_kind) * minf(size.x, size.y)
+			draw_texture_rect(tex, Rect2(Vector2(pad, pad), size - Vector2(pad * 2.0, pad * 2.0)), false)
 			if _framed:
 				_draw_frame_overlay()
 			return

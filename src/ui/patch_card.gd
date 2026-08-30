@@ -111,7 +111,8 @@ func _draw_icon(center: Vector2, accent: Color) -> void:
 			queue_redraw()
 		var tex: Texture2D = _raster_tex_cache[raster]
 		if tex != null:
-			draw_texture_rect(tex, Rect2(center - Vector2(26.0, 26.0), Vector2(52.0, 52.0)), false)
+			var pad: float = PATCH_RASTER_PAD * 52.0
+			draw_texture_rect(tex, Rect2(center - Vector2(26.0 - pad, 26.0 - pad), Vector2(52.0 - pad * 2.0, 52.0 - pad * 2.0)), false)
 			return
 	match patch_icon_family(id):
 		"damage":
@@ -139,6 +140,10 @@ const PATCH_ICON_FAMILIES := {
 }
 
 const RASTER_DIR := "res://assets/icons/generated/"
+
+## Optical pad fraction for patch rasters inside the 52px hex slot; matches the
+## tactical_icon optical pass so rasters and code glyphs share stroke weight.
+const PATCH_RASTER_PAD := 0.08
 
 ## Textures must finish loading before the frame that draws them: a load() first
 ## issued inside _draw() records the command before the GPU upload exists and

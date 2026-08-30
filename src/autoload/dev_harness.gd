@@ -414,6 +414,7 @@ func _autotest() -> void:
 	await _sec_visual._glyph_lib_test()
 	await _sec_visual._icon_quality_test()
 	await _sec_visual._raster_trial_test()
+	await _sec_polish._raster_optical_test()
 	await _sec_visual._charm_terminal_test(arena2)
 	await _sec_visual._charm_speedrun_test(arena2)
 	await _sec_modes._touch_test()
