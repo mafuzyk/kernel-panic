@@ -2,6 +2,7 @@ class_name TerminalPanel
 extends Control
 
 const TacticalStateSurfaceHelper = preload("res://src/ui/tactical_state_surface.gd")
+const COMMAND_COMPLETIONS := ["help", "top", "dmesg", "man ", "sudo heal", "rm -rf /"]
 
 var arena: Node
 var _surface: Control
@@ -12,6 +13,9 @@ var _header_status: Label
 var _system_status: Label
 var _command_count := 0
 var _cursor_t := 0.0
+var _history: Array[String] = []
+var _history_index := -1
+var _history_draft := ""
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -43,6 +47,7 @@ func submit_command(command: String) -> String:
 	var clean := command.strip_edges()
 	if clean.is_empty() or arena == null or not is_instance_valid(arena):
 		return ""
+	_remember_command(clean)
 	var result := str(arena.call("execute_terminal_command", clean))
 	_command_count += 1
 	_append_output("$ " + clean + "\n" + result)
@@ -50,6 +55,21 @@ func submit_command(command: String) -> String:
 	if clean.to_lower() == "rm -rf /":
 		visible = false
 	return result
+
+func history_snapshot() -> Array[String]:
+	return _history.duplicate()
+
+func autocomplete_text(prefix: String) -> String:
+	if prefix.is_empty():
+		return prefix
+	var needle := prefix.to_lower()
+	var matches: Array[String] = []
+	for candidate in COMMAND_COMPLETIONS:
+		if str(candidate).begins_with(needle) and str(candidate) != prefix:
+			matches.append(str(candidate))
+	if matches.size() != 1:
+		return prefix
+	return matches[0]
 
 func output_text() -> String:
 	return _output.text if _output != null and is_instance_valid(_output) else ""
@@ -237,9 +257,22 @@ func _on_command_submitted(_text: String) -> void:
 ## the terminal unclosable while typing. The legend promises "ESC CLOSE": eat
 ## the key here and route it to the same close path as handle_pause_input.
 func _on_input_gui_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
-		_input.accept_event()
-		close_terminal()
+	if not event is InputEventKey or not event.pressed or event.echo:
+		return
+	var keycode: int = event.physical_keycode if event.physical_keycode != 0 else event.keycode
+	match keycode:
+		KEY_ESCAPE:
+			_input.accept_event()
+			close_terminal()
+		KEY_UP:
+			_input.accept_event()
+			_history_previous()
+		KEY_DOWN:
+			_input.accept_event()
+			_history_next()
+		KEY_TAB:
+			_input.accept_event()
+			_autocomplete()
 
 func _submit_input() -> void:
 	if _input == null or not is_instance_valid(_input):
@@ -251,6 +284,42 @@ func _submit_input() -> void:
 	submit_command(command)
 	if visible:
 		_input.grab_focus()
+
+func _remember_command(command: String) -> void:
+	if _history.is_empty() or _history[_history.size() - 1] != command:
+		_history.append(command)
+	_history_index = -1
+	_history_draft = ""
+
+func _history_previous() -> void:
+	if _history.is_empty():
+		return
+	if _history_index == -1:
+		_history_draft = _input.text
+		_history_index = _history.size() - 1
+	elif _history_index > 0:
+		_history_index -= 1
+	_input.text = _history[_history_index]
+	_input.caret_column = _input.text.length()
+
+func _history_next() -> void:
+	if _history_index == -1:
+		return
+	if _history_index < _history.size() - 1:
+		_history_index += 1
+		_input.text = _history[_history_index]
+	else:
+		_history_index = -1
+		_input.text = _history_draft
+		_history_draft = ""
+	_input.caret_column = _input.text.length()
+
+func _autocomplete() -> void:
+	var completed := autocomplete_text(_input.text)
+	if completed == _input.text:
+		return
+	_input.text = completed
+	_input.caret_column = _input.text.length()
 
 func _append_output(text: String) -> void:
 	if _output == null or not is_instance_valid(_output):
