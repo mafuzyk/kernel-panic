@@ -392,6 +392,10 @@ func dismiss_story_intro() -> bool:
 	return _intro_kit.dismiss_story_intro()
 
 
+func show_event_banner(txt: String) -> void:
+	_intro_kit.show_event_banner(txt)
+
+
 func windows_stage_profile() -> Dictionary:
 	return _stage_kit.windows_stage_profile()
 
