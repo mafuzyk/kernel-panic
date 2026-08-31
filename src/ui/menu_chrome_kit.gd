@@ -462,6 +462,9 @@ func _build_button_row() -> void:
 	settings_btn.z_index = 2
 	settings_btn.pressed.connect(m._open_settings)
 	row.add_child(settings_btn)
+	# Restores the six-frame registry: frames 3..5 follow the footer slots via
+	# apply_menu_layout (geometry-free here; accents match the original design).
+	_add_menu_frame(Rect2(), Balance.COL_TEXT, 0.015)
 	var best_btn := Button.new()
 	_style_card_button(best_btn, Balance.COL_SPEWER, Vector2(0, FOOTER_H))
 	best_btn.text = "BESTIARY"
@@ -470,6 +473,7 @@ func _build_button_row() -> void:
 	best_btn.z_index = 2
 	best_btn.pressed.connect(m._open_bestiary)
 	row.add_child(best_btn)
+	_add_menu_frame(Rect2(), Balance.COL_SPEWER, 0.02)
 	var ach_btn := Button.new()
 	_style_card_button(ach_btn, TacticalUIHelper.LIME, Vector2(0, FOOTER_H))
 	ach_btn.text = "AWARDS"
@@ -478,6 +482,7 @@ func _build_button_row() -> void:
 	ach_btn.z_index = 2
 	ach_btn.pressed.connect(m._open_achievements)
 	row.add_child(ach_btn)
+	_add_menu_frame(Rect2(), TacticalUIHelper.LIME, 0.02)
 	m._mode_info = Label.new()
 	m._mode_info.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	m._mode_info.add_theme_font_size_override("font_size", 12)
