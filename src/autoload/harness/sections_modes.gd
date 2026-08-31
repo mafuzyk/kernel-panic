@@ -287,7 +287,7 @@ func _capture() -> void:
 				h._populate(arena, 2)
 				await h._ticks(20)
 				arena._set_paused(true)
-				arena._open_terminal()
+				arena._panel_kit._open_terminal()
 	await h._ticks(frames)
 	await RenderingServer.frame_post_draw
 	var img := h.get_viewport().get_texture().get_image()
