@@ -912,22 +912,14 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			KEY_F4:
 				debug_clear_combatants()
-		get_viewport().set_input_as_handled()
-		return
+				get_viewport().set_input_as_handled()
+				return
 	if _terminal_panel != null and _terminal_panel.visible:
 		if event.is_action_pressed("pause"):
 			_panel_kit._close_terminal()
 			get_viewport().set_input_as_handled()
 		return
-	if _patch_open:
-		if event is InputEventKey and event.pressed and not event.echo:
-			var k: int = event.physical_keycode
-			if k == KEY_1:
-				_pick_patch(0)
-			elif k == KEY_2:
-				_pick_patch(1)
-			elif k == KEY_3:
-				_pick_patch(2)
+	if handle_paused_gameplay_input(event):
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("pause"):
@@ -938,19 +930,41 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _state == "dead":
 			Game.to_menu()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("restart") and get_tree().paused and _state == "play":
-		_set_paused(false)
-		_restart_current_run()
-		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("confirm") and _state == "dead":
 		_restart_current_run()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("abandon") and get_tree().paused and _state == "play":
+
+## Routes the input branches that must work while the tree is paused (R01/R02):
+## patch digits and pause-menu restart/abandon. Called from _unhandled_input
+## when the tree is unpaused (no-op there) and from PauseInputRouter when the
+## Arena itself cannot receive input, so gameplay stays frozen and events are
+## never processed twice. The terminal keeps precedence: typed keys go to the
+## LineEdit and ESC is handled solely by handle_pause_input.
+func handle_paused_gameplay_input(event: InputEvent) -> bool:
+	if _patch_open:
+		if event is InputEventKey and event.pressed and not event.echo:
+			var k: int = event.physical_keycode
+			if k == KEY_1:
+				_pick_patch(0)
+			elif k == KEY_2:
+				_pick_patch(1)
+			elif k == KEY_3:
+				_pick_patch(2)
+		return true
+	if not get_tree().paused or _state != "play":
+		return false
+	if _terminal_panel != null and is_instance_valid(_terminal_panel) and _terminal_panel.visible:
+		return false
+	if event.is_action_pressed("restart"):
+		_set_paused(false)
+		_restart_current_run()
+		return true
+	if event.is_action_pressed("abandon"):
 		if event is InputEventKey and event.echo:
-			get_viewport().set_input_as_handled()
-			return
+			return true
 		_request_abandon_confirmation()
-		get_viewport().set_input_as_handled()
+		return true
+	return false
 
 func _set_paused(v: bool) -> void:
 	if not v:
