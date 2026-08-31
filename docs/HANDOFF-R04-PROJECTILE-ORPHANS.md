@@ -34,9 +34,16 @@ disparo, acumulando com os disparos (não só na saída).
 ## Correção (mínima)
 
 Remoção da linha `var b := PlayerBullet.new()` — nenhuma outra linha da
-função tocada. Quantidade, direção, velocidade, recoil (`vel -= dir * 26.0`),
-muzzle, som e `Game.stats["shots"]` preservados (verificado pelo probe:
-contagens de projéteis vivos idênticas antes/depois do fix).
+função tocada.
+
+**Comportamento testado pelo probe:** quantidade de projéteis vivos
+(10 disparos → 10; splitshot nv.2 → 3/tiro; pós-reinício → 10) e ausência
+de novos órfãos por ciclo de disparo.
+
+**Comportamento preservado por inspeção do diff, não verificado pelo
+probe:** direção, velocidade, recoil (`vel -= dir * 26.0`), muzzle, som e
+`Game.stats["shots"]` — a correção remove apenas uma criação não
+referenciada; o restante da função é byte-idêntico ao original.
 
 ## Teste (determinístico, reutilizável)
 
