@@ -234,7 +234,7 @@ func _spawn_story_boss() -> void:
 		if generation != _spawn_generation or not _running or not is_instance_valid(container):
 			return
 		_awaiting_boss = false
-		_boss = RootBoss.new()
+		_boss = GodBoss.new() if _story_boss_kind == "god" else RootBoss.new()
 		_boss.boss_index = idx
 		_boss.threat_wave = wave
 		_boss.configure(float(story_stage.get("boss_scale", _story_wave_scale)), false)
