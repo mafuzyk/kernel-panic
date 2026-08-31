@@ -171,22 +171,22 @@ func steal(idx: int) -> int:
 	_flags[idx] &= ~F_MAGNET
 	return idx
 
-func release_all_stolen() -> void:
+func release_all_stolen(ids: Array = []) -> void:
 	for i in _count:
-		if (_flags[i] & F_STOLEN) != 0:
+		if (_flags[i] & F_STOLEN) != 0 and (ids.is_empty() or _uid[i] in ids):
 			_flags[i] &= ~F_STOLEN
 			_vel[i] = Vector2.from_angle(Game.rng.randf() * TAU) * 180.0
 			_life[i] = maxf(_life[i], 6.0)
 
-func free_all_stolen() -> void:
+func free_all_stolen(ids: Array = []) -> void:
 	for i in range(_count - 1, -1, -1):
-		if (_flags[i] & F_STOLEN) != 0:
+		if (_flags[i] & F_STOLEN) != 0 and (ids.is_empty() or _uid[i] in ids):
 			kill_slot(i)
 
 func stolen_positions_of(ids: Array) -> Array:
 	var out: Array = []
 	for i in _count:
-		if (_flags[i] & F_STOLEN) != 0:
+		if (_flags[i] & F_STOLEN) != 0 and _uid[i] in ids:
 			out.append(i)
 	return out
 

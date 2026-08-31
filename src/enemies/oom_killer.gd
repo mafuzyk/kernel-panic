@@ -98,16 +98,16 @@ func _steal(idx: int, expected_uid: int = -1) -> void:
 
 func _escape() -> void:
 	var f := _field()
-	if f != null:
-		f.free_all_stolen()
+	if f != null and not carried_ids.is_empty():
+		f.free_all_stolen(carried_ids)
 	carried_ids.clear()
 	Fx.ring(global_position, col, 6.0, 30.0, 0.3, 2.0)
 	queue_free()
 
 func die() -> void:
 	var f := _field()
-	if f != null:
-		f.release_all_stolen()
+	if f != null and not carried_ids.is_empty():
+		f.release_all_stolen(carried_ids)
 	carried_ids.clear()
 	Game.add_score(25)
 	Fx.text(global_position + Vector2(0, -24), "+25 RECOVERED", Balance.COL_MOTE, 12)
