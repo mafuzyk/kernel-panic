@@ -20,7 +20,11 @@ mkdir -p "$XDG"
 overall=0
 
 report_case() {
+	# report_case NAME LOG CODE PASS_PATTERN FAIL_PATTERN [PATTERN:::LABEL...]
+	# Required markers make empty/truncated runs fail even when the process
+	# exits 0 with no counted failures.
 	local name="$1" log="$2" code="$3" pass_pattern="$4" fail_pattern="$5"
+	shift 5
 	local passes fails
 	passes=$(grep -c "$pass_pattern" "$log" || true)
 	fails=$(grep -c "$fail_pattern" "$log" || true)
@@ -29,10 +33,19 @@ report_case() {
 		overall=1
 		grep "$fail_pattern" "$log" | sed 's/^/   FAIL: /'
 	fi
-	if [ "$code" -ne 0 ] && [ "$fails" -eq 0 ]; then
+	if [ "$code" -ne 0 ]; then
 		overall=1
-		echo "   FAIL: non-zero exit code without a counted failure (inspect $log)"
+		echo "   FAIL: non-zero exit code (inspect $log)"
 	fi
+	local spec pattern label
+	for spec in "$@"; do
+		pattern="${spec%%:::*}"
+		label="${spec#*:::}"
+		if ! grep -q "$pattern" "$log"; then
+			overall=1
+			echo "   FAIL: missing $label in $log (empty or truncated run)"
+		fi
+	done
 }
 
 report_errors() {
@@ -47,19 +60,23 @@ report_errors() {
 
 echo "--- suite headless ---"
 XDG_DATA_HOME="$XDG" godot --headless --path . -- --autotest > "$LOG_DIR/suite-headless.log" 2>&1
-report_case "suite headless (--autotest)" "$LOG_DIR/suite-headless.log" "$?" "AT_PASS" "AT_FAIL"
+report_case "suite headless (--autotest)" "$LOG_DIR/suite-headless.log" "$?" "AT_PASS" "AT_FAIL" \
+	'^AUTOTEST_ALL_PASS$:::AUTOTEST_ALL_PASS marker'
 report_errors "suite headless" "$LOG_DIR/suite-headless.log"
 echo
 
 echo "--- input dispatch probe ---"
 XDG_DATA_HOME="$XDG" godot --headless --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-headless.log" 2>&1
-report_case "input probe headless" "$LOG_DIR/probe-headless.log" "$?" "PROBE_PASS" "PROBE_FAIL"
+report_case "input probe headless" "$LOG_DIR/probe-headless.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+	'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 report_errors "input probe headless" "$LOG_DIR/probe-headless.log"
 echo
 
 if command -v xvfb-run >/dev/null 2>&1; then
 	XDG_DATA_HOME="$XDG" xvfb-run -a godot --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-xvfb.log" 2>&1
-	report_case "input probe xvfb (desktop debug)" "$LOG_DIR/probe-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL"
+	report_case "input probe xvfb (desktop debug)" "$LOG_DIR/probe-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker' \
+		'^PROBE_INFO debug_controls_enabled=true$:::debug_controls_enabled=true (desktop debug active)'
 	report_errors "input probe xvfb" "$LOG_DIR/probe-xvfb.log"
 else
 	echo "== input probe xvfb: SKIP (xvfb-run not found; R03 desktop-debug coverage incomplete)"
