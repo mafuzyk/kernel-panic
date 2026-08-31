@@ -80,9 +80,9 @@ func _arena_loaded() -> bool:
 	return get_tree().current_scene != null and get_tree().current_scene.name == "Arena"
 
 func _wait_arena_change(label: String) -> bool:
-	var prev := get_tree().current_scene
+	var prev_id := get_tree().current_scene.get_instance_id() if get_tree().current_scene != null else 0
 	return await _until(func() -> bool:
-		return _arena_loaded() and get_tree().current_scene != prev, 8.0, label)
+		return _arena_loaded() and get_tree().current_scene.get_instance_id() != prev_id, 8.0, label)
 
 func _push_escape() -> void:
 	var press := InputEventKey.new()

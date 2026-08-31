@@ -164,9 +164,10 @@ func _autotest() -> void:
 	await _sec_tasks_a._input_safety_test(arena)
 	Game.state = Game.State.PLAYING
 	get_tree().paused = false
+	var input_safety_arena_id := arena.get_instance_id()
 	Game.start_run()
 	ok = await _until(func() -> bool:
-		return get_tree().current_scene != null and get_tree().current_scene.name == "Arena" and get_tree().current_scene != arena, 6.0, "input safety arena reset")
+		return get_tree().current_scene != null and get_tree().current_scene.name == "Arena" and get_tree().current_scene.get_instance_id() != input_safety_arena_id, 6.0, "input safety arena reset")
 	if not ok:
 		return _finish()
 	arena = get_tree().current_scene
@@ -634,4 +635,3 @@ func _spawn_boss(arena: Arena, mk := 1) -> void:
 		var orb := EnemyOrb.new()
 		orb.setup(boss.global_position + Vector2.from_angle(TAU * i / 5.0) * 60.0, Vector2.from_angle(TAU * i / 5.0), 120.0, boss.col)
 		arena.enemy_container.add_child(orb)
-

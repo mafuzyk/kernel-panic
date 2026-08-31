@@ -58,9 +58,9 @@ func _arena_loaded() -> bool:
 	return get_tree().current_scene != null and get_tree().current_scene.name == "Arena"
 
 func _wait_arena_change(label: String) -> bool:
-	var prev := get_tree().current_scene
+	var prev_id := get_tree().current_scene.get_instance_id() if get_tree().current_scene != null else 0
 	return await _until(func() -> bool:
-		return _arena_loaded() and get_tree().current_scene != prev, 8.0, label)
+		return _arena_loaded() and get_tree().current_scene.get_instance_id() != prev_id, 8.0, label)
 
 func _pause_button(text: String) -> Button:
 	if _arena == null or _arena._pause_panel == null:
@@ -121,10 +121,10 @@ func _run() -> void:
 		return _arena._story_intro_state != 2, 4.0, "ESC dismisses story intro")
 	_push_key(KEY_ESCAPE)
 	_check(get_tree().paused, "R01 ESC pauses after story intro dismissal")
-	var story_arena := _arena
+	var story_arena_id := _arena.get_instance_id()
 	_push_key(KEY_R)
 	var restart_ok := await _until(func() -> bool:
-		return _arena_loaded() and get_tree().current_scene != story_arena, 8.0, "R restart reloads the stage")
+		return _arena_loaded() and get_tree().current_scene.get_instance_id() != story_arena_id, 8.0, "R restart reloads the stage")
 	_check(restart_ok, "R01 R restarts while paused with a real scene transition")
 	await _ticks(2)
 	if restart_ok:
@@ -206,10 +206,10 @@ func _run() -> void:
 	if not await _until(func() -> bool:
 		return _arena._over_panel != null and _arena._over_panel.visible, 6.0, "game over panel"):
 		return _finish()
-	var dead_arena := _arena
+	var dead_arena_id := _arena.get_instance_id()
 	_push_key(KEY_ENTER)
 	if not await _until(func() -> bool:
-		return _arena_loaded() and get_tree().current_scene != dead_arena, 8.0, "game-over ENTER reboots"):
+		return _arena_loaded() and get_tree().current_scene.get_instance_id() != dead_arena_id, 8.0, "game-over ENTER reboots"):
 		return _finish()
 	_arena = get_tree().current_scene
 	await _ticks(10)
@@ -218,7 +218,6 @@ func _run() -> void:
 	if not await _until(func() -> bool:
 		return _arena._over_panel != null and _arena._over_panel.visible, 6.0, "second game over panel"):
 		return _finish()
-	dead_arena = _arena
 	_push_key(KEY_ESCAPE)
 	if not await _until(func() -> bool:
 		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 8.0, "game-over ESC returns to menu"):
