@@ -169,6 +169,52 @@ func _run() -> void:
 	p.try_overclock()
 	_check(not p.overclock_active, "R05 rootlet never overclocks")
 
+	# ---- FASE 8B — KILL COMPLETA A RECARGA (bloqueador Codex) ----
+	# A carga por motes ativa o escudo ao atingir o cap; o kill bonus precisa
+	# fazer o mesmo, senão o escudo fica cheio mas desativado para sempre.
+	await _until(func() -> bool:
+		return p.invuln <= 0.0, 3.0, "invuln window expires before kill-completion cycle")
+	if not _precond(not p.shield_ready and is_zero_approx(p.shield_meter), "shield consumed before the kill-completion cycle"):
+		return _finish()
+	_spawn_motes(_arena, 16, p.global_position)
+	await _physics_ticks(12)
+	print("PROBE_INFO fase8b partial shield_meter=", p.shield_meter, " shield_ready=", p.shield_ready)
+	_check(is_equal_approx(p.shield_meter, 96.0) and not p.shield_ready, "R05 partial mote recharge leaves the shield inactive")
+	if await _kill_drone(_arena, p.global_position):
+		print("PROBE_INFO fase8b post-kill1 shield_meter=", p.shield_meter, " shield_ready=", p.shield_ready)
+		_check(is_equal_approx(p.shield_meter, 98.0) and not p.shield_ready, "R05 kill bonus below the cap does not activate the shield")
+	var emissions: Array = []
+	var on_meter := func(v: float, rdy: bool) -> void:
+		emissions.append([v, rdy])
+	p.meter_changed.connect(on_meter)
+	if await _kill_drone(_arena, p.global_position):
+		print("PROBE_INFO fase8b post-kill2 shield_meter=", p.shield_meter, " shield_ready=", p.shield_ready, " emissions=", emissions)
+		_check(p.shield_ready and is_equal_approx(p.shield_meter, Balance.OC_METER_MAX), "R05 kill bonus activates the shield at full charge")
+		_check(not emissions.is_empty() and is_equal_approx(float(emissions[emissions.size() - 1][0]), Balance.OC_METER_MAX) and bool(emissions[emissions.size() - 1][1]), "R05 kill completion emits the ready state on meter_changed")
+	var score_before_8b: int = Game.score
+	_spawn_motes(_arena, 1, p.global_position)
+	await _physics_ticks(12)
+	print("PROBE_INFO fase8b post-mote shield_meter=", p.shield_meter, " shield_ready=", p.shield_ready, " score_delta=", Game.score - score_before_8b)
+	_check(p.shield_ready and is_equal_approx(p.shield_meter, Balance.OC_METER_MAX), "R05 mote after kill-completed recharge does not deadlock")
+	_check(Game.score - score_before_8b == 5, "R05 mote with kill-recharged shield overflows to scrap")
+	var count_before := emissions.size()
+	if await _kill_drone(_arena, p.global_position):
+		print("PROBE_INFO fase8b post-kill3 shield_meter=", p.shield_meter, " shield_ready=", p.shield_ready, " emissions=", emissions.size())
+		_check(p.shield_ready and is_equal_approx(p.shield_meter, Balance.OC_METER_MAX) and emissions.size() == count_before, "R05 kill bonus with full shield emits nothing and keeps the meter")
+	await _until(func() -> bool:
+		return p.invuln <= 0.0, 3.0, "invuln window expires before kill-recharged hit")
+	var hp_before: int = p.hp
+	p.take_damage(p.global_position)
+	print("PROBE_INFO fase8b post-hit hp=", p.hp, " shield_meter=", p.shield_meter, " shield_ready=", p.shield_ready)
+	_check(p.hp == hp_before, "R05 kill-recharged shield absorbs a hit without HP loss")
+	_check(not p.shield_ready and is_zero_approx(p.shield_meter), "R05 kill-recharged shield is consumed by the hit")
+	_spawn_motes(_arena, 17, p.global_position)
+	await _until(func() -> bool:
+		return p.shield_ready, 6.0, "shield recharge after kill-recharged consume")
+	print("PROBE_INFO fase8b recharge2 shield_meter=", p.shield_meter, " shield_ready=", p.shield_ready)
+	_check(p.shield_ready and is_equal_approx(p.shield_meter, Balance.OC_METER_MAX), "R05 shield recharges again after the kill-recharged consume")
+	p.meter_changed.disconnect(on_meter)
+
 	# ---- FASE 9: kernel control — motes keep charging overclock there
 	Game.set_program("kernel")
 	Game.start_run()
