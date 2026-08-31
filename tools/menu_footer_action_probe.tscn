@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource path="res://tools/menu_footer_action_probe_boot.gd" type="Script" id="1"]
+
+[node name="MenuFooterActionProbeBoot" type="Node"]
+script = ExtResource("1")

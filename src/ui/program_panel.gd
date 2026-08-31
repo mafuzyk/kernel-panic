@@ -60,6 +60,11 @@ func content_viewport_rect() -> Rect2:
 	var metrics := _content_metrics()
 	return Rect2(0.0, float(metrics["viewport_top"]), size.x, float(metrics["viewport_h"]))
 
+func boot_action_rect() -> Rect2:
+	var footer: Rect2 = TacticalUIHelper.shell_sections(size)["footer"]
+	var legend := Rect2(footer.position, Vector2(maxf(size.x * 0.66, 360.0), footer.size.y - 4.0))
+	return Rect2(Vector2(legend.end.x + 14.0, footer.position.y), Vector2(maxf(size.x - legend.end.x - 30.0, 220.0), footer.size.y - 4.0))
+
 func visible_card_rects() -> Array[Rect2]:
 	var result: Array[Rect2] = []
 	var viewport := content_viewport_rect()
@@ -213,8 +218,6 @@ func _draw() -> void:
 	var boot_points := TacticalUIHelper.angular_points(boot, 9.0)
 	draw_colored_polygon(boot_points, Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.08))
 	draw_polyline(boot_points + PackedVector2Array([boot_points[0]]), TacticalUIHelper.CYAN, 1.7, true)
-	draw_string(orbitron, boot.position + Vector2(22.0, 30.0), ">> BOOT KERNEL", HORIZONTAL_ALIGNMENT_LEFT, boot.size.x - 100.0, 16, TacticalUIHelper.CYAN)
-	draw_string(mono, boot.position + Vector2(boot.size.x - 74.0, 30.0), "[ENTER]", HORIZONTAL_ALIGNMENT_RIGHT, 62.0, 10, TacticalUIHelper.TEXT)
 
 func _draw_silhouette(key: String, c: Color) -> void:
 	var program_kind: String = {"kernel_arrow": "kernel", "daemon_fork": "daemon", "rootlet_block": "rootlet"}.get(key, "")
@@ -241,6 +244,7 @@ func _draw_silhouette(key: String, c: Color) -> void:
 
 func text_overflow_report() -> Array:
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
+	var orbitron: Font = load("res://assets/fonts/Orbitron.ttf")
 	var out: Array = []
 	var longest_summary := ""
 	var longest_stat_line := ""
@@ -255,4 +259,7 @@ func text_overflow_report() -> Array:
 	var card_w: float = float(_content_metrics().get("card_w", minf(430.0, (size.x - 48.0) * 0.5)))
 	out.append({"id": "program_summary", "fits": TacticalUI.wrapped_height(mono, longest_summary, card_w - 32.0, 12) <= 34.0 or TacticalUI.wrapped_height(mono, longest_summary, card_w - 32.0, 10) <= 34.0})
 	out.append({"id": "program_stats", "fits": mono.get_string_size(longest_stat_line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x <= card_w - 32.0})
+	var action_rect := boot_action_rect()
+	var action_text := ">> BOOT ROOTLET  [ENTER]"
+	out.append({"id": "boot_action", "fits": orbitron.get_string_size(action_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x <= action_rect.size.x - 24.0 or orbitron.get_string_size(action_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x <= action_rect.size.x - 24.0})
 	return out

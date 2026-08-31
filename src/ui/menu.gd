@@ -31,6 +31,8 @@ var _bestiary_panel: BestiaryPanel
 var _ach_panel: Control
 var _program_panel: ProgramPanel
 var _story_panel: StoryPanel
+var _program_boot_button: Button
+var _story_mount_button: Button
 var _program_btn: Button
 var _story_btn: Button
 var _aim_btn_ref: Button
@@ -64,6 +66,7 @@ func _notification(what: int) -> void:
 			_settings_kit._layout_settings.call_deferred()
 		if _chrome_kit != null:
 			_chrome_kit.apply_menu_layout.call_deferred()
+		_layout_overlay_action_buttons()
 
 func _on_window_size_changed() -> void:
 	# Window resizes that keep the logical canvas size (uniform scale changes)
@@ -72,6 +75,39 @@ func _on_window_size_changed() -> void:
 		_settings_kit._layout_settings.call_deferred()
 	if _chrome_kit != null:
 		_chrome_kit.apply_menu_layout.call_deferred()
+	_layout_overlay_action_buttons()
+
+func _style_overlay_action(button: Button, accent: Color) -> void:
+	button.flat = true
+	button.focus_mode = Control.FOCUS_ALL
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
+	button.add_theme_font_size_override("font_size", 16)
+	button.add_theme_color_override("font_color", accent)
+	button.add_theme_color_override("font_hover_color", Balance.COL_TEXT)
+	button.add_theme_color_override("font_pressed_color", Balance.COL_TEXT)
+	button.add_theme_color_override("font_focus_color", Balance.COL_TEXT)
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	for state in ["normal", "hover", "pressed", "focus"]:
+		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+
+func _layout_overlay_action_buttons() -> void:
+	if _program_panel != null and is_instance_valid(_program_panel) and _program_boot_button != null and is_instance_valid(_program_boot_button):
+		var boot_rect := _program_panel.boot_action_rect()
+		_program_boot_button.position = boot_rect.position
+		_program_boot_button.size = boot_rect.size
+		_program_boot_button.add_theme_font_size_override("font_size", 16 if boot_rect.size.x >= 360.0 else 12)
+		_program_boot_button.text = ">> BOOT %s  [ENTER]" % Game.program_def().get("name", "KERNEL")
+	if _story_panel != null and is_instance_valid(_story_panel) and _story_mount_button != null and is_instance_valid(_story_mount_button):
+		var mount_rect := _story_panel.mount_action_rect()
+		_story_mount_button.position = mount_rect.position
+		_story_mount_button.size = mount_rect.size
+
+func _refresh_story_mount_action(_index: int = -1) -> void:
+	if _story_mount_button != null and _story_panel != null:
+		var selected := _story_panel.selected_stage_index()
+		_story_mount_button.text = "MOUNT %s  [ENTER]" % str(Game.story_stage_def(selected).get("path", "/boot"))
+		_story_mount_button.add_theme_color_override("font_color", _story_panel.card_accent(selected))
 
 func _desktop_keybinds_enabled() -> bool:
 	return Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
@@ -289,6 +325,7 @@ func _open_program_selector() -> void:
 		_program_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_program_panel.selection_changed.connect(func(_id: String) -> void:
 			_refresh_program_label()
+			_layout_overlay_action_buttons()
 		)
 		var title := Label.new()
 		title.text = "SELECT PROGRAM"
@@ -318,6 +355,13 @@ func _open_program_selector() -> void:
 		_chrome_kit._style_overlay_back(back)
 		back.pressed.connect(_close_program_selector)
 		_program_panel.add_child(back)
+		_program_boot_button = Button.new()
+		_program_boot_button.name = "BootAction"
+		_program_boot_button.text = ">> BOOT KERNEL  [ENTER]"
+		_program_boot_button.tooltip_text = "Boot the selected process"
+		_style_overlay_action(_program_boot_button, TacticalUIHelper.CYAN)
+		_program_boot_button.pressed.connect(_start)
+		_program_panel.add_child(_program_boot_button)
 		var layer := CanvasLayer.new()
 		layer.layer = 70
 		layer.add_child(_program_panel)
@@ -325,6 +369,7 @@ func _open_program_selector() -> void:
 	_program_panel.visible = true
 	_program_panel.scroll_y = 0.0
 	_program_panel.queue_redraw()
+	_layout_overlay_action_buttons()
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_program_selector() -> void:
@@ -339,6 +384,7 @@ func _open_story_selector() -> void:
 		_story_panel = story_script.new()
 		_story_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_story_panel.stage_selected.connect(_start_story)
+		_story_panel.selection_changed.connect(_refresh_story_mount_action)
 		var title := Label.new()
 		title.text = "SELECT MOUNT POINT"
 		title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
@@ -367,6 +413,12 @@ func _open_story_selector() -> void:
 		_chrome_kit._style_overlay_back(back)
 		back.pressed.connect(_close_story_selector)
 		_story_panel.add_child(back)
+		_story_mount_button = Button.new()
+		_story_mount_button.name = "MountAction"
+		_story_mount_button.tooltip_text = "Mount the selected story stage"
+		_style_overlay_action(_story_mount_button, TacticalUIHelper.CYAN)
+		_story_mount_button.pressed.connect(_confirm_story_selection)
+		_story_panel.add_child(_story_mount_button)
 		var layer := CanvasLayer.new()
 		layer.layer = 70
 		layer.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -375,12 +427,18 @@ func _open_story_selector() -> void:
 	_story_panel.visible = true
 	_story_panel.scroll_y = 0.0
 	_story_panel.queue_redraw()
+	_refresh_story_mount_action()
+	_layout_overlay_action_buttons()
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_story_selector() -> void:
 	if _story_panel != null:
 		_story_panel.visible = false
 	Sfx.play("ui", 0.9, -8.0)
+
+func _confirm_story_selection() -> void:
+	if _story_panel != null:
+		_story_panel.confirm_selection()
 
 func _start_story(index: int) -> void:
 	if _starting or not Game.story_stage_unlocked(index):
@@ -731,7 +789,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 		if event.is_action_pressed("confirm"):
-			_start_story(_story_panel.selected_stage_index())
+			_story_panel.confirm_selection()
 			get_viewport().set_input_as_handled()
 		return
 	if _bestiary_panel != null and _bestiary_panel.visible:

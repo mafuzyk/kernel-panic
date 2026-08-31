@@ -5,6 +5,7 @@ const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
 const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 
 signal stage_selected(index: int)
+signal selection_changed(index: int)
 
 var scroll_y := 0.0
 var _dragging := false
@@ -35,9 +36,21 @@ func select_stage(index: int) -> bool:
 	if not Game.story_stage_unlocked(index):
 		return false
 	_selected_stage = index
-	stage_selected.emit(index)
+	selection_changed.emit(index)
 	queue_redraw()
 	return true
+
+func confirm_selection() -> bool:
+	if not Game.story_stage_unlocked(_selected_stage):
+		return false
+	stage_selected.emit(_selected_stage)
+	return true
+
+func mount_action_rect() -> Rect2:
+	if not _is_wide():
+		return Rect2()
+	var footer: Rect2 = TacticalUIHelper.shell_sections(size)["footer"]
+	return Rect2(Vector2(size.x * 0.50, footer.position.y), Vector2(size.x * 0.46, footer.size.y - 4.0))
 
 func selected_stage_index() -> int:
 	return _selected_stage
@@ -341,14 +354,11 @@ func _draw() -> void:
 		draw_rect(Rect2(track.position.x, thumb_y, track.size.x, thumb_h), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.75))
 		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
 	if _is_wide():
-		var footer: Rect2 = TacticalUIHelper.shell_sections(size)["footer"]
-		var mount := Rect2(Vector2(size.x * 0.50, footer.position.y), Vector2(size.x * 0.46, footer.size.y - 4.0))
+		var mount := mount_action_rect()
 		var mount_points := TacticalUIHelper.angular_points(mount, 9.0)
 		var mount_accent := _stage_color(_selected_stage)
 		draw_colored_polygon(mount_points, Color(mount_accent.r, mount_accent.g, mount_accent.b, 0.08))
 		draw_polyline(mount_points + PackedVector2Array([mount_points[0]]), mount_accent, 1.7, true)
-		draw_string(orbitron, mount.position + Vector2(20.0, 30.0), "MOUNT %s" % str(Game.story_stage_def(_selected_stage).get("path", "/boot")), HORIZONTAL_ALIGNMENT_LEFT, mount.size.x - 110.0, 16, mount_accent)
-		draw_string(mono, mount.position + Vector2(mount.size.x - 76.0, 30.0), "[ENTER]", HORIZONTAL_ALIGNMENT_RIGHT, 62.0, 10, TacticalUIHelper.TEXT)
 
 func _draw_stage_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
 	var route_w: float = metrics["route_w"]
@@ -414,4 +424,7 @@ func text_overflow_report() -> Array:
 	var klog_width: float = maxf(rail_w - (minf(rail_w - 36.0, 170.0) + 38.0) - 18.0, 0.0)
 	out.append({"id": "klog_lines", "fits": mono.get_string_size(TacticalUI.ellipsis_fit(mono, longest_klog, klog_width, 10), HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x <= klog_width})
 	out.append({"id": "story_state_labels", "fits": mono.get_string_size("CLEARED", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0 and mono.get_string_size("CURRENT", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0 and mono.get_string_size("LOCKED", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0})
+	var mount_rect := mount_action_rect()
+	var mount_text := "MOUNT /boot  [ENTER]"
+	out.append({"id": "mount_action", "fits": mount_rect == Rect2() or orbitron.get_string_size(mount_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x <= mount_rect.size.x - 24.0})
 	return out
