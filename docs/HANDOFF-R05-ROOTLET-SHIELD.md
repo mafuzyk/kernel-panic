@@ -10,11 +10,15 @@ Branch: `codex/r05-rootlet-shield`, criada a partir da ponta atualizada de
 `codex/r04-projectile-orphans` — **hash-base `a0586d5`** (R04 + ajuste
 documental do handoff, aprovados). Sem merge para `main`.
 
-Commits (test → fix → docs, espelhando red→green):
+Commits (test → fix → docs em cada rodada, espelhando red→green):
 
 - `39f5ff3` — test: rootlet shield recharge regression probe (R05)
 - `a87f45c` — fix: shield_mode gates shield recharge, overflow full-shield motes to scrap (R05)
-- docs: handoff for R05 rootlet shield (este commit, ponta da branch)
+- `18799c4` — docs: handoff for R05 rootlet shield (entrega inicial do lote)
+- `614e9d5` — test: R05 kill-completed shield recharge via real enemy deaths (Codex blocker)
+- `f245c41` — fix: activate the shield when the kill bonus completes the charge (R05 blocker)
+- docs: handoff update — bloqueador + economia do overflow pendente (este
+  commit, ponta da branch)
 
 Alterações locais pré-existentes NÃO incluídas (working tree intacto):
 `src/ui/menu.gd`, `src/ui/menu_chrome_kit.gd`, `src/ui/tactical_icon.gd`,
@@ -48,13 +52,43 @@ Alterações locais pré-existentes NÃO incluídas (working tree intacto):
    passivo por design), `take_damage()`, `shield_ready_full()`, valores de
    `Balance` (MOTE_VALUE 6 / MOTE_KILL_VALUE 2 / OC_METER_MAX 100), HUD.
 
-**Decisão de derivação a validar pelo Codex:** o item 2 mapeia a regra
-existente de overflow para o estado análogo (escudo cheio). Sem isso, motes
-com escudo cheio continuariam carregando o meter de overclock morto (viola o
-aceite "o programa não deve entrar num estado de overclock inutilizável").
-Economicamente preserva o desfecho atual (score+scrap), apenas sem o estado
-morto intermediário. Nenhum valor inventado; alternativa descartada (A:
-apenas trocar o gate) deixaria o meter fantasma acessível com escudo cheio.
+**Mudança de economia — PENDENTE DE DECISÃO DO USUÁRIO:** o item 2 altera a
+economia do ROOTLET com escudo cheio. Antes, as primeiras coletas com
+escudo cheio alimentavam o meter de overclock inutilizável (sem pontos e
+sem progresso de scrap até o meter fantasma encher); agora cada mote
+excedente concede imediatamente +5 de score e progresso de scrap. A regra
+foi derivada do aceite "o programa não deve entrar num estado de overclock
+inutilizável" e do destino existente de meter cheio, mas **não constitui
+aprovação** — a decisão final de economia cabe ao usuário e permanece
+aberta. Nenhuma regra alternativa foi inventada. (Alegação anterior de
+"economia preservada" removida por incorreta, a pedido do Codex.)
+
+## Bloqueador Codex — kill completava a carga sem ativar a proteção (corrigido)
+
+**Achado (reprodução independente do Codex, confirmada no código):**
+`add_kill_mote_bonus()` podia levar `shield_meter` ao limite (98 + 2) sem
+ativar `shield_ready`; `shield_ready_full()` então impedia para sempre a
+entrada no trecho de ativação — a mote seguinte mantinha a proteção
+desativada (ia ao overflow), e `take_damage()`, que só consome com
+`shield_ready`, aplicava o dano direto ao HP.
+
+**Correção mínima** (`f245c41`): o branch do kill espelha a ativação do
+caminho de motes — ao atingir o limite, `shield_ready=true` + feedback
+"SHIELD READY" idêntico ao de `collect_mote()`, e
+`meter_changed.emit(shield_meter, shield_ready)` (estado correto no sinal;
+o `false` anterior era inconsistência pré-existente). Escudo cheio
+permanece no-op: sem emissão e sem feedback duplicado (o guard
+`if not shield_ready_full():` já garante que só a transição emite).
+
+**Red → Green (FASE 8B do probe, caminho real de morte de inimigo):**
+- `red-blocker.log` (antes do fix): exit 1, `fails=8` — `post-kill2
+  shield_meter=100.0 shield_ready=false emissions=[[100.0, false]]`; mote
+  seguinte no overflow com a proteção morta; impacto com `hp 5→4`;
+  recarga posterior em deadlock (`recharge2 ... ready=false`).
+- `green-blocker.log` (depois do fix): exit 0, 28 passes, `fails=0` — kill
+  ativa e emite `(100.0, true)`; mote seguinte sem travamento (overflow
+  +5); kill com escudo cheio sem emissão nova; impacto absorvido sem
+  perder HP (`hp=5`), escudo consumido (`meter=0.0`) e recarrega de novo.
 
 ## Teste (determinístico, caminho real de gameplay)
 
@@ -73,7 +107,11 @@ real (DroneEnemy no `enemy_container` → `died` → `arena._on_enemy_died()` �
 das motes dropadas chegarem). Preparo de estado documentado:
 `spawner.stop()` + limpeza de inimigos residuais (determinismo) e
 `take_damage()` como rotina real de dano para os consumos. Motes a 10px
-evitam o caso limítrofe ≤1px (R09).
+evitam o caso limítrofe ≤1px (R09). FASE 8B (bloqueador Codex): o kill que
+completa a recarga — 16 motes (96) → kill (98) → kill (100/ativação) com
+listener de `meter_changed` conectado, mote pós-recarga (não-travamento),
+kill com escudo cheio (sem emissão), absorção de impacto sem perda de HP e
+recarga final.
 
 ## Red → Green (logs em `.godot/codex-review-r05/`)
 
@@ -90,10 +128,15 @@ evitam o caso limítrofe ≤1px (R09).
   mesmo frame); recarga completa; consumo 3; ROOTLET nunca overclocka;
   kernel nunca carrega escudo, mantém overclock funcional e ativável.
 
+Bloqueador Codex: ver seção própria (`red-blocker.log` / `green-blocker.log`
+— green total de 28 checks incluindo a FASE 8B).
+
 ## Validação completa (XDG_DATA_HOME isolado)
 
 `KP_VALIDATION_LOGS=.godot/codex-review-r05/val tools/validate_input_dispatch.sh`
-→ exit 0, `VALIDATION OK`; probe R04 re-executado → exit 0, `fails=0`:
+(entrega inicial) e `KP_VALIDATION_LOGS=.godot/codex-review-r05/val2 ...`
+(pós-bloqueador) → exit 0, `VALIDATION OK` em ambas; probe R04 re-executado
+após o bloqueador → exit 0, `fails=0` (`r04-probe-blocker.log`):
 
 | Caso | exit | passes | fails | ERROR baseline |
 |---|---|---|---|---|
@@ -106,16 +149,21 @@ evitam o caso limítrofe ≤1px (R09).
 
 **Testado pelo probe (evidência em log):** transições de estado do escudo
 (consumir/recarregar/consumir de novo) por motes reais e kill bonus real;
-overflow com escudo cheio (score, sem meter fantasma); guards ROOTLET
-(try_overclock bloqueado) e kernel (escudo intacto, overclock funcional);
-invariante meter/oc_ready para shield_mode.
+ativação quando o kill completa a carga, com emissão correta de
+`meter_changed` (100, true) e sem emissão nova com escudo cheio (FASE 8B);
+absorção de impacto sem perda de HP pelo escudo recarregado por kill;
+não-travamento da mote seguinte à recarga por kill; overflow com escudo
+cheio (score, sem meter fantasma); guards ROOTLET (try_overclock bloqueado)
+e kernel (escudo intacto, overclock funcional); invariante meter/oc_ready
+para shield_mode.
 
 **Preservado por inspeção do diff, não verificado pelo probe:** renderização
-da barra SHIELD no HUD e o sinal `meter_changed` (o kill bonus emite
-`ready_flag=false` — inconsistência pré-existente com o caminho da mote,
-mantida); áudio/háptica/textos de feedback ("SHIELD READY" etc.); valores de
-Balance (nenhum literal novo); comportamento de programas não-shield
-(byte-idêntico, gates avaliam falso); IA/animação de inimigos.
+da barra SHIELD no HUD (o sinal emite o estado correto, mas o desenho da
+barra não é observado); execução de áudio/háptica/textos de feedback
+("SHIELD READY" — o bloco do kill é cópia do caminho de motes, mas Sfx/Fx
+não são observados headless); valores de Balance (nenhum literal novo);
+comportamento de programas não-shield (byte-idêntico, gates avaliam falso);
+IA/animação de inimigos.
 
 ## Erros preexistentes (baseline T02 — reportados, não corrigidos)
 
@@ -137,10 +185,14 @@ introduzido.
 
 ## Descobertas fora do escopo (registradas, sem correção)
 
-- `add_kill_mote_bonus()` emite `meter_changed.emit(shield_meter, false)` —
-  flag ready inconsistente com o caminho de motes (pré-existente; HUD guarda
-  `_oc_ready` com `not shield_mode`, então sem efeito visível conhecido).
+- `meter_changed.emit(shield_meter, false)` no kill bonus — inconsistência
+  pré-existente CORRIGIDA pelo bloqueador (`f245c41` agora emite o estado
+  real `(shield_meter, shield_ready)`).
 - Caso limítrofe de coleta a ≤1px (R09) — já registrado na revisão.
+- Boot dos probes pendura indefinidamente (sem quit) quando o script do
+  runner falha a parsear — observado ao rodar o red da FASE 8B
+  (redeclaração de `score_before` no escopo de `_run`, corrigida no próprio
+  probe com renomeação); registrado sem guarda adicional no boot.
 
 ## Próximos passos (fora deste lote, não iniciados)
 
