@@ -17,6 +17,23 @@ Branch: `codex/input-dispatch` (base: `f90ca87` em `main`).
 - `9af503d` — test: input dispatch probe via Viewport.push_input (T01) —
   `tools/input_dispatch_probe.{gd,tscn}`, `tools/input_dispatch_probe_runner.gd`
 - `604a417` — tooling: lote 1 validation script — `tools/validate_input_dispatch.sh`
+- `66d86ce` — fix(tooling): validation rejects empty runs; require end
+  markers and active debug under Xvfb (revisão Codex)
+
+## Correções pós-revisão Codex
+
+- **Validador aceitava execução vazia** (passes=0, fails=0, exit=0 →
+  VALIDATION OK; reproduzido com um binário `godot` falso em silêncio).
+  Agora cada caso exige seu marcador de término: `AUTOTEST_ALL_PASS` na
+  suíte, `PROBE_DONE fails=0` nos probes e
+  `PROBE_INFO debug_controls_enabled=true` no probe Xvfb (garante que a
+  cobertura R03 rodou com debug desktop ativo). Execução vazia reproduz
+  VALIDATION FAILED com os três marcadores apontados; validação real segue
+  verde (tabela abaixo).
+- **Alegação de `rm -rf /` removida:** o comando segue a rotina de morte
+  (`_terminal_rm_rf()` → `player._die()` → `_on_player_died` →
+  `panel_kit._close_terminal()`), não `TerminalPanel.close_terminal()`.
+  Mantém-se que o fluxo não tem cobertura de teste.
 
 Alterações locais pré-existentes NÃO incluídas (permanecem no working tree):
 `src/ui/menu.gd`, `src/ui/menu_chrome_kit.gd`, `src/ui/tactical_icon.gd`,
@@ -46,8 +63,10 @@ imports órfãos em `media/captures/xvfb/`.
   Corrigido em `_input.gui_input`. `close_terminal()` também mirava
   `arena._close_terminal()` (método inexistente; rota real:
   `arena._panel_kit._close_terminal()`) — painel de pausa não era
-  restaurado. **Evidência limitada: o probe cobre o caminho ESC; o fluxo
-  "rm -rf /" compartilha `close_terminal()` mas não foi testado.**
+  restaurado. **Evidência limitada: o probe cobre o caminho ESC (LineEdit
+  focado); o fluxo "rm -rf /" segue a rotina de morte (`_terminal_rm_rf()`
+  → `player._die()` → `_on_player_died`), não `close_terminal()`, e
+  permanece sem cobertura de teste.**
 
 ## Comandos
 
@@ -100,7 +119,7 @@ preservando story/stage 0, game-over ENTER→run nova, ESC→Menu).
   produz unicode).
 - R03 só é reproduzível em build debug desktop (Xvfb), nunca em headless.
 - Sem hardware touch (R17/R18 fora de escopo).
-- Caminho "rm -rf /" do terminal sem cobertura de teste.
+- Fluxo "rm -rf /" do terminal (rotina de morte) sem cobertura de teste.
 
 ## Próximos passos (fora deste lote, não iniciados)
 
