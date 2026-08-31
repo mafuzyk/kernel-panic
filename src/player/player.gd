@@ -418,11 +418,17 @@ func add_absorb_charge() -> void:
 func add_kill_mote_bonus() -> void:
 	# Same shield_mode gate as collect_mote: after consumption shield_ready is
 	# false, so the old gate deadlocked kill-bonus recharge for this program.
-	# A full shield stays a no-op (consistent with the full overclock meter).
+	# Reaching the cap activates the shield exactly like collect_mote does; a
+	# full shield stays a no-op (consistent with the full overclock meter).
 	if bool(prog.get("shield_mode", false)):
 		if not shield_ready_full():
 			shield_meter = minf(shield_meter + Balance.MOTE_KILL_VALUE, Balance.OC_METER_MAX)
-			meter_changed.emit(shield_meter, false)
+			if shield_meter >= Balance.OC_METER_MAX:
+				shield_ready = true
+				Sfx.play("ready", 1.0, -4.0)
+				Sfx.haptic(25)
+				Fx.text(global_position + Vector2(0, -26), "SHIELD READY", Color(0.6, 1.0, 0.8), 13)
+			meter_changed.emit(shield_meter, shield_ready)
 		return
 	if overclock_active:
 		if oc_t < oc_duration() + 3.0:
