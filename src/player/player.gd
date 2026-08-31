@@ -356,7 +356,10 @@ func try_overclock() -> void:
 func collect_mote() -> void:
 	if dead:
 		return
-	if shield_ready:
+	# Shield mode owns every mote: consuming the shield clears shield_ready, so
+	# gating on it deadlocked recharge and fed motes into an overclock this
+	# program can never trigger. Full-shield motes overflow to scrap score.
+	if bool(prog.get("shield_mode", false)):
 		if not shield_ready_full():
 			shield_meter = minf(shield_meter + Balance.MOTE_VALUE, Balance.OC_METER_MAX)
 			if shield_meter >= Balance.OC_METER_MAX:
@@ -366,6 +369,9 @@ func collect_mote() -> void:
 				Fx.text(global_position + Vector2(0, -26), "SHIELD READY", Color(0.6, 1.0, 0.8), 13)
 			meter_changed.emit(shield_meter, shield_ready)
 			return
+		Game.add_score(5)
+		_register_scrap_overflow()
+		return
 	if overclock_active:
 		Game.add_score(5)
 		_register_scrap_overflow()
@@ -410,7 +416,10 @@ func add_absorb_charge() -> void:
 	absorb_charges += 1
 
 func add_kill_mote_bonus() -> void:
-	if shield_ready:
+	# Same shield_mode gate as collect_mote: after consumption shield_ready is
+	# false, so the old gate deadlocked kill-bonus recharge for this program.
+	# A full shield stays a no-op (consistent with the full overclock meter).
+	if bool(prog.get("shield_mode", false)):
 		if not shield_ready_full():
 			shield_meter = minf(shield_meter + Balance.MOTE_KILL_VALUE, Balance.OC_METER_MAX)
 			meter_changed.emit(shield_meter, false)
