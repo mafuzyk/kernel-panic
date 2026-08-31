@@ -253,10 +253,19 @@ func _ready() -> void:
 			var controls: Control = menu.get("_controls_line")
 			var best: Control = menu.get("_best_label")
 			var prompt: Control = menu.get("_prompt")
-			labels_ok = labels_ok and subtitle != null and subtitle.get_rect().is_equal_approx(Rect2(lay["subtitle"]))
-			labels_ok = labels_ok and controls != null and controls.get_rect().is_equal_approx(Rect2(lay["controls"]))
-			labels_ok = labels_ok and best != null and best.get_rect().is_equal_approx(Rect2(lay["best"]))
-			labels_ok = labels_ok and prompt != null and prompt.get_rect().is_equal_approx(Rect2(lay["prompt"]))
+			# Header labels take the spec rect unless their text minimum size
+			# forces them larger (RichTextLabel min-height at compact widths);
+			# the R11 double-add (width = spec + viewport) fails the size bound.
+			for pair in [[subtitle, "subtitle"], [controls, "controls"], [best, "best"], [prompt, "prompt"]]:
+				var node: Control = pair[0]
+				if node == null:
+					labels_ok = false
+					continue
+				var spec_rect: Rect2 = lay[pair[1]]
+				var min_size: Vector2 = node.get_combined_minimum_size()
+				var expected_size := Vector2(maxf(spec_rect.size.x, min_size.x), maxf(spec_rect.size.y, min_size.y))
+				labels_ok = labels_ok and absf(node.position.x - spec_rect.position.x) <= 0.01 and absf(node.position.y - spec_rect.position.y) <= 0.01
+				labels_ok = labels_ok and absf(node.size.x - expected_size.x) <= 0.01 and absf(node.size.y - expected_size.y) <= 0.01
 			# klog/mode_info: text min-clamps their size, so check position only.
 			var klog: Control = menu.get("_klog")
 			var mode_info: Control = menu.get("_mode_info")

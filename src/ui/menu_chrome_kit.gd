@@ -290,11 +290,20 @@ func apply_menu_layout() -> void:
 			title_label.offset_bottom = (lay["title"] as Rect2).end.y
 			title_label.add_theme_font_size_override("font_size", int(lay["title_size"]))
 	if m._subtitle != null and is_instance_valid(m._subtitle):
+		# Header labels are created fullscreen-anchored in menu.gd; without this
+		# reset the absolute offsets add the parent size again (R11: centered
+		# labels drifted to the right edge, width = spec + viewport).
+		m._subtitle.anchor_left = 0.0
+		m._subtitle.anchor_right = 0.0
+		m._subtitle.anchor_top = 0.0
+		m._subtitle.anchor_bottom = 0.0
 		m._subtitle.offset_left = (lay["subtitle"] as Rect2).position.x
 		m._subtitle.offset_right = (lay["subtitle"] as Rect2).end.x
 		m._subtitle.offset_top = (lay["subtitle"] as Rect2).position.y
 		m._subtitle.offset_bottom = (lay["subtitle"] as Rect2).end.y
 	if m._controls_line != null and is_instance_valid(m._controls_line):
+		m._controls_line.anchor_left = 0.0
+		m._controls_line.anchor_right = 0.0
 		m._controls_line.anchor_top = 0.0
 		m._controls_line.anchor_bottom = 0.0
 		m._controls_line.offset_left = (lay["controls"] as Rect2).position.x
@@ -302,6 +311,10 @@ func apply_menu_layout() -> void:
 		m._controls_line.offset_top = (lay["controls"] as Rect2).position.y
 		m._controls_line.offset_bottom = (lay["controls"] as Rect2).end.y
 	if m._best_label != null and is_instance_valid(m._best_label):
+		m._best_label.anchor_left = 0.0
+		m._best_label.anchor_right = 0.0
+		m._best_label.anchor_top = 0.0
+		m._best_label.anchor_bottom = 0.0
 		m._best_label.offset_left = (lay["best"] as Rect2).position.x
 		m._best_label.offset_right = (lay["best"] as Rect2).end.x
 		m._best_label.offset_top = (lay["best"] as Rect2).position.y
@@ -324,6 +337,10 @@ func apply_menu_layout() -> void:
 		m._mode_info.offset_top = (lay["mode_info"] as Rect2).position.y
 		m._mode_info.offset_bottom = (lay["mode_info"] as Rect2).end.y
 	if m._prompt != null and is_instance_valid(m._prompt):
+		m._prompt.anchor_left = 0.0
+		m._prompt.anchor_right = 0.0
+		m._prompt.anchor_top = 0.0
+		m._prompt.anchor_bottom = 0.0
 		m._prompt.offset_left = (lay["prompt"] as Rect2).position.x
 		m._prompt.offset_right = (lay["prompt"] as Rect2).end.x
 		m._prompt.offset_top = (lay["prompt"] as Rect2).position.y
