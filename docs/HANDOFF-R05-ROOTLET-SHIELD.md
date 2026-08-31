@@ -52,16 +52,16 @@ Alterações locais pré-existentes NÃO incluídas (working tree intacto):
    passivo por design), `take_damage()`, `shield_ready_full()`, valores de
    `Balance` (MOTE_VALUE 6 / MOTE_KILL_VALUE 2 / OC_METER_MAX 100), HUD.
 
-**Mudança de economia — PENDENTE DE DECISÃO DO USUÁRIO:** o item 2 altera a
-economia do ROOTLET com escudo cheio. Antes, as primeiras coletas com
-escudo cheio alimentavam o meter de overclock inutilizável (sem pontos e
-sem progresso de scrap até o meter fantasma encher); agora cada mote
-excedente concede imediatamente +5 de score e progresso de scrap. A regra
-foi derivada do aceite "o programa não deve entrar num estado de overclock
-inutilizável" e do destino existente de meter cheio, mas **não constitui
-aprovação** — a decisão final de economia cabe ao usuário e permanece
-aberta. Nenhuma regra alternativa foi inventada. (Alegação anterior de
-"economia preservada" removida por incorreta, a pedido do Codex.)
+**Decisão de economia — APROVADA:** o item 2 altera a economia do ROOTLET
+com escudo cheio. Antes, as primeiras coletas com escudo cheio alimentavam
+o meter de overclock inutilizável (sem pontos e sem progresso de scrap até
+o meter fantasma encher); agora cada mote excedente concede imediatamente
++5 de score e progresso de scrap. A regra foi derivada do aceite "o
+programa não deve entrar num estado de overclock inutilizável" e do destino
+existente de meter cheio, e foi **aprovada** pelo Codex (validação técnica)
+e pelo usuário (decisão de design) em 2026-08-31 — não é mais pendência.
+(Alegação anterior de "economia preservada" havia sido removida por
+incorreta, a pedido do Codex.)
 
 ## Bloqueador Codex — kill completava a carga sem ativar a proteção (corrigido)
 
