@@ -36,8 +36,8 @@ func open_terminal() -> void:
 
 func close_terminal() -> void:
 	visible = false
-	if arena != null and is_instance_valid(arena) and arena.has_method("_close_terminal"):
-		arena.call("_close_terminal")
+	if arena != null and is_instance_valid(arena) and "_panel_kit" in arena:
+		arena._panel_kit._close_terminal()
 
 func submit_command(command: String) -> String:
 	var clean := command.strip_edges()
@@ -208,6 +208,7 @@ func _build() -> void:
 	_input.add_theme_stylebox_override("normal", _input_style())
 	_input.add_theme_stylebox_override("focus", _input_style())
 	_input.text_submitted.connect(_on_command_submitted)
+	_input.gui_input.connect(_on_input_gui_input)
 	prompt_content.add_child(_input)
 	prompt_frame.add_child(prompt_content)
 	row.add_child(prompt_frame)
@@ -231,6 +232,14 @@ func _build() -> void:
 
 func _on_command_submitted(_text: String) -> void:
 	_submit_input()
+
+## The focused LineEdit consumes ESC before unhandled input, which would leave
+## the terminal unclosable while typing. The legend promises "ESC CLOSE": eat
+## the key here and route it to the same close path as handle_pause_input.
+func _on_input_gui_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
+		_input.accept_event()
+		close_terminal()
 
 func _submit_input() -> void:
 	if _input == null or not is_instance_valid(_input):
