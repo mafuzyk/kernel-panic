@@ -276,7 +276,6 @@ func _shoot() -> void:
 	fire_cd = fire_cd_len
 	var dir := Vector2.from_angle(rotation)
 	var spread := Balance.BULLET_SPREAD
-	var b := PlayerBullet.new()
 	var bspeed := Balance.BULLET_SPEED * (1.0 + 0.22 * Game.patch_level("threads"))
 	var shot_dir := dir.rotated(Game.rng.randf_range(-spread, spread))
 	for k in range(1 + Game.patch_level("splitshot")):
