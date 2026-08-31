@@ -1124,7 +1124,7 @@ func _process(delta: float) -> void:
 			if _restart_hold_t >= RESTART_HOLD_DURATION and not _restart_triggered:
 				_restart_triggered = true
 				Game.log_event("SPEEDRUN RESTART // HOLD R")
-				Game.start_run()
+				_restart_current_run()
 		else:
 			_restart_hold_t = 0.0
 			_restart_triggered = false
