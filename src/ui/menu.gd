@@ -46,6 +46,7 @@ var _settings_frame: Panel
 var _settings_scroll: ScrollContainer
 var _settings_box: VBoxContainer
 var _settings_title: Label
+var _version_tag: Label
 var _settings_workstation_chrome: Control
 var _settings_navigation_chrome: Control
 var _settings_footer_row: HBoxContainer
@@ -65,8 +66,12 @@ func _notification(what: int) -> void:
 			_chrome_kit.apply_menu_layout.call_deferred()
 
 func _on_window_size_changed() -> void:
+	# Window resizes that keep the logical canvas size (uniform scale changes)
+	# never reach NOTIFICATION_RESIZED; reflowing is idempotent, so cover both.
 	if _settings_panel != null and is_instance_valid(_settings_panel):
 		_settings_kit._layout_settings.call_deferred()
+	if _chrome_kit != null:
+		_chrome_kit.apply_menu_layout.call_deferred()
 
 func _desktop_keybinds_enabled() -> bool:
 	return Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
@@ -175,8 +180,9 @@ func _ready() -> void:
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.anchor_left = 0.0
 	sub.anchor_right = 1.0
-	sub.offset_top = 220.0
-	sub.offset_bottom = 250.0
+	# Geometry placeholder: the menu grid spec owns every rect via apply_menu_layout.
+	sub.offset_top = 0.0
+	sub.offset_bottom = 0.0
 	add_child(sub)
 	_subtitle = sub
 	_prompt = Label.new()
@@ -187,8 +193,8 @@ func _ready() -> void:
 	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_prompt.anchor_left = 0.0
 	_prompt.anchor_right = 1.0
-	_prompt.offset_top = 422.0
-	_prompt.offset_bottom = 452.0
+	_prompt.offset_top = 0.0
+	_prompt.offset_bottom = 0.0
 	if DisplayServer.is_touchscreen_available():
 		_prompt.text = "[TAP] TO PURGE"
 	_prompt.visible = false
@@ -204,10 +210,10 @@ func _ready() -> void:
 	controls.add_theme_color_override("default_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.6))
 	controls.anchor_left = 0.0
 	controls.anchor_right = 1.0
-	controls.anchor_top = 0.5
-	controls.anchor_bottom = 0.5
-	controls.offset_top = 193.0
-	controls.offset_bottom = 219.0
+	controls.anchor_top = 0.0
+	controls.anchor_bottom = 0.0
+	controls.offset_top = 0.0
+	controls.offset_bottom = 0.0
 	add_child(controls)
 	_controls_line = controls
 	_best_label = Label.new()
@@ -217,8 +223,8 @@ func _ready() -> void:
 	_best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_best_label.anchor_left = 0.0
 	_best_label.anchor_right = 1.0
-	_best_label.offset_top = 265.0
-	_best_label.offset_bottom = 289.0
+	_best_label.offset_top = 0.0
+	_best_label.offset_bottom = 0.0
 	add_child(_best_label)
 	var tag := Label.new()
 	tag.text = "KERNEL PANIC v%s // purge loop online" % ProjectSettings.get_setting("application/config/version", "dev")
@@ -228,12 +234,15 @@ func _ready() -> void:
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tag.anchor_left = 1.0
 	tag.anchor_right = 1.0
-	tag.offset_left = -500.0
-	tag.offset_right = -16.0
-	# Keep the build stamp out of Android's gesture/navigation inset.
-	tag.offset_top = 96.0
-	tag.offset_bottom = 116.0
+	# Geometry placeholder: apply_menu_layout hangs the stamp under the meta
+	# band on the right rail (it lands at the same height on real devices, where
+	# the logical canvas is never compact).
+	tag.offset_left = 0.0
+	tag.offset_right = 0.0
+	tag.offset_top = 0.0
+	tag.offset_bottom = 0.0
 	add_child(tag)
+	_version_tag = tag
 	var overlay_layer := CanvasLayer.new()
 	overlay_layer.layer = 80
 	var ov := ColorRect.new()
@@ -255,10 +264,11 @@ func _ready() -> void:
 	_klog.anchor_top = 0.0
 	_klog.anchor_bottom = 0.0
 	_klog.anchor_left = 0.0
-	_klog.offset_left = 16.0
-	_klog.offset_right = 620.0
-	_klog.offset_top = 120.0
-	_klog.offset_bottom = 190.0
+	# Geometry placeholder: the meta band rides the shell top rail per the spec.
+	_klog.offset_left = 0.0
+	_klog.offset_right = 0.0
+	_klog.offset_top = 0.0
+	_klog.offset_bottom = 0.0
 	_klog.text = "[    0.000000] kernel panic daemon online"
 	add_child(_klog)
 	_chrome_kit.apply_menu_layout()
@@ -751,6 +761,8 @@ func text_overflow_report() -> Array:
 	]:
 		if text.length() > longest.length():
 			longest = text
-	var info_width: float = maxf(size.x - 48.0, 0.0)
+	# Measure against the spec's real annotation column (shell margins + gutter).
+	var side := TacticalUIHelper.frame_margins(size).x + MenuChromeKitScript.GUTTER
+	var info_width: float = maxf(size.x - side * 2.0, 0.0)
 	out.append({"id": "mode_info", "fits": TacticalUI.wrapped_height(mono, longest, info_width, 12) <= 44.0})
 	return out
