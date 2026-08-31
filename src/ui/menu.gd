@@ -721,9 +721,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			_close_program_selector()
 			get_viewport().set_input_as_handled()
 			return
+		if event.is_action_pressed("confirm"):
+			_start()
+			get_viewport().set_input_as_handled()
+		return
 	if _story_panel != null and _story_panel.visible:
 		if event.is_action_pressed("pause"):
 			_close_story_selector()
+			get_viewport().set_input_as_handled()
+			return
+		if event.is_action_pressed("confirm"):
+			_start_story(_story_panel.selected_stage_index())
 			get_viewport().set_input_as_handled()
 		return
 	if _bestiary_panel != null and _bestiary_panel.visible:
