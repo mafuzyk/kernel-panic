@@ -551,8 +551,8 @@ func import_save_string(encoded: String) -> bool:
 	var parsed = JSON.parse_string(raw.get_string_from_utf8())
 	if typeof(parsed) != TYPE_DICTIONARY or parsed.get("format", "") != SAVE_TRANSFER_FORMAT or int(parsed.get("version", 0)) != SAVE_TRANSFER_VERSION:
 		return false
-	var run_data: Dictionary = parsed.get("run", {})
-	var weekly_data: Dictionary = parsed.get("weekly", {})
+	var run_data = parsed.get("run", {})
+	var weekly_data = parsed.get("weekly", {})
 	if not run_data is Dictionary or not weekly_data is Dictionary:
 		return false
 	var cf := ConfigFile.new()
@@ -566,16 +566,17 @@ func import_save_string(encoded: String) -> bool:
 	cf.set_value("weekly", "best", maxi(int(weekly_data.get("best", 0)), 0))
 	cf.set_value("weekly", "last_id", str(weekly_data.get("last_id", "")))
 	cf.set_value("weekly", "last_best", maxi(int(weekly_data.get("last_best", 0)), 0))
-	var imported_story: Dictionary = parsed.get("story", {})
-	if imported_story is Dictionary:
-		cf.set_value("story", "cleared", _known_bool_map(imported_story.get("cleared", {}), STORY_DATA.stage_ids()))
-		var imported_story_best: Dictionary = imported_story.get("best", {})
-		var clean_story_best := {}
-		if imported_story_best is Dictionary:
-			for stage_id in STORY_DATA.stage_ids():
-				clean_story_best[stage_id] = maxi(int(imported_story_best.get(stage_id, 0)), 0)
-		cf.set_value("story", "best", clean_story_best)
-		cf.set_value("story", "temple_rainbow_unlocked", bool(imported_story.get("temple_rainbow_unlocked", false)))
+	var imported_story = parsed.get("story", {})
+	if not imported_story is Dictionary:
+		return false
+	cf.set_value("story", "cleared", _known_bool_map(imported_story.get("cleared", {}), STORY_DATA.stage_ids()))
+	var imported_story_best = imported_story.get("best", {})
+	var clean_story_best := {}
+	if imported_story_best is Dictionary:
+		for stage_id in STORY_DATA.stage_ids():
+			clean_story_best[stage_id] = maxi(int(imported_story_best.get(stage_id, 0)), 0)
+	cf.set_value("story", "best", clean_story_best)
+	cf.set_value("story", "temple_rainbow_unlocked", bool(imported_story.get("temple_rainbow_unlocked", false)))
 	cf.set_value("bestiary", "seen", _known_bool_map(parsed.get("bestiary", {}), BESTIARY_MAP.values()))
 	var imported_programs := _known_bool_map(parsed.get("programs", {}), PROGRAM_DEFS.keys())
 	imported_programs["kernel"] = true
