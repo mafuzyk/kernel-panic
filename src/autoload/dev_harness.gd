@@ -409,6 +409,7 @@ func _autotest() -> void:
 	await _sec_misc._difficulty_test()
 	await _sec_misc._debug_controls_test(arena2)
 	await _sec_misc._mote_sweep_test(arena2)
+	await _sec_misc._mote_center_test(arena2)
 	await _sec_misc._oom_steal_identity_test(arena2)
 	await _sec_visual._story_test(arena2)
 	await _sec_visual._windows_test(arena2)

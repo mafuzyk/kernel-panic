@@ -114,6 +114,20 @@ func _mote_sweep_test(arena: Arena) -> void:
 		mf.kill_slot(far_idx)
 	player_ref.invuln = 0.0
 
+func _mote_center_test(arena: Arena) -> void:
+	print("AT_STEP mote_center")
+	var mf: MoteField = arena.mote_field
+	var player_ref: Player = arena.player
+	player_ref.invuln = 9999.0
+	for i in range(mf.count() - 1, -1, -1):
+		mf.kill_slot(i)
+	var center := player_ref.global_position
+	for distance in [0.0, 0.5, 1.0, 2.0]:
+		var idx := mf.spawn(center + Vector2(distance, 0.0))
+		await h._ticks(2)
+		h._check(idx >= 0 and not mf.alive_at(idx), "mote at %.1fpx from player is collected" % distance)
+	player_ref.invuln = 0.0
+
 func _oom_steal_identity_test(arena: Arena) -> void:
 	print("AT_STEP oom_identity")
 	var mf: MoteField = arena.mote_field
@@ -154,4 +168,3 @@ func _oom_steal_identity_test(arena: Arena) -> void:
 	mf.free_all_stolen()
 	oom.queue_free()
 	await h._ticks(2)
-
