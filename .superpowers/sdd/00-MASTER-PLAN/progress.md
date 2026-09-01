@@ -87,7 +87,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 |---|---|---|---|
 | W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
 | A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
-| U | U1, U2, U2b, U3, U4, U5, U6 | U1 completed (reviewed); U2/U2b/U3/U4/U5/U6 pending | U1 vNext foundation, then input/flow, responsive/overflow/visual checks. |
+| U | U1, U2, U2b, U3, U4, U5, U6 | U1–U2 completed (reviewed); U2b/U3/U4/U5/U6 pending | U1 foundation and U2 input/flow/responsive/overflow checks are green; remaining surfaces need their own gates. |
 | E | E1, E2, E3, E4, E5 | Pending | Code-drawn primitives, entity contracts, visual/readability/perf evidence. |
 | G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
 | M | M1–M5 | Pending | Story data/flow, history content, rewards, localization and save tests. |
@@ -110,6 +110,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | 2026-09-01 | A2 owner-owned kit revalidation | Structural grep/audit plus `XDG_DATA_HOME=/tmp/kernel-panic-a2-xdg godot --headless --audio-driver Dummy --path . -- --autotest` | Accepted: delegates and source-scan landmines present; exit 0, 1414 passes, 0 failures, `AUTOTEST_ALL_PASS`; documentation-only | Controller-generated ignored brief was not visible to delegated inspection; versioned plans were used. Teardown diagnostics remain open. |
 | 2026-09-01 | A3 snapshot contracts | Focused red/green probes, forced watchdog failure, and controller-fresh full suite; `0fb5d50`/`7c55b82` add live patch-offer projection after adversarial review | Accepted: four real owners expose primitive-safe, deep-copied schemas; focused final 32/0; full suite 1414/0 with marker | No vNext renderer consumer yet; optional-field consumer behavior and actual drawing remain future evidence; teardown diagnostics remain open. |
 | 2026-09-01 | U1 vNext boot/menu slice | `vnext_boot_probe` exit 0 with `PROBE_DONE fails=0`; `vnext_menu_probe` exit 0; full suite 1414/0 with `AUTOTEST_ALL_PASS`; two independent Luna reviews, first reject then final accept | Accepted after corrections: real Buttons, stretch-normalized viewport input, one-activation checks, root BACK behavior, opt-in menu wiring, resize reconfigure, measured overflow | Opt-in only; no final visual approval; persistent accessibility, locale, route stack, and teardown cleanup remain future work. |
+| 2026-09-01 | U2 vNext program/story selection | `vnext_boot_probe` exit 0; `vnext_selection_probe` exit 0; `vnext_menu_probe` exit 0; `layout_probe` 130/130; full suite 1414/0 with `AUTOTEST_ALL_PASS`; three Luna review passes (two rejects corrected, final accept) | Accepted as an opt-in slice: real program/story routes, narrow list/detail states, act tabs, project fonts, complete overflow coverage and no observed BACK fall-through | No final visual approval; PT-BR, persisted accessibility, physical-device pointer/touch, route-stack cancellation, Android export and teardown diagnostics remain open. |
 
 ## Change log of approach
 
@@ -117,7 +118,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - A3 added the first runtime contract methods in `Game`, `Arena`, `Menu`, and `Sfx`, plus a focused probe. The controller later corrected a false empty patch-offer projection.
 - A1 agent report incorrectly described the `lifetime` save section as a separate file. Controller verification of `Game._record_run()` showed it loads and saves `Sfx.SAVE_PATH`; both baseline documents were corrected in `76f6a0f` before acceptance.
 - A2 report initially described the generated task brief as absent. The controller confirmed the ignored brief existed before delegation but was not visible to the delegated inspection; the report was corrected in `ead9d28` and the versioned plans remained the source of truth.
-- Next task: U2 program/story selection after U1's opt-in boot slice. A2–A5 and U1 are documented in their reports; each report includes its controller corrections and residual limits.
+- Next task: U2b patch offer/build decision surface. A2–A5, U1 and U2 are documented in their reports; each report includes controller corrections and residual limits.
 
 ## A4 static content catalog
 
@@ -192,6 +193,65 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Decisions: one `Rect2` action registry feeds drawing/input/focus; transparent native Buttons own concrete activation; the opt-in root BACK exits explicitly because no prior vNext route exists; legacy menu remains default; pointer input is normalized through the stretch transform; legacy `_process` is skipped in opt-in mode.
 - Independent review: first reviewer rejected; controller fixed every blocker/high finding. Second Luna reviewer accepted. Detailed evidence, rejected approaches, compatibility impact and limitations are in `report-U1.md`.
 - Risks: the opt-in slice is not the final visual UI; BACK is temporary root-exit semantics; accessibility context is API groundwork rather than persisted preferences; translated/high text-scale variants and native screen readers remain future work; baseline teardown diagnostics remain open.
+
+## U2 vNext program and story selection
+
+- Status: accepted on 2026-09-01 after three independent Luna review passes;
+  two rejected concrete gaps and the controller corrected them before the
+  final acceptance pass.
+- Production commits: `d1b1db8` (program/story routes and boot extension).
+- Test commits: `018b1b7` (initial red selection probe), `35a8671` (hardened
+  selection/Menu evidence), `e7628bb` (boot typography and overflow evidence).
+- Production files: `src/ui/menu.gd`,
+  `src/ui/vnext/surfaces/boot_surface.gd`,
+  `src/ui/vnext/surfaces/program_surface.gd`,
+  `src/ui/vnext/surfaces/story_surface.gd`, and
+  `src/ui/vnext/ui_layout.gd`. Test files: `tools/vnext_boot_probe.gd`,
+  `tools/vnext_selection_probe.gd`, and `tools/vnext_menu_probe.gd`.
+- Scope: opt-in boot→program/story routes; program list/detail contract;
+  story act tabs/stage list/briefing contract; locked and ready states;
+  keyboard, native Button, pointer and touch action mapping; narrow
+  list/detail states; project fonts; full overflow report; Menu resize and
+  no-fall-through route checks.
+- Narrow composition decision: the phone layout uses mutually exclusive list
+  and detail states with an explicit list-return action. It does not make the
+  desktop two-column/map composition smaller and hope it remains readable.
+- Ownership decision: Game/StoryData remain the content/progression source of
+  truth; the surfaces project state and emit launch commands; Menu remains the
+  route/gameplay boundary.
+- Input decision: native Buttons own concrete GUI activation; matching
+  `gui_input` event IDs are consumed by the surface fallback to prevent
+  duplicate activation. The same logical action registry is used for custom
+  pointer/touch hit testing and semantic inspection.
+- Typography decision: Orbitron is used for titles/identity; ShareTechMono is
+  used for body/control text. The earlier boot `ThemeDB.fallback_font` usage
+  and missing PROGRAMS/STORY overflow entries were rejected and corrected.
+- Red evidence: the first real Menu BACK assertion failed with
+  `program real back is owned by Button`; the focus assertion then failed to
+  focus/update a story act tab; the responsive hardening probe failed on the
+  missing narrow list/detail state; the second review found the boot font and
+  overflow gap. These failures were fixed in production and not hidden by
+  weakening the checks.
+- Final focused evidence:
+  `vnext_boot_probe` exit 0 / `PROBE_DONE fails=0`;
+  `vnext_selection_probe` exit 0 / `PROBE_DONE fails=0`;
+  `vnext_menu_probe` exit 0 / `PROBE_DONE fails=0`;
+  existing `layout_probe` exit 0 / `PROBE_RESULT passes=130 fails=0`.
+  All were run with `godot --headless --audio-driver Dummy` and isolated
+  `XDG_DATA_HOME` values.
+- Full-suite evidence after U2: exit 0, `1414` `AT_PASS`, `0` `AT_FAIL`,
+  `AUTOTEST_ALL_PASS`. Import verification also exited 0.
+- Review outcome: final Luna reviewer accepted after verifying boot fonts and
+  complete overflow entries, responsive list/detail, input/focus/duplicate
+  dispatch, Menu route/resize behavior and the existing layout probe.
+- Known risks: opt-in only and not final visual approval; English-only
+  overflow evidence at text scale 1.15; no persisted accessibility settings;
+  no physical-device pointer/touch playtest; no complete route-stack
+  cancellation; Android export remains unproven; W0 teardown diagnostics
+  remain open. These are not silently marked solved by U2.
+- Next task: U2b patch offer/build decision surface. It must preserve the
+  snapshot/action/overflow discipline and add confirm/skip/close/conflict,
+  resize and paused-overlay recovery evidence.
 
 ## Review checklist for every task
 

@@ -1,0 +1,218 @@
+# KERNEL PANIC — plan execution log (2026-09-01)
+
+> This is a development/release-log draft, not a public release announcement.
+> The vNext UI described here remains opt-in behind `KP_VNEXT_BOOT=1` until
+> the later migration, accessibility, localization, visual-review and export
+> gates are complete.
+
+## Scope of this log
+
+This document records the user-visible and release-relevant work executed from
+the master plan's stabilization phase through U2. Detailed technical evidence
+and alternatives remain in the task reports:
+
+- [A1 repository baseline](../../.superpowers/sdd/00-MASTER-PLAN/report-A1.md)
+- [A2 ownership and kit boundaries](../../.superpowers/sdd/00-MASTER-PLAN/report-A2.md)
+- [A3 snapshot contracts](../../.superpowers/sdd/00-MASTER-PLAN/report-A3.md)
+- [A4 content catalog](../../.superpowers/sdd/00-MASTER-PLAN/report-A4.md)
+- [A5 save compatibility](../../.superpowers/sdd/00-MASTER-PLAN/report-A5.md)
+- [U1 vNext boot](../../.superpowers/sdd/00-MASTER-PLAN/report-U1.md)
+- [U2 vNext program/story selection](../../.superpowers/sdd/00-MASTER-PLAN/report-U2.md)
+
+The execution branch is `codex/plan-execution`; it is based on the reviewed
+master-plan documentation and does not merge into `main` automatically.
+
+## Technical changelog
+
+### Architecture and repository
+
+- Recorded the repository/runtime/content/test/release boundaries, save path,
+  export facts, autoload ownership, generated-file policy and open diagnostics.
+- Added a versioned execution ledger with evidence, review history, residual
+  risks and next-task gates.
+- Preserved the legacy playable route while new surfaces are built behind an
+  explicit development switch. This keeps rollback and attribution possible.
+- No broad cleanup or generated import artifact was staged. Local `.uid` and
+  capture `.png.import` files remain outside the commits.
+
+### Snapshot and content contracts
+
+- Added primitive-safe, deep-copied snapshot contracts for the existing gameplay
+  and UI owners. These expose the data needed by vNext without moving mutable
+  game state into UI kits.
+- Added a static `ContentCatalog` boundary for program, bestiary, achievement,
+  patch and relation metadata while keeping `StoryData` authoritative for the
+  stage/act catalog.
+- Added defensive save payload validation and compatibility probes. Invalid
+  structured imports are rejected before typed use or write, and existing save
+  bytes remain unchanged on rejection.
+- Corrected review-discovered gaps in nested payload validation, catalog parity,
+  deep-copy coverage and live patch-offer projection.
+
+### vNext UI foundation and boot route
+
+- Added `VNextUIContext`, shared token/layout helpers and a declared navigation
+  focus model.
+- Added the from-scratch code-drawn boot surface with safe-area layout,
+  semantic action regions, real focusable Buttons and logical pointer/touch
+  dispatch.
+- Added opt-in Menu integration, resize reconfiguration and protection against
+  a child Button activating once and then reaching the parent fallback.
+- Added the PROGRAMS and STORY secondary route controls to the boot surface.
+- Replaced boot-surface fallback typography with the required Orbitron title and
+  ShareTechMono body/control fonts.
+- Extended boot overflow evidence to title, subtitle, telemetry, boot,
+  program, story and back labels.
+
+### vNext program and story selection
+
+- Added a code-drawn `VNextProgramSurface` using existing `Game.PROGRAM_DEFS`
+  and unlock state.
+- Added readable process identity, role, playstyle, risk, loadout, locked state,
+  program silhouette illustration and explicit launch action.
+- Added a code-drawn `VNextStorySurface` using existing stage/act definitions,
+  with act tabs, stage state markers, locked reasons, briefing and mount action.
+- Added separate narrow list/detail states for both surfaces. The phone layout
+  no longer compresses a desktop two-column/map composition into unreadable
+  cards.
+- Added complete active-state text measurement, native focus controls, keyboard
+  navigation, pointer/touch action contracts and duplicate-dispatch checks.
+- Corrected the Menu integration path so child BACK returns to boot and does not
+  accidentally fall through into a BOOT action.
+
+### Review-driven corrections
+
+The implementation was not accepted at the first green-looking result. The
+following concrete defects were found and corrected:
+
+1. Menu BACK had insufficient real GUI evidence; a native Button could have
+   been bypassed by direct surface calls. The probe now uses real viewport input
+   and checks exactly one Button event and one route action.
+2. Story keyboard focus omitted act tabs. The focus registry and probe now cover
+   act-tab focus and state change.
+3. Narrow program/story composition rendered list and detail simultaneously;
+   story content could clip or collide with launch. Both surfaces now switch
+   between mutually exclusive list/detail states with explicit return controls.
+4. Overflow coverage omitted many rendered labels and used inconsistent font
+   assumptions. Reports now use project fonts and cover the actual active
+   controls and detail text.
+5. Boot route extension left the earlier fallback font and incomplete overflow
+   report behind. Both were corrected and regression-tested.
+6. A review claim that enabled program launch color was inverted was rejected by
+   direct code inspection and a resolved-color assertion; no speculative change
+   was made.
+
+## Main decisions and rationale
+
+### Preserve the old route during the remake
+
+The user wants a genuinely new UI, not a cosmetic migration. The new route is
+therefore opt-in until it covers the remaining surfaces and passes compatibility
+and visual gates. This accepts temporary duplicate UI code in exchange for a
+reversible migration and a playable baseline.
+
+### Let gameplay own truth; let UI project and command
+
+Snapshots read existing Game/StoryData state. UI emits `launch_*` actions and
+does not mutate progression, unlocks, balance or save data directly. This
+prevents a second source of truth during the remake.
+
+### Use native controls over a code-drawn shell
+
+Frames, illustration and hierarchy remain code-drawn, but real Godot Buttons
+own focus and GUI activation. This is slightly more plumbing, but it prevents
+fake accessibility/input behavior and makes the action probes meaningful.
+
+### Spend vertical space deliberately on mobile
+
+Narrow screens use a list first and a detail/briefing state second. The tradeoff
+is one extra confirmation step before launching, but the player can read the
+consequence and navigate back without tiny cards or clipped copy.
+
+## Verification record
+
+All game execution in this slice used the silent audio driver to avoid
+interrupting the user's study session.
+
+| Check | Result |
+|---|---|
+| Godot import/editor scan | exit 0; known Android build-tools environment warning remains |
+| `vnext_boot_probe` | exit 0; `PROBE_DONE fails=0` |
+| `vnext_selection_probe` | exit 0; `PROBE_DONE fails=0` |
+| `vnext_menu_probe` | exit 0; `PROBE_DONE fails=0` |
+| existing `layout_probe` | exit 0; `PROBE_RESULT passes=130 fails=0` |
+| full `--autotest` suite | exit 0; 1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS` |
+| `git diff --check` | clean |
+
+The focused probes cover 1366×768, 720×720 and 432×720 logical viewports,
+safe-area containment, text scale 1.15, reduced motion/high contrast context,
+keyboard, focus, real Button ENTER, direct pointer/touch dispatch, locked
+states, route return, resize and duplicate activation.
+
+## Clean release notes draft
+
+### Added
+
+- Added an opt-in rebuilt UI route for booting a process, browsing programs and
+  browsing story nodes.
+- Added program detail information for identity, playstyle, risk and starting
+  loadout.
+- Added story act tabs, stage status markers, locked-node explanations and
+  readable briefings.
+- Added mobile-friendly list/detail navigation for program and story browsing.
+- Added stronger keyboard, mouse and touch interaction coverage in development
+  builds.
+
+### Changed
+
+- The experimental vNext UI now uses the game's Orbitron and ShareTechMono
+  typography consistently.
+- Program/story selection is separate from the final BOOT/MOUNT action, making
+  the consequence visible before starting.
+- The legacy menu remains the default while the new route is validated.
+
+### Fixed
+
+- Fixed vNext route BACK handling so returning from Program/Story cannot start
+  BOOT accidentally.
+- Fixed missing story act-tab keyboard focus.
+- Fixed narrow-layout clipping risk by separating list and detail states.
+- Fixed incomplete boot-surface text overflow coverage.
+
+### Improved
+
+- Improved action semantics and focus behavior for keyboard, mouse and touch.
+- Improved locked-state communication with explicit reason text and state
+  markers instead of opacity alone.
+- Improved validation so green probes require completion markers and exercise
+  actual route/control behavior.
+
+### Compatibility
+
+- Default legacy menu, gameplay, balance, save keys, input bindings and story
+  progression remain unchanged by the vNext opt-in route.
+- No Android support claim is made by this development slice.
+
+### Performance
+
+- New vNext surfaces do not add a gameplay polling loop, physics body or timer.
+- Performance budgets and device profiling remain future plan gates.
+
+### Known Issues
+
+- The rebuilt UI is not yet the default and has not received final grayscale or
+  finish-layer visual approval.
+- PT-BR/localized copy, persisted accessibility settings and native screen-reader
+  support are not implemented yet.
+- Physical-device pointer/touch behavior, rapid route cancellation, Android
+  export and teardown resource/RID diagnostics still need dedicated evidence.
+- The test suite is functionally green but still reports the recorded teardown
+  resource/RID/ObjectDB diagnostics; these are not hidden or considered fixed.
+
+## Release-note hygiene
+
+Internal refactors, probe implementation details and font-resource mechanics
+belong in the technical reports above. The clean notes intentionally mention
+only behavior that could affect a player, tester or maintainer. This draft must
+be revisited when U2b–U6 and the final migration gates change the user-facing
+scope.

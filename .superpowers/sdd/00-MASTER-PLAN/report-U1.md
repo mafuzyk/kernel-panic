@@ -246,6 +246,19 @@ transaction state rather than relying on arbitrary callbacks.
 - No final visual approval is claimed. Captures, grayscale legibility and
   comparison against the Ideas moodboard remain later gates.
 
+## Post-U1 extension note
+
+U2 extended this accepted boot slice with PROGRAMS and STORY buttons, so the
+current boot surface is broader than the exact U1 acceptance snapshot. U2 also
+superseded the early boot implementation's fallback-font usage with explicit
+Orbitron/ShareTechMono resources and extended `text_overflow_report()` to cover
+program, story and back labels. This note does not retroactively change U1's
+acceptance criteria; it records the later change so this historical report is
+not mistaken for a complete description of the current boot surface.
+
+The current evidence for that extension is in `report-U2.md` and the U2 boot
+probe, not in the original U1 command/results above.
+
 ## Follow-up gates
 
 Before promoting vNext or deleting legacy Menu code, require:
