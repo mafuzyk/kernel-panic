@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource path="res://tools/g1_run_context_probe.gd" type="Script" id="1"]
+
+[node name="G1RunContextProbe" type="Node"]
+script = ExtResource("1")

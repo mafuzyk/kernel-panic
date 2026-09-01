@@ -2,6 +2,7 @@ extends Node
 
 const STORY_DATA = preload("res://src/story/story_data.gd")
 const CONTENT_CATALOG = preload("res://src/data/content_catalog.gd")
+const RUN_CONTEXT = preload("res://src/gameplay/run_context.gd")
 
 signal score_changed(score: int, mult: int)
 signal combo_changed(mult: int, frac: float)
@@ -127,6 +128,24 @@ func run_snapshot() -> Dictionary:
 	for field in required:
 		assert(snapshot.has(field), "Game run_snapshot missing required field: " + str(field))
 	return snapshot.duplicate(true)
+
+func run_context() -> RefCounted:
+	return RUN_CONTEXT.from_game(self)
+
+func mode_id() -> String:
+	return run_context().mode_id()
+
+func stage_id() -> String:
+	return run_context().stage_id()
+
+func mutators() -> Array[String]:
+	return run_context().mutators()
+
+func writes_records() -> bool:
+	return run_context().writes_records()
+
+func uses_deterministic_seed() -> bool:
+	return run_context().uses_deterministic_seed()
 
 func unlock_program(id: String) -> void:
 	if unlocked_programs.has(id):
@@ -481,7 +500,7 @@ func consume_terminal_heal() -> bool:
 	return true
 
 func unlock_achievement(id: String) -> bool:
-	if not ACHIEVEMENT_DEFS.has(id) or achievements.has(id):
+	if not writes_records() or not ACHIEVEMENT_DEFS.has(id) or achievements.has(id):
 		return false
 	var label := str(ACHIEVEMENT_DEFS[id])
 	achievements[id] = true
@@ -650,11 +669,15 @@ func break_combo() -> void:
 func end_run() -> void:
 	if state != State.PLAYING:
 		return
+	var can_write_records := writes_records()
 	state = State.GAME_OVER
 	stats["wave"] = wave
 	stats["time"] = snappedf(stats["time"], 0.1)
-	if score > best_for_mode():
+	if can_write_records and score > best_for_mode():
 		new_best = true
+	if not can_write_records:
+		run_ended.emit(stats)
+		return
 	var cf := ConfigFile.new()
 	cf.load(Sfx.SAVE_PATH)
 	match mode:
