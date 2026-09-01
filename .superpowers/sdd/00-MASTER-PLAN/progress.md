@@ -89,7 +89,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
 | U | U1, U2, U2b, U3, U4, U5, U6 | U1–U6 completed (opt-in, reviewed) | U1–U6 now cover boot, selection, patch choice, combat HUD, pause/terminal/game-over, accessibility settings and shared recoverable state primitives; final migration, locale, visual approval, physical mobile, Android/export and teardown gates remain open. |
 | E | E1, E2, E3, E4, E5 | E1, E2 batch 1, E3 and E4 completed; E2 remainder/E5 pending | E4 adds the isolated ZOMBIE_PROCESS teach wave, temporary projectile obstacle, reward/pathing hooks, code-drawn identity and real-path probe; visual approval, physical mobile, dense-wave performance and remaining cast work remain. |
-| G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
+| G | G1 completed; G2–G7 pending | G1 explicit run context/mode contract accepted after persistence review | Deterministic gameplay probes and balance/readability validation; G3 must build on the G1 context without treating reserved Practice as shipped. |
 | M | M1–M5 | Pending | Story data/flow, history content, rewards, localization and save tests. |
 | L | L1–L4 | Pending | String inventory, PT-BR behavior, plural/select/Unicode/overflow tests. |
 | Accessibility | A11–A15 | Pending | Settings persistence, remapping, contrast/motion/input/touch checks. |
@@ -113,6 +113,37 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | 2026-09-01 | U2 vNext program/story selection | `vnext_boot_probe` exit 0; `vnext_selection_probe` exit 0; `vnext_menu_probe` exit 0; `layout_probe` 130/130; full suite 1414/0 with `AUTOTEST_ALL_PASS`; three Luna review passes (two rejects corrected, final accept) | Accepted as an opt-in slice: real program/story routes, narrow list/detail states, act tabs, project fonts, complete overflow coverage and no observed BACK fall-through | No final visual approval; PT-BR, persisted accessibility, physical-device pointer/touch, route-stack cancellation, Android export and teardown diagnostics remain open. |
 
 ## Change log of approach
+
+## G1 — explicit run context and mode contract
+
+- Status: implemented and reviewed on 2026-09-01 in `a5972a9`.
+- Added `src/gameplay/run_context.gd` as a non-autoload `RefCounted` value
+  boundary. It exposes normalized mode/stage/mutator identity, record-writing
+  capability and deterministic-seed capability, with primitive-only snapshots
+  and copy-returning accessors.
+- Added compatibility delegates in `Game` without replacing the public mode
+  field, existing `run_snapshot()`, save keys or transfer format.
+- Enforced the reserved Practice rule at the real persistence boundaries:
+  `end_run()` emits the transient completion signal but does not write run,
+  lifetime or leaderboard records, and `unlock_achievement()` does not save
+  achievements while Practice is active. No Practice launcher, wave selector or
+  mutator system was implemented; those remain G3.
+- Red bootstrap: `/tmp/kernel-panic-g1-red.log` showed the expected missing
+  boundary and did not reach completion. Final focused green:
+  `/tmp/kernel-panic-g1-practice-review-2.log`, exit 0, 29 passes, 0 failures,
+  `PROBE_DONE fails=0`. Existing save compatibility probe:
+  `/tmp/kernel-panic-g1-save.log`, exit 0, 39 passes, zero failures.
+- Import: exit 0 with the known Android build-tools environment warning.
+  Full DevHarness: exit 0, 1414/0, `AUTOTEST_ALL_PASS`. Fresh aggregate
+  validator: `/tmp/kernel-panic-g1-validator-summary.log`, `VALIDATION OK`,
+  G1 29/0 and no gated runtime errors.
+- The first contract version only exposed the Practice flag. Controller review
+  found that `Game.end_run()` would still write Practice into the Classic
+  fallback and that achievements had a separate save path. The implementation
+  was revised before commit; this decision and its alternatives are detailed
+  in `report-G1-run-context.md` and `docs/HANDOFF-G1-RUN-CONTEXT.md`.
+- Report: `.superpowers/sdd/00-MASTER-PLAN/report-G1-run-context.md`.
+  Handoff: `docs/HANDOFF-G1-RUN-CONTEXT.md`.
 
 ## E4 — ZOMBIE_PROCESS
 

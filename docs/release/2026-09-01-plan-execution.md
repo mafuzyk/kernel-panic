@@ -25,6 +25,8 @@ and alternatives remain in the task reports:
 - [U4 vNext state surfaces](../../.superpowers/sdd/00-MASTER-PLAN/report-U4.md)
 - [U5 vNext settings/accessibility](../../.superpowers/sdd/00-MASTER-PLAN/report-U5.md)
 - [U6 vNext shared state surface](../../.superpowers/sdd/00-MASTER-PLAN/report-U6.md)
+- [E4 ZOMBIE_PROCESS](../../.superpowers/sdd/00-MASTER-PLAN/report-E4-zombie-process.md)
+- [G1 explicit run context](../../.superpowers/sdd/00-MASTER-PLAN/report-G1-run-context.md)
 
 The execution branch is `codex/plan-execution`; it is based on the reviewed
 master-plan documentation and does not merge into `main` automatically.
@@ -62,6 +64,23 @@ master-plan documentation and does not merge into `main` automatically.
 - This is technical evidence only: no human visual approval, dense-wave
   performance measurement or physical-device support is claimed.
 
+### G1 explicit run context and mode safety
+
+- Added an explicit, serializable run-context foundation for Classic, Story,
+  Weekly, One-HP and reserved Practice modes. Story stage identity, mutator
+  IDs, record-writing capability and deterministic-seed capability now have a
+  stable read-only-by-copy contract for future gameplay and UI consumers.
+- Preserved `Game` as the authority and kept the existing save keys,
+  transfer-format version, launch routes and current mode behavior intact.
+- Closed the reserved Practice persistence hole: if a caller enters the
+  reserved mode, run/lifetime records and achievements are not written. This
+  does not claim that a selectable Practice mode is shipped; its launcher,
+  wave selection and rules remain a later gameplay task.
+- Evidence: focused G1 probe 29/0 with `PROBE_DONE fails=0`; existing save
+  compatibility probe 39/0; full DevHarness 1414/0; aggregate validator green
+  with no gated runtime errors. Teardown diagnostics remain separately
+  reported and are not claimed as fixed.
+
 ## Technical changelog
 
 ### Architecture and repository
@@ -88,6 +107,11 @@ master-plan documentation and does not merge into `main` automatically.
   bytes remain unchanged on rejection.
 - Corrected review-discovered gaps in nested payload validation, catalog parity,
   deep-copy coverage and live patch-offer projection.
+- Added `RunContext` as a small gameplay rule boundary with normalized mode and
+  mutator identity, copy-safe snapshots and compatibility delegates in `Game`.
+- Practice record safety is enforced at `end_run()` and achievement persistence
+  rather than only being advertised by a boolean. No new save location or
+  schema version was introduced.
 
 ### vNext UI foundation and boot route
 
@@ -360,6 +384,8 @@ activation.
   does not yet have a scrollable card treatment.
 - U4 state surfaces remain opt-in and have no final visual approval, PT-BR
   copy, physical-device mobile validation or native screen-reader integration.
+- Practice selection, wave selection and Weekly mutator preview are not yet
+  shipped; G1 provides the contract and safety boundary only.
 
 ## Release-note hygiene
 
