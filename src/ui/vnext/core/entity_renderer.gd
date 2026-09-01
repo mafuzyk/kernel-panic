@@ -6,6 +6,7 @@ const Descriptor = preload("res://src/ui/vnext/core/entity_descriptor.gd")
 const Glyphs = preload("res://src/ui/glyph_lib.gd")
 
 const MARKER_EXTENT := 1.38
+const DIAGONAL_MARKER_EXTENT := 1.70
 
 const KIND_COLORS := {
 	"drone": BalanceData.COL_DRONE,
@@ -49,7 +50,11 @@ static func draw_extent_factor(snapshot: Dictionary) -> float:
 	return _draw_extent_factor_normalized(normalized)
 
 static func _draw_extent_factor_normalized(normalized: Dictionary) -> float:
-	return maxf(Glyphs.glyph_extent(str(normalized["kind"])), MARKER_EXTENT)
+	var glyph_extent := maxf(Glyphs.glyph_extent(str(normalized["kind"])), 0.01)
+	var marker_extent := MARKER_EXTENT
+	if str(normalized["visual_state"]) in ["attack", "hit"]:
+		marker_extent = DIAGONAL_MARKER_EXTENT
+	return maxf(glyph_extent, marker_extent / minf(glyph_extent, 1.0))
 
 static func draw_radius(snapshot: Dictionary, target: Rect2) -> float:
 	## Radius for GlyphLib's identity inside the body's fitted allocation.

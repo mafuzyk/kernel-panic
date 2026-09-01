@@ -85,13 +85,13 @@ func vel() -> Vector2:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	rotation = t * 0.9
+	# GlyphLib owns the cosmetic spin; keep Node2D rotation as presentation-facing state.
 	VNextEntityRenderer.draw_enemy(self, "spewer", presentation_facing(), presentation_state(), elite, r, t, _glyph_color(c))
 	var eye_r := r * 0.42
 	if _telegraph > 0.0:
 		eye_r = r * (0.42 + 0.5 * (1.0 - _telegraph / 0.42))
 		draw_circle(Vector2.ZERO, r * 1.25, Color(c.r, c.g, c.b, 0.14))
-	var look := aim_at_player().angle() - rotation
+	var look := aim_at_player().angle()
 	draw_circle(Vector2.from_angle(look) * r * 0.25, eye_r, c)
 	draw_circle(Vector2.from_angle(look) * r * 0.25, eye_r * 0.45, Color(1, 1, 1, 0.9))
 	if elite:

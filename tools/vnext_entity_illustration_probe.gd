@@ -35,6 +35,7 @@ func _run() -> void:
 		var extent_ok := renderer_script.has_method("draw_extent_factor")
 		_check(extent_ok, "renderer publishes the full marker-aware extent contract")
 		for size in [24.0, 48.0, 96.0, 160.0]:
+			malformed["visual_state"] = "hit"
 			var factor := float(renderer_script.call("draw_extent_factor", malformed)) if extent_ok else 1.0
 			var glyph_extent := float(glyph_script.call("glyph_extent", "kernel"))
 			for facing in [Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT, Vector2.UP]:
@@ -48,7 +49,7 @@ func _run() -> void:
 				var extent_fit: Rect2 = renderer_script.call("fit_rect", malformed, extent_target)
 				var extent_bounds: Rect2 = renderer_script.call("draw_bounds", malformed, extent_target)
 				var extent_radius := float(renderer_script.call("draw_radius", malformed, extent_target))
-				_check(factor >= 1.38 and is_equal_approx(extent_bounds.size.x, extent_fit.size.x * factor) and extent_radius * glyph_extent * 2.0 <= extent_fit.size.x + 0.01 and extent_radius * factor * 2.0 <= extent_bounds.size.x + 0.01, "draw radius is bounded by the published full extent at %dpx" % int(size))
+				_check(factor >= 1.70 and is_equal_approx(extent_bounds.size.x, extent_fit.size.x * factor) and extent_radius * glyph_extent * 2.0 <= extent_fit.size.x + 0.01 and extent_radius * factor * 2.0 <= extent_bounds.size.x + 0.01, "draw radius is bounded by the published full extent at %dpx" % int(size))
 			for state in ["idle", "attack", "hit", "elite", "death"]:
 				malformed["visual_state"] = state
 				var state_fit: Rect2 = renderer_script.call("fit_rect", malformed, Rect2(Vector2.ZERO, Vector2(96, 96)))

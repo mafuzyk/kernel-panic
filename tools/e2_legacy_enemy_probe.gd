@@ -30,6 +30,21 @@ func _check(condition: bool, message: String) -> void:
 		_fails += 1
 		print("PROBE_FAIL ", message)
 
+func _simulation_signature(enemy: Node) -> Dictionary:
+	return {
+		"position": enemy.position,
+		"rotation": enemy.rotation,
+		"hp": enemy.get("hp"),
+		"max_hp": enemy.get("max_hp"),
+		"t": enemy.get("t"),
+		"elite": enemy.get("elite"),
+		"phase": enemy.get("phase"),
+		"aim": enemy.get("_aim"),
+		"velocity": enemy.get("_v"),
+		"telegraph": enemy.get("_telegraph"),
+		"fire_timer": enemy.get("_fire_t"),
+	}
+
 func _run() -> void:
 	var adapter: Script = load("res://src/ui/vnext/core/entity_presentation_adapter.gd")
 	var renderer: Script = load("res://src/ui/vnext/core/entity_renderer.gd")
@@ -118,6 +133,14 @@ func _run() -> void:
 	_check(canvas.did_draw, "focused probe executes the real CanvasItem draw path")
 	_check(canvas.snapshot == draw_before, "real draw leaves presentation snapshot unchanged")
 	canvas.free()
+
+	for spec: Dictionary in BATCH:
+		var enemy = enemies.get(str(spec["id"]))
+		if enemy == null:
+			continue
+		var enemy_draw_before := _simulation_signature(enemy)
+		enemy.call("_draw")
+		_check(_simulation_signature(enemy) == enemy_draw_before, "%s actual _draw leaves simulation fields unchanged" % spec["name"])
 
 	for enemy in enemies.values():
 		if is_instance_valid(enemy):
