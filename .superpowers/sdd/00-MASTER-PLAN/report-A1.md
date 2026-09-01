@@ -50,8 +50,8 @@ helpers de `Game`; nenhum novo campo foi adicionado.
 - A contagem “testes” é reportada como contagem de `AT_PASS` do DevHarness;
   não há um runner separado de testes unitários confirmado.
 - `lifetime` é tratado como seção de persistência separada porque o código usa
-  um `ConfigFile` próprio; o nome/caminho exato desse arquivo não foi
-  confirmado e permanece incerto.
+  uma instância `ConfigFile` própria, mas carrega e salva o mesmo
+  `Sfx.SAVE_PATH`; não é um arquivo separado.
 - Não existe `AGENTS.md` em `/tmp/kernel-panic-plan-execution/`; a tentativa
   de leitura retornou arquivo inexistente. Não foram importadas instruções de
   outro checkout.
