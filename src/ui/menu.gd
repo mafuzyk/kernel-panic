@@ -61,9 +61,12 @@ var _settings_keybind_grid: GridContainer
 var _settings_kit
 var _chrome_kit
 var _vnext_boot: Control
+var _vnext_mode := false
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
+		if _vnext_boot != null and is_instance_valid(_vnext_boot):
+			_configure_vnext_boot()
 		if _settings_panel != null and is_instance_valid(_settings_panel):
 			_settings_kit._layout_settings.call_deferred()
 		if _chrome_kit != null:
@@ -73,6 +76,8 @@ func _notification(what: int) -> void:
 func _on_window_size_changed() -> void:
 	# Window resizes that keep the logical canvas size (uniform scale changes)
 	# never reach NOTIFICATION_RESIZED; reflowing is idempotent, so cover both.
+	if _vnext_boot != null and is_instance_valid(_vnext_boot):
+		_configure_vnext_boot()
 	if _settings_panel != null and is_instance_valid(_settings_panel):
 		_settings_kit._layout_settings.call_deferred()
 	if _chrome_kit != null:
@@ -159,12 +164,32 @@ func _refresh_color_assist_label() -> void:
 func _refresh_aim_label(btn: Button) -> void:
 	btn.text = "AIM MODE: %s" % Game.effective_aim_mode().to_upper()
 
+func _configure_vnext_boot(next_viewport_size: Vector2 = Vector2.ZERO) -> void:
+	if _vnext_boot == null or not is_instance_valid(_vnext_boot):
+		return
+	var viewport_size := next_viewport_size if next_viewport_size != Vector2.ZERO else get_viewport_rect().size
+	var touch := DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
+	_vnext_boot.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_vnext_boot.configure({"program": Game.program, "best": Game.best_for_mode()}, VNextBootScript.context_for_viewport(viewport_size, touch))
+
+func _on_vnext_boot_action(action_id: String, _payload: Dictionary) -> void:
+	if action_id == "boot":
+		_start()
+	elif action_id == "back":
+		# This opt-in slice is the root route, so BACK exits instead of
+		# pretending there is a previous screen that does not exist yet.
+		get_tree().quit()
+
 func _ready() -> void:
 	if OS.get_environment("KP_VNEXT_BOOT") == "1":
+		_vnext_mode = true
+		set_anchors_preset(Control.PRESET_FULL_RECT)
 		_vnext_boot = VNextBootScript.new()
 		_vnext_boot.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		add_child(_vnext_boot)
-		_vnext_boot.configure({"program": Game.program, "best": Game.best_for_mode()}, VNextBootScript.context_for_viewport(size))
+		_vnext_boot.action_requested.connect(_on_vnext_boot_action)
+		get_window().size_changed.connect(_on_window_size_changed)
+		_configure_vnext_boot()
 		return
 	_settings_kit = MenuSettingsKitScript.new(self)
 	_chrome_kit = MenuChromeKitScript.new(self)
@@ -734,6 +759,8 @@ const KLOG_POOL := [
 ]
 
 func _process(delta: float) -> void:
+	if _vnext_mode:
+		return
 	_t += delta
 	if _esc_armed > 0.0:
 		_esc_armed -= delta
