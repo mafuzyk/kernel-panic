@@ -52,12 +52,13 @@ master-plan documentation and does not merge into `main` automatically.
   channel; Drone tracking/elite/hit signals remain distinct from a generic
   recolor. No gameplay, balance, save, input or route behavior changed.
 - Evidence: focused red probe before production (`exit=1`, 15 failures), then
-  green headless and Xvfb focused probes (73/0 each); import and full suite
-  were green (`1414 AT_PASS`, `0 AT_FAIL`, `AUTOTEST_ALL_PASS`).
-- The accumulated validator finished `VALIDATION OK`; its E2 case was 73/0
-  and all runtime error gates were 0. A deliberately over-tight 30-second
-  first invocation timed out the suite before its marker and was rerun with
-  the validator default bound under an outer timeout.
+  green headless and Xvfb focused probes (76/0 each) after the review
+  corrections; import and full suite were green (`1414 AT_PASS`, `0 AT_FAIL`,
+  `AUTOTEST_ALL_PASS`).
+- The accumulated validator finished `VALIDATION OK`; its E2 case was 76/0
+  and all runtime error gates were 0. The batch validates the actual legacy
+  enemy draw path and preserves gameplay fields, but it does not claim human
+  visual approval or a measured dense-wave performance budget.
 - This is technical evidence only: no human visual approval, dense-wave
   performance measurement or physical-device support is claimed.
 

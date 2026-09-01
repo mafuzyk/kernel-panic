@@ -147,19 +147,24 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 
 ## E2 batch 1 — legacy enemy identity
 
-- Status: implemented on 2026-09-01 for DRONE, LANCER and SPEWER; remaining
-  E2 cast batches are pending.
+- Status: implemented and adversarially corrected on 2026-09-01 for DRONE,
+  LANCER and SPEWER; remaining E2 cast batches are pending.
 - Red: focused probe before production exited 1 with `PROBE_DONE fails=15`.
-- Green: focused probe passed headless and Xvfb with 73 passes/0 failures in
-  each run, including real CanvasItem drawing, Lancer AIM/LUNGE and Spewer
-  wind-up state projection, gameplay-like field preservation and GlyphLib
-  scope hash.
+- Green: focused probe passed headless and Xvfb with 76 passes/0 failures in
+  each run, including queued execution of each real enemy `_draw()` in a live
+  tree, Lancer AIM/LUNGE and Spewer wind-up state projection, gameplay-field
+  preservation, the conservative diagonal marker envelope and GlyphLib scope
+  hash.
 - Import exited 0; full Dummy-audio suite exited 0 with 1414 passes, 0
-  failures and `AUTOTEST_ALL_PASS`. The final accumulated validator used
-  `KP_VALIDATION_TIMEOUT_SECONDS=120` under a 300-second outer bound and
-  finished `VALIDATION OK`; E2 was 73/0 and runtime error gates were 0.
+  failures and `AUTOTEST_ALL_PASS`. The final accumulated validator ran after
+  the corrections under a 300-second outer bound and finished
+  `VALIDATION OK`; E2 was 76/0 and runtime error gates were 0.
+- An intermediate direct `_draw()` attempt was rejected by Godot's draw-phase
+  guard and replaced by the in-tree queued draw probe.
 - Commits: `2827e2b` probe, `120c2a8` production, `d734e0e` validator,
-  `a62bce9` per-frame allocation correction.
+  `a62bce9` per-frame allocation correction, `d02a607` contract and Spewer
+  correction, `c5c8012` real tree draw probe, followed by the documentation
+  correction commit.
 - Report: `.superpowers/sdd/00-MASTER-PLAN/report-E2-batch-1.md`; handoff:
   `docs/HANDOFF-E2-LEGACY-ENEMIES-BATCH-1.md`.
 - Not proven: human visual approval, fixed-seed dense-wave performance,
