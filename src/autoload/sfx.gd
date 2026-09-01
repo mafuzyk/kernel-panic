@@ -23,6 +23,7 @@ var color_assist := false
 var show_run_info := false
 var music_variant := "normal"
 var last_accessibility_persisted := true
+var _settings_path_override := ""
 
 const ACCESSIBILITY_SCHEMA_VERSION := 2
 const ACCESSIBILITY_TOUCH_SCALES := [0.85, 1.0, 1.2]
@@ -189,20 +190,32 @@ func _apply_volumes() -> void:
 
 const SAVE_PATH := "user://kernel_panic.cfg"
 
+func _settings_path() -> String:
+	return _settings_path_override if not _settings_path_override.is_empty() else SAVE_PATH
+
 func _load_settings() -> void:
 	var cf := ConfigFile.new()
-	if cf.load(SAVE_PATH) != OK:
+	if cf.load(_settings_path()) != OK:
 		return
 	muted = cf.get_value("audio", "muted", false)
 	sfx_vol = cf.get_value("audio", "sfx_vol", 0.9)
 	music_vol = cf.get_value("audio", "music_vol", 0.75)
-	haptics_enabled = cf.get_value("feel", "haptics", true)
-	shake_level = cf.get_value("feel", "shake", 2)
+	var raw_haptics = cf.get_value("feel", "haptics", true)
+	var raw_shake = cf.get_value("feel", "shake", 2)
 	target_fps = cf.get_value("feel", "target_fps", 60)
 	Engine.max_fps = target_fps
-	touch_scale = cf.get_value("feel", "touch_scale", 1.0)
+	var raw_touch_scale = cf.get_value("feel", "touch_scale", 1.0)
 	aim_mode = cf.get_value("feel", "aim_mode", "drag")
-	color_assist = bool(cf.get_value("feel", "color_assist", false))
+	var accessibility := _normalize_accessibility_profile({
+		"color_assist": cf.get_value("feel", "color_assist", false),
+		"haptics_enabled": raw_haptics,
+		"shake_level": raw_shake,
+		"touch_scale": raw_touch_scale,
+	})
+	haptics_enabled = accessibility["haptics_enabled"]
+	shake_level = accessibility["shake_level"]
+	touch_scale = accessibility["touch_scale"]
+	color_assist = accessibility["color_assist"]
 	show_run_info = bool(cf.get_value("feel", "show_run_info", false))
 
 func save_settings() -> void:
@@ -210,7 +223,8 @@ func save_settings() -> void:
 
 func _save_settings_result() -> bool:
 	var cf := ConfigFile.new()
-	var load_result := cf.load(SAVE_PATH)
+	var save_path := _settings_path()
+	var load_result := cf.load(save_path)
 	if load_result != OK and load_result != ERR_FILE_NOT_FOUND:
 		return false
 	cf.set_value("audio", "muted", muted)
@@ -223,7 +237,7 @@ func _save_settings_result() -> bool:
 	cf.set_value("feel", "aim_mode", aim_mode)
 	cf.set_value("feel", "color_assist", color_assist)
 	cf.set_value("feel", "show_run_info", show_run_info)
-	return cf.save(SAVE_PATH) == OK
+	return cf.save(save_path) == OK
 
 func set_aim_mode(v: String) -> void:
 	aim_mode = v

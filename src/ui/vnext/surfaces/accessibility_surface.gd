@@ -219,23 +219,23 @@ func _emit_action(action_id: String) -> void:
 	_focus = action_id
 	if action_id == "color_assist":
 		Sfx.apply_accessibility_profile({"color_assist": not Sfx.color_assist})
-		_status = "APPLIED IN MEMORY / PERSISTED" if Sfx.last_accessibility_persisted else "APPLIED IN MEMORY / SAVE FAILED — RETRY"
+		_status = "APPLIED / PERSISTED" if Sfx.last_accessibility_persisted else "SAVE FAILED / PREVIOUS VALUES RESTORED"
 	elif action_id == "haptics_enabled":
 		Sfx.apply_accessibility_profile({"haptics_enabled": not Sfx.haptics_enabled})
-		_status = "APPLIED IN MEMORY / PERSISTED" if Sfx.last_accessibility_persisted else "APPLIED IN MEMORY / SAVE FAILED — RETRY"
+		_status = "APPLIED / PERSISTED" if Sfx.last_accessibility_persisted else "SAVE FAILED / PREVIOUS VALUES RESTORED"
 	elif action_id == "shake_level":
 		Sfx.apply_accessibility_profile({"shake_level": (int(Sfx.shake_level) + 1) % 3})
-		_status = "APPLIED IN MEMORY / PERSISTED" if Sfx.last_accessibility_persisted else "APPLIED IN MEMORY / SAVE FAILED — RETRY"
+		_status = "APPLIED / PERSISTED" if Sfx.last_accessibility_persisted else "SAVE FAILED / PREVIOUS VALUES RESTORED"
 	elif action_id == "touch_scale":
 		var index := [0.85, 1.0, 1.2].find(float(Sfx.touch_scale))
 		Sfx.apply_accessibility_profile({"touch_scale": [0.85, 1.0, 1.2][wrapi(index + 1, 0, 3)]})
-		_status = "APPLIED IN MEMORY / PERSISTED" if Sfx.last_accessibility_persisted else "APPLIED IN MEMORY / SAVE FAILED — RETRY"
+		_status = "APPLIED / PERSISTED" if Sfx.last_accessibility_persisted else "SAVE FAILED / PREVIOUS VALUES RESTORED"
 	elif action_id == "reset_accessibility":
 		if _reset_confirmed:
 			Sfx.reset_accessibility_profile()
 			_reset_confirmed = false
 			_reset_completed = true
-			_status = "RESET APPLIED IN MEMORY / PERSISTED" if Sfx.last_accessibility_persisted else "RESET IN MEMORY / SAVE FAILED — RETRY"
+			_status = "RESET / PERSISTED" if Sfx.last_accessibility_persisted else "RESET FAILED / PREVIOUS VALUES RESTORED"
 		else:
 			_reset_confirmed = true
 			_reset_completed = false
