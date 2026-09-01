@@ -69,8 +69,8 @@ esse contrato seja definido.
    seletor com tamanho real, capturar o texto do Combat HUD no `_draw()` e
    verificar o helper de contexto chamado pela pausa.
 4. A medição adicional expôs overflow real de `SHIELD READY` em 432×720.
-   O estado estreito passou a usar tamanho menor; OVERCLOCK ganha forma curta
-   `OC` somente nessa densidade.
+   O estado agora escolhe um tamanho que cabe na largura efetiva do painel;
+   OVERCLOCK ganha forma curta `OC` somente nessa densidade.
 5. Headless final: exit 0, `35 PROBE_PASS`, `0 PROBE_FAIL`, marcador exato.
 6. Xvfb final: exit 0, `35/0`; apenas warning de V-Sync e diagnósticos de
    encerramento conhecidos.

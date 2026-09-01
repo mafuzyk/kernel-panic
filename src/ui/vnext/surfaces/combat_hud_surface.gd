@@ -195,6 +195,13 @@ func _ability_display_text(semantic: Dictionary) -> String:
 		return "OC " + state.substr("OVERCLOCK ".length())
 	return state
 
+func _ability_font_size(rect: Rect2, semantic: Dictionary) -> int:
+	var available := maxf(rect.size.x - 24.0, 0.0)
+	var size := 22
+	while size > 12 and Orbitron.get_string_size(_ability_display_text(semantic), HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > available:
+		size -= 1
+	return size
+
 func text_overflow_report() -> Dictionary:
 	var scale := float(context.text_scale) if context != null else 1.0
 	var fields := {}
@@ -210,7 +217,7 @@ func text_overflow_report() -> Dictionary:
 	_add_overflow_field(fields, "cycle", str(snapshot.get("cycle", "CYCLE %02d" % int(snapshot.get("wave", 0)))), patches, ShareTechMono, 11, 24.0, scale)
 	_add_overflow_field(fields, "patches", _patch_text(), patches, ShareTechMono, 11, 24.0, scale)
 	_add_overflow_field(fields, "ability", "ABILITY // " + str(_semantic.get("program_id", Game.program)).to_upper(), dash, ShareTechMono, 11, 24.0, scale)
-	var ability_size := 18 if bool(_layout.get("narrow", false)) else 22
+	var ability_size := _ability_font_size(dash, _semantic)
 	_add_overflow_field(fields, "ability_state", _ability_display_text(_semantic), dash, Orbitron, ability_size, 24.0, scale)
 	var score_size := 16 if bool(_layout.get("narrow", false)) else 18
 	_add_overflow_field(fields, "score", "SCORE %07d" % int(snapshot.get("score", 0)), score, Orbitron, score_size, 24.0, scale)
@@ -306,7 +313,7 @@ func _draw_dash(rect: Rect2, semantic: Dictionary) -> void:
 	_draw_text("ABILITY // " + str(semantic.get("program_id", Game.program)).to_upper(), rect.position + Vector2(12, 20), rect.size.x - 24, 11, Tokens.role_color("structure"))
 	var state := str(semantic.get("ability_state", semantic.get("dash_state", "COOLDOWN")))
 	var display_state := _ability_display_text(semantic)
-	var state_size := 18 if bool(_layout.get("narrow", false)) else 22
+	var state_size := _ability_font_size(rect, semantic)
 	_draw_text(display_state, rect.position + Vector2(12, 50), rect.size.x - 24, state_size, Tokens.role_color("ready") if state.contains("READY") else Tokens.role_color("warning"), Orbitron)
 	_draw_text("TAP / SPACE", rect.position + Vector2(12, 76), rect.size.x - 24, 10, Tokens.role_color("muted"))
 

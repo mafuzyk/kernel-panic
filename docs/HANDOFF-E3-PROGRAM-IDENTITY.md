@@ -60,9 +60,9 @@ As correções agora:
   configuração do seletor com a ilustração compartilhada.
 
 Durante a correção, a nova medição revelou um overflow real de `SHIELD READY`
-no painel estreito; o estado foi reduzido para 18px nesse painel e o probe
-passou novamente. Isso é evidência de que o teste adicional não era
-decorativo.
+no painel estreito; o estado passou a escolher o menor tamanho que cabe na
+largura efetiva do painel (com limite mínimo) e o probe passou novamente. Isso
+é evidência de que o teste adicional não era decorativo.
 
 ## Próximos passos
 
