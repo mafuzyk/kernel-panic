@@ -55,6 +55,15 @@ static func draw_radius(snapshot: Dictionary, target: Rect2) -> float:
 	var rect := _fit_normalized(normalized, target)
 	return _draw_radius_normalized(normalized, rect)
 
+static func draw_radius_from_bounds(snapshot: Dictionary, bounds: Rect2) -> float:
+	## Radius for GlyphLib's identity when the caller already has draw_bounds().
+	var normalized := Descriptor.normalize(snapshot)
+	return _draw_radius_normalized(normalized, _body_from_bounds_normalized(normalized, bounds))
+
+static func _body_from_bounds_normalized(normalized: Dictionary, bounds: Rect2) -> Rect2:
+	var side := maxf(minf(bounds.size.x, bounds.size.y), 0.0) / _draw_extent_factor_normalized(normalized)
+	return Rect2(bounds.get_center() - Vector2.ONE * side * 0.5, Vector2.ONE * side)
+
 static func _draw_radius_normalized(normalized: Dictionary, body_rect: Rect2) -> float:
 	return body_rect.size.x * 0.5 / maxf(Glyphs.glyph_extent(str(normalized["kind"])), 1.0)
 

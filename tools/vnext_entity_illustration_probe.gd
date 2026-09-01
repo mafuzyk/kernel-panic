@@ -121,10 +121,20 @@ func _run() -> void:
 		illustration.call("set_quality", {"grayscale": true, "color_assist": true, "reduced_motion": true})
 	await get_tree().process_frame
 	_check(illustration.is_inside_tree(), "entity illustration draws as a live control")
-	var public_rect: Rect2 = illustration.call("visual_rect", Vector2(432, 720))
+	var illustration_source := FileAccess.get_file_as_string("res://src/ui/vnext/entity_illustration.gd")
+	_check(illustration_source.contains("var snapshot := _presentation_snapshot()") and illustration_source.contains("Renderer.draw(self, snapshot, allocation"), "public illustration draws from the original allocation")
+	_check(renderer_script.has_method("draw_radius_from_bounds") and illustration.has_method("draw_target_rect"), "public geometry exposes allocation and bounds radius contracts")
 	var public_snapshot := {"kind": "god", "visual_state": "idle", "facing": Vector2.RIGHT}
-	var public_radius := float(renderer_script.call("draw_radius", public_snapshot, public_rect))
-	_check(is_equal_approx(float(illustration.call("glyph_radius", public_rect)), public_radius), "public glyph radius uses the shared renderer contract")
+	var tokens_script: Script = load("res://src/ui/vnext/ui_tokens.gd")
+	var public_factor := float(renderer_script.call("draw_extent_factor", public_snapshot))
+	var public_glyph_extent := float(glyph_script.call("glyph_extent", "god"))
+	for viewport in [Vector2(432, 720), Vector2(160, 96), Vector2(2, 2)]:
+		var public_rect: Rect2 = illustration.call("visual_rect", viewport)
+		var allocation: Rect2 = tokens_script.call("safe_rect", viewport, 16.0) if tokens_script != null else Rect2()
+		var expected_bounds: Rect2 = renderer_script.call("draw_bounds", public_snapshot, allocation) if renderer_script.has_method("draw_bounds") else Rect2()
+		var expected_radius := public_rect.size.x * 0.5 / maxf(public_factor, 1.0) / maxf(public_glyph_extent, 1.0)
+		_check(is_equal_approx(public_rect.position.x, expected_bounds.position.x) and is_equal_approx(public_rect.position.y, expected_bounds.position.y) and is_equal_approx(public_rect.size.x, expected_bounds.size.x), "public visual rect matches the single-pass marker envelope at %dx%d" % [int(viewport.x), int(viewport.y)])
+		_check(is_equal_approx(float(illustration.call("glyph_radius", public_rect)), expected_radius), "public glyph radius matches the published envelope at %dx%d" % [int(viewport.x), int(viewport.y)])
 	var kinds: Array = glyph_script.call("glyph_kinds")
 	for kind in ["drone", "lancer", "oom", "god", "kernel", "rootlet"]:
 		_check(kind in kinds, "illustration example kind exists in GlyphLib: %s" % kind)

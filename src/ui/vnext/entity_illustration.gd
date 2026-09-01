@@ -46,15 +46,24 @@ func set_quality(quality: Dictionary) -> void:
 	_quality = quality.duplicate(true)
 	queue_redraw()
 
-func visual_rect(viewport: Vector2 = Vector2.ZERO) -> Rect2:
+func draw_target_rect(viewport: Vector2 = Vector2.ZERO) -> Rect2:
 	var target := viewport if viewport != Vector2.ZERO else size
-	var safe := Tokens.safe_rect(target, 16.0)
-	var bounds := Renderer.draw_bounds(_presentation_snapshot(), Rect2(Vector2.ZERO, safe.size))
-	bounds.position += safe.position
-	return bounds
+	return Tokens.safe_rect(target, 16.0)
+
+func visual_rect(viewport: Vector2 = Vector2.ZERO) -> Rect2:
+	var allocation := draw_target_rect(viewport)
+	return Renderer.draw_bounds(_presentation_snapshot(), allocation)
 
 func glyph_radius(rect: Rect2 = visual_rect()) -> float:
-	return Renderer.draw_radius(_presentation_snapshot(), rect)
+	return Renderer.draw_radius_from_bounds(_presentation_snapshot(), rect)
+
+func _draw() -> void:
+	var snapshot := _presentation_snapshot()
+	var allocation := draw_target_rect()
+	var bounds := Renderer.draw_bounds(snapshot, allocation)
+	if bounds.size.x <= 2.0 or bounds.size.y <= 2.0:
+		return
+	Renderer.draw(self, snapshot, allocation, _motion_phase, _quality)
 
 func visual_snapshot() -> Dictionary:
 	var state_visual: Dictionary = Tokens.state_visual(_state)
@@ -92,12 +101,6 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED and size != _last_size:
 		_last_size = size
 		queue_redraw()
-
-func _draw() -> void:
-	var rect := visual_rect()
-	if rect.size.x <= 2.0 or rect.size.y <= 2.0:
-		return
-	Renderer.draw(self, _presentation_snapshot(), rect, _motion_phase, _quality)
 
 func _draw_state_marks(center: Vector2, radius: float, state_visual: Dictionary) -> void:
 	var state_color := Tokens.role_color(str(state_visual.get("role", "structure")))
