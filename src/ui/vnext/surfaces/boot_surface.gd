@@ -35,11 +35,16 @@ func _ready() -> void:
 	_create_action_button("program", "ProgramAction")
 	_create_action_button("story", "StoryAction")
 	_create_action_button("back", "BackAction")
+	_create_action_button("settings", "SettingsAction")
 
 func configure(next_snapshot: Dictionary, next_context: RefCounted) -> void:
 	snapshot = next_snapshot.duplicate(true)
 	context = next_context
 	_layout = Layout.boot(context.viewport_size, context)
+	if bool(snapshot.get("settings_enabled", false)):
+		_layout["settings"] = _settings_rect()
+	else:
+		_layout.erase("settings")
 	_navigation.set_focus_order(_focus_ids())
 	set_focus_id("boot")
 	if _illustration == null:
@@ -55,12 +60,15 @@ func layout_snapshot() -> Dictionary:
 	return {"density": context.density, "safe_rect": context.safe_rect, "regions": _layout.duplicate(true)}
 
 func action_regions() -> Dictionary:
-	return {
+	var regions := {
 		"boot": {"rect": _layout.get("boot", Rect2()), "label": "BOOT / RUN PROCESS", "state": "ready"},
 		"program": {"rect": _layout.get("program", Rect2()), "label": "PROGRAMS", "state": "idle"},
 		"story": {"rect": _layout.get("story", Rect2()), "label": "STORY", "state": "idle"},
 		"back": {"rect": _layout.get("back", Rect2()), "label": "BACK", "state": "idle"},
 	}
+	if _layout.has("settings"):
+		regions["settings"] = {"rect": _layout["settings"], "label": "SETTINGS", "state": "idle"}
+	return regions
 
 func text_overflow_report() -> Array:
 	if context == null or _layout.is_empty():
@@ -75,6 +83,8 @@ func text_overflow_report() -> Array:
 		{"id": "story", "text": "STORY", "rect": _layout["story"], "font": ShareTechMono, "font_size": 14.0, "padding": 20.0},
 		{"id": "back", "text": "< BACK", "rect": _layout["back"], "font": ShareTechMono, "font_size": 16.0, "padding": 20.0},
 	]
+	if _layout.has("settings"):
+		entries.append({"id": "settings", "text": "SETTINGS", "rect": _layout["settings"], "font": ShareTechMono, "font_size": 16.0, "padding": 20.0})
 	var report: Array = []
 	for entry in entries:
 		var font: Font = entry["font"]
@@ -97,7 +107,10 @@ func focus_id() -> String:
 	return _focus
 
 func _focus_ids() -> Array[String]:
-	return ["boot", "back", "program", "story"]
+	var ids: Array[String] = ["boot", "back", "program", "story"]
+	if _layout.has("settings"):
+		ids.append("settings")
+	return ids
 
 func set_focus_id(id: String) -> bool:
 	if _navigation == null or not _navigation.set_focus(id):
@@ -191,6 +204,14 @@ func _apply_action_layout() -> void:
 			button.size = _layout[action_id].size
 			button.text = action_id.to_upper()
 			button.add_theme_font_size_override("font_size", int(round(14.0 * float(context.text_scale))))
+	var settings_button: Button = _action_buttons.get("settings")
+	if settings_button != null:
+		settings_button.visible = _layout.has("settings")
+		if _layout.has("settings"):
+			settings_button.position = _layout["settings"].position
+			settings_button.size = _layout["settings"].size
+			settings_button.text = "SETTINGS"
+			settings_button.add_theme_font_size_override("font_size", int(round(16.0 * float(context.text_scale))))
 
 func _on_button_focus(action_id: String) -> void:
 	if _navigation != null and _navigation.set_focus(action_id):
@@ -236,7 +257,15 @@ func _draw() -> void:
 	var program_color := Tokens.role_color("focus") if _focus == "program" else Tokens.role_color("structure")
 	var story_color := Tokens.role_color("focus") if _focus == "story" else Tokens.role_color("structure")
 	var back_color := Tokens.role_color("focus") if _focus == "back" else Tokens.role_color("structure")
+	var settings_color := Tokens.role_color("focus") if _focus == "settings" else Tokens.role_color("structure")
 	draw_polyline(Tokens.frame_points(_layout["boot"], 12.0), boot_color, 2.0 if _focus == "boot" else 1.0, true)
 	draw_polyline(Tokens.frame_points(_layout["program"], 10.0), program_color, 2.0 if _focus == "program" else 1.0, true)
 	draw_polyline(Tokens.frame_points(_layout["story"], 10.0), story_color, 2.0 if _focus == "story" else 1.0, true)
 	draw_polyline(Tokens.frame_points(_layout["back"], 10.0), back_color, 2.0 if _focus == "back" else 1.0, true)
+	if _layout.has("settings"):
+		draw_polyline(Tokens.frame_points(_layout["settings"], 10.0), settings_color, 2.0 if _focus == "settings" else 1.0, true)
+
+func _settings_rect() -> Rect2:
+	var safe: Rect2 = context.safe_rect
+	var width := minf(260.0, safe.size.x)
+	return Rect2(safe.end - Vector2(width, 64.0), Vector2(width, 48.0))

@@ -8,6 +8,7 @@ const MenuChromeKitScript = preload("res://src/ui/menu_chrome_kit.gd")
 const VNextBootScript = preload("res://src/ui/vnext/surfaces/boot_surface.gd")
 const VNextProgramScript = preload("res://src/ui/vnext/surfaces/program_surface.gd")
 const VNextStoryScript = preload("res://src/ui/vnext/surfaces/story_surface.gd")
+const VNextAccessibilityScript = preload("res://src/ui/vnext/surfaces/accessibility_surface.gd")
 
 var _title: Label
 var _title_r: Label
@@ -173,7 +174,7 @@ func _configure_vnext_boot(next_viewport_size: Vector2 = Vector2.ZERO) -> void:
 	var viewport_size := next_viewport_size if next_viewport_size != Vector2.ZERO else get_viewport_rect().size
 	var touch := DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
 	_vnext_boot.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_vnext_boot.configure({"program": Game.program, "best": Game.best_for_mode()}, VNextBootScript.context_for_viewport(viewport_size, touch))
+	_vnext_boot.configure({"program": Game.program, "best": Game.best_for_mode(), "settings_enabled": OS.get_environment("KP_VNEXT_SETTINGS") == "1"}, VNextBootScript.context_for_viewport(viewport_size, touch))
 
 func _configure_vnext_surface(next_viewport_size: Vector2 = Vector2.ZERO) -> void:
 	if _vnext_surface == null or not is_instance_valid(_vnext_surface):
@@ -185,19 +186,24 @@ func _configure_vnext_surface(next_viewport_size: Vector2 = Vector2.ZERO) -> voi
 		_vnext_surface.configure({"selected": Game.program}, VNextProgramScript.context_for_viewport(viewport_size, touch))
 	elif _vnext_surface.get_script() == VNextStoryScript:
 		_vnext_surface.configure({"selected": Game.story_stage_index}, VNextStoryScript.context_for_viewport(viewport_size, touch))
+	elif _vnext_surface.get_script() == VNextAccessibilityScript:
+		_vnext_surface.configure(Sfx.accessibility_snapshot(), VNextAccessibilityScript.context_for_viewport(viewport_size, touch))
 	else:
 		_configure_vnext_boot(viewport_size)
 
 func _show_vnext_route(route: String) -> void:
 	if _vnext_surface != null and is_instance_valid(_vnext_surface):
 		_vnext_surface.queue_free()
-	_vnext_surface = VNextProgramScript.new() if route == "program" else VNextStoryScript.new() if route == "story" else VNextBootScript.new()
+	_vnext_surface = VNextProgramScript.new() if route == "program" else VNextStoryScript.new() if route == "story" else VNextAccessibilityScript.new() if route == "settings" else VNextBootScript.new()
 	add_child(_vnext_surface)
 	_vnext_surface.action_requested.connect(_on_vnext_boot_action)
 	if route == "program":
 		_vnext_boot = null
 		_configure_vnext_surface()
 	elif route == "story":
+		_vnext_boot = null
+		_configure_vnext_surface()
+	elif route == "settings":
 		_vnext_boot = null
 		_configure_vnext_surface()
 	else:
@@ -216,6 +222,8 @@ func _on_vnext_boot_action(action_id: String, _payload: Dictionary) -> void:
 		_start()
 	elif action_id == "launch_story":
 		_start_story(int(_payload.get("index", 0)))
+	elif action_id == "settings":
+		_show_vnext_route("settings")
 	elif action_id == "back":
 		if _vnext_surface != null and _vnext_surface != _vnext_boot:
 			_show_vnext_route("boot")
@@ -223,10 +231,12 @@ func _on_vnext_boot_action(action_id: String, _payload: Dictionary) -> void:
 			get_tree().quit()
 
 func _ready() -> void:
-	if OS.get_environment("KP_VNEXT_BOOT") == "1":
+	if OS.get_environment("KP_VNEXT_BOOT") == "1" or OS.get_environment("KP_VNEXT_SETTINGS") == "1":
 		_vnext_mode = true
 		set_anchors_preset(Control.PRESET_FULL_RECT)
 		_show_vnext_route("boot")
+		if OS.get_environment("KP_VNEXT_SETTINGS") == "1":
+			_configure_vnext_boot()
 		get_window().size_changed.connect(_on_window_size_changed)
 		return
 	_settings_kit = MenuSettingsKitScript.new(self)

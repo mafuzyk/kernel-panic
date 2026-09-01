@@ -22,6 +22,10 @@ var aim_mode := "drag"
 var color_assist := false
 var show_run_info := false
 var music_variant := "normal"
+var last_accessibility_persisted := true
+
+const ACCESSIBILITY_SCHEMA_VERSION := 2
+const ACCESSIBILITY_TOUCH_SCALES := [0.85, 1.0, 1.2]
 
 func haptic(ms: int) -> void:
 	if not haptics_enabled:
@@ -202,8 +206,13 @@ func _load_settings() -> void:
 	show_run_info = bool(cf.get_value("feel", "show_run_info", false))
 
 func save_settings() -> void:
+	_save_settings_result()
+
+func _save_settings_result() -> bool:
 	var cf := ConfigFile.new()
-	cf.load(SAVE_PATH)
+	var load_result := cf.load(SAVE_PATH)
+	if load_result != OK and load_result != ERR_FILE_NOT_FOUND:
+		return false
 	cf.set_value("audio", "muted", muted)
 	cf.set_value("audio", "sfx_vol", sfx_vol)
 	cf.set_value("audio", "music_vol", music_vol)
@@ -214,7 +223,7 @@ func save_settings() -> void:
 	cf.set_value("feel", "aim_mode", aim_mode)
 	cf.set_value("feel", "color_assist", color_assist)
 	cf.set_value("feel", "show_run_info", show_run_info)
-	cf.save(SAVE_PATH)
+	return cf.save(SAVE_PATH) == OK
 
 func set_aim_mode(v: String) -> void:
 	aim_mode = v
@@ -233,12 +242,117 @@ func set_color_assist(v: bool) -> void:
 	color_assist = v
 	save_settings()
 
+func accessibility_defaults() -> Dictionary:
+	return {
+		"color_assist": false,
+		"haptics_enabled": true,
+		"shake_level": 2,
+		"touch_scale": 1.0,
+	}
+
+func _normalize_accessibility_profile(profile: Dictionary) -> Dictionary:
+	var defaults := accessibility_defaults()
+	var shake_value = profile.get("shake_level", defaults["shake_level"])
+	var shake: int = int(defaults["shake_level"])
+	if shake_value is int or shake_value is float:
+		shake = clampi(int(shake_value), 0, 2)
+	var touch_value = profile.get("touch_scale", defaults["touch_scale"])
+	var touch: float = float(defaults["touch_scale"])
+	if touch_value is int or touch_value is float:
+		var numeric_touch := clampf(float(touch_value), ACCESSIBILITY_TOUCH_SCALES[0], ACCESSIBILITY_TOUCH_SCALES[-1])
+		touch = ACCESSIBILITY_TOUCH_SCALES[0]
+		for supported_scale in ACCESSIBILITY_TOUCH_SCALES:
+			if absf(float(supported_scale) - numeric_touch) < absf(float(touch) - numeric_touch):
+				touch = supported_scale
+	return {
+		"color_assist": _normalize_bool(profile.get("color_assist", defaults["color_assist"]), bool(defaults["color_assist"])),
+		"haptics_enabled": _normalize_bool(profile.get("haptics_enabled", defaults["haptics_enabled"]), bool(defaults["haptics_enabled"])),
+		"shake_level": shake,
+		"touch_scale": touch,
+	}
+
+func _normalize_bool(value, fallback: bool) -> bool:
+	if value is bool:
+		return value
+	if value is int or value is float:
+		return int(value) != 0
+	if value is String:
+		var normalized: String = value.to_lower()
+		if normalized in ["true", "yes", "on", "1"]:
+			return true
+		if normalized in ["false", "no", "off", "0"]:
+			return false
+	return fallback
+
+func apply_accessibility_profile(profile: Dictionary, persist := true) -> Dictionary:
+	var normalized: Dictionary = _normalize_accessibility_profile(profile)
+	var previous: Dictionary = {
+		"color_assist": color_assist,
+		"haptics_enabled": haptics_enabled,
+		"shake_level": shake_level,
+		"touch_scale": touch_scale,
+	}
+	color_assist = normalized["color_assist"]
+	haptics_enabled = normalized["haptics_enabled"]
+	shake_level = normalized["shake_level"]
+	touch_scale = normalized["touch_scale"]
+	var persisted := true
+	if persist:
+		persisted = _save_settings_result()
+		if not persisted:
+			color_assist = previous["color_assist"]
+			haptics_enabled = previous["haptics_enabled"]
+			shake_level = previous["shake_level"]
+			touch_scale = previous["touch_scale"]
+	last_accessibility_persisted = persisted
+	return normalized.duplicate(true)
+
+func reset_accessibility_profile(persist := true) -> bool:
+	var previous: Dictionary = {
+		"color_assist": color_assist,
+		"haptics_enabled": haptics_enabled,
+		"shake_level": shake_level,
+		"touch_scale": touch_scale,
+	}
+	var defaults := accessibility_defaults()
+	apply_accessibility_profile(defaults, false)
+	if not persist:
+		return true
+	var persisted := _save_settings_result()
+	last_accessibility_persisted = persisted
+	if not persisted:
+		color_assist = previous["color_assist"]
+		haptics_enabled = previous["haptics_enabled"]
+		shake_level = previous["shake_level"]
+		touch_scale = previous["touch_scale"]
+	return persisted
+
+func reload_settings() -> void:
+	_load_settings()
+
 func accessibility_snapshot() -> Dictionary:
 	var required := ["muted", "haptics_enabled", "shake_level", "target_fps", "touch_scale", "aim_mode", "color_assist", "show_run_info"]
 	var optional := ["sfx_volume", "music_volume", "music_variant", "palette"]
+	var profile := _normalize_accessibility_profile({
+		"color_assist": color_assist,
+		"haptics_enabled": haptics_enabled,
+		"shake_level": shake_level,
+		"touch_scale": touch_scale,
+	})
 	var snapshot := {
-		"schema_version": 1,
+		"schema_version": ACCESSIBILITY_SCHEMA_VERSION,
 		"owner": "Sfx",
+		"profile": profile.duplicate(true),
+		"supported": {
+			"color_assist": true,
+			"haptics_enabled": true,
+			"shake_level": true,
+			"touch_scale": true,
+			"native_screen_reader": false,
+			"text_scale": false,
+			"high_contrast": false,
+			"reduced_flash": false,
+		},
 		"required_fields": required.duplicate(true),
 		"optional_fields": optional.duplicate(true),
 		"muted": bool(muted),
