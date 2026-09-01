@@ -6,6 +6,8 @@ const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 const MenuSettingsKitScript = preload("res://src/ui/menu_settings_kit.gd")
 const MenuChromeKitScript = preload("res://src/ui/menu_chrome_kit.gd")
 const VNextBootScript = preload("res://src/ui/vnext/surfaces/boot_surface.gd")
+const VNextProgramScript = preload("res://src/ui/vnext/surfaces/program_surface.gd")
+const VNextStoryScript = preload("res://src/ui/vnext/surfaces/story_surface.gd")
 
 var _title: Label
 var _title_r: Label
@@ -61,12 +63,13 @@ var _settings_keybind_grid: GridContainer
 var _settings_kit
 var _chrome_kit
 var _vnext_boot: Control
+var _vnext_surface: Control
 var _vnext_mode := false
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
-		if _vnext_boot != null and is_instance_valid(_vnext_boot):
-			_configure_vnext_boot()
+		if _vnext_surface != null and is_instance_valid(_vnext_surface):
+			_configure_vnext_surface()
 		if _settings_panel != null and is_instance_valid(_settings_panel):
 			_settings_kit._layout_settings.call_deferred()
 		if _chrome_kit != null:
@@ -76,8 +79,8 @@ func _notification(what: int) -> void:
 func _on_window_size_changed() -> void:
 	# Window resizes that keep the logical canvas size (uniform scale changes)
 	# never reach NOTIFICATION_RESIZED; reflowing is idempotent, so cover both.
-	if _vnext_boot != null and is_instance_valid(_vnext_boot):
-		_configure_vnext_boot()
+	if _vnext_surface != null and is_instance_valid(_vnext_surface):
+		_configure_vnext_surface()
 	if _settings_panel != null and is_instance_valid(_settings_panel):
 		_settings_kit._layout_settings.call_deferred()
 	if _chrome_kit != null:
@@ -172,24 +175,59 @@ func _configure_vnext_boot(next_viewport_size: Vector2 = Vector2.ZERO) -> void:
 	_vnext_boot.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_vnext_boot.configure({"program": Game.program, "best": Game.best_for_mode()}, VNextBootScript.context_for_viewport(viewport_size, touch))
 
+func _configure_vnext_surface(next_viewport_size: Vector2 = Vector2.ZERO) -> void:
+	if _vnext_surface == null or not is_instance_valid(_vnext_surface):
+		return
+	var viewport_size := next_viewport_size if next_viewport_size != Vector2.ZERO else get_viewport_rect().size
+	var touch := DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
+	_vnext_surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if _vnext_surface.get_script() == VNextProgramScript:
+		_vnext_surface.configure({"selected": Game.program}, VNextProgramScript.context_for_viewport(viewport_size, touch))
+	elif _vnext_surface.get_script() == VNextStoryScript:
+		_vnext_surface.configure({"selected": Game.story_stage_index}, VNextStoryScript.context_for_viewport(viewport_size, touch))
+	else:
+		_configure_vnext_boot(viewport_size)
+
+func _show_vnext_route(route: String) -> void:
+	if _vnext_surface != null and is_instance_valid(_vnext_surface):
+		_vnext_surface.queue_free()
+	_vnext_surface = VNextProgramScript.new() if route == "program" else VNextStoryScript.new() if route == "story" else VNextBootScript.new()
+	add_child(_vnext_surface)
+	_vnext_surface.action_requested.connect(_on_vnext_boot_action)
+	if route == "program":
+		_vnext_boot = null
+		_configure_vnext_surface()
+	elif route == "story":
+		_vnext_boot = null
+		_configure_vnext_surface()
+	else:
+		_vnext_boot = _vnext_surface
+		_configure_vnext_boot()
+
 func _on_vnext_boot_action(action_id: String, _payload: Dictionary) -> void:
 	if action_id == "boot":
 		_start()
+	elif action_id == "program":
+		_show_vnext_route("program")
+	elif action_id == "story":
+		_show_vnext_route("story")
+	elif action_id == "launch_program":
+		Game.set_program(str(_payload.get("program", Game.program)))
+		_start()
+	elif action_id == "launch_story":
+		_start_story(int(_payload.get("index", 0)))
 	elif action_id == "back":
-		# This opt-in slice is the root route, so BACK exits instead of
-		# pretending there is a previous screen that does not exist yet.
-		get_tree().quit()
+		if _vnext_surface != null and _vnext_surface != _vnext_boot:
+			_show_vnext_route("boot")
+		else:
+			get_tree().quit()
 
 func _ready() -> void:
 	if OS.get_environment("KP_VNEXT_BOOT") == "1":
 		_vnext_mode = true
 		set_anchors_preset(Control.PRESET_FULL_RECT)
-		_vnext_boot = VNextBootScript.new()
-		_vnext_boot.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		add_child(_vnext_boot)
-		_vnext_boot.action_requested.connect(_on_vnext_boot_action)
+		_show_vnext_route("boot")
 		get_window().size_changed.connect(_on_window_size_changed)
-		_configure_vnext_boot()
 		return
 	_settings_kit = MenuSettingsKitScript.new(self)
 	_chrome_kit = MenuChromeKitScript.new(self)
@@ -839,8 +877,8 @@ func _start() -> void:
 	Game.start_run()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _vnext_boot != null:
-		if _vnext_boot.handle_input(event):
+	if _vnext_surface != null and is_instance_valid(_vnext_surface):
+		if _vnext_surface.handle_input(event):
 			get_viewport().set_input_as_handled()
 		return
 	if _starting:

@@ -6,6 +6,8 @@ const Layout = preload("res://src/ui/vnext/ui_layout.gd")
 const Tokens = preload("res://src/ui/vnext/ui_tokens.gd")
 const Illustration = preload("res://src/ui/vnext/entity_illustration.gd")
 const Navigation = preload("res://src/ui/vnext/ui_navigation.gd")
+const Orbitron: Font = preload("res://assets/fonts/Orbitron.ttf")
+const ShareTechMono: Font = preload("res://assets/fonts/ShareTechMono.ttf")
 
 signal action_requested(action_id: String, payload: Dictionary)
 
@@ -30,6 +32,8 @@ func _ready() -> void:
 	_navigation = Navigation.new()
 	_navigation.set_focus_order(_focus_ids())
 	_create_action_button("boot", "BootAction")
+	_create_action_button("program", "ProgramAction")
+	_create_action_button("story", "StoryAction")
 	_create_action_button("back", "BackAction")
 
 func configure(next_snapshot: Dictionary, next_context: RefCounted) -> void:
@@ -53,30 +57,30 @@ func layout_snapshot() -> Dictionary:
 func action_regions() -> Dictionary:
 	return {
 		"boot": {"rect": _layout.get("boot", Rect2()), "label": "BOOT / RUN PROCESS", "state": "ready"},
+		"program": {"rect": _layout.get("program", Rect2()), "label": "PROGRAMS", "state": "idle"},
+		"story": {"rect": _layout.get("story", Rect2()), "label": "STORY", "state": "idle"},
 		"back": {"rect": _layout.get("back", Rect2()), "label": "BACK", "state": "idle"},
 	}
 
 func text_overflow_report() -> Array:
 	if context == null or _layout.is_empty():
 		return [{"id": "surface", "fits": false, "measured_width": 0.0, "available_width": 0.0}]
-	var font: Font = ThemeDB.fallback_font
 	var text_scale := float(context.text_scale)
 	var entries := [
-		{"id": "title", "text": "KERNEL PANIC", "rect": _layout["title"], "font_size": 32.0, "padding": 0.0},
-		{"id": "subtitle", "text": "LAST PROCESS // READY TO MOUNT", "rect": _layout["title"], "font_size": 16.0, "padding": 0.0},
-		{"id": "telemetry", "text": "PROGRAM  %s    BEST  %07d" % [str(snapshot.get("program", "kernel")).to_upper(), int(snapshot.get("best", 0))], "rect": _layout["telemetry"], "font_size": 17.0, "padding": 0.0},
-		{"id": "boot", "text": str(_layout.get("boot_label", ">> BOOT / RUN PROCESS  [ENTER]")), "rect": _layout["boot"], "font_size": 20.0, "padding": 44.0},
+		{"id": "title", "text": "KERNEL PANIC", "rect": _layout["title"], "font": Orbitron, "font_size": 32.0, "padding": 0.0},
+		{"id": "subtitle", "text": "LAST PROCESS // READY TO MOUNT", "rect": _layout["title"], "font": ShareTechMono, "font_size": 16.0, "padding": 0.0},
+		{"id": "telemetry", "text": "PROGRAM  %s    BEST  %07d" % [str(snapshot.get("program", "kernel")).to_upper(), int(snapshot.get("best", 0))], "rect": _layout["telemetry"], "font": ShareTechMono, "font_size": 17.0, "padding": 0.0},
+		{"id": "boot", "text": str(_layout.get("boot_label", ">> BOOT / RUN PROCESS  [ENTER]")), "rect": _layout["boot"], "font": ShareTechMono, "font_size": 20.0, "padding": 44.0},
+		{"id": "program", "text": "PROGRAMS", "rect": _layout["program"], "font": ShareTechMono, "font_size": 14.0, "padding": 20.0},
+		{"id": "story", "text": "STORY", "rect": _layout["story"], "font": ShareTechMono, "font_size": 14.0, "padding": 20.0},
+		{"id": "back", "text": "< BACK", "rect": _layout["back"], "font": ShareTechMono, "font_size": 16.0, "padding": 20.0},
 	]
 	var report: Array = []
 	for entry in entries:
+		var font: Font = entry["font"]
 		var measured := font.get_string_size(str(entry["text"]), HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(float(entry["font_size"]) * text_scale)))
 		var available := maxf(float(entry["rect"].size.x) - float(entry["padding"]), 0.0)
 		report.append({"id": entry["id"], "fits": measured.x <= available and measured.y <= float(entry["rect"].size.y), "measured_width": measured.x, "available_width": available})
-	var back_text := "< BACK"
-	var back_font_size := int(round(16.0 * text_scale))
-	var back_measured := font.get_string_size(back_text, HORIZONTAL_ALIGNMENT_LEFT, -1, back_font_size)
-	var back_rect: Rect2 = _layout["back"]
-	report.append({"id": "back", "fits": back_measured.x <= back_rect.size.x and back_measured.y <= back_rect.size.y, "measured_width": back_measured.x, "available_width": back_rect.size.x})
 	return report
 
 func semantic_snapshot() -> Dictionary:
@@ -93,7 +97,7 @@ func focus_id() -> String:
 	return _focus
 
 func _focus_ids() -> Array[String]:
-	return ["boot", "back"]
+	return ["boot", "back", "program", "story"]
 
 func set_focus_id(id: String) -> bool:
 	if _navigation == null or not _navigation.set_focus(id):
@@ -144,7 +148,7 @@ func _create_action_button(action_id: String, node_name: String) -> void:
 	button.focus_mode = Control.FOCUS_ALL
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.tooltip_text = "Activate %s" % action_id
-	button.add_theme_font_override("font", ThemeDB.fallback_font)
+	button.add_theme_font_override("font", ShareTechMono)
 	button.add_theme_font_size_override("font_size", 20 if action_id == "boot" else 16)
 	button.add_theme_color_override("font_color", Tokens.role_color("ready") if action_id == "boot" else Tokens.role_color("structure"))
 	button.add_theme_color_override("font_hover_color", Tokens.role_color("focus"))
@@ -180,6 +184,13 @@ func _apply_action_layout() -> void:
 		back_button.size = _layout["back"].size
 		back_button.text = "< BACK"
 		back_button.add_theme_font_size_override("font_size", int(round(16.0 * float(context.text_scale))))
+	for action_id in ["program", "story"]:
+		var button: Button = _action_buttons.get(action_id)
+		if button != null:
+			button.position = _layout[action_id].position
+			button.size = _layout[action_id].size
+			button.text = action_id.to_upper()
+			button.add_theme_font_size_override("font_size", int(round(14.0 * float(context.text_scale))))
 
 func _on_button_focus(action_id: String) -> void:
 	if _navigation != null and _navigation.set_focus(action_id):
@@ -217,11 +228,15 @@ func _draw() -> void:
 	var text_scale := float(context.text_scale)
 	draw_rect(Rect2(Vector2.ZERO, size), Tokens.role_color("background"))
 	draw_polyline(Tokens.frame_points(shell, 16.0), Tokens.role_color("structure"), 1.5, true)
-	draw_string(ThemeDB.fallback_font, shell.position + Vector2(16, 28), "SYS://BOOT   STATUS: ONLINE", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(16.0 * text_scale)), Tokens.role_color("structure"))
-	draw_string(ThemeDB.fallback_font, _layout["title"].position, "KERNEL PANIC", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(32.0 * text_scale)), Tokens.role_color("focus"))
-	draw_string(ThemeDB.fallback_font, _layout["title"].position + Vector2(0, 28.0 * text_scale), "LAST PROCESS // READY TO MOUNT", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(16.0 * text_scale)), Tokens.role_color("muted"))
-	draw_string(ThemeDB.fallback_font, _layout["telemetry"].position + Vector2(0, 22.0 * text_scale), "PROGRAM  %s    BEST  %07d" % [str(snapshot.get("program", "kernel")).to_upper(), int(snapshot.get("best", 0))], HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(17.0 * text_scale)), Tokens.role_color("structure"))
+	draw_string(ShareTechMono, shell.position + Vector2(16, 28), "SYS://BOOT   STATUS: ONLINE", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(16.0 * text_scale)), Tokens.role_color("structure"))
+	draw_string(Orbitron, _layout["title"].position, "KERNEL PANIC", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(32.0 * text_scale)), Tokens.role_color("focus"))
+	draw_string(ShareTechMono, _layout["title"].position + Vector2(0, 28.0 * text_scale), "LAST PROCESS // READY TO MOUNT", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(16.0 * text_scale)), Tokens.role_color("muted"))
+	draw_string(ShareTechMono, _layout["telemetry"].position + Vector2(0, 22.0 * text_scale), "PROGRAM  %s    BEST  %07d" % [str(snapshot.get("program", "kernel")).to_upper(), int(snapshot.get("best", 0))], HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(17.0 * text_scale)), Tokens.role_color("structure"))
 	var boot_color := Tokens.role_color("focus") if _focus == "boot" else Tokens.role_color("ready")
+	var program_color := Tokens.role_color("focus") if _focus == "program" else Tokens.role_color("structure")
+	var story_color := Tokens.role_color("focus") if _focus == "story" else Tokens.role_color("structure")
 	var back_color := Tokens.role_color("focus") if _focus == "back" else Tokens.role_color("structure")
 	draw_polyline(Tokens.frame_points(_layout["boot"], 12.0), boot_color, 2.0 if _focus == "boot" else 1.0, true)
+	draw_polyline(Tokens.frame_points(_layout["program"], 10.0), program_color, 2.0 if _focus == "program" else 1.0, true)
+	draw_polyline(Tokens.frame_points(_layout["story"], 10.0), story_color, 2.0 if _focus == "story" else 1.0, true)
 	draw_polyline(Tokens.frame_points(_layout["back"], 10.0), back_color, 2.0 if _focus == "back" else 1.0, true)
