@@ -117,6 +117,20 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - A2 report initially described the generated task brief as absent. The controller confirmed the ignored brief existed before delegation but was not visible to the delegated inspection; the report was corrected in `ead9d28` and the versioned plans remained the source of truth.
 - Next task: A3 snapshot contracts. A2 revalidation is documented in `report-A2.md`; no production-code change was required.
 
+## A3 snapshot contracts
+
+- Status: completed on 2026-09-01.
+- Red probe: `XDG_DATA_HOME=/tmp/kernel-panic-a3-red-xdg godot --headless --audio-driver Dummy --path . res://tools/snapshot_contract_probe.tscn` — exit 1, 12 failures caused by the four absent methods and dependent assertions.
+- Green probe: `XDG_DATA_HOME=/tmp/kernel-panic-a3-green-xdg-3 godot --headless --audio-driver Dummy --path . res://tools/snapshot_contract_probe.tscn` — exit 0, 30 `PROBE_PASS`, 0 `PROBE_FAIL`, `PROBE_DONE fails=0`.
+- Hanging-process diagnostic: after the interrupted run, no exact Godot processes remained. A clean reproduction exited in 1.1s. The probe now has an explicit 8s failure watchdog; forced red run with `KP_A3_FORCE_WATCHDOG=1` exited 2 with `PROBE_FAIL watchdog timeout`, and left no Godot processes.
+- Full suite: `XDG_DATA_HOME=/tmp/kernel-panic-a3-full-xdg godot --headless --audio-driver Dummy --path . -- --autotest` — exit 0, `AT_PASS=1414`, `AT_FAIL=0`, `AUTOTEST_ALL_PASS`.
+- Teardown diagnostics: 8 resources, 3 GodotArea2D RIDs, 14 dummy textures, 147 shaped-text allocations, 2 advanced-font allocations, 10 CanvasItem RIDs, and 171 ObjectDB instances; treated as baseline/open risk, not an A3 fix.
+- Changed files: `src/autoload/game.gd`, `src/autoload/sfx.gd`, `src/ui/menu.gd`, `src/arena/arena.gd`, `tools/snapshot_contract_probe.gd`, `tools/snapshot_contract_probe.tscn`, plus this report and ledger entry.
+- Commits: `9092163` test probe; `c1a9b3d` production snapshot contracts; `9c5c112` explicit probe watchdog.
+- Proven facts: all four real owners expose primitive-safe snapshots with schema metadata, required-field checks, deep-copy isolation, stable RNG/save/node counts, and no live-consumer migration. Drawing itself is not proven because no vNext renderer consumes the contracts.
+- Alternatives: no shared Resource boundary, no UI consumer replacement, and no state ownership moved to kits; all rejected to preserve A3 scope and behavior.
+- Assumptions/risks: entity-specific optional fields may grow later; optional-field tolerance needs explicit vNext consumer coverage; teardown noise remains open from W0.
+
 ## Review checklist for every task
 
 - Read the micro-plan and current code, then inspect shared interfaces.
