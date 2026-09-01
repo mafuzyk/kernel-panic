@@ -347,10 +347,14 @@ scope.
   regions, recovery status and responsive overflow checks.
 - Text scaling, high contrast, reduced flash, native screen reader and gamepad
   remain explicitly unsupported and non-interactive.
-- Evidence: red probe exit 1 with 12 failures; final U5 headless/Xvfb probe
-  59/0; import exit 0; full suite 1414 `AT_PASS`, 0 `AT_FAIL`,
-  `AUTOTEST_ALL_PASS`; accumulated validator `VALIDATION OK`.
-- Known limitations: physical touch, Android/export, localization, visual
-  approval, device performance and baseline teardown diagnostics.
+- Evidence before the independent correction: red probe exit 1 with 12 failures;
+  U5 headless/Xvfb probe 59/0. The correction added disk-load normalization,
+  rollback-status truthfulness, stronger preservation fixtures and deterministic
+  save-failure evidence; the corrected focused probe is 66/0.
+- Final evidence after correction: import exit 0; full suite 1414 `AT_PASS`,
+  0 `AT_FAIL`, `AUTOTEST_ALL_PASS`; accumulated validator `VALIDATION OK`.
+- Known limitations: real permission/disk-full failure, physical touch,
+  Android/export, localization, visual approval, device performance and
+  baseline teardown diagnostics.
 - Report: `.superpowers/sdd/00-MASTER-PLAN/report-U5.md`.
 - Handoff: `docs/HANDOFF-U5-SETTINGS-ACCESSIBILITY.md`.

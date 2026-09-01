@@ -430,16 +430,40 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Production: Sfx schema-2 profile boundary with defaults, normalization,
   apply/reset/reload and same-file ConfigFile persistence; accessibility-first
   code-drawn surface with real controls and Menu route integration.
-- Final probe evidence: headless and Xvfb exit 0 with 59 passes,
+- Final pre-review probe evidence: headless and Xvfb exit 0 with 59 passes,
   `PROBE_DONE fails=0`; layouts cover 1366×768, 720×720, 432×720 and 390×844.
 - Regression evidence: import exit 0, full suite 1414 `AT_PASS` / 0 `AT_FAIL`
   with `AUTOTEST_ALL_PASS`, accumulated validator `VALIDATION OK`.
 - Review ruling: fixed persistence-failure restoration semantics and moved
   status/note out of action regions; no unsupported inert controls added.
-- Not proven: forced filesystem failure, physical touch/Android, native screen
+- Not proven: real permission/disk-full filesystem failure, physical touch/Android, native screen
   reader, text scaling, high contrast, reduced flash, gamepad, PT-BR, visual
   approval, device performance and existing teardown diagnostics.
 - Report: `.superpowers/sdd/00-MASTER-PLAN/report-U5.md`.
 - Handoff: `docs/HANDOFF-U5-SETTINGS-ACCESSIBILITY.md`.
 - Commits: `f435c03` production; `0d980dc` probe/accumulator; docs commit
   follows this update.
+
+### U5 post-review correction
+
+- Independent Luna review rejected the first U5 checkpoint: the Sfx loader
+  assigned malformed ConfigFile values directly into typed fields; the UI
+  status claimed an applied value after rollback; preservation fixtures were
+  too weak; and save failure had not been executed.
+- Controller correction: loader now normalizes the four profile fields on disk
+  load; failed apply/reset restores previous memory and the surface says so;
+  the fixture contains pre-existing progress, feel and audio keys; a private
+  `_settings_path_override` seam forces a deterministic invalid `ConfigFile`
+  save path only in the probe. No user-facing save path changed.
+- Corrected focused probe: headless and Xvfb `66 PROBE_PASS`, zero failures,
+  marker present, zero script/runtime errors. The probe now covers malformed
+  disk-load normalization, stronger preservation and failed-save rollback/status.
+- Corrected U5 acceptance: focused headless/Xvfb probes both `66/0`; final
+  full suite `1414/0` with marker; accumulated validator `VALIDATION OK`; no
+  gating script/runtime errors; `git diff --check` clean. The independent
+  reviewer accepted the route/input/layout scope and identified the recovery
+  gaps; the controller then fixed and reverified those gaps locally. Real
+  storage faults, Android/touch hardware, native assistive tech, localization,
+  visual approval and teardown diagnostics remain explicitly outside the
+  evidence.
+- Commits now pushed: `f435c03`, `0d980dc`, `4500538`, `1de633f`.
