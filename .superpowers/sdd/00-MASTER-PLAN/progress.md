@@ -984,3 +984,83 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Remaining uncertainty: human visual approval, physical mobile/Vega budget,
   crash-safe save journaling and a dedicated vNext save-failure state are not
   complete. Known shutdown resource/ObjectDB/RID diagnostics remain open.
+
+## M5 — macOS surface integration and responsive release gate
+
+- Status: implemented and reviewed; one aggregate regression from the new
+  bestiary copy was found and corrected before integration acceptance.
+- Added the `permission_root` bestiary identity, RULE/REWARD metadata on the
+  vNext story detail, and a focused gate for catalog, profiles, overlay,
+  adapter, renderer bounds, list/detail states, and four logical viewports.
+- The first longer Permission Root description failed the existing bestiary
+  overflow assertions at narrow/square sizes. It was shortened while keeping
+  the permission-line rule and sidestep counterplay. This is recorded as a
+  test-driven integration correction, not hidden as a baseline failure.
+- Focused M5 headless/Xvfb gates pass with `PROBE_DONE fails=0`; layout and
+  story regressions pass. Full suite after the correction:
+  `/tmp/full-after-m5-copy-fix.log`, exit 0, 1455 `AT_PASS`, 0 `AT_FAIL`,
+  `AUTOTEST_ALL_PASS`.
+- Detailed report: `report-M5-macos-surface-integration.md`; handoff:
+  `docs/HANDOFF-M5-MACOS-SURFACE-INTEGRATION.md`.
+- Remaining: dedicated final silhouette, human visual/balance approval,
+  physical mobile/Vega, exports, and crash-safe saves.
+
+## A11/A14 — accessibility profile and handed touch
+
+- Status: implemented and reviewed; vNext route remains opt-in.
+- Added additive Sfx schema-3 values for reduced motion, reduced flashes and
+  left-handed touch, including normalization, persistence, reset, rollback and
+  snapshots. Shared Fx/CameraRig gates avoid scattered per-caller behavior.
+- Added real controls and semantics to the dedicated accessibility surface;
+  touch movement/action regions mirror without changing action meaning.
+- Green evidence: effect profile 9/0 headless/Xvfb; vNext settings route 78/0
+  in the accumulated validator; PT-BR surface checks 32/0. The integrated
+  full suite is 1455/0 with `AUTOTEST_ALL_PASS`.
+- Remaining: legacy settings reachability, complete particle/flash audit,
+  native screen-reader/text-scale/high-contrast feasibility, controller
+  remapping and physical device review.
+
+## L3 — localization inventory and accessibility-surface migration
+
+- Status: first additional vNext screen migrated; full game migration and
+  editorial review remain open.
+- Added parity-matched English/PT-BR keys for accessibility labels, states,
+  statuses, explanations and unavailable-feature copy. The surface refreshes
+  on locale changes and its semantic snapshot uses translated text.
+- Localization probe passes in headless/Xvfb, including Mac story and
+  accessibility overflow at wide, square and phone dimensions.
+- `docs/LOCALIZATION-INVENTORY.md` records the approximate literal scan,
+  migration order and the release boundary. It explicitly does not claim
+  that the hundreds of candidate literals are all translatable strings.
+
+## P1 — deterministic performance stress profile
+
+- Status: implemented and reviewed; it is a regression gate, not device
+  certification.
+- Added `PerformanceProfile` with p50/p95/p99/worst frame metrics, peak
+  entities and memory, plus a fixed-seed probe with 48 real enemies and 96
+  real bullets. The fixture does not enter a user run or write saves.
+- Headless green: p95 16.959 ms, p99 17.093 ms, worst 17.311 ms, 144 actors.
+  Xvfb/llvmpipe green: p95 9.011 ms, p99 9.604 ms, worst 10.443 ms.
+- Remaining: Vega and Android measurements, long-run soak, lifecycle teardown
+  and allocation profiling.
+
+## RPO — repository and release scaffolding
+
+- Status: scaffolding completed; recovery/provenance/export/rollback work
+  remains pending.
+- Added contribution, conduct, security, PR/issue templates, baseline CI,
+  code-drawn art-direction criteria and `docs/RELEASE-CHECKLIST.md`.
+- The CI file and remote action availability are not validated by a hosted run
+  in this environment. The checklist keeps this uncertainty explicit.
+
+## Final execution review notes
+
+- The final accumulated validator includes M5, A11/A14 and P1 focused gates.
+  Its first attempt exposed a stale E2 GlyphLib hash guard after accepted later
+  glyph batches; `c5832fd` refreshed the test baseline and the focused E2 probe
+  then passed 80/0. The guard change is documented as test maintenance.
+- The clean integrated DevHarness result after these corrections is
+  `/tmp/full-after-m5-copy-fix.log`: 1455 passes, zero assertion failures and
+  the required completion marker. Known teardown diagnostics remain open and
+  are reported separately by the validator.

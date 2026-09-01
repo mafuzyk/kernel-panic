@@ -32,6 +32,10 @@ and alternatives remain in the task reports:
 
 The execution branch is `codex/plan-execution`; it is based on the reviewed
 master-plan documentation and does not merge into `main` automatically.
+This draft also includes the A11/A14 accessibility profile, L3 localization
+slice, P1 performance gate, repository/release scaffolding, and the M5
+integration correction completed after the initial aggregate test exposed a
+bestiary text-budget regression.
 
 ### E1 code-drawn entity foundation
 
@@ -1061,7 +1065,107 @@ and HUD messaging still need playtest approval.
 
 ### Evidence
 
-- `/tmp/m5-macos-release-gate.log`: exit 0, 26 passes,
+- `/tmp/m5-macos-release-gate.log`: exit 0, 25 passes,
   `PROBE_DONE fails=0`.
 - `/tmp/m5-story.log`: exit 0, `PROBE_DONE fails=0`.
 - `/tmp/m5-layout.log`: exit 0, 130 passes, zero failures.
+
+## A11/A14 — accessibility profile and handed touch (unreleased)
+
+### Added
+
+- Added reduced motion, reduced flashes, and left-handed touch preferences to
+  the versioned Sfx accessibility profile.
+- Added real controls, focus order, semantic states, reset confirmation, and
+  responsive hit targets to the dedicated vNext accessibility surface.
+- Reduced motion now suppresses camera trauma, zoom punches, and residual
+  camera shake. Reduced flashes prevents new full-screen flash allocation.
+- Left-handed touch mirrors movement and dash/boost action zones while keeping
+  pause and aim semantics stable.
+
+### Changed
+
+- Accessibility values are normalized, persisted additively, reloaded, reset,
+  and restored on save failure without changing old save keys or gameplay
+  timing.
+- The surface copy is now localized through the shared locale service.
+
+### Known Issues
+
+- The legacy settings route is still unchanged while vNext is opt-in.
+- Reduced motion does not yet audit every particle, ring, ghost, or animated
+  decorative effect. Native screen readers, OS text scaling, and high contrast
+  are explicitly not supported yet.
+
+### Evidence
+
+- Accessibility effect probe: 9/0, `PROBE_DONE fails=0`, headless and Xvfb.
+- vNext settings probe: 11 controls and 9 GUI actions, zero failures.
+- PT-BR localization probe: 32/0, headless and Xvfb.
+
+## L3 — PT-BR localization boundary (unreleased)
+
+### Added
+
+- Added catalog-matched PT-BR copy for the accessibility surface, including
+  states, statuses, unavailable-feature notices, and reset labels.
+- Added a localization inventory documenting the remaining legacy literals and
+  a screen-by-screen migration order.
+
+### Known Issues
+
+- PT-BR is not a complete game translation. Legacy menu, combat, pause,
+  game-over, bestiary, program, tutorial, and debug copy still require
+  migration and a native Brazilian Portuguese editorial pass.
+
+## P1 — deterministic performance gate (unreleased)
+
+### Added
+
+- Added a reusable percentile profile that reports p50, p95, p99, worst frame,
+  peak actor count, and peak static memory.
+- Added a fixed-seed probe using 48 real enemy descendants and 96 real player
+  bullets after a warmup, with explicit tail-frame gates.
+
+### Evidence
+
+- Headless: stress p95 16.959 ms, p99 17.093 ms, worst 17.311 ms, 144
+  actors, zero failures.
+- Xvfb/Mesa llvmpipe: stress p95 9.011 ms, p99 9.604 ms, worst 10.443 ms,
+  144 actors, zero failures.
+
+### Known Issues
+
+- These are regression numbers, not certification for the user's Vega GPU,
+  Android, or a long-running session. Physical mobile measurement and leak
+  soak remain required.
+
+## Repository and release operations (unreleased)
+
+### Added
+
+- Added contribution, conduct, security, pull-request, and issue guidance.
+- Added a baseline GitHub Actions workflow for Godot import, DevHarness, and
+  patch checks.
+- Added the code-drawn art-direction contract and the official release gate
+  checklist.
+
+### Known Issues
+
+- Hosted CI has not been observed running in this environment.
+- Export templates, Android tooling/device validation, crash-safe save
+  journaling, provenance, and rollback automation remain open.
+
+## Integration corrections found during this execution
+
+- The first full-suite run after the Mac catalog addition failed two bestiary
+  overflow assertions because the new Permission Root description exceeded the
+  existing surface's text budget at narrow and square sizes.
+- The copy was shortened while preserving its rule and counterplay. A fresh
+  full run then passed with 1455 `AT_PASS`, 0 `AT_FAIL`, and
+  `AUTOTEST_ALL_PASS`. The correction and its evidence are recorded in the
+  technical M5 report and handoff.
+- The accumulated validator then exposed a stale E2 GlyphLib byte-hash guard:
+  accepted Zombie Process and Race Condition batches had legitimately extended
+  the shared library after the original E2 baseline. The guard was refreshed
+  to the accepted combined baseline and the focused E2 probe passed 80/0.
