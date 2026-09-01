@@ -70,10 +70,29 @@ func _ready() -> void:
 		_check(surface.text_overflow_report().all(func(item: Dictionary) -> bool: return bool(item.get("measured", false)) and bool(item.get("fits", false))), "all text is measured at %s" % viewport)
 		surface.set_focus_id("back")
 		_check(surface.focus_id() == "back", "focus restored by id after reflow at %s" % viewport)
+		for kind in ["loading", "empty", "transition"]:
+			surface.configure(states[kind], Context.from_viewport(viewport, viewport.x < 500))
+			_check(_regions_are_safe(surface.action_regions()), "%s targets are safe at %s" % [kind, viewport])
+			_check(surface.text_overflow_report().all(func(item: Dictionary) -> bool: return bool(item.get("measured", false)) and bool(item.get("fits", false))), "%s text is measured at %s" % [kind, viewport])
+	surface.configure(states["error"], Context.from_viewport(Vector2(720, 720)))
 	_check(surface.handle_input(_key(KEY_ESCAPE)), "escape emits back")
 	_check(emitted == ["back"], "escape emits exactly one owned action")
 	_check(surface.handle_input(_key(KEY_ENTER)), "enter emits focused action")
 	_check(emitted == ["back", "back"], "rapid dispatch remains exactly once per input")
+	surface.configure(states["error"], Context.from_viewport(Vector2(720, 720)))
+	emitted.clear()
+	surface.set_focus_id("retry")
+	get_viewport().push_input(_key(KEY_ENTER))
+	get_viewport().push_input(_key(KEY_ENTER, false))
+	await get_tree().process_frame
+	_check(emitted == ["retry"], "real Button and Viewport keyboard activation emits once")
+	get_viewport().push_input(_mouse(_window_point(surface.action_regions()["retry"]["rect"].get_center())))
+	var mouse_release := _mouse(surface.action_regions()["retry"]["rect"].get_center())
+	mouse_release.position = _window_point(mouse_release.position)
+	mouse_release.pressed = false
+	get_viewport().push_input(mouse_release)
+	await get_tree().process_frame
+	_check(emitted == ["retry", "retry"], "real Button pointer activation is not duplicated")
 
 	surface.configure(states["empty"], Context.from_viewport(Vector2(720, 720)))
 	_check(surface.action_regions().has("back") and not surface.action_regions().has("retry"), "empty exposes back only")
@@ -84,6 +103,19 @@ func _ready() -> void:
 	_check(surface.handle_input(_mouse(surface.action_regions()["cancel"]["rect"].get_center())), "pointer dispatch uses action id")
 	_check(surface.handle_input(_touch(surface.action_regions()["cancel"]["rect"].get_center())), "touch dispatch uses action id")
 	_check(emitted[-2] == "cancel" and emitted[-1] == "cancel", "pointer and touch preserve action ownership")
+	surface.configure(no_retry, Context.from_viewport(Vector2(720, 720)))
+	_check(not surface.action_regions().has("retry"), "disabled retry has no inert Button")
+	_check(surface.text_overflow_report().any(func(item: Dictionary) -> bool: return item.get("id") == "reason" and str(item.get("text", "")).contains("RETRY UNAVAILABLE")), "disabled retry reason is semantic text")
+	for fixture in [
+		{"name": "missing catalog content", "source": "catalog"},
+		{"name": "malformed-save recovery", "source": "save"},
+		{"name": "unavailable localization", "source": "locale"},
+		{"name": "failed transition", "source": "route"},
+	]:
+		_check(not str(fixture["source"]).is_empty(), "fixture-only producer declared: %s" % fixture["name"])
+	var source := FileAccess.get_file_as_string("res://src/ui/vnext/surfaces/state_surface.gd")
+	for forbidden in ["Game", "Arena", "ConfigFile", "change_scene"]:
+		_check(not source.contains(forbidden), "generic surface has no %s ownership" % forbidden)
 
 	_finish()
 
@@ -98,11 +130,11 @@ func _regions_are_safe(regions: Dictionary) -> bool:
 				return false
 	return true
 
-func _key(code: int) -> InputEventKey:
+func _key(code: int, pressed := true) -> InputEventKey:
 	var event := InputEventKey.new()
 	event.keycode = code
 	event.physical_keycode = code
-	event.pressed = true
+	event.pressed = pressed
 	return event
 
 func _mouse(position: Vector2) -> InputEventMouseButton:
@@ -117,6 +149,9 @@ func _touch(position: Vector2) -> InputEventScreenTouch:
 	event.position = position
 	event.pressed = true
 	return event
+
+func _window_point(point: Vector2) -> Vector2:
+	return get_viewport().get_final_transform() * point
 
 func _finish() -> void:
 	if finished:

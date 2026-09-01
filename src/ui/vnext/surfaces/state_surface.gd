@@ -68,7 +68,7 @@ func text_overflow_report() -> Array:
 		var measured := (entry["font"] as Font).get_string_size(str(entry["text"]), HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(float(entry["size"]) * scale)))
 		var rect: Rect2 = entry["rect"]
 		var available := maxf(rect.size.x - float(entry["padding"]), 0.0)
-		report.append({"id": entry["id"], "measured": true, "fits": measured.x <= available and measured.y <= rect.size.y, "measured_width": measured.x, "available_width": available})
+		report.append({"id": entry["id"], "text": str(entry["text"]), "measured": true, "fits": measured.x <= available and measured.y <= rect.size.y, "measured_width": measured.x, "available_width": available})
 	return report
 
 func handle_input(event: InputEvent) -> bool:

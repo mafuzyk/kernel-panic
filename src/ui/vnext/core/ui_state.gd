@@ -29,6 +29,9 @@ static func make(kind: String, values: Dictionary = {}) -> Dictionary:
 	if normalized_kind == "loading" and not bool(defaults.get("cancel_safe", false)):
 		defaults["back_action"] = ""
 		defaults["back_label"] = ""
+	if normalized_kind == "transition" and not bool(defaults.get("cancel_safe", false)) and str(defaults.get("back_action", "")).to_lower().contains("cancel"):
+		defaults["back_action"] = ""
+		defaults["back_label"] = ""
 	else:
 		defaults["back_action"] = _safe_action(str(defaults.get("back_action", "back")), "back")
 		defaults["back_label"] = _visible_or_default(str(defaults.get("back_label", "BACK")), "BACK")
