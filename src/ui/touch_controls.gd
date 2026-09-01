@@ -31,12 +31,16 @@ func _input(event: InputEvent) -> void:
 			if t.position.x < size.x * 0.4 and t.position.y > 70.0 and _move_id == -1:
 				_move_id = t.index
 				_move_origin = t.position
-			elif t.position.x >= size.x * 0.4 and _aim_id == -1 and t.position.y > 70.0:
+			elif t.position.x >= size.x * 0.4 and t.position.y > 70.0:
+				# Action zones are independent from the aim finger: a second touch
+				# must be able to dash/boost without stealing or cancelling aim.
 				if _dash_btn().has_point(t.position):
 					_press_dash()
 					return
 				if _oc_btn().has_point(t.position) and player != null and player.oc_ready:
 					player.try_overclock()
+					return
+				if _aim_id != -1:
 					return
 				_aim_id = t.index
 				_aim_origin = t.position
