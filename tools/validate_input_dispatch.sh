@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-## Lote 1 (R01-R03/T01) validation entry point.
+## Accumulated validation entry point (R01-R08/R18/B1-B5 and vNext slices).
 ##
 ## Runs the full DevHarness autotest, the accumulated headless gameplay probes,
 ## and the input-dispatch probe in headless and Xvfb desktop-debug modes.
@@ -119,6 +119,7 @@ run_headless_probe "probe-vnext-entity-illustration" "VNext code-drawn entity il
 run_headless_probe "probe-vnext-patch-surface" "VNext patch decision surface" "res://tools/vnext_patch_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_PATCH" "probe-vnext-patch-arena" "VNext patch Arena adapter" "res://tools/vnext_patch_arena_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_HUD" "probe-vnext-combat-hud" "VNext combat HUD Arena adapter" "res://tools/vnext_combat_hud_probe.tscn"
+run_headless_probe_with_env "KP_VNEXT_U4" "probe-vnext-state-surfaces" "VNext pause, terminal and game-over surfaces" "res://tools/vnext_state_surfaces_probe.tscn"
 
 if command -v xvfb-run >/dev/null 2>&1; then
 	timeout "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-xvfb.log" 2>&1
@@ -126,6 +127,10 @@ if command -v xvfb-run >/dev/null 2>&1; then
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker' \
 		'^PROBE_INFO debug_controls_enabled=true$:::debug_controls_enabled=true (desktop debug active)'
 	report_errors "input probe xvfb" "$LOG_DIR/probe-xvfb.log"
+	timeout "${VALIDATION_TIMEOUT_SECONDS}s" env KP_VNEXT_U4=1 XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/vnext_state_surfaces_probe.tscn > "$LOG_DIR/probe-vnext-state-surfaces-xvfb.log" 2>&1
+	report_case "VNext state surfaces xvfb" "$LOG_DIR/probe-vnext-state-surfaces-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "VNext state surfaces xvfb" "$LOG_DIR/probe-vnext-state-surfaces-xvfb.log"
 else
 	echo "== input probe xvfb: SKIP (xvfb-run not found; R03 desktop-debug coverage incomplete)"
 	overall=1

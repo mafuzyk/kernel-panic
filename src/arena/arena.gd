@@ -10,6 +10,9 @@ const PauseInputRouterScript = preload("res://src/arena/pause_input_router.gd")
 const PanelKitScript = preload("res://src/arena/panel_kit.gd")
 const IntroKitScript = preload("res://src/arena/intro_kit.gd")
 const StageKitScript = preload("res://src/arena/stage_kit.gd")
+const VNextPauseScript = preload("res://src/ui/vnext/surfaces/pause_surface.gd")
+const VNextTerminalScript = preload("res://src/ui/vnext/surfaces/terminal_surface.gd")
+const VNextGameOverScript = preload("res://src/ui/vnext/surfaces/game_over_surface.gd")
 
 var player: Player
 var cam: CameraRig
@@ -79,6 +82,10 @@ var _pause_buttons: Array[Button] = []
 var _pause_volume_rows: Array[Control] = []
 var _debug_panel: Control
 var _terminal_panel: Control
+var _vnext_u4_surface: Control
+var _vnext_u4_layer: CanvasLayer
+var _vnext_u4_mode := false
+var _vnext_u4_view := ""
 var _dust: CPUParticles2D
 var _restart_hold_t := 0.0
 var _restart_triggered := false
@@ -126,6 +133,7 @@ func _ready() -> void:
 	_panel_kit._build_pause_panel()
 	_panel_kit._build_terminal_panel()
 	_panel_kit._build_game_over_panel()
+	_build_vnext_u4()
 	_intro_kit._build_intro()
 	if Game.mode == "story":
 		_story_stage = Game.story_stage_def(Game.story_stage_index)
@@ -461,6 +469,8 @@ func _snapshot_patch_offer(definition: Dictionary) -> Dictionary:
 
 
 func handle_pause_input(event: InputEvent) -> bool:
+	if _vnext_u4_mode and _vnext_u4_surface != null and is_instance_valid(_vnext_u4_surface) and _vnext_u4_surface.visible:
+		return _vnext_u4_surface.handle_input(event)
 	return _panel_kit.handle_pause_input(event)
 
 
@@ -756,6 +766,89 @@ func vnext_patch_surface() -> Control:
 func vnext_patch_visible() -> bool:
 	return _patch_open and _vnext_patch_surface != null and is_instance_valid(_vnext_patch_surface) and _vnext_patch_surface.visible
 
+func vnext_u4_enabled() -> bool:
+	return _vnext_u4_mode
+
+func vnext_u4_surface() -> Control:
+	return _vnext_u4_surface
+
+func vnext_u4_visible() -> bool:
+	return _vnext_u4_surface != null and is_instance_valid(_vnext_u4_surface) and _vnext_u4_surface.visible
+
+func _build_vnext_u4() -> void:
+	_vnext_u4_mode = OS.get_environment("KP_VNEXT_U4") == "1"
+	if not _vnext_u4_mode:
+		return
+	_vnext_u4_surface = VNextPauseScript.new()
+	_vnext_u4_surface.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vnext_u4_surface.visible = false
+	_vnext_u4_surface.action_requested.connect(_on_vnext_u4_action)
+	var layer := CanvasLayer.new()
+	layer.layer = 90
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	_vnext_u4_layer = layer
+	layer.add_child(_vnext_u4_surface)
+	add_child(layer)
+
+func _show_vnext_u4_pause() -> void:
+	if not _vnext_u4_mode or _vnext_u4_surface == null:
+		return
+	if not _vnext_u4_surface.has_method("show_pause"):
+		_mount_vnext_u4_surface(VNextPauseScript)
+	_vnext_u4_view = "pause"
+	_vnext_u4_surface.show_pause({"context": "%s // SCORE %07d // CYCLE %02d" % [Game.program_def()["name"], Game.score, Game.wave], "confirmation": PAUSE_INFO_CONFIRM if _abandon_armed else PAUSE_INFO_DEFAULT, "abandon_armed": _abandon_armed})
+
+func _show_vnext_u4_terminal() -> void:
+	if not _vnext_u4_mode:
+		return
+	_mount_vnext_u4_surface(VNextTerminalScript)
+	_vnext_u4_surface.show_terminal({"event_stream": "EVENT STREAM // %s\nRUN FROZEN // DIAGNOSTIC INPUT READY" % Game.dmesg_lines(8).slice(-1), "visible": true})
+	_vnext_u4_view = "terminal"
+
+func _show_vnext_u4_game_over(victory: bool) -> void:
+	if not _vnext_u4_mode:
+		return
+	_mount_vnext_u4_surface(VNextGameOverScript)
+	_vnext_u4_surface.show_game_over({"variant": "victory" if victory else "death", "title": "STAGE CLEARED" if victory else "PROCESS TERMINATED", "diagnosis": "VICTORY DIAGNOSIS // ROUTE COMPLETE" if victory else "DIAGNOSIS // PROCESS TERMINATED", "stats": _over_core_stats.text + "\n" + _over_run_stats.text, "primary_available": true, "primary_label": ("NEXT STAGE [ENTER]" if _story_next_stage >= 0 else "RETURN TO MENU [ENTER]") if victory else "RETRY RUN [ENTER]", "menu_label": "STORY SELECT [ESC]" if victory else "ABANDON PROCESS [ESC]"})
+	_vnext_u4_view = "game_over"
+
+func _mount_vnext_u4_surface(surface_script: Script) -> void:
+	if _vnext_u4_surface != null and is_instance_valid(_vnext_u4_surface):
+		_vnext_u4_surface.visible = false
+		_vnext_u4_surface.queue_free()
+	_vnext_u4_surface = surface_script.new()
+	_vnext_u4_surface.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vnext_u4_surface.action_requested.connect(_on_vnext_u4_action)
+	if _vnext_u4_layer != null and is_instance_valid(_vnext_u4_layer):
+		_vnext_u4_layer.add_child(_vnext_u4_surface)
+	else:
+		add_child(_vnext_u4_surface)
+
+func _on_vnext_u4_action(action_id: String, _payload: Dictionary) -> void:
+	if not _vnext_u4_mode:
+		return
+	match _vnext_u4_view:
+		"pause":
+			match action_id:
+				"resume": _set_paused(false)
+				"restart": _set_paused(false); _restart_current_run()
+				"terminal": _show_vnext_u4_terminal()
+				"abandon": _request_abandon_confirmation()
+		"terminal":
+			if action_id == "close":
+				_mount_vnext_u4_surface(VNextPauseScript)
+				_show_vnext_u4_pause()
+			elif action_id == "command":
+				var command := str(_payload.get("command", ""))
+				var result := execute_terminal_command(command)
+				if _vnext_u4_surface.has_method("apply_command_result"):
+					_vnext_u4_surface.apply_command_result(command, result)
+				if command.to_lower() == "rm -rf /":
+					_vnext_u4_surface.hide_surface()
+		"game_over":
+			if action_id == "primary": _handle_over_primary()
+			elif action_id == "menu": Game.to_menu()
+
 func _on_vnext_patch_action(action_id: String, payload: Dictionary) -> void:
 	if not _vnext_patch_mode or not _patch_open:
 		return
@@ -885,6 +978,9 @@ func _show_game_over() -> void:
 		ntw.tween_property(nb, "modulate:a", 1.0, 0.5)
 	_over_panel.modulate.a = 0.0
 	_over_panel.visible = true
+	if _vnext_u4_mode:
+		_over_panel.visible = false
+		_show_vnext_u4_game_over(false)
 	var tw := create_tween()
 	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
 	Sfx.play("gameover", 0.9, 0.0)
@@ -924,6 +1020,9 @@ func _show_story_victory(stage_id: String) -> void:
 	_over_menu.text = "STORY SELECT  [ESC]"
 	_over_panel.modulate.a = 0.0
 	_over_panel.visible = true
+	if _vnext_u4_mode:
+		_over_panel.visible = false
+		_show_vnext_u4_game_over(true)
 	var tw := create_tween()
 	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
 	Sfx.play("ready", 1.2, -2.0)
@@ -1143,6 +1242,12 @@ func _set_paused(v: bool) -> void:
 		_panel_kit._close_terminal()
 	get_tree().paused = v
 	_pause_panel.visible = v
+	if _vnext_u4_mode:
+		_pause_panel.visible = false
+		if v:
+			_show_vnext_u4_pause()
+		elif _vnext_u4_surface != null and is_instance_valid(_vnext_u4_surface):
+			_vnext_u4_surface.hide_surface()
 	if v:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if v:
@@ -1242,6 +1347,8 @@ func _request_abandon_confirmation() -> void:
 	_abandon_armed = true
 	_abandon_t = ABANDON_CONFIRM_WINDOW
 	_pause_info.text = PAUSE_INFO_CONFIRM
+	if _vnext_u4_mode:
+		_show_vnext_u4_pause()
 	var generation := _abandon_generation
 	_abandon_timer = get_tree().create_timer(ABANDON_CONFIRM_WINDOW, true, false, true)
 	_abandon_timer.timeout.connect(_on_abandon_timeout.bind(generation))
@@ -1257,6 +1364,8 @@ func _clear_abandon_confirmation() -> void:
 	_abandon_timer = null
 	if _pause_info != null and is_instance_valid(_pause_info):
 		_pause_info.text = PAUSE_INFO_DEFAULT
+	if _vnext_u4_mode and _vnext_u4_view == "pause" and _vnext_u4_surface != null and is_instance_valid(_vnext_u4_surface):
+		_show_vnext_u4_pause()
 
 func _notification(what: int) -> void:
 	if is_inside_tree() and _state == "play" and not get_tree().paused:
