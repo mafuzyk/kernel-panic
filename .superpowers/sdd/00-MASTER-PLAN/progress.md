@@ -85,8 +85,8 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 
 | Group | Tasks | Status | Evidence needed |
 |---|---|---|---|
-| W0 | Baseline/import/ledger | In progress | Green suite marker plus classified diagnostics. |
-| A | A1, A2, A3, A4, A5 | A1/A2 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, schema/state compatibility probes. A1 docs: `62b0b87` plus controller correction `76f6a0f`; A2 report: `report-A2.md`. |
+| W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
+| A | A1, A2, A3, A4, A5 | A1/A2 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, schema/state compatibility probes. A1 docs: `62b0b87` plus controller correction `76f6a0f`; A2 docs: `bd51f4c` plus controller correction `ead9d28`. |
 | U | U1, U2, U2b, U3, U4, U5, U6 | Pending | vNext foundation, input/flow, responsive/overflow/visual checks. |
 | E | E1, E2, E3, E4, E5 | Pending | Code-drawn primitives, entity contracts, visual/readability/perf evidence. |
 | G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
@@ -114,6 +114,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Initial direct test attempt was rejected as evidence because a newly created worktree lacked imported Godot resources. Import was performed first; this is recorded as an environment prerequisite, not a code fix.
 - No runtime production code has been changed in this execution branch yet.
 - A1 agent report incorrectly described the `lifetime` save section as a separate file. Controller verification of `Game._record_run()` showed it loads and saves `Sfx.SAVE_PATH`; both baseline documents were corrected in `76f6a0f` before acceptance.
+- A2 report initially described the generated task brief as absent. The controller confirmed the ignored brief existed before delegation but was not visible to the delegated inspection; the report was corrected in `ead9d28` and the versioned plans remained the source of truth.
 - Next task: A3 snapshot contracts. A2 revalidation is documented in `report-A2.md`; no production-code change was required.
 
 ## Review checklist for every task
