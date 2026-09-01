@@ -3,6 +3,8 @@ extends Control
 
 const Tokens = preload("res://src/ui/vnext/ui_tokens.gd")
 const Glyphs = preload("res://src/ui/glyph_lib.gd")
+const Descriptor = preload("res://src/ui/vnext/core/entity_descriptor.gd")
+const Renderer = preload("res://src/ui/vnext/core/entity_renderer.gd")
 
 const ENTITY_COLORS := {
 	"drone": Color("#42e8ff"),
@@ -37,15 +39,17 @@ func set_motion_phase(phase: float) -> void:
 func visual_rect(viewport: Vector2 = Vector2.ZERO) -> Rect2:
 	var target := viewport if viewport != Vector2.ZERO else size
 	var safe := Tokens.safe_rect(target, 16.0)
-	var side := minf(safe.size.x, safe.size.y)
-	return Rect2(safe.get_center() - Vector2.ONE * side * 0.5, Vector2.ONE * side)
+	var fit := Renderer.fit_rect(_presentation_snapshot(), Rect2(Vector2.ZERO, safe.size))
+	fit.position += safe.position
+	return fit
 
 func glyph_radius(rect: Rect2 = visual_rect()) -> float:
 	return rect.size.x * 0.5 / maxf(Glyphs.glyph_extent(_kind), 1.0)
 
 func visual_snapshot() -> Dictionary:
 	var state_visual: Dictionary = Tokens.state_visual(_state)
-	return {
+	var result := _presentation_snapshot()
+	result.merge({
 		"kind": _kind,
 		"state": _state,
 		"state_label": str(state_visual.get("label", "STANDBY")),
@@ -54,7 +58,18 @@ func visual_snapshot() -> Dictionary:
 		"renderer": "glyph-library",
 		"glyph_extent": Glyphs.glyph_extent(_kind),
 		"frame": visual_rect(),
-	}
+	})
+	return result
+
+func _presentation_snapshot() -> Dictionary:
+	return Descriptor.normalize({
+		"kind": _kind,
+		"visual_state": {"ready": "idle", "locked": "idle", "danger": "hit"}.get(_state, _state),
+		"facing": Vector2.RIGHT,
+		"hp_fraction": 1.0,
+		"era_accent": Color(0, 0, 0, 0),
+		"visible_label": _label,
+	})
 
 func text_overflow_report() -> Array:
 	return [
@@ -71,18 +86,7 @@ func _draw() -> void:
 	var rect := visual_rect()
 	if rect.size.x <= 2.0 or rect.size.y <= 2.0:
 		return
-	var center := rect.get_center()
-	var radius := glyph_radius(rect)
-	var base_color: Color = ENTITY_COLORS.get(_kind, Tokens.role_color("structure"))
-	var state_visual: Dictionary = Tokens.state_visual(_state)
-	var state_color := Tokens.role_color(str(state_visual.get("role", "structure")))
-	var reach := radius * Glyphs.glyph_extent(_kind)
-
-	# The ring is a state channel, while GlyphLib remains the identity channel.
-	# This makes a hit/lock/ready state legible without recolouring the entity.
-	draw_arc(center, minf(rect.size.x * 0.46, reach + 10.0), 0.0, TAU, 48, Color(state_color.r, state_color.g, state_color.b, 0.22), 1.0, true)
-	Glyphs.draw_glyph(self, _kind, center, radius, base_color, _motion_phase)
-	_draw_state_marks(center, minf(rect.size.x * 0.46, reach + 10.0), state_visual)
+	Renderer.draw(self, _presentation_snapshot(), rect, _motion_phase, {})
 
 func _draw_state_marks(center: Vector2, radius: float, state_visual: Dictionary) -> void:
 	var state_color := Tokens.role_color(str(state_visual.get("role", "structure")))
