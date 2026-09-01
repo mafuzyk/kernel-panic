@@ -2,6 +2,7 @@ class_name VNextEntityRenderer
 extends RefCounted
 
 const BalanceData = preload("res://src/autoload/balance.gd")
+const ContentCatalog = preload("res://src/data/content_catalog.gd")
 const Descriptor = preload("res://src/ui/vnext/core/entity_descriptor.gd")
 const Glyphs = preload("res://src/ui/glyph_lib.gd")
 
@@ -14,8 +15,17 @@ const KIND_COLORS := {
 	"spewer": BalanceData.COL_SPEWER,
 	"kernel": BalanceData.COL_PLAYER,
 	"daemon": BalanceData.COL_PLAYER_HOT,
-	"rootlet": BalanceData.COL_MOTE,
+	"rootlet": BalanceData.COL_PLAYER,
 }
+
+static func _base_color(kind: String) -> Color:
+	if ContentCatalog.PROGRAM_DEFS.has(kind):
+		var definition: Dictionary = ContentCatalog.PROGRAM_DEFS[kind]
+		var visual: Dictionary = definition.get("visual", {}) if definition.get("visual", {}) is Dictionary else {}
+		var catalog_color: Variant = visual.get("color", null)
+		if catalog_color is Color:
+			return catalog_color
+	return KIND_COLORS.get(kind, BalanceData.COL_PLAYER)
 
 static func fit_rect(snapshot: Dictionary, target: Rect2) -> Rect2:
 	## Body allocation; the published marker-aware envelope is draw_bounds().
@@ -85,7 +95,7 @@ static func color_for(snapshot: Dictionary, quality: Dictionary = {}) -> Color:
 	return _color_for_normalized(normalized, quality)
 
 static func _color_for_normalized(normalized: Dictionary, quality: Dictionary) -> Color:
-	var color: Color = KIND_COLORS.get(str(normalized["kind"]), BalanceData.COL_PLAYER)
+	var color: Color = _base_color(str(normalized["kind"]))
 	color = Glyphs.era_mix(color, normalized["era_accent"], 0.25)
 	if bool(quality.get("grayscale", false)):
 		var luminance := color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722
@@ -143,7 +153,7 @@ static func draw_enemy(canvas: CanvasItem, kind: String, facing: Vector2, state:
 		return
 	var prior_rotation: float = canvas.rotation
 	canvas.draw_set_transform(Vector2.ZERO, facing.angle() - prior_rotation, Vector2.ONE)
-	var resolved_color: Color = KIND_COLORS.get(kind, BalanceData.COL_PLAYER) if color.a <= 0.0 else color
+	var resolved_color: Color = _base_color(kind.to_lower()) if color.a <= 0.0 else color
 	Glyphs.draw_glyph(canvas, kind, Vector2.ZERO, radius, resolved_color, cosmetic_time)
 	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	_draw_state(canvas, Vector2.ZERO, radius * 1.2, state, BalanceData.COL_TEXT)

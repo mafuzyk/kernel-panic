@@ -88,7 +88,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
 | A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
 | U | U1, U2, U2b, U3, U4, U5, U6 | U1–U6 completed (opt-in, reviewed) | U1–U6 now cover boot, selection, patch choice, combat HUD, pause/terminal/game-over, accessibility settings and shared recoverable state primitives; final migration, locale, visual approval, physical mobile, Android/export and teardown gates remain open. |
-| E | E1, E2, E3, E4, E5 | E1 and E2 batch 1 completed; E2 remainder/E3–E5 pending | E1 foundation plus DRONE/LANCER/SPEWER identity/state batch; visual approval, measured dense-wave performance and remaining cast work remain. |
+| E | E1, E2, E3, E4, E5 | E1, E2 batch 1 and E3 completed; E2 remainder/E4–E5 pending | E1 foundation, DRONE/LANCER/SPEWER identity/state batch, and runtime KERNEL/DAEMON/ROOTLET identity boundary; visual approval, measured dense-wave performance and remaining cast work remain. |
 | G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
 | M | M1–M5 | Pending | Story data/flow, history content, rewards, localization and save tests. |
 | L | L1–L4 | Pending | String inventory, PT-BR behavior, plural/select/Unicode/overflow tests. |
@@ -563,15 +563,22 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
   `program_id -> kind` mapping and a read-only `Player.presentation_snapshot()`.
 - Routed real overclock, dash and shield facts into the program selector,
   combat HUD and pause semantics; removed fragile silhouette-string mapping.
-- Focused red probe: exit 1 with 16 failures before production. Final probe:
-  headless/Xvfb exit 0, 29 passes, 0 fails, exact completion marker.
+- Focused red probe: exit 1 with 16 failures before production. The first green
+  result was deliberately rejected by adversarial review for non-canonical
+  ROOTLET color, snapshot bypasses in Combat HUD drawing, insufficient
+  consumer draw coverage and an unused HUD preload.
+- Final probe after those corrections: headless/Xvfb exit 0, 35 passes, 0
+  fails, exact completion marker. It compares canonical catalog colors,
+  captures Combat HUD draw text, checks pause context projection, and measures
+  narrow overflow.
 - Additional checks: import exit 0; full suite exit 0 with 1414 AT_PASS, 0
   AT_FAIL and AUTOTEST_ALL_PASS; accumulated validator final VALIDATION OK,
-  including E3 29/0 and no runtime ERROR gates.
+  including E3 35/0 and no runtime ERROR gates.
 - The first accumulated run was rejected for a malformed completion marker;
   `b6e6eaa` corrected the probe and the validator was rerun.
 - Not proven: human visual approval, dense-wave profiling, Android/device/
   physical touch, Vega, PT-BR, native screen reader and teardown diagnostics.
 - Report: `.superpowers/sdd/00-MASTER-PLAN/report-E3-program-identity.md`.
 - Handoff: `docs/HANDOFF-E3-PROGRAM-IDENTITY.md`.
-- Commits: `f5a3669`, `88313c2`, `b6e6eaa`; documentation commit follows.
+- Commits: `f5a3669`, `88313c2`, `b6e6eaa`, plus the adversarial correction
+  and documentation commits that follow.

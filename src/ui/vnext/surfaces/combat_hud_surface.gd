@@ -4,6 +4,7 @@ extends Control
 const Context = preload("res://src/ui/vnext/ui_context.gd")
 const Tokens = preload("res://src/ui/vnext/ui_tokens.gd")
 const TacticalUI = preload("res://src/ui/tactical_ui.gd")
+const Adapter = preload("res://src/ui/vnext/core/entity_presentation_adapter.gd")
 const Orbitron: Font = preload("res://assets/fonts/Orbitron.ttf")
 const ShareTechMono: Font = preload("res://assets/fonts/ShareTechMono.ttf")
 
@@ -84,8 +85,7 @@ func sync_from_hud(source: Node, damage_direction: String = "NONE") -> void:
 	snapshot["damage_direction"] = damage_direction
 	var player: Node = source.get("player")
 	if player != null and is_instance_valid(player):
-		var adapter := preload("res://src/ui/vnext/core/entity_presentation_adapter.gd")
-		var program_snapshot: Dictionary = adapter.from_player(player)
+		var program_snapshot: Dictionary = Adapter.from_player(player)
 		snapshot["program_snapshot"] = program_snapshot
 		snapshot["program_id"] = str(program_snapshot.get("nested", {}).get("program_id", Game.program))
 		snapshot["program_kind"] = str(program_snapshot.get("kind", "kernel"))
@@ -189,6 +189,12 @@ func _ability_state(program_snapshot: Dictionary) -> String:
 		return "DASH ACTIVE" if bool(nested.get("dash_active", false)) else ("DASH READY" if int(nested.get("dash_available", 0)) > 0 else "DASH COOLDOWN")
 	return "OVERCLOCK ACTIVE" if bool(nested.get("overclock_active", false)) else ("OVERCLOCK READY" if bool(nested.get("overclock_ready", false)) else "OVERCLOCK CHARGING")
 
+func _ability_display_text(semantic: Dictionary) -> String:
+	var state := str(semantic.get("ability_state", semantic.get("dash_state", "COOLDOWN")))
+	if bool(_layout.get("narrow", false)) and state.begins_with("OVERCLOCK "):
+		return "OC " + state.substr("OVERCLOCK ".length())
+	return state
+
 func text_overflow_report() -> Dictionary:
 	var scale := float(context.text_scale) if context != null else 1.0
 	var fields := {}
@@ -204,6 +210,8 @@ func text_overflow_report() -> Dictionary:
 	_add_overflow_field(fields, "cycle", str(snapshot.get("cycle", "CYCLE %02d" % int(snapshot.get("wave", 0)))), patches, ShareTechMono, 11, 24.0, scale)
 	_add_overflow_field(fields, "patches", _patch_text(), patches, ShareTechMono, 11, 24.0, scale)
 	_add_overflow_field(fields, "ability", "ABILITY // " + str(_semantic.get("program_id", Game.program)).to_upper(), dash, ShareTechMono, 11, 24.0, scale)
+	var ability_size := 18 if bool(_layout.get("narrow", false)) else 22
+	_add_overflow_field(fields, "ability_state", _ability_display_text(_semantic), dash, Orbitron, ability_size, 24.0, scale)
 	var score_size := 16 if bool(_layout.get("narrow", false)) else 18
 	_add_overflow_field(fields, "score", "SCORE %07d" % int(snapshot.get("score", 0)), score, Orbitron, score_size, 24.0, scale)
 	_add_overflow_field(fields, "run", str(snapshot.get("time", "TIME 00:00.0")) + " // " + str(snapshot.get("run", "RUN")), score, ShareTechMono, 10, 24.0, scale)
@@ -281,7 +289,7 @@ func _draw_state(rect: Rect2, semantic: Dictionary) -> void:
 		var filled := i < hp
 		draw_rect(Rect2(pip_x + i * minf(18.0, (rect.size.x - 28.0) / float(max_hp)), rect.position.y + 56.0, 12.0, 10.0), Tokens.role_color("danger") if filled else Color(0.2, 0.25, 0.3, 0.5), filled)
 	var direction := str(semantic.get("damage_direction", "NONE"))
-	_draw_text("HIT FROM // " + direction if direction != "NONE" else "PROGRAM // " + str(Game.program).to_upper(), rect.position + Vector2(12, 72), rect.size.x - 24, 10, Tokens.role_color("warning") if direction != "NONE" else Tokens.role_color("muted"))
+	_draw_text("HIT FROM // " + direction if direction != "NONE" else "PROGRAM // " + str(semantic.get("program_id", "kernel")).to_upper(), rect.position + Vector2(12, 72), rect.size.x - 24, 10, Tokens.role_color("warning") if direction != "NONE" else Tokens.role_color("muted"))
 	_draw_text("METER // %s" % semantic["meter_state"], rect.position + Vector2(12, 92), rect.size.x - 24, 10, Tokens.role_color("ready") if semantic["meter_state"] == "FULL" else Tokens.role_color("muted"))
 
 func _draw_event(rect: Rect2) -> void:
@@ -296,8 +304,10 @@ func _draw_patches(rect: Rect2) -> void:
 
 func _draw_dash(rect: Rect2, semantic: Dictionary) -> void:
 	_draw_text("ABILITY // " + str(semantic.get("program_id", Game.program)).to_upper(), rect.position + Vector2(12, 20), rect.size.x - 24, 11, Tokens.role_color("structure"))
-	var state := str(semantic["dash_state"])
-	_draw_text(state, rect.position + Vector2(12, 50), rect.size.x - 24, 22, Tokens.role_color("ready") if state == "READY" else Tokens.role_color("warning"), Orbitron)
+	var state := str(semantic.get("ability_state", semantic.get("dash_state", "COOLDOWN")))
+	var display_state := _ability_display_text(semantic)
+	var state_size := 18 if bool(_layout.get("narrow", false)) else 22
+	_draw_text(display_state, rect.position + Vector2(12, 50), rect.size.x - 24, state_size, Tokens.role_color("ready") if state.contains("READY") else Tokens.role_color("warning"), Orbitron)
 	_draw_text("TAP / SPACE", rect.position + Vector2(12, 76), rect.size.x - 24, 10, Tokens.role_color("muted"))
 
 func _draw_score(rect: Rect2) -> void:

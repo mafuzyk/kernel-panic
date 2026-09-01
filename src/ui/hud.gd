@@ -4,7 +4,6 @@ extends Control
 const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
 const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 const VNextCombatHudScript = preload("res://src/ui/vnext/surfaces/combat_hud_surface.gd")
-const VNextEntityAdapter = preload("res://src/ui/vnext/core/entity_presentation_adapter.gd")
 
 var player: Player
 var boss: RootBoss

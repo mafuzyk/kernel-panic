@@ -428,7 +428,15 @@ scope.
 ### Improved
 
 - Improved narrow HUD readability so the live program ability and score fit in
-  the compact layout.
+  the compact layout; OVERCLOCK uses the compact `OC` label only where space
+  requires it.
+
+### Evidence
+
+- E3 focused probe: 35/0 in headless and Xvfb after adversarial corrections.
+- Canonical program colors now match the existing program catalog, and the
+  Combat HUD draw path was checked against a real snapshot rather than only
+  its semantic dictionary.
 
 ### Compatibility
 

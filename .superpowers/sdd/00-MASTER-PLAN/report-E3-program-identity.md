@@ -39,14 +39,17 @@ esse contrato seja definido.
   distintamente, preserva aim e projeta fatos atuais. O HUD deriva o estado de
   habilidade do snapshot; pausa recebe e publica o mesmo payload; seletor usa o
   mapa estável, sem substituir nomes de silhouettes.
-- ROOTLET tem cor distinta (`Balance.COL_MOTE`) no renderer. No modo narrow o
-  placar usa 16px para caber; os demais tamanhos preservam o desenho existente.
+- As três cores são derivadas de `ContentCatalog.PROGRAM_DEFS[*].visual.color`,
+  mantendo a mesma identidade visual do Player legado e evitando confundir
+  ROOTLET com a cor de mote. No modo narrow o placar usa 16px e o estado de
+  habilidade usa uma linha compacta/menor para caber.
 
 ## Arquivos
 
 - `src/player/player.gd`: contrato de snapshot e `program_id` runtime.
 - `src/ui/vnext/core/entity_presentation_adapter.gd`: mapa e projeção real.
-- `src/ui/vnext/core/entity_renderer.gd`: cor distinta do ROOTLET.
+- `src/ui/vnext/core/entity_renderer.gd`: cores canônicas dos programas com
+  fallback defensivo.
 - `src/ui/vnext/surfaces/program_surface.gd`: identidade estável no preview.
 - `src/ui/vnext/surfaces/combat_hud_surface.gd`: identidade/status reais e
   overflow narrow.
@@ -59,15 +62,21 @@ esse contrato seja definido.
 ## Testes e correções durante a revisão
 
 1. Red primeiro: `16` falhas, sem crash.
-2. Primeira implementação: `29` passes; o próprio probe encontrou cor
-   duplicada do ROOTLET, expectativa errada de dash e overflow do placar em
-   432px. Tudo foi corrigido.
-3. Headless final: exit 0, `29 PROBE_PASS`, `0 PROBE_FAIL`, marcador exato.
-4. Xvfb final: exit 0, `29/0`; apenas warning de V-Sync e diagnósticos de
+2. Primeira implementação: `29` passes; a revisão adversarial encontrou
+   divergência de cor canônica, duas linhas do Combat HUD ignorando o snapshot,
+   um preload morto e cobertura insuficiente do `_draw()` dos consumidores.
+3. O probe foi fortalecido para comparar cores com o catálogo, montar o
+   seletor com tamanho real, capturar o texto do Combat HUD no `_draw()` e
+   verificar o helper de contexto chamado pela pausa.
+4. A medição adicional expôs overflow real de `SHIELD READY` em 432×720.
+   O estado estreito passou a usar tamanho menor; OVERCLOCK ganha forma curta
+   `OC` somente nessa densidade.
+5. Headless final: exit 0, `35 PROBE_PASS`, `0 PROBE_FAIL`, marcador exato.
+6. Xvfb final: exit 0, `35/0`; apenas warning de V-Sync e diagnósticos de
    encerramento conhecidos.
-5. Import: exit 0; aviso ambiental de Android build-tools ausente.
-6. Suíte: exit 0, `1414 AT_PASS`, `0 AT_FAIL`, `AUTOTEST_ALL_PASS`.
-7. Validador acumulado final: todas as fatias verdes, incluindo E3 `29/0`,
+7. Import: exit 0; aviso ambiental de Android build-tools ausente.
+8. Suíte: exit 0, `1414 AT_PASS`, `0 AT_FAIL`, `AUTOTEST_ALL_PASS`.
+9. Validador acumulado final: todas as fatias verdes, incluindo E3 `35/0`,
    input Xvfb `34/0`, E1 `136/0`, E2 `76/0`, e sem runtime ERROR gating.
 
 Houve uma execução acumulada inicialmente rejeitada porque o probe emitia
@@ -82,12 +91,23 @@ aloca um Dictionary quando chamado, portanto deve permanecer em sincronização
 de UI/adaptação, nunca em hot loop de desenho. A função `available_dash_charges`
 é consultada somente para apresentação e não altera estado.
 
-Comprovado: três IDs distintos, colors/kinds distintos, flags reais, cópia
-profunda do descriptor, renderer queued em fase válida e imutabilidade do
-Player; layouts estreitos medidos sem overflow nos três consumidores.
+Comprovado: três IDs distintos, cores canônicas, cópia profunda do descriptor,
+renderer queued em fase válida, ausência de mutação do Player, texto real do
+Combat HUD derivado do snapshot, contexto de pausa derivado do snapshot e
+layouts estreitos medidos sem overflow nos três consumidores.
 
-Não comprovado: aprovação visual humana, Android/dispositivo/touch físico,
-Vega, screen reader, PT-BR, benchmark de ondas densas e resolução dos
-diagnósticos de teardown existentes. A fronteira ainda depende de
-`program_id` ser inicializado por `_ready()` em Players reais; fixtures devem
-preenchê-lo explicitamente.
+Não comprovado: captura visual humana dos consumidores, comparação de pixels,
+Android/dispositivo/touch físico, Vega, screen reader, PT-BR, benchmark de ondas
+densas e resolução dos diagnósticos de teardown existentes. A fronteira ainda
+depende de `program_id` ser inicializado por `_ready()` em Players reais;
+fixtures devem preenchê-lo explicitamente. O snapshot é somente-leitura por
+cópia e contrato: Dictionaries continuam mutáveis para quem os receber.
+
+## Registro da revisão adversarial
+
+O reviewer independente retornou REJECT com sete achados concretos. Nenhum foi
+descartado por preferência: cada um foi reproduzido por inspeção ou por uma
+asserção nova. O caminho escolhido para a pausa não simula uma captura de
+pixels; ele mantém um único helper de texto usado tanto pela medição quanto
+pelo `_draw()`, e o probe confirma o valor recebido. Essa é evidência de
+consistência do caminho de dados, não aprovação visual.
