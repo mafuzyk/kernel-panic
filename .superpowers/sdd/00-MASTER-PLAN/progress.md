@@ -931,3 +931,28 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Handoff: `docs/HANDOFF-L1-L2-LOCALIZATION.md`.
 - Next: L2/L3 global string migration and L4 Brazilian editorial pass, then
   the M3 Mac mechanic gate.
+
+## M3 — macOS layered visibility mechanic
+
+- Status: implemented and reviewed; balance, physical mobile and final visual
+  approval remain open.
+- Chosen rule: layered visibility with a non-color `BACKGROUND` countdown.
+  Mac stages declare explicit reveal delays of 1.20s, 1.05s, 0.95s and 0.85s.
+  The first node teaches the rule on one DRONE; the second reuses it with the
+  existing RACE_CONDITION pair; later nodes combine it with known threats.
+- `Spawner` applies the rule generically. `EnemyBase` disables simulation and
+  monitorability while a `LayeredRevealTelegraph` child continues under
+  `PROCESS_MODE_ALWAYS`; the child emits one reveal signal and then hides.
+  The enemy's snapshot and vNext renderer carry a `background` state and
+  `background-ring` marker.
+- Focused green: `/tmp/m3-green3.log`, exit 0 with `PROBE_DONE fails=0`.
+  Editor import: `/tmp/m3-import2.log`, exit 0. Probe checks real story spawn,
+  inert pre-reveal state, active child telegraph, post-delay activation and
+  renderer state marker.
+- Second-pass review checked collision/hit before reveal, disabled-parent child
+  processing, duplicate signals, boss exclusion, RNG isolation and fallback
+  behavior for non-Mac stages. Open risk is encounter feel/readability under
+  dense waves and physical mobile performance.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-M3-macos-layered-reveal.md`.
+- Handoff: `docs/HANDOFF-M3-MACOS-LAYERED-REVEAL.md`.
+- Next: M4 full route, climax/boss and reward/save-transfer behavior.

@@ -192,7 +192,7 @@ static func draw_enemy(canvas: CanvasItem, kind: String, facing: Vector2, state:
 
 static func state_signature(snapshot: Dictionary) -> String:
 	var state := str(Descriptor.normalize(snapshot)["visual_state"])
-	return {"idle": "square-notch", "attack": "forward-chevrons", "hit": "cross-mark", "elite": "core-dot", "death": "falling-arc"}.get(state, "state-marker")
+	return {"idle": "square-notch", "attack": "forward-chevrons", "hit": "cross-mark", "elite": "core-dot", "death": "falling-arc", "background": "background-ring"}.get(state, "state-marker")
 
 static func _draw_state(canvas: CanvasItem, center: Vector2, radius: float, state: String, color: Color) -> void:
 	match state:
@@ -206,5 +206,11 @@ static func _draw_state(canvas: CanvasItem, center: Vector2, radius: float, stat
 			canvas.draw_line(center + Vector2(radius, -radius), center + Vector2(-radius, radius), color, maxf(1.0, radius * 0.08), true)
 		"death":
 			canvas.draw_arc(center, radius, 0.0, PI, 12, color, 2.0, true)
+		"background":
+			canvas.draw_arc(center, radius * 1.12, -PI / 2.0, PI, 16, color, maxf(1.0, radius * 0.07), true)
+			for i in 4:
+				var angle := TAU * float(i) / 4.0 + PI / 4.0
+				var marker := Vector2.from_angle(angle)
+				canvas.draw_line(center + marker * radius * 1.16, center + marker * radius * 1.34, color, maxf(1.0, radius * 0.06), true)
 		"elite":
 			canvas.draw_circle(center, maxf(1.5, radius * 0.1), color)

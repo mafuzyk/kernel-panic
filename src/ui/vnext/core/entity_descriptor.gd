@@ -5,7 +5,7 @@ const Glyphs = preload("res://src/ui/glyph_lib.gd")
 
 const DEFAULT_KIND := "drone"
 const DEFAULT_STATE := "idle"
-const VALID_STATES := ["idle", "attack", "hit", "elite", "death"]
+const VALID_STATES := ["idle", "attack", "hit", "elite", "death", "background"]
 
 static func normalize(snapshot: Dictionary) -> Dictionary:
 	var source := snapshot.duplicate(true)

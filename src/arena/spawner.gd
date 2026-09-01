@@ -365,6 +365,8 @@ func _telegraph_spawn(pos: Vector2, kind: String, generation: int, pair: Array =
 		else:
 			_configure_enemy(e, Game.rng.randf() < Balance.difficulty_elite_chance(wave))
 		container.add_child(e)
+		if story_mode and str(story_stage.get("act_rule", "")) == "layered_reveal" and kind not in ["boss", "god"] and e.has_method("configure_layered_reveal"):
+			e.call("configure_layered_reveal", float(story_stage.get("reveal_delay", 1.0)), e.era_accent if e.era_accent.a > 0.0 else Balance.COL_PLAYER)
 		if pair != null and kind == "race_condition":
 			pair.append(e)
 			if pair.size() == 2:

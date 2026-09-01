@@ -26,6 +26,10 @@ var last_pdash_id := -1
 var player: Node2D
 var glow: Sprite2D
 var era_accent := Color(0, 0, 0, 0)
+var _layered_reveal_remaining := 0.0
+var _layered_reveal_duration := 0.0
+var _layered_revealed := true
+var _layered_telegraph: LayeredRevealTelegraph
 
 ## Presentation-only snapshot. It reads simulation state but never owns or mutates it.
 func presentation_snapshot() -> Dictionary:
@@ -38,11 +42,15 @@ func presentation_snapshot() -> Dictionary:
 		"mote_count": mote_count,
 		"era_accent": era_accent,
 		"hit_flash": hit_flash,
-		"visual_state": presentation_state(),
+		"visual_state": "background" if not _layered_revealed else presentation_state(),
 		"facing": presentation_facing(),
+		"layered_reveal_remaining": layered_reveal_remaining(),
+		"layered_revealed": _layered_revealed,
 	}
 
 func presentation_state() -> String:
+	if not _layered_revealed:
+		return "background"
 	if hit_flash > 0.0:
 		return "hit"
 	return "elite" if elite else "idle"
@@ -68,6 +76,36 @@ func configure(wave_scale_f: float, is_elite: bool) -> void:
 			speed *= 1.3
 		else:
 			_volatile_pulse_t = 0.15
+
+func configure_layered_reveal(delay: float, accent: Color = Balance.COL_PLAYER) -> void:
+	if _layered_telegraph != null and is_instance_valid(_layered_telegraph):
+		_layered_telegraph.queue_free()
+	_layered_reveal_duration = maxf(delay, 0.2)
+	_layered_reveal_remaining = _layered_reveal_duration
+	_layered_revealed = false
+	_layered_telegraph = LayeredRevealTelegraph.new()
+	_layered_telegraph.name = "LayeredRevealTelegraph"
+	_layered_telegraph.configure(_layered_reveal_duration, accent)
+	_layered_telegraph.reveal_finished.connect(_finish_layered_reveal)
+	add_child(_layered_telegraph)
+	process_mode = Node.PROCESS_MODE_DISABLED
+	set_deferred("monitorable", false)
+
+func layered_reveal_remaining() -> float:
+	if _layered_telegraph != null and is_instance_valid(_layered_telegraph):
+		return maxf(float(_layered_telegraph.remaining), 0.0)
+	return maxf(_layered_reveal_remaining, 0.0)
+
+func layered_reveal_active() -> bool:
+	return not _layered_revealed
+
+func _finish_layered_reveal() -> void:
+	_layered_reveal_remaining = 0.0
+	_layered_revealed = true
+	if _layered_telegraph != null and is_instance_valid(_layered_telegraph):
+		_layered_telegraph.visible = false
+	process_mode = Node.PROCESS_MODE_INHERIT
+	set_deferred("monitorable", true)
 
 func elite_steering(to_target: Vector2, lateral_sign: float = 1.0) -> Vector2:
 	var lateral_weight := 0.35
@@ -107,6 +145,7 @@ func _on_ready() -> void:
 	pass
 
 func _physics_process(delta: float) -> void:
+	_layered_reveal_remaining = layered_reveal_remaining()
 	t += delta
 	spawn_t += delta
 	if hit_flash > 0.0:

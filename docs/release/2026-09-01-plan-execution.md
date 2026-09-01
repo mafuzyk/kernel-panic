@@ -954,3 +954,28 @@ and HUD messaging still need playtest approval.
 ### Evidence
 
 - Locale service/content probe exited 0 with `PROBE_DONE fails=0`.
+
+## M3 — macOS layered reveal foundation (unreleased)
+
+### Added
+
+- Mac history nodes now teach a layered `BACKGROUND` state with a geometric
+  countdown before an incoming process becomes active.
+- The shared entity presentation contract includes a non-color background
+  marker, so the mechanic can be represented consistently in future surfaces.
+
+### Changed
+
+- The mechanic is applied through the generic story spawn boundary. During its
+  warning, an enemy cannot move, collide or be hit; it becomes active only
+  after the visible countdown completes.
+
+### Known Issues
+
+- Timing, dense-wave readability, physical mobile behavior and final visual
+  approval still need playtesting. The Mac climax and reward route are not yet
+  complete.
+
+### Evidence
+
+- Focused real-story mechanic probe passed with `PROBE_DONE fails=0`.
