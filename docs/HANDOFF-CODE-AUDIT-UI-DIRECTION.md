@@ -1,7 +1,7 @@
 # Handoff — auditoria de código e direção UI vNext
 
-Data: 2026-08-31  
-Branch: `codex/code-audit-ui-direction`  
+Data: 2026-08-31
+Branch: `codex/code-audit-ui-direction`
 Estado: publicada no remoto, sem merge na `main`.
 
 ## Decisão de escopo
