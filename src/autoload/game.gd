@@ -555,6 +555,18 @@ func import_save_string(encoded: String) -> bool:
 	var weekly_data = parsed.get("weekly", {})
 	if not run_data is Dictionary or not weekly_data is Dictionary:
 		return false
+	var imported_story = parsed.get("story", {})
+	if not imported_story is Dictionary:
+		return false
+	var imported_story_cleared = imported_story.get("cleared", {})
+	var imported_story_best = imported_story.get("best", {})
+	if not imported_story_cleared is Dictionary or not imported_story_best is Dictionary:
+		return false
+	var imported_bestiary = parsed.get("bestiary", {})
+	var imported_programs_raw = parsed.get("programs", {})
+	var imported_achievements = parsed.get("achievements", {})
+	if not imported_bestiary is Dictionary or not imported_programs_raw is Dictionary or not imported_achievements is Dictionary:
+		return false
 	var cf := ConfigFile.new()
 	cf.load(Sfx.SAVE_PATH)
 	cf.set_value("run", "best_classic", maxi(int(run_data.get("best_classic", 0)), 0))
@@ -566,22 +578,17 @@ func import_save_string(encoded: String) -> bool:
 	cf.set_value("weekly", "best", maxi(int(weekly_data.get("best", 0)), 0))
 	cf.set_value("weekly", "last_id", str(weekly_data.get("last_id", "")))
 	cf.set_value("weekly", "last_best", maxi(int(weekly_data.get("last_best", 0)), 0))
-	var imported_story = parsed.get("story", {})
-	if not imported_story is Dictionary:
-		return false
-	cf.set_value("story", "cleared", _known_bool_map(imported_story.get("cleared", {}), STORY_DATA.stage_ids()))
-	var imported_story_best = imported_story.get("best", {})
+	cf.set_value("story", "cleared", _known_bool_map(imported_story_cleared, STORY_DATA.stage_ids()))
 	var clean_story_best := {}
-	if imported_story_best is Dictionary:
-		for stage_id in STORY_DATA.stage_ids():
-			clean_story_best[stage_id] = maxi(int(imported_story_best.get(stage_id, 0)), 0)
+	for stage_id in STORY_DATA.stage_ids():
+		clean_story_best[stage_id] = maxi(int(imported_story_best.get(stage_id, 0)), 0)
 	cf.set_value("story", "best", clean_story_best)
 	cf.set_value("story", "temple_rainbow_unlocked", bool(imported_story.get("temple_rainbow_unlocked", false)))
-	cf.set_value("bestiary", "seen", _known_bool_map(parsed.get("bestiary", {}), BESTIARY_MAP.values()))
-	var imported_programs := _known_bool_map(parsed.get("programs", {}), PROGRAM_DEFS.keys())
+	cf.set_value("bestiary", "seen", _known_bool_map(imported_bestiary, BESTIARY_MAP.values()))
+	var imported_programs := _known_bool_map(imported_programs_raw, PROGRAM_DEFS.keys())
 	imported_programs["kernel"] = true
 	cf.set_value("programs", "unlocked", imported_programs)
-	cf.set_value("achievements", "unlocked", _known_bool_map(parsed.get("achievements", {}), ACHIEVEMENT_DEFS.keys()))
+	cf.set_value("achievements", "unlocked", _known_bool_map(imported_achievements, ACHIEVEMENT_DEFS.keys()))
 	if cf.save(Sfx.SAVE_PATH) != OK:
 		return false
 	_load_run_config()
