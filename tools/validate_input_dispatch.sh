@@ -16,6 +16,7 @@ cd "$(dirname "$0")/.."
 
 LOG_DIR="${KP_VALIDATION_LOGS:-.godot/codex-review-lote-1}"
 XDG="$LOG_DIR/xdg"
+VALIDATION_TIMEOUT_SECONDS="${KP_VALIDATION_TIMEOUT_SECONDS:-120}"
 mkdir -p "$XDG"
 
 overall=0
@@ -72,7 +73,7 @@ report_errors() {
 run_headless_probe() {
 	local slug="$1" name="$2" scene="$3"
 	local log="$LOG_DIR/$slug.log"
-	XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . "$scene" > "$log" 2>&1
+	timeout "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . "$scene" > "$log" 2>&1
 	report_case "$name" "$log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "$name" "$log"
@@ -82,7 +83,7 @@ run_headless_probe() {
 run_headless_probe_with_env() {
 	local env_name="$1" slug="$2" name="$3" scene="$4"
 	local log="$LOG_DIR/$slug.log"
-	env "$env_name=1" XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . "$scene" > "$log" 2>&1
+	timeout "${VALIDATION_TIMEOUT_SECONDS}s" env "$env_name=1" XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . "$scene" > "$log" 2>&1
 	report_case "$name" "$log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "$name" "$log"
@@ -90,14 +91,14 @@ run_headless_probe_with_env() {
 }
 
 echo "--- suite headless ---"
-XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . -- --autotest > "$LOG_DIR/suite-headless.log" 2>&1
+timeout "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . -- --autotest > "$LOG_DIR/suite-headless.log" 2>&1
 report_case "suite headless (--autotest)" "$LOG_DIR/suite-headless.log" "$?" "AT_PASS" "AT_FAIL" \
 	'^AUTOTEST_ALL_PASS$:::AUTOTEST_ALL_PASS marker'
 report_errors "suite headless" "$LOG_DIR/suite-headless.log"
 echo
 
 echo "--- input dispatch probe ---"
-XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-headless.log" 2>&1
+timeout "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-headless.log" 2>&1
 report_case "input probe headless" "$LOG_DIR/probe-headless.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 	'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 report_errors "input probe headless" "$LOG_DIR/probe-headless.log"
@@ -120,7 +121,7 @@ run_headless_probe_with_env "KP_VNEXT_PATCH" "probe-vnext-patch-arena" "VNext pa
 run_headless_probe_with_env "KP_VNEXT_HUD" "probe-vnext-combat-hud" "VNext combat HUD Arena adapter" "res://tools/vnext_combat_hud_probe.tscn"
 
 if command -v xvfb-run >/dev/null 2>&1; then
-	XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-xvfb.log" 2>&1
+	timeout "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-xvfb.log" 2>&1
 	report_case "input probe xvfb (desktop debug)" "$LOG_DIR/probe-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker' \
 		'^PROBE_INFO debug_controls_enabled=true$:::debug_controls_enabled=true (desktop debug active)'

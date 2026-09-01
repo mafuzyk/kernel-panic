@@ -27,11 +27,14 @@ func _ready() -> void:
 		"wave": 7, "cycle": "CYCLE 07", "score": 1234, "combo": 3,
 		"time": "TIME 01:23.4", "run": "SEED 42", "event": "A".repeat(180),
 		"boss_name": "ROOT.exe // FORKED", "boss_frac": 0.42, "boss_split": true,
+		"boss_fragments": [{"slot": 0, "fraction": 0.42}, {"slot": 1, "fraction": 0.31}],
 		"boss_phase": "PHASE 2 // SPLIT", "damage_direction": "NORTH-EAST",
 	}
 	_check(surface.has_method("configure"), "surface exposes configure")
 	_check(surface.has_method("layout_snapshot") and surface.has_method("text_overflow_report"), "surface exposes layout and overflow contracts")
 	_check(surface.has_method("semantic_snapshot") and surface.has_method("action_regions") and surface.has_method("handle_input"), "surface exposes semantic and input contracts")
+	_check(surface.mouse_filter == Control.MOUSE_FILTER_IGNORE, "hud surface does not block combat pointer input")
+	_check(surface.has_method("boss_bars_snapshot"), "surface exposes boss bar fractions")
 	surface.call("configure", state, context)
 	for hp in range(1, 13):
 		state["hp"] = hp
@@ -55,6 +58,9 @@ func _ready() -> void:
 	var layout: Dictionary = surface.call("layout_snapshot")
 	_check(_reserved_center(layout, Vector2(1280, 720)), "desktop reserves playfield center")
 	_check(_boss_clear_of_player(layout, Vector2.ZERO), "desktop boss bar avoids player")
+	_check(_panels_do_not_overlap(layout), "desktop hud panels do not overlap")
+	var boss_bars: Array = surface.call("boss_bars_snapshot")
+	_check(boss_bars.size() == 2 and float(boss_bars[0].get("fraction", -1.0)) > 0.0 and float(boss_bars[1].get("fraction", -1.0)) > 0.0, "split boss exposes both live bar fractions")
 	var action_regions: Dictionary = surface.call("action_regions")
 	_check(action_regions.has("dash") and (action_regions["dash"] as Rect2).size.x >= 96.0 and (action_regions["dash"] as Rect2).size.y >= 64.0, "dash action is touch-safe")
 	state["event"] = "WAVE STARTED"
@@ -71,6 +77,7 @@ func _ready() -> void:
 		layout = surface.call("layout_snapshot")
 		action_regions = surface.call("action_regions")
 		_check(_reserved_center(layout, viewport), "viewport %s reserves center" % viewport)
+		_check(_panels_do_not_overlap(layout), "viewport %s keeps hud panels separate" % viewport)
 		_check((action_regions["dash"] as Rect2).size.x >= 96.0 and (action_regions["dash"] as Rect2).size.y >= 64.0, "viewport %s keeps touch-safe dash" % viewport)
 	var before: Rect2 = (surface.call("layout_snapshot")["integrity"] as Rect2)
 	surface.call("reflow_for_viewport", Vector2(900, 720))
@@ -87,6 +94,19 @@ func _ready() -> void:
 	_check(arena.has_method("vnext_hud_enabled") and bool(arena.call("vnext_hud_enabled")), "real Arena enables vnext hud opt-in")
 	_check(arena.has_method("vnext_hud_surface") and arena.call("vnext_hud_surface") != null, "real Arena mounts combat hud surface")
 	_check(arena.get("player") != null and arena.get("hud") != null, "real Arena wires player and hud")
+	var arena_player: Node = arena.get("player")
+	var arena_hud: Node = arena.call("vnext_hud_surface")
+	var arena_hud_adapter: Node = arena.get("hud")
+	arena_hud_adapter.call("show_banner", "CYCLE 02", "PURGE THE DAEMONS", 2.0)
+	arena_hud.call("sync_from_hud", arena_hud_adapter)
+	var event_report: Dictionary = arena_hud.call("text_overflow_report")
+	_check(str(event_report.get("fields", {}).get("event", {}).get("text", "")) == "PURGE THE DAEMONS", "cycle banner keeps cycle in continuous dock and event copy temporary")
+	arena_player.call("take_damage", Vector2(-100.0, 0.0), "PROBE DAMAGE")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var live_semantic: Dictionary = arena_hud.call("semantic_snapshot")
+	_check(float(arena_player.get("last_damage_direction_t")) > 0.0, "real damage records a direction lifetime")
+	_check(str(live_semantic.get("damage_direction", "NONE")) != "NONE", "real damage publishes a direction marker")
 	arena.queue_free()
 	await get_tree().process_frame
 	_finish()
@@ -98,6 +118,18 @@ func _reserved_center(layout: Dictionary, viewport: Vector2) -> bool:
 func _boss_clear_of_player(layout: Dictionary, player_position: Vector2) -> bool:
 	var boss: Rect2 = layout.get("boss", Rect2())
 	return boss.size == Vector2.ZERO or not boss.grow(8.0).has_point(player_position)
+
+func _panels_do_not_overlap(layout: Dictionary) -> bool:
+	var rects: Array[Rect2] = [layout.get("integrity", Rect2()), layout.get("event", Rect2()), layout.get("patches", Rect2()), layout.get("dash", Rect2()), layout.get("score", Rect2())]
+	if bool(layout.get("boss_active", true)):
+		rects.append(layout.get("boss", Rect2()))
+	for i in rects.size():
+		if rects[i].size.x <= 0.0 or rects[i].size.y <= 0.0:
+			continue
+		for j in range(i + 1, rects.size()):
+			if rects[i].intersects(rects[j], true):
+				return false
+	return true
 
 func _finish() -> void:
 	if done:

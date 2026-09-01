@@ -105,6 +105,8 @@ master-plan documentation and does not merge into `main` automatically.
   boss integrity and a touch-safe dash affordance.
 - Added explicit state markers and overflow diagnostics while preserving the
   legacy HUD API and default rendering path.
+- Added live split-boss bar fractions and a non-color damage-direction marker
+  sourced from the real Player hit vector.
 
 ### Review-driven corrections
 
@@ -134,6 +136,12 @@ following concrete defects were found and corrected:
 8. A second U2b review found weak presentation projection and retry/lifecycle
    evidence. Explicit fields and lock reasons are now preserved, build preview
    is pure, adapter rejection can retry, and next-offer work is deferred.
+9. The first U3 green result concealed fullscreen pointer interception, an
+   empty split-boss bar, narrow and bottom-panel overlaps, stale patch labels,
+   weak overflow measurement and missing real damage direction. Focused red
+   checks exposed those defects. The final U3 slice uses pass-through HUD
+   input, live fragment bars, a dedicated boss row, measured per-field
+   overflow, temporary banner projection and a Player damage-vector source.
 
 ## Main decisions and rationale
 
@@ -235,6 +243,12 @@ activation.
 - Fixed incomplete boot-surface text overflow coverage.
 - Fixed the first patch-surface false green by integrating the real Arena path,
   rejecting empty/unavailable confirmation, and testing layout/data semantics.
+- Fixed vNext HUD fullscreen input interception that could block mouse combat.
+- Fixed the split-boss bar using the invalid root fraction instead of live
+  fragment health.
+- Fixed U3 panel overlap at narrow and desktop layouts, stale patch labels,
+  cycle duplication between continuous and temporary feedback, and weak
+  overflow measurement.
 
 ### Improved
 
@@ -247,6 +261,8 @@ activation.
   warnings, and state reasons instead of relying on opacity or color.
 - Improved paused-overlay input so ESC, Skip and Confirm recover the Arena
   without duplicate application.
+- Improved combat readability with textual integrity/meter/dash/boss states,
+  live patch labels, damage direction and a distinct temporary event slot.
 
 ### Compatibility
 
@@ -257,6 +273,8 @@ activation.
 ### Performance
 
 - New vNext surfaces do not add a gameplay polling loop, physics body or timer.
+- The HUD avoids rebuilding patch labels when patch levels are unchanged, and
+  legacy boss-fragment pruning now allocates only when a fragment was freed.
 - Performance budgets and device profiling remain future plan gates.
 - The patch surface is laid out and measured on configure/resize and adds no
   gameplay polling, physics body or per-frame update while hidden.
@@ -269,6 +287,9 @@ activation.
   support are not implemented yet.
 - Physical-device pointer/touch behavior, rapid route cancellation, Android
   export and teardown resource/RID diagnostics still need dedicated evidence.
+- The U3 touch dash is intentionally visual in the vNext left module; the
+  existing right-side `TouchControls` remains the authoritative touch action
+  zone until the touch HUD is reviewed on hardware.
 - The test suite is functionally green but still reports the recorded teardown
   resource/RID/ObjectDB diagnostics; these are not hidden or considered fixed.
 - Arbitrarily long localized patch copy is detected by the overflow report but

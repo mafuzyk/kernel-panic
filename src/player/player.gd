@@ -50,6 +50,8 @@ var absorb_charges := 0
 var second_wind_used := false
 var thorns_cd := 0.0
 var scrap_count := 0
+var last_damage_direction := Vector2.ZERO
+var last_damage_direction_t := 0.0
 
 func _scrap_threshold() -> int:
 	return 25 - 5 * Game.patch_level("scrapdiet")
@@ -126,6 +128,10 @@ func _fade_curve() -> Curve:
 func _physics_process(delta: float) -> void:
 	if dead:
 		return
+	if last_damage_direction_t > 0.0:
+		last_damage_direction_t = maxf(last_damage_direction_t - delta, 0.0)
+		if last_damage_direction_t <= 0.0:
+			last_damage_direction = Vector2.ZERO
 	var input_vec := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if touch_move.length() > 0.15:
 		input_vec = touch_move.limit_length(1.0)
@@ -462,6 +468,8 @@ func _on_area_entered(a: Area2D) -> void:
 func take_damage(from: Vector2, killer := "DAEMON") -> void:
 	if dead or invuln > 0.0 or dash_t > 0.0:
 		return
+	last_damage_direction = (from - global_position).normalized()
+	last_damage_direction_t = 0.85
 	if bool(prog.get("shield_mode", false)) and shield_ready:
 		shield_ready = false
 		shield_meter = 0.0

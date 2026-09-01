@@ -358,6 +358,12 @@ func clear_boss_encounter() -> void:
 	_boss_name = ""
 
 func _prune_boss_fragments() -> void:
+	var needs_prune := false
+	for fragment in _boss_fragments:
+		if not is_instance_valid(fragment):
+			needs_prune = true
+	if not needs_prune:
+		return
 	var valid_fragments: Array[RootBoss] = []
 	for fragment in _boss_fragments:
 		if is_instance_valid(fragment):
@@ -428,8 +434,17 @@ func _process(delta: float) -> void:
 	else:
 		_boss_frac = -1.0
 	if _vnext_hud_surface != null and is_instance_valid(_vnext_hud_surface):
-		_vnext_hud_surface.sync_from_hud(self)
+		_vnext_hud_surface.sync_from_hud(self, _damage_direction_label())
 	queue_redraw()
+
+func _damage_direction_label() -> String:
+	if player == null or not is_instance_valid(player) or player.last_damage_direction_t <= 0.0:
+		return "NONE"
+	var direction: Vector2 = player.last_damage_direction
+	if direction.length_squared() < 0.01:
+		return "NONE"
+	var labels := ["E", "SE", "S", "SW", "W", "NW", "N", "NE"]
+	return labels[posmod(int(round(direction.angle() / (PI / 4.0))), labels.size())]
 
 func _input(event: InputEvent) -> void:
 	# The HUD surface is scaled (window-px local space), so map event

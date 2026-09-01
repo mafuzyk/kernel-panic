@@ -333,10 +333,21 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Evidence: 1–12 HP, empty/full meter, ready/cooldown dash, fixed wave/boss
   state, long event text, 432×720/1280×720/1920×720, center reservation,
   boss/player separation, resize and Arena integration all passed.
-- Review ruling: no duplicate legacy draw in opt-in, no stale entity refs,
-  no anchor-conflict resize, no new gameplay model. Teardown resource/RID/
-  ObjectDB diagnostics remain the W0 baseline residual. Visual quality still
-  needs human art review and physical touch validation.
+- Review ruling: first green result was rejected after an independent review
+  found fullscreen pointer interception, an empty split-boss bar, desktop and
+  narrow overlap, stale patch labels, weak overflow measurement, cycle
+  duplication and a missing damage source. Correction checks then passed:
+  `MOUSE_FILTER_IGNORE`, live fragment bars, dedicated boss row, measured
+  per-field overflow, temporary banner projection, real Player damage vector
+  and input/lifecycle compatibility. Teardown resource/RID/ObjectDB
+  diagnostics remain the W0 baseline residual. Visual quality still needs
+  human art review and physical touch validation.
+- Correction evidence: focused U3 probe exit 0, 48 checks,
+  `PROBE_DONE fails=0`; full legacy suite remains 1414 `AT_PASS`, 0
+  `AT_FAIL`, `AUTOTEST_ALL_PASS`. Generated files stayed untracked.
+- Validation safety: `tools/validate_input_dispatch.sh` now bounds every
+  Godot/probe/Xvfb invocation with `KP_VALIDATION_TIMEOUT_SECONDS` (default
+  120 s); timeout exit codes remain gating and missing markers remain failures.
 - Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-U3.md`.
 - Versioned handoff: `docs/HANDOFF-U3-COMBAT-HUD.md`.
 - Next task: U4 pause, terminal and game over; do not expand U3 into U4+.
