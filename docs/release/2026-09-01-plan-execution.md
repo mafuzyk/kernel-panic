@@ -2,7 +2,8 @@
 
 > This is a development/release-log draft, not a public release announcement.
 > The vNext UI described here remains opt-in behind `KP_VNEXT_BOOT=1`,
-> `KP_VNEXT_PATCH=1`, `KP_VNEXT_HUD=1` and `KP_VNEXT_U4=1` until
+> `KP_VNEXT_PATCH=1`, `KP_VNEXT_HUD=1`, `KP_VNEXT_U4=1` and
+> `KP_VNEXT_SETTINGS=1` until
 > the later migration, accessibility, localization, visual-review and export
 > gates are complete.
 
@@ -332,3 +333,24 @@ belong in the technical reports above. The clean notes intentionally mention
 only behavior that could affect a player, tester or maintainer. This draft must
 be revisited when U2b–U6 and the final migration gates change the user-facing
 scope.
+
+## U5 — vNext Settings and Accessibility
+
+- Status: implemented and verified on 2026-09-01; opt-in only through
+  `KP_VNEXT_SETTINGS=1`.
+- Added a real Settings route and dedicated Accessibility section with four
+  functional controls: color assist, haptics, screen shake and touch size.
+- Added Sfx schema-2 defaults, normalization, persistence, reload and
+  two-step reset using the existing `user://kernel_panic.cfg`; progress keys
+  remain preserved.
+- Added semantic state text, native focusable Buttons, keyboard/pointer/touch
+  regions, recovery status and responsive overflow checks.
+- Text scaling, high contrast, reduced flash, native screen reader and gamepad
+  remain explicitly unsupported and non-interactive.
+- Evidence: red probe exit 1 with 12 failures; final U5 headless/Xvfb probe
+  59/0; import exit 0; full suite 1414 `AT_PASS`, 0 `AT_FAIL`,
+  `AUTOTEST_ALL_PASS`; accumulated validator `VALIDATION OK`.
+- Known limitations: physical touch, Android/export, localization, visual
+  approval, device performance and baseline teardown diagnostics.
+- Report: `.superpowers/sdd/00-MASTER-PLAN/report-U5.md`.
+- Handoff: `docs/HANDOFF-U5-SETTINGS-ACCESSIBILITY.md`.

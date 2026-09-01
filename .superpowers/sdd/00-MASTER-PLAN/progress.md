@@ -420,3 +420,26 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Re-read the diff as an adversarial reviewer: lifecycle, paused input, save compatibility, responsive geometry, localization, performance, error paths.
 - Record proven facts, assumptions, residual risks, and validation method here and in the relevant handoff/release document.
 - Commit only explicit task paths; keep unrelated user artifacts out of the commit.
+
+## U5 vNext Settings / Accessibility
+
+- Status: implemented on `codex/plan-execution`, opt-in via
+  `KP_VNEXT_SETTINGS=1`; legacy Settings/menu remain default.
+- Red evidence: focused probe before production, exit 1 with 12 expected
+  failures.
+- Production: Sfx schema-2 profile boundary with defaults, normalization,
+  apply/reset/reload and same-file ConfigFile persistence; accessibility-first
+  code-drawn surface with real controls and Menu route integration.
+- Final probe evidence: headless and Xvfb exit 0 with 59 passes,
+  `PROBE_DONE fails=0`; layouts cover 1366×768, 720×720, 432×720 and 390×844.
+- Regression evidence: import exit 0, full suite 1414 `AT_PASS` / 0 `AT_FAIL`
+  with `AUTOTEST_ALL_PASS`, accumulated validator `VALIDATION OK`.
+- Review ruling: fixed persistence-failure restoration semantics and moved
+  status/note out of action regions; no unsupported inert controls added.
+- Not proven: forced filesystem failure, physical touch/Android, native screen
+  reader, text scaling, high contrast, reduced flash, gamepad, PT-BR, visual
+  approval, device performance and existing teardown diagnostics.
+- Report: `.superpowers/sdd/00-MASTER-PLAN/report-U5.md`.
+- Handoff: `docs/HANDOFF-U5-SETTINGS-ACCESSIBILITY.md`.
+- Commits: `f435c03` production; `0d980dc` probe/accumulator; docs commit
+  follows this update.
