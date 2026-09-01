@@ -129,6 +129,19 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Alternatives: no `Resource` asset boundary, no UI consumer rewrite, no StoryData move, and no enemy constructor changes; all were unnecessary for behavior-preserving extraction.
 - Compatibility/risk: public names and data order remain stable; save keys and gameplay are unchanged. Direct aliases are legacy read-only surfaces, while mutable consumers should use catalog accessors. Baseline teardown diagnostics remain open and are not attributed to A4.
 - Commits: `b106be8` (focused test), `105d3bb` (refactor), and this docs commit.
+- Independent review initially rejected the evidence: the probe did not prove
+  full legacy-value parity, omitted `AchievementsPanel.ACHIEVEMENT_HINTS`,
+  and covered only two of the defensive accessors. The controller strengthened
+  `tools/content_catalog_probe.gd` with independent legacy fixtures, the
+  missing alias assertion, and mutation checks for every accessor, including
+  nested patch relations. A temporary catalog mutation produced exit 1 with
+  two probe failures, then was reverted. Controller-fresh green evidence after
+  the correction: focused probe exit 0 with `PROBE_DONE fails=0`; full suite
+  exit 0 with 1414 passes, zero failures, and `AUTOTEST_ALL_PASS`.
+- A4 is accepted after correction. Residual limitation: duplicate-source
+  guards are lexical scans, not an AST proof; this is explicitly recorded in
+  `report-A4.md`. No production data or gameplay behavior changed during the
+  correction.
 
 ## A3 snapshot contracts
 

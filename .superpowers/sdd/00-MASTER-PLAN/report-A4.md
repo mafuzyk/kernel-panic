@@ -87,3 +87,35 @@ CanvasItem RIDs and 171 ObjectDB instances); A4 does not claim to fix them.
 - Residual risk: future consumers must use catalog accessors when mutating
   definitions; direct compatibility constants intentionally remain mutable for
   legacy compatibility and should be treated as read-only by convention.
+
+## Independent review and correction
+
+The first implementation was rejected by an independent Luna review. The
+initial probe only checked IDs/order plus selected fields, omitted the
+`AchievementsPanel` compatibility alias, and did not exercise every
+defensive accessor. That was insufficient evidence for the report's parity
+and mutability claims.
+
+The probe was strengthened before accepting A4:
+
+- independent fixtures now compare every legacy program field, every legacy
+  bestiary field, every patch record, achievement labels/hints, the complete
+  bestiary map, patch codes, patch relations, and one-integrity exclusions;
+- `AchievementsPanel.ACHIEVEMENT_HINTS` is checked against the catalog;
+- all catalog accessors are mutated through returned values, including nested
+  patch relations, and are verified not to mutate the source tables;
+- the test's sensitivity was demonstrated by a temporary catalog title
+  mutation: the probe produced exit 1 with two failures, then the mutation was
+  reverted before the green run;
+- controller-fresh green evidence: the focused probe exited 0 with
+  `PROBE_DONE fails=0`; the full suite exited 0 with 1414 `AT_PASS`, zero
+  `AT_FAIL`, and `AUTOTEST_ALL_PASS`.
+
+The source scans remain intentionally lexical smoke checks, not an AST-level
+proof against every possible equivalent duplicate construction. The catalog
+fixture comparison and the actual source inspection cover the current
+implementation; a future schema tool should replace the lexical guard if the
+catalog grows or becomes generated.
+
+This correction changed tests and evidence only; no gameplay or catalog
+production data changed during the review.
