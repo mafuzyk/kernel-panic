@@ -1,7 +1,12 @@
 class_name StoryData
 extends RefCounted
 
-## Fixed, hand-authored content for the first UNIX story act.
+## Compatibility facade for the fixed story catalog. UNIX, Windows and
+## TempleOS remain in this file for now; the macOS history act lives in its
+## own data module so its narrative/profile boundary can evolve independently.
+const MACOS_ACT = preload("res://src/story/acts/macos_act.gd")
+
+## Fixed, hand-authored content for the existing story acts.
 ## Endless mode owns all procedural composition and difficulty scaling.
 const STAGES := [
 	{
@@ -134,20 +139,24 @@ const STAGES := [
 ]
 
 static func stage_count() -> int:
-	return STAGES.size()
+	return STAGES.size() + MACOS_ACT.stage_count()
 
 static func act_stage_count(act_id: String) -> int:
+	if act_id == "macos":
+		return MACOS_ACT.stage_count()
 	return 6 if act_id == "unix" else 3 if act_id == "windows" else 2 if act_id == "templeos" else 0
 
 static func stage_at(index: int) -> Dictionary:
-	if index < 0 or index >= STAGES.size():
+	if index < 0 or index >= stage_count():
 		return {}
-	return STAGES[index].duplicate(true)
+	if index < STAGES.size():
+		return STAGES[index].duplicate(true)
+	return MACOS_ACT.stage_at(index - STAGES.size())
 
 static func stage_ids() -> Array:
 	var result: Array = []
-	for stage in STAGES:
-		result.append(str(stage["id"]))
+	for index in stage_count():
+		result.append(str(stage_at(index).get("id", "")))
 	return result
 
 static func stage_wave_count(index: int) -> int:

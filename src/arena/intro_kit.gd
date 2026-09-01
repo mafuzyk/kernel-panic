@@ -56,6 +56,8 @@ func _build_story_intro() -> void:
 		act_label = "ACT 2 // WINDOWS RECOVERY LOG"
 	elif str(a._story_stage.get("act", "")) == "templeos":
 		act_label = "BONUS ACT // TEMPLEOS ORACLE LOG"
+	elif str(a._story_stage.get("act", "")) == "macos":
+		act_label = "ACT 4 // MACOS HISTORY LOG"
 	var footer: Label = a._panel_kit._make_label(act_label, 12, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.7))
 	a._panel_kit._center_panel_control(footer, 418.0, 24.0)
 	a._story_intro_panel.add_child(footer)
@@ -176,4 +178,3 @@ func _run_boss_intro() -> void:
 func show_event_banner(txt: String) -> void:
 	a.hud.show_banner("CYCLE %02d // %s" % [Game.wave, txt], "", 1.8)
 	Sfx.play("charge", 0.8, -8.0)
-

@@ -61,7 +61,8 @@ func _story_test(arena: Arena) -> void:
 	if story_script == null or not Game.has_method("story_stage_count") or not Game.has_method("story_stage_def") or not arena.spawner.has_method("start_story"):
 		return
 	var count := int(Game.story_stage_count())
-	h._check(count == 11 and Game.STORY_DATA.act_stage_count("unix") == 6 and Game.STORY_DATA.act_stage_count("windows") == 3 and Game.STORY_DATA.act_stage_count("templeos") == 2, "Story contains UNIX, Windows, and TempleOS stages")
+	h._check(count == 15 and Game.STORY_DATA.act_stage_count("unix") == 6 and Game.STORY_DATA.act_stage_count("windows") == 3 and Game.STORY_DATA.act_stage_count("templeos") == 2 and Game.STORY_DATA.act_stage_count("macos") == 4, "Story contains UNIX, Windows, TempleOS, and macOS stages")
+	h._check(Game.has_method("story_act_ids") and Game.story_act_ids() == ["unix", "windows", "templeos", "macos"], "Story exposes the four ordered history acts")
 	var expected_ids := ["boot", "var_log", "net", "mem", "quarantine", "kernel"]
 	var expected_paths := ["/boot", "/var/log", "/net", "/mem", "/quarantine", "/kernel"]
 	for i in mini(count, expected_ids.size()):
@@ -113,7 +114,7 @@ func _windows_test(arena: Arena) -> void:
 	var crt_script: Script = load("res://src/arena/crt_overlay.gd")
 	h._check(update_script != null and bloat_script != null and popup_script != null, "Windows enemy scripts load")
 	h._check(crt_script != null, "CRT overlay script loads")
-	h._check(Game.story_stage_count() == 11, "Story includes three Windows and two TempleOS stages")
+	h._check(Game.story_stage_count() == 15, "Story includes the Windows, TempleOS, and macOS history stages")
 	var paths := ["C:\\98", "C:\\XP", "Win11"]
 	for i in paths.size():
 		var stage: Dictionary = Game.story_stage_def(6 + i)
@@ -139,7 +140,7 @@ func _temple_test(arena: Arena) -> void:
 	print("AT_STEP temple")
 	var god_script: Script = load("res://src/enemies/god_boss.gd")
 	h._check(god_script != null, "GOD boss script loads")
-	h._check(Game.story_stage_count() == 11, "Story includes two TempleOS stages")
+	h._check(Game.story_stage_count() == 15, "Story includes two TempleOS stages plus the appended macOS history act")
 	h._check(Game.STORY_DATA.act_stage_count("templeos") == 2, "TempleOS act exposes two stages")
 	var paths := ["TempleOS::BOOT", "TempleOS::GOD"]
 	for i in paths.size():
@@ -170,6 +171,26 @@ func _temple_test(arena: Arena) -> void:
 	h._check(Balance.arena_rect().size == Vector2(640.0, 640.0), "arena override changes only the active combat rectangle")
 	Balance.clear_arena_size_override()
 	h._check(Balance.arena_rect().size == old_size, "arena override restores the default rectangle")
+
+func _macos_test(arena: Arena) -> void:
+	print("AT_STEP macos")
+	var act_script: Script = load("res://src/story/acts/macos_act.gd")
+	var overlay_script: Script = load("res://src/arena/macos_era_overlay.gd")
+	h._check(act_script != null and overlay_script != null, "macOS history act and arena overlay scripts load")
+	h._check(Game.STORY_DATA.act_stage_count("macos") == 4, "macOS history exposes four stages")
+	var expected_paths := ["Mac::CLASSIC", "Mac::AQUA", "Mac::DARWIN", "Mac::MODERN"]
+	for i in expected_paths.size():
+		var stage := Game.story_stage_def(11 + i)
+		h._check(str(stage.get("act", "")) == "macos" and str(stage.get("path", "")) == expected_paths[i], "macOS stage %d has the expected history path" % (i + 1))
+		h._check(str(stage.get("theme", {}).get("grid_style", "")).begins_with("mac_"), "macOS stage %d selects a macOS visual profile" % (i + 1))
+	var final_stage := Game.story_stage_def(14)
+	h._check(str(final_stage.get("boss_kind", "")) == "boss" and str(final_stage.get("reward_id", "")) == "macos_modern_clear", "macOS final node declares its boss and reward")
+	var saved_cleared: Dictionary = Game.story_cleared.duplicate(true)
+	Game.story_cleared = {}
+	h._check(not bool(Game.story_act_unlocked("macos")), "macOS stays locked until TempleOS is cleared")
+	Game.story_cleared["temple_god"] = true
+	h._check(bool(Game.story_act_unlocked("macos")) and bool(Game.story_stage_unlocked(11)), "TempleOS completion unlocks the first macOS node")
+	Game.story_cleared = saved_cleared
 
 func _glyph_lib_test() -> void:
 	print("AT_STEP glyph_lib")

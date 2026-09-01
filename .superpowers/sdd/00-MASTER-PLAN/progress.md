@@ -872,3 +872,32 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Handoff: `docs/HANDOFF-G7-PATCH-MUSIC.md`.
 - Next task: inspect the remaining plan order and begin the macOS story act
   only after the current aggregate validation is green.
+
+## M1 — macOS history act catalog and unlock contract
+
+- Status: implemented and reviewed on `codex/plan-execution`; the route is
+  cataloged and selectable when unlocked, but is not yet release-ready.
+- Added `src/story/acts/macos_act.gd`, `macos_dialogue.gd` and
+  `macos_profiles.gd` for four stable stages: `mac_classic`, `mac_aqua`,
+  `mac_darwin` and `mac_modern`. The catalog owns wave references, profile
+  IDs, narrative keys, boss metadata and additive reward IDs.
+- `StoryData` remains the compatibility facade and now exposes 15 total
+  stages. `Game.story_act_unlocked("macos")` requires the existing
+  `temple_god` clear key; the first Mac stage follows the existing linear
+  stage unlock rule. No save/transfer version changed.
+- Added a profile-driven, code-drawn `MacOSEraOverlay` and stage-kit hook.
+  Legacy and vNext story selectors expose the fourth act. Narrow vNext uses
+  compact tab labels, and the menu story annotation now derives its act from
+  the selected stage instead of hardcoding UNIX.
+- Red: `/tmp/macos-m1-red.log`, expected missing aggregation/unlock contracts.
+  Green: `/tmp/macos-m1-green3.log`, zero failures and `PROBE_DONE fails=0`.
+  Selection regression: `/tmp/macos-selection3.log`, zero failures. Editor
+  import exited 0. Full suite: `/tmp/macos-m1-suite.log`, 1453/0 with
+  `AUTOTEST_ALL_PASS`.
+- Second-pass review checked old stage indices, duplicate catalog authority,
+  host OS detection, tab touch/focus, compact overflow, progression bypass and
+  premature reward claims. No new save or gameplay mutation was found.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-M1-macos-act-catalog.md`.
+- Handoff: `docs/HANDOFF-M1-MACOS-ACT-CATALOG.md`.
+- Open: M2 narrative review/PT-BR slice, M3 chosen act mechanic, M4 actual
+  climax/reward persistence, M5 visual/accessibility/performance gate.

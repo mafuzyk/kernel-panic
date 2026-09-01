@@ -142,6 +142,7 @@ func _ready() -> void:
 		_intro_kit._apply_story_theme(_story_stage.get("theme", {}))
 		_stage_kit._build_windows_visuals()
 		_stage_kit._build_temple_visuals()
+		_stage_kit._build_macos_visuals()
 	if debug_controls_enabled():
 		var debug_panel = load("res://src/ui/debug_panel.gd").new()
 		debug_panel.arena = self

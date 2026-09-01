@@ -84,6 +84,24 @@ func _build_temple_visuals() -> void:
 	a.add_child(a._crt_overlay)
 	a._crt_overlay.configure(a._story_stage.get("theme", {}).get("crt", {}))
 
+func macos_stage_profile() -> Dictionary:
+	if str(a._story_stage.get("act", "")) != "macos":
+		return {}
+	return {"id": a._story_stage.get("id", ""), "path": a._story_stage.get("path", ""), "profile": a._story_stage.get("profile", "classic"), "grid_style": a._story_stage.get("theme", {}).get("grid_style", "mac_classic"), "layered": bool(a._story_stage.get("theme", {}).get("layered", false))}
+
+func _build_macos_visuals() -> void:
+	if str(a._story_stage.get("act", "")) != "macos":
+		return
+	var overlay_script: Script = load("res://src/arena/macos_era_overlay.gd")
+	if overlay_script == null:
+		return
+	var layer := CanvasLayer.new()
+	layer.layer = 8
+	var overlay: Control = overlay_script.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.configure(a._story_stage)
+	layer.add_child(overlay)
+	a.add_child(layer)
+
 func background_corruption_for_wave(target_wave: int) -> float:
 	return clampf(float(maxi(target_wave - 1, 0)) / 40.0, 0.0, 0.8)
-

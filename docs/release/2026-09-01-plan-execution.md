@@ -884,3 +884,39 @@ and HUD messaging still need playtest approval.
 
 - Final mix balance still needs human listening approval on the target PC audio
   setup and Android audio behavior is not yet validated.
+
+## M1 — macOS history act catalog (unreleased)
+
+### Added
+
+- Added a fourth story act with four fictional history nodes: `MAC::CLASSIC`,
+  `MAC::AQUA`, `MAC::DARWIN` and `MAC::MODERN`.
+- Added code-drawn era profiles and a compact act selector that works through
+  the existing story navigation model.
+
+### Changed
+
+- Story data now aggregates 15 authored stages while preserving the previous
+  UNIX, Windows and TempleOS stage order.
+- Story mode annotations identify the selected act dynamically instead of
+  always claiming UNIX Act 1.
+
+### Compatibility
+
+- The act unlocks after the existing TempleOS completion key. No save-transfer
+  version or old stage identifier changed.
+
+### Known Issues
+
+- This is the catalog/presentation foundation only. Narrative review, PT-BR,
+  the act mechanic, final boss, reward persistence, physical mobile behavior,
+  performance measurement and human visual approval are still required before
+  calling the act release-ready.
+
+### Evidence
+
+- M1 story probe and vNext selection regression both emitted
+  `PROBE_DONE fails=0`.
+- Full DevHarness passed 1453 checks with zero assertion failures and
+  `AUTOTEST_ALL_PASS`; existing teardown diagnostics remain tracked and
+  non-gating.

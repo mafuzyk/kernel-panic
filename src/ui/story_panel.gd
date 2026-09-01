@@ -3,6 +3,7 @@ extends Control
 
 const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
 const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
+const ACT_IDS: Array[String] = ["unix", "windows", "templeos", "macos"]
 
 signal stage_selected(index: int)
 signal selection_changed(index: int)
@@ -261,11 +262,11 @@ func _draw() -> void:
 	if _is_wide():
 		var tab_x := 28.0
 		var tab_y := 154.0
-		var tab_w := (float(metrics["route_w"]) - 20.0) / 3.0
-		for act_id in ["unix", "windows", "templeos"]:
+		var tab_w := (float(metrics["route_w"]) - 30.0) / float(ACT_IDS.size())
+		for act_id in ACT_IDS:
 			var tab := Rect2(tab_x, tab_y, tab_w, 34.0)
 			_tab_rects[act_id] = tab
-			var tab_col := Balance.COL_PLAYER if act_id == "unix" else Color("b46bff") if act_id == "windows" else Balance.COL_MOTE
+			var tab_col := Balance.COL_PLAYER if act_id == "unix" else Color("b46bff") if act_id == "windows" else Balance.COL_MOTE if act_id == "templeos" else Color("8fc8ff")
 			var active: bool = act_id == _act_filter
 			var tab_points := TacticalUIHelper.angular_points(tab, 7.0)
 			draw_colored_polygon(tab_points, Color(tab_col.r, tab_col.g, tab_col.b, 0.16 if active else 0.035))

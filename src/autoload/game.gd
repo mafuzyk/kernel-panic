@@ -4,6 +4,7 @@ const STORY_DATA = preload("res://src/story/story_data.gd")
 const CONTENT_CATALOG = preload("res://src/data/content_catalog.gd")
 const RUN_CONTEXT = preload("res://src/gameplay/run_context.gd")
 const WEEKLY_MUTATOR_CATALOG = preload("res://src/gameplay/weekly_mutator_catalog.gd")
+const MACOS_ACT = preload("res://src/story/acts/macos_act.gd")
 
 signal score_changed(score: int, mult: int)
 signal combo_changed(mult: int, frac: float)
@@ -394,6 +395,15 @@ func score_mult() -> int:
 
 func story_stage_count() -> int:
 	return STORY_DATA.stage_count()
+
+func story_act_ids() -> Array[String]:
+	return ["unix", "windows", "templeos", "macos"]
+
+func story_act_unlocked(act_id: String) -> bool:
+	var normalized := act_id.strip_edges().to_lower()
+	if normalized == MACOS_ACT.ACT_ID:
+		return bool(story_cleared.get(MACOS_ACT.UNLOCK_AFTER, false))
+	return normalized in ["unix", "windows", "templeos"]
 
 func story_stage_def(index: int) -> Dictionary:
 	return STORY_DATA.stage_at(index)

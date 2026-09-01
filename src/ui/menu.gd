@@ -734,7 +734,7 @@ func _refresh_mode_ui() -> void:
 		"story":
 			_mode_btn.text = "MODE: STORY"
 			var story_path: String = str(Game.story_stage_def(Game.story_stage_index).get("path", "/boot"))
-			_mode_info.text = "UNIX ACT 1 // CURRENT %s // %d/%d STAGES CLEAR" % [story_path, Game.story_cleared.size(), Game.story_stage_count()]
+			_mode_info.text = "%s ACT // CURRENT %s // %d/%d STAGES CLEAR" % [_story_act_label(Game.story_stage_index), story_path, Game.story_cleared.size(), Game.story_stage_count()]
 		"weekly":
 			_mode_btn.text = "MODE: WEEKLY RUN"
 			var cur := int(cf.get_value("weekly", "best", 0)) if cf.get_value("weekly", "id", "") == Game.week_id() else 0
@@ -760,7 +760,7 @@ func _refresh_mode_ui() -> void:
 	if Game.mode != "weekly" and Game.mode != "practice":
 		_mode_info.visible = false
 	if Game.mode == "story":
-		_mode_info.text = "STORY // ACT 1 // %s // %d/%d CLEAR" % [str(Game.story_stage_def(Game.story_stage_index).get("path", "/boot")), Game.story_cleared.size(), Game.story_stage_count()] if size.x < 760.0 else "STORY // FIXED DIFFICULTY CURVE // " + _mode_info.text
+		_mode_info.text = "STORY // %s ACT // %s // %d/%d CLEAR" % [_story_act_label(Game.story_stage_index), str(Game.story_stage_def(Game.story_stage_index).get("path", "/boot")), Game.story_cleared.size(), Game.story_stage_count()] if size.x < 760.0 else "STORY // FIXED DIFFICULTY CURVE // " + _mode_info.text
 	if _practice_wave_btn != null and Game.mode != "practice":
 		_practice_wave_btn.visible = false
 	_update_best()
@@ -775,6 +775,11 @@ func _cycle_practice_wave() -> void:
 	Game.set_practice_wave(next_wave)
 	Sfx.play("ui", 1.1, -8.0)
 	_refresh_mode_ui()
+
+func _story_act_label(index: int) -> String:
+	var stage := Game.story_stage_def(index)
+	var act := str(stage.get("act", "unix")).to_lower()
+	return {"unix": "UNIX", "windows": "WINDOWS", "templeos": "TEMPLEOS", "macos": "MACOS"}.get(act, act.to_upper())
 
 func _set_main_menu_controls_visible(visible: bool) -> void:
 	for child in get_children():
@@ -980,7 +985,7 @@ func text_overflow_report() -> Array:
 	var out: Array = []
 	var longest := ""
 	var weekly_preview := "WEEK %s // %s // %s" % [Game.week_id(), Game.weekly_mutator_title(), Game.weekly_mutator_description()] if size.x < 760.0 else "WEEK W9999 // LOCAL DETERMINISTIC // SWIFT DAEMONS // DAEMONS MOVE +20% // BEST 0000000 // LAST 0000000"
-	var story_preview := "STORY // ACT 1 // /kernel // 6/6 CLEAR" if size.x < 760.0 else "STORY // FIXED DIFFICULTY CURVE // UNIX ACT 1 // CURRENT /kernel // 6/6 STAGES CLEAR"
+	var story_preview := "STORY // MACOS ACT // Mac::MODERN // 4/15 CLEAR" if size.x < 760.0 else "STORY // FIXED DIFFICULTY CURVE // MACOS ACT // CURRENT Mac::MODERN // 4/15 STAGES CLEAR"
 	for text in [
 		story_preview,
 		weekly_preview,

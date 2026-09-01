@@ -5,6 +5,7 @@ const Context = preload("res://src/ui/vnext/ui_context.gd")
 const Tokens = preload("res://src/ui/vnext/ui_tokens.gd")
 const Orbitron: Font = preload("res://assets/fonts/Orbitron.ttf")
 const ShareTechMono: Font = preload("res://assets/fonts/ShareTechMono.ttf")
+const ACT_IDS: Array[String] = ["unix", "windows", "templeos", "macos"]
 
 signal action_requested(action_id: String, payload: Dictionary)
 
@@ -31,7 +32,7 @@ func _ready() -> void:
 	list.add_theme_constant_override("separation", 6)
 	list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(list)
-	for act in ["unix", "windows", "templeos"]:
+	for act in ACT_IDS:
 		var tab := Button.new()
 		tab.name = "Act" + act.capitalize()
 		tab.text = act.to_upper()
@@ -125,13 +126,15 @@ func _make_layout() -> Dictionary:
 
 func _apply_layout() -> void:
 	var list: VBoxContainer = get_node("StoryList")
-	var tab_width: float = _layout["tabs"].size.x / 3.0
+	var tab_width: float = _layout["tabs"].size.x / float(ACT_IDS.size())
 	var tab_index := 0
 	for act in _tabs:
 		var tab: Button = _tabs[act]
 		tab.position = _layout["tabs"].position + Vector2(tab_width * tab_index, 0)
 		tab.size = Vector2(tab_width, _layout["tabs"].size.y)
-		tab.add_theme_color_override("font_color", Tokens.role_color("focus") if act == _act else Tokens.role_color("muted"))
+		var act_unlocked := Game.story_act_unlocked(act) if Game.has_method("story_act_unlocked") else true
+		tab.add_theme_color_override("font_color", Tokens.role_color("focus") if act == _act else Tokens.role_color("muted") if not act_unlocked else Tokens.role_color("structure"))
+		tab.text = _tab_label(act)
 		tab_index += 1
 	list.position = _layout["list"].position
 	list.size = _layout["list"].size
@@ -186,10 +189,10 @@ func layout_snapshot() -> Dictionary:
 func action_regions() -> Dictionary:
 	var narrow: bool = context.density == "narrow"
 	var result := {"back": {"rect": _layout.get("back", Rect2()), "label": "BACK", "state": "idle"}}
-	var tab_width: float = _layout.get("tabs", Rect2()).size.x / 3.0
-	for index in 3:
-		var act: String = ["unix", "windows", "templeos"][index]
-		result["act_" + act] = {"rect": Rect2(_layout.get("tabs", Rect2()).position + Vector2(tab_width * index, 0), Vector2(tab_width, _layout.get("tabs", Rect2()).size.y)), "label": act.to_upper(), "state": "selected" if act == _act else "idle"}
+	var tab_width: float = _layout.get("tabs", Rect2()).size.x / float(ACT_IDS.size())
+	for index in ACT_IDS.size():
+		var act: String = ACT_IDS[index]
+		result["act_" + act] = {"rect": Rect2(_layout.get("tabs", Rect2()).position + Vector2(tab_width * index, 0), Vector2(tab_width, _layout.get("tabs", Rect2()).size.y)), "label": act.to_upper(), "state": "selected" if act == _act else "locked" if Game.has_method("story_act_unlocked") and not Game.story_act_unlocked(act) else "idle"}
 	if not narrow or not _narrow_detail:
 		for i in _visible_stage_indices():
 			var key := "stage_%d" % i
@@ -206,9 +209,9 @@ func text_overflow_report() -> Array:
 	var title_size := 24 if context.density == "narrow" else 28
 	var entries := [{"id": "title", "text": "STORY // MOUNT TABLE", "rect": _layout["header"], "size": _layout["title_size"]}, {"id": "subtitle", "text": "FOLLOW THE CLEAN PATH. LOCKED NODES EXPLAIN THE BLOCK.", "rect": _layout["header"], "size": 14}]
 	var narrow: bool = context.density == "narrow"
-	for act in ["unix", "windows", "templeos"]:
-		var tab_index := ["unix", "windows", "templeos"].find(act)
-		entries.append({"id": "act_" + act, "text": act.to_upper(), "rect": Rect2(_layout["tabs"].position + Vector2(tab_index * _layout["tabs"].size.x / 3.0, 0), Vector2(_layout["tabs"].size.x / 3.0, _layout["tabs"].size.y)), "size": 14})
+	for act in ACT_IDS:
+		var tab_index := ACT_IDS.find(act)
+		entries.append({"id": "act_" + act, "text": _tab_label(act), "rect": Rect2(_layout["tabs"].position + Vector2(tab_index * _layout["tabs"].size.x / float(ACT_IDS.size()), 0), Vector2(_layout["tabs"].size.x / float(ACT_IDS.size()), _layout["tabs"].size.y)), "size": 14 if context.density != "narrow" else 12})
 	if not narrow or not _narrow_detail:
 		for i in _visible_stage_indices():
 			var key := "stage_%d" % i
@@ -229,11 +232,16 @@ func text_overflow_report() -> Array:
 	return result
 
 func semantic_snapshot() -> Dictionary:
-	var result := {"screen": "story_select", "selected": _selected, "act": _act, "focus": _focus, "tabs": ["unix", "windows", "templeos"], "view": "detail" if context.density != "narrow" or _narrow_detail else "list"}
+	var result := {"screen": "story_select", "selected": _selected, "act": _act, "focus": _focus, "tabs": ACT_IDS.duplicate(), "view": "detail" if context.density != "narrow" or _narrow_detail else "list"}
 	for i in Game.story_stage_count():
 		var stage: Dictionary = Game.story_stage_def(i)
 		result["stage_%d" % i] = {"id": stage.get("id", ""), "title": stage.get("title", ""), "state": _stage_state(i), "reason": "clear previous node" if _stage_state(i) == "locked" else ""}
 	return result
+
+func _tab_label(act: String) -> String:
+	if context != null and context.density == "narrow":
+		return {"unix": "UNIX", "windows": "WIN", "templeos": "TEMPLE", "macos": "MAC"}.get(act, act.to_upper())
+	return act.to_upper()
 
 func focus_id() -> String:
 	return _focus
@@ -250,7 +258,9 @@ func set_focus_id(id: String) -> bool:
 	return true
 
 func _focus_order() -> Array[String]:
-	var ids: Array[String] = ["act_unix", "act_windows", "act_templeos"]
+	var ids: Array[String] = []
+	for act in ACT_IDS:
+		ids.append("act_" + act)
 	if context.density == "narrow" and _narrow_detail:
 		ids.append_array(["launch_story", "list_view", "back"])
 	else:

@@ -120,8 +120,8 @@ func _probe_story(script: Script) -> void:
 			if not item.get("fits", false):
 				print("PROBE_INFO story_overflow ", viewport, " ", item)
 	_check(surface.get_node_or_null("StoryList") is VBoxContainer and surface.get_node_or_null("LaunchAction") is Button, "story has real controls")
-	_check(surface.get_node_or_null("ActWindows") is Button and surface.get_node_or_null("ActTempleos") is Button, "story act tabs are real controls")
-	for act in ["unix", "windows", "templeos"]:
+	_check(surface.get_node_or_null("ActWindows") is Button and surface.get_node_or_null("ActTempleos") is Button and surface.get_node_or_null("ActMacos") is Button, "story act tabs are real controls")
+	for act in ["unix", "windows", "templeos", "macos"]:
 		_check((surface.get_node("Act" + act.capitalize()) as Button).size.y >= 44.0, "story tab touch target %s" % act)
 	var narrow_story = script.new()
 	add_child(narrow_story)
@@ -169,6 +169,9 @@ func _probe_story(script: Script) -> void:
 	var temple_rect: Rect2 = surface.action_regions()["act_templeos"]["rect"]
 	_check(surface.handle_input(_touch(_window_point(temple_rect.get_center()))), "story touch selects act through shared geometry")
 	_check(surface.semantic_snapshot().get("act") == "templeos", "story touch act updates state")
+	var mac_rect: Rect2 = surface.action_regions()["act_macos"]["rect"]
+	_check(surface.handle_input(_mouse(_window_point(mac_rect.get_center()))), "story mouse selects macOS act through shared geometry")
+	_check(surface.semantic_snapshot().get("act") == "macos", "story macOS tab updates state")
 	surface.queue_free()
 
 func _key(code: int, pressed := true) -> InputEventKey:
