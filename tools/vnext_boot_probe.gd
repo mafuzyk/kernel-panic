@@ -58,33 +58,59 @@ func _ready() -> void:
 	surface.configure({"program": "kernel", "best": 42}, surface_script.context_for_viewport(Vector2(432, 720), true))
 	surface.set_focus_id("boot")
 	var boot: Dictionary = surface.action_regions()["boot"]
-	_check(surface.handle_input(_mouse((boot["rect"] as Rect2).get_center())), "mouse activates boot")
+	var direct_boot_center: Vector2 = (boot["rect"] as Rect2).get_center()
+	_check(surface.handle_input(_mouse(_window_point(direct_boot_center))), "mouse activates boot")
 	_check(actions.back() == "boot", "mouse dispatches boot")
-	_check(surface.handle_input(_touch((boot["rect"] as Rect2).get_center())), "touch activates boot")
+	_check(surface.handle_input(_touch(_window_point(direct_boot_center))), "touch activates boot")
 	_check(actions.back() == "boot", "touch dispatches boot")
 	var boot_button: Button = surface.get_node("BootAction")
-	boot_button.emit_signal("pressed")
-	_check(actions.back() == "boot", "real button signal dispatches once")
+	var button_events := []
+	boot_button.pressed.connect(func() -> void: button_events.append("pressed"))
+	surface.set_focus_id("boot")
+	_check(get_viewport().gui_get_focus_owner() == boot_button, "focus lands on real boot control")
+	var before_keyboard := actions.size()
+	get_viewport().push_input(_key(KEY_ENTER))
+	get_viewport().push_input(_key(KEY_ENTER, false))
+	await get_tree().process_frame
+	_check(actions.size() == before_keyboard + 1 and actions.back() == "boot" and button_events.size() == 1, "focused real button activates once through viewport")
+	var before_mouse := actions.size()
+	var boot_center: Vector2 = (surface.action_regions()["boot"] as Dictionary)["rect"].get_center()
+	get_viewport().push_input(_mouse(_window_point(boot_center), true))
+	get_viewport().push_input(_mouse(_window_point(boot_center), false))
+	await get_tree().process_frame
+	_check(actions.size() == before_mouse + 1 and actions.back() == "boot" and button_events.size() == 2, "real mouse click activates once through viewport")
+	var before_touch := actions.size()
+	get_viewport().push_input(_touch(_window_point(boot_center), true))
+	get_viewport().push_input(_touch(_window_point(boot_center), false))
+	await get_tree().process_frame
+	_check(actions.size() == before_touch + 1 and actions.back() == "boot" and button_events.size() == 3, "real touch activates once through viewport")
 	surface.queue_free()
 	_finish()
 
-func _key(code: int) -> InputEventKey:
+func _key(code: int, pressed := true) -> InputEventKey:
 	var event := InputEventKey.new()
+	event.physical_keycode = code
 	event.keycode = code
-	event.pressed = true
+	event.pressed = pressed
+	if code >= KEY_0 and code <= KEY_Z:
+		event.unicode = code
 	return event
 
-func _mouse(at: Vector2) -> InputEventMouseButton:
+func _mouse(at: Vector2, pressed := true) -> InputEventMouseButton:
 	var event := InputEventMouseButton.new()
 	event.position = at
 	event.button_index = MOUSE_BUTTON_LEFT
-	event.pressed = true
+	event.pressed = pressed
 	return event
 
-func _touch(at: Vector2) -> InputEventScreenTouch:
+func _window_point(point: Vector2) -> Vector2:
+	return get_viewport().get_final_transform() * point
+
+func _touch(at: Vector2, pressed := true) -> InputEventScreenTouch:
 	var event := InputEventScreenTouch.new()
+	event.index = 0
 	event.position = at
-	event.pressed = true
+	event.pressed = pressed
 	return event
 
 func _finish() -> void:
