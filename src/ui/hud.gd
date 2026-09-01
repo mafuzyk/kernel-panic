@@ -3,6 +3,7 @@ extends Control
 
 const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
 const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
+const VNextCombatHudScript = preload("res://src/ui/vnext/surfaces/combat_hud_surface.gd")
 
 var player: Player
 var boss: RootBoss
@@ -49,9 +50,17 @@ var _era_accent: Color = TacticalUIHelper.CYAN
 var _surface_scale := 1.0
 var _banner_base_y := 120.0
 var _aux_size := Vector2.ZERO
+var _vnext_hud_surface: Control
+var _vnext_hud_mode := false
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vnext_hud_mode = OS.get_environment("KP_VNEXT_HUD") == "1"
+	if _vnext_hud_mode:
+		_vnext_hud_surface = VNextCombatHudScript.new()
+		_vnext_hud_surface.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_vnext_hud_surface.action_requested.connect(_on_vnext_hud_action)
+		add_child(_vnext_hud_surface)
 	_apply_surface_transform()
 	if is_inside_tree():
 		get_viewport().size_changed.connect(_apply_surface_transform)
@@ -68,9 +77,11 @@ func _ready() -> void:
 	_banner = _mk_label(40, Balance.COL_TEXT, Vector2(0, 120))
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner.modulate.a = 0.0
+	_banner.visible = not _vnext_hud_mode
 	_banner_sub_l = _mk_label(15, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.7), Vector2(0, 172))
 	_banner_sub_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner_sub_l.modulate.a = 0.0
+	_banner_sub_l.visible = not _vnext_hud_mode
 	_build_label = _mk_label(12, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5), Vector2(14, 690))
 	_build_label.anchor_left = 0.0
 	_build_label.anchor_right = 0.6
@@ -94,12 +105,14 @@ func _ready() -> void:
 	_run_info_label.add_theme_font_override("font", _mono)
 	_run_info_label.add_theme_font_size_override("font_size", 12)
 	_run_info_label.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.62))
+	_run_info_label.visible = not _vnext_hud_mode
 	add_child(_run_info_label)
 	_dash_icon = TacticalIconScript.new()
 	_dash_icon.size = Vector2(52.0, 52.0)
 	_dash_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dash_icon.z_index = 2
 	_dash_icon.call("configure", "dash", Balance.COL_PLAYER)
+	_dash_icon.visible = not _vnext_hud_mode
 	add_child(_dash_icon)
 	_achievement_label = Label.new()
 	_achievement_label.anchor_left = 0.0
@@ -112,6 +125,7 @@ func _ready() -> void:
 	_achievement_label.add_theme_font_size_override("font_size", 12)
 	_achievement_label.add_theme_color_override("font_color", Balance.COL_MOTE)
 	_achievement_label.modulate.a = 0.0
+	_achievement_label.visible = not _vnext_hud_mode
 	add_child(_achievement_label)
 	Game.score_changed.connect(_on_score)
 	Game.combo_changed.connect(_on_combo)
@@ -119,6 +133,8 @@ func _ready() -> void:
 	Game.patch_picked.connect(_on_patch_picked)
 	_refresh_aux_anchors()
 	_on_score(Game.score, Game.mult)
+	if _vnext_hud_surface != null:
+		_vnext_hud_surface.reflow_for_viewport(get_viewport_rect().size)
 
 ## The stretch viewport keeps the 1280-wide design space on narrow windows
 ## (aspect "expand"), which shrinks every design-px metric. Mount the HUD in
@@ -276,6 +292,16 @@ func run_info_text() -> String:
 	var deciseconds := int(total_seconds * 10.0) % 10
 	return "TIME %02d:%02d.%d // %s // HOLD R" % [minutes, seconds, deciseconds, Game.run_seed_text()]
 
+func vnext_hud_enabled() -> bool:
+	return _vnext_hud_mode
+
+func vnext_hud_surface() -> Control:
+	return _vnext_hud_surface
+
+func _on_vnext_hud_action(action_id: String, _payload: Dictionary) -> void:
+	if action_id == "dash" and player != null and is_instance_valid(player):
+		player.request_dash(Vector2.ZERO)
+
 func _on_achievement_unlocked(_id: String, label: String) -> void:
 	show_achievement(label)
 
@@ -401,6 +427,8 @@ func _process(delta: float) -> void:
 		_boss_name = boss.boss_title + " // KERNEL DAEMON"
 	else:
 		_boss_frac = -1.0
+	if _vnext_hud_surface != null and is_instance_valid(_vnext_hud_surface):
+		_vnext_hud_surface.sync_from_hud(self)
 	queue_redraw()
 
 func _input(event: InputEvent) -> void:
@@ -465,6 +493,8 @@ func _dismiss_patch_tooltip() -> void:
 	queue_redraw()
 
 func _draw() -> void:
+	if _vnext_hud_mode:
+		return
 	var f := _mono
 	_draw_tactical_shell(f)
 	_hp_pips(f)

@@ -744,6 +744,12 @@ func _make_patch_card(def: Dictionary, idx: int) -> Control:
 func vnext_patch_enabled() -> bool:
 	return _vnext_patch_mode
 
+func vnext_hud_enabled() -> bool:
+	return hud != null and is_instance_valid(hud) and hud.vnext_hud_enabled()
+
+func vnext_hud_surface() -> Control:
+	return hud.vnext_hud_surface() if hud != null and is_instance_valid(hud) else null
+
 func vnext_patch_surface() -> Control:
 	return _vnext_patch_surface
 
