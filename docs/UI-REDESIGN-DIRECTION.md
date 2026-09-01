@@ -359,3 +359,11 @@ versionados. R09 foi revalidado como falso positivo e ganhou cobertura direta
 para motes em 0, 0,5, 1 e 2 px. A validação atual não possui erros de
 script/runtime; os diagnósticos restantes são de recursos/RIDs no teardown dos
 testes e continuam explicitamente separados até haver uma atribuição segura.
+
+## Plano de execução
+
+O caminho completo de produto, refatoração, remake, conteúdo, PT-BR,
+acessibilidade, PC/mobile, performance, open source e release está dividido
+em [um plano-mestre com micro-documentos](superpowers/plans/2026-08-31-kernel-panic-master-plan/README.md).
+Este arquivo define a direção visual; o plano define como transformá-la em
+software verificável sem reabrir ou polir indefinidamente a UI legada.

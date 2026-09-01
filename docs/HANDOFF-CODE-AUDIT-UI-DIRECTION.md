@@ -147,6 +147,27 @@ Imagens ou telas ausentes permanecem abertas; a falta de uma referência não é
 um requisito oculto. A grafia `iamgem9.png` é mantida para não criar churn em
 um arquivo que serve apenas como referência.
 
+## Plano-mestre de produto e execução
+
+Foi criado o plano-mestre em
+`docs/superpowers/plans/2026-08-31-kernel-panic-master-plan/`, dividido em um
+documento de mapa e doze micro-documentos. Ele cobre, em ordem dependente,
+organização/refatoração do repositório, remake da UI, arte code-drawn dos
+programas e inimigos, gameplay e novos inimigos, o ato narrativo macOS,
+localização PT-BR, acessibilidade, UX PC/mobile, performance, operações de
+open source, testes e release log.
+
+O plano registra uma interpretação importante: “MAC-OS history” foi entendido
+como um novo ato histórico jogável de macOS, não como o histórico do terminal.
+O histórico ↑↓ e autocomplete do terminal já existem no código atual; caso a
+intenção fosse outra, a execução deve parar antes do micro-plano do ato e
+redirecionar o escopo.
+
+Nenhum código de runtime foi alterado nesta rodada. O objetivo foi deixar a
+execução futura decomponível, com dependências, interfaces, critérios de
+aceite, matriz de plataformas e um formato obrigatório para registrar bugs,
+causas, fixes, melhorias, adições e evidências em cada checkpoint.
+
 ## Trabalho anterior preservado
 
 Os lotes R01–R10, T01–T04 e B1/B2/B5 já estão na ancestralidade desta branch
