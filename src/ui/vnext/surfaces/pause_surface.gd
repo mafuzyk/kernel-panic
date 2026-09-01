@@ -31,6 +31,11 @@ func _ability_state() -> String:
 		return "DASH ACTIVE" if bool(nested.get("dash_active", false)) else ("DASH READY" if int(nested.get("dash_available", 0)) > 0 else "DASH COOLDOWN")
 	return "OVERCLOCK ACTIVE" if bool(nested.get("overclock_active", false)) else ("OVERCLOCK READY" if bool(nested.get("overclock_ready", false)) else "OVERCLOCK CHARGING")
 
+func _display_context() -> String:
+	var program_snapshot := _program_snapshot()
+	var nested: Dictionary = program_snapshot.get("nested", {})
+	return "%s // %s" % [str(nested.get("program_id", Game.program)).to_upper(), _ability_state()]
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -87,7 +92,7 @@ func text_overflow_report() -> Dictionary:
 	var fields := {}
 	var values := {
 		"title": {"text": "PAUSED // FROZEN RUN", "size": 27},
-		"context": {"text": str(snapshot.get("context", "SIMULATION HALTED // INPUT READY")), "size": 15},
+		"context": {"text": _display_context(), "size": 15},
 		"confirmation": {"text": str(snapshot.get("confirmation", "STATE MARKER // PAUSED / FROZEN")), "size": 13},
 		"resume": {"text": "RESUME", "size": 15},
 		"restart": {"text": "RESTART", "size": 15},
@@ -193,8 +198,5 @@ func _draw() -> void:
 	draw_colored_polygon(points, Color(0.01, 0.02, 0.06, 0.96))
 	draw_polyline(points + PackedVector2Array([points[0]]), Tokens.role_color("structure"), 1.5, true)
 	draw_string(Orbitron, _layout["regions"]["title"].position + Vector2(0, 30), "PAUSED // FROZEN RUN", HORIZONTAL_ALIGNMENT_LEFT, -1, 27, Tokens.role_color("text"))
-	var program_snapshot := _program_snapshot()
-	var nested: Dictionary = program_snapshot.get("nested", {})
-	var program_id := str(nested.get("program_id", Game.program)).to_upper()
-	draw_string(ShareTechMono, _layout["regions"]["context"].position, "%s // %s" % [program_id, _ability_state()], HORIZONTAL_ALIGNMENT_LEFT, _layout["regions"]["context"].size.x, 15, Tokens.role_color("player"))
+	draw_string(ShareTechMono, _layout["regions"]["context"].position, _display_context(), HORIZONTAL_ALIGNMENT_LEFT, _layout["regions"]["context"].size.x, 15, Tokens.role_color("player"))
 	draw_string(ShareTechMono, _layout["regions"]["confirmation"].position, str(snapshot.get("confirmation", "STATE MARKER // PAUSED / FROZEN")), HORIZONTAL_ALIGNMENT_LEFT, _layout["regions"]["confirmation"].size.x, 13, Tokens.role_color("danger") if bool(snapshot.get("abandon_armed", false)) else Tokens.role_color("text"))
