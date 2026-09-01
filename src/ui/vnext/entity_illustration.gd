@@ -49,12 +49,12 @@ func set_quality(quality: Dictionary) -> void:
 func visual_rect(viewport: Vector2 = Vector2.ZERO) -> Rect2:
 	var target := viewport if viewport != Vector2.ZERO else size
 	var safe := Tokens.safe_rect(target, 16.0)
-	var fit := Renderer.fit_rect(_presentation_snapshot(), Rect2(Vector2.ZERO, safe.size))
-	fit.position += safe.position
-	return fit
+	var bounds := Renderer.draw_bounds(_presentation_snapshot(), Rect2(Vector2.ZERO, safe.size))
+	bounds.position += safe.position
+	return bounds
 
 func glyph_radius(rect: Rect2 = visual_rect()) -> float:
-	return rect.size.x * 0.5 / maxf(Glyphs.glyph_extent(_kind), 1.0)
+	return Renderer.draw_radius(_presentation_snapshot(), rect)
 
 func visual_snapshot() -> Dictionary:
 	var state_visual: Dictionary = Tokens.state_visual(_state)

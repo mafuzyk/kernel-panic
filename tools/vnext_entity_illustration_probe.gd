@@ -35,17 +35,20 @@ func _run() -> void:
 		var extent_ok := renderer_script.has_method("draw_extent_factor")
 		_check(extent_ok, "renderer publishes the full marker-aware extent contract")
 		for size in [24.0, 48.0, 96.0, 160.0]:
+			var factor := float(renderer_script.call("draw_extent_factor", malformed)) if extent_ok else 1.0
+			var glyph_extent := float(glyph_script.call("glyph_extent", "kernel"))
 			for facing in [Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT, Vector2.UP]:
 				malformed["facing"] = facing
 				var target := Rect2(Vector2.ZERO, Vector2(size, size))
 				var fit: Rect2 = renderer_script.call("fit_rect", malformed, target)
 				var bounds: Rect2 = renderer_script.call("draw_bounds", malformed, target)
-				_check(target.encloses(fit) and target.encloses(bounds) and fit == bounds, "extent contains %dpx %s silhouette without clipping" % [int(size), str(facing)])
+				_check(target.encloses(fit) and target.encloses(bounds) and bounds.encloses(fit) and is_equal_approx(bounds.size.x, fit.size.x * factor), "extent contains %dpx %s silhouette without clipping" % [int(size), str(facing)])
 			if extent_ok:
-				var factor := float(renderer_script.call("draw_extent_factor", malformed))
 				var extent_target := Rect2(Vector2.ZERO, Vector2(size, size))
 				var extent_fit: Rect2 = renderer_script.call("fit_rect", malformed, extent_target)
-				_check(factor >= 1.38 and float(renderer_script.call("draw_radius", malformed, extent_target)) * factor * 2.0 <= extent_fit.size.x + 0.01, "draw radius is bounded by the published full extent at %dpx" % int(size))
+				var extent_bounds: Rect2 = renderer_script.call("draw_bounds", malformed, extent_target)
+				var extent_radius := float(renderer_script.call("draw_radius", malformed, extent_target))
+				_check(factor >= 1.38 and is_equal_approx(extent_bounds.size.x, extent_fit.size.x * factor) and extent_radius * glyph_extent * 2.0 <= extent_fit.size.x + 0.01 and extent_radius * factor * 2.0 <= extent_bounds.size.x + 0.01, "draw radius is bounded by the published full extent at %dpx" % int(size))
 			for state in ["idle", "attack", "hit", "elite", "death"]:
 				malformed["visual_state"] = state
 				var state_fit: Rect2 = renderer_script.call("fit_rect", malformed, Rect2(Vector2.ZERO, Vector2(96, 96)))
@@ -118,6 +121,10 @@ func _run() -> void:
 		illustration.call("set_quality", {"grayscale": true, "color_assist": true, "reduced_motion": true})
 	await get_tree().process_frame
 	_check(illustration.is_inside_tree(), "entity illustration draws as a live control")
+	var public_rect: Rect2 = illustration.call("visual_rect", Vector2(432, 720))
+	var public_snapshot := {"kind": "god", "visual_state": "idle", "facing": Vector2.RIGHT}
+	var public_radius := float(renderer_script.call("draw_radius", public_snapshot, public_rect))
+	_check(is_equal_approx(float(illustration.call("glyph_radius", public_rect)), public_radius), "public glyph radius uses the shared renderer contract")
 	var kinds: Array = glyph_script.call("glyph_kinds")
 	for kind in ["drone", "lancer", "oom", "god", "kernel", "rootlet"]:
 		_check(kind in kinds, "illustration example kind exists in GlyphLib: %s" % kind)

@@ -15,18 +15,32 @@ const KIND_COLORS := {
 }
 
 static func fit_rect(snapshot: Dictionary, target: Rect2) -> Rect2:
+	## Body allocation; the published marker-aware envelope is draw_bounds().
 	var normalized := Descriptor.normalize(snapshot)
 	return _fit_normalized(normalized, target)
 
-static func _fit_normalized(normalized: Dictionary, target: Rect2) -> Rect2:
+static func _available_side(target: Rect2) -> float:
 	if target.size.x <= 0.0 or target.size.y <= 0.0:
-		return Rect2(target.get_center(), Vector2.ZERO)
+		return 0.0
 	var inset := minf(4.0, minf(target.size.x, target.size.y) * 0.2)
-	var side := maxf(minf(target.size.x, target.size.y) - inset * 2.0, 0.0)
+	return maxf(minf(target.size.x, target.size.y) - inset * 2.0, 0.0)
+
+static func _fit_normalized(normalized: Dictionary, target: Rect2) -> Rect2:
+	var available_side := _available_side(target)
+	if available_side <= 0.0:
+		return Rect2(target.get_center(), Vector2.ZERO)
+	var side := available_side / _draw_extent_factor_normalized(normalized)
 	return Rect2(target.get_center() - Vector2.ONE * side * 0.5, Vector2.ONE * side)
 
 static func draw_bounds(snapshot: Dictionary, target: Rect2) -> Rect2:
-	return fit_rect(snapshot, target)
+	## Full visible envelope, including glyph details and interaction markers.
+	var normalized := Descriptor.normalize(snapshot)
+	return _draw_bounds_normalized(normalized, target)
+
+static func _draw_bounds_normalized(normalized: Dictionary, target: Rect2) -> Rect2:
+	var body_rect := _fit_normalized(normalized, target)
+	var side := body_rect.size.x * _draw_extent_factor_normalized(normalized)
+	return Rect2(target.get_center() - Vector2.ONE * side * 0.5, Vector2.ONE * side)
 
 static func draw_extent_factor(snapshot: Dictionary) -> float:
 	var normalized := Descriptor.normalize(snapshot)
@@ -36,9 +50,13 @@ static func _draw_extent_factor_normalized(normalized: Dictionary) -> float:
 	return maxf(Glyphs.glyph_extent(str(normalized["kind"])), MARKER_EXTENT)
 
 static func draw_radius(snapshot: Dictionary, target: Rect2) -> float:
+	## Radius for GlyphLib's identity inside the body's fitted allocation.
 	var normalized := Descriptor.normalize(snapshot)
 	var rect := _fit_normalized(normalized, target)
-	return rect.size.x * 0.5 / maxf(_draw_extent_factor_normalized(normalized), 1.0)
+	return _draw_radius_normalized(normalized, rect)
+
+static func _draw_radius_normalized(normalized: Dictionary, body_rect: Rect2) -> float:
+	return body_rect.size.x * 0.5 / maxf(Glyphs.glyph_extent(str(normalized["kind"])), 1.0)
 
 static func orientation_angle(snapshot: Dictionary) -> float:
 	return _orientation_angle_normalized(Descriptor.normalize(snapshot))
@@ -85,11 +103,11 @@ static func draw(canvas: CanvasItem, snapshot: Dictionary, target: Rect2, cosmet
 	if canvas == null:
 		return
 	var normalized := Descriptor.normalize(snapshot)
-	var rect := _fit_normalized(normalized, target)
-	if rect.size.x <= 0.0:
+	var body_rect := _fit_normalized(normalized, target)
+	if body_rect.size.x <= 0.0:
 		return
-	var center := rect.get_center()
-	var radius := rect.size.x * 0.5 / maxf(_draw_extent_factor_normalized(normalized), 1.0)
+	var center := body_rect.get_center()
+	var radius := _draw_radius_normalized(normalized, body_rect)
 	var color := _color_for_normalized(normalized, quality)
 	var facing: Vector2 = normalized["facing"]
 	var assist := bool(quality.get("color_assist", false))
