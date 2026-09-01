@@ -693,3 +693,50 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Handoff: `docs/HANDOFF-G2-PAGE-CACHE.md`.
 - Next task: G2B Ring-0 double overclock, with DAEMON dash interaction tested
   explicitly before any balance claim.
+
+## G2B — Ring-0 double overclock
+
+- Status: implemented on `codex/plan-execution`; Ring-0 is a max-one
+  rare/legendary passive patch.
+- Production commit: `8be4d06` — `feat: add ring-0 double overclock`.
+- One re-press during active overclock raises the stack to two and adds one
+  current overclock duration. A two-stack use gets a post-use recovery lock of
+  one current duration; a normal single use does not. No integrity is spent.
+- This duration/cooldown interpretation is explicit because the approved rule
+  did not specify whether stacking should increase time or power, nor exact
+  seconds. It is isolated and remains a playtest decision.
+- DAEMON interaction is covered: dash during stack one, re-press while dashing,
+  charge consumption, dash preservation and HP invariance. Rootlet shield
+  mode remains authoritative.
+- Focused first attempt: `/tmp/kernel-panic-g2b-green.log`, exit 1 due to a
+  mislabeled fixture assertion. The probe was corrected, not the guard.
+- Final focused evidence: `/tmp/kernel-panic-g2b-green2.log`, exit 0, 15
+  passes, `PROBE_DONE fails=0`.
+- A small correctness fix also clamps the overclock meter using full
+  `oc_duration()`, preventing Overclock Cell/Ring-0 from projecting values
+  above 100.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-G2-ring0.md`.
+- Handoff: `docs/HANDOFF-G2-RING0.md`.
+- Next task: G2C display settings contract and separate DISPLAY section.
+
+## G2C — display settings contract
+
+- Status: implemented on `codex/plan-execution`; the legacy Settings route now
+  exposes a dedicated DISPLAY section.
+- Production commit: `0e2afb4` — `feat: add dedicated display settings`.
+- Added fullscreen persistence/application and normalized target FPS values
+  30/60/120/unlimited. New profiles default to 60 for touch contexts and 0
+  (unlimited) for non-touch desktop contexts. The old `feel.target_fps` key is
+  still read/written for compatibility while new values also live under
+  `[display]`.
+- Focused red: `/tmp/kernel-panic-g2c-red2.log`, exit 124 before production;
+  missing API/section and no completion marker.
+- Focused green: `/tmp/kernel-panic-g2c-green.log`, exit 0, 13 passes;
+  Xvfb `/tmp/kernel-panic-g2c-xvfb.log`, exit 0, 13 passes; both carry the
+  exact completion marker. Xvfb exercises fullscreen against a real window.
+- Not proven: physical mobile defaults, Android/macOS fullscreen behavior,
+  vNext display migration, final visual approval and device performance.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-G2-display-settings.md`.
+- Handoff: `docs/HANDOFF-G2-DISPLAY-SETTINGS.md`.
+- Next task: G3 modes/replayability, starting with weekly mutators and keeping
+  reserved Practice from being advertised as shipped.

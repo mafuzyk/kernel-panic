@@ -651,3 +651,78 @@ balance approval.
   zero failures and `PROBE_DONE fails=0`.
 - Technical report: `.superpowers/sdd/00-MASTER-PLAN/report-G2-page-cache.md`.
 - Handoff: `docs/HANDOFF-G2-PAGE-CACHE.md`.
+
+## 2026-09-01 — unreleased — Ring-0 double overclock
+
+This is an internal development-log entry. The exact duration/cooldown tuning
+and HUD messaging still need playtest approval.
+
+### Added
+
+- Added the optional RING-0 passive patch. One re-press during an active
+  overclock extends the active window once, allowing a two-stack overclock.
+- Added a post-double recovery lock and read-only stack/lock state for future
+  HUD communication.
+
+### Improved
+
+- DAEMON dash behavior remains intact during the re-press: the dash is not
+  cancelled, the charge is consumed once and no integrity is spent.
+- Overclock meter projection now uses the complete duration and stays within
+  its valid range when duration modifiers are present.
+
+### Compatibility
+
+- Without RING-0, the second press remains inert and ordinary overclock keeps
+  its previous single-stack behavior.
+- Rootlet shield mode cannot be bypassed by the patch. No save, route or input
+  schema changed.
+
+### Known Issues
+
+- The current stack interpretation is “add one existing duration” and the
+  recovery lock is one existing duration. These are explicit balance
+  interpretations, not final player-facing tuning.
+- The legacy HUD does not yet explain the recovery lock with a dedicated
+  label. The state is available to the rebuilt HUD boundary.
+
+### Evidence
+
+- Final focused probe: `/tmp/kernel-panic-g2b-green2.log`, exit `0`, `15`
+  passes, zero failures and `PROBE_DONE fails=0`.
+- Technical report: `.superpowers/sdd/00-MASTER-PLAN/report-G2-ring0.md`.
+- Handoff: `docs/HANDOFF-G2-RING0.md`.
+
+## 2026-09-01 — unreleased — Display settings
+
+### Added
+
+- Added a dedicated DISPLAY settings section with fullscreen and target FPS
+  controls: 30, 60, 120 or unlimited.
+
+### Changed
+
+- New non-touch desktop profiles default to unlimited FPS; touch contexts
+  default to 60. The setting is applied immediately to the engine/window.
+- Display values now persist under a dedicated `[display]` section while the
+  previous `feel.target_fps` key remains readable and synchronized for
+  compatibility.
+
+### Compatibility
+
+- Invalid persisted or requested FPS values fall back to the platform default.
+- Headless execution skips window-mode mutation safely.
+
+### Known Issues
+
+- Physical mobile, Android/macOS fullscreen behavior, vNext Settings
+  migration, final visual approval and device performance are not proven.
+
+### Evidence
+
+- Headless focused probe: `/tmp/kernel-panic-g2c-green.log`, 13 passes, zero
+  failures, `PROBE_DONE fails=0`.
+- Xvfb focused probe: `/tmp/kernel-panic-g2c-xvfb.log`, 13 passes, zero failures,
+  `PROBE_DONE fails=0`.
+- Technical report: `.superpowers/sdd/00-MASTER-PLAN/report-G2-display-settings.md`.
+- Handoff: `docs/HANDOFF-G2-DISPLAY-SETTINGS.md`.
