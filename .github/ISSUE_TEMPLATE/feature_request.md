@@ -23,4 +23,3 @@ What other approaches did you consider? What would this feature cost in complexi
 -
 
 ## Additional context
-

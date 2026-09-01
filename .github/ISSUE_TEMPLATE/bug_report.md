@@ -32,4 +32,3 @@ Describe what went wrong in one or two sentences.
 Attach a screenshot, log, or short recording when useful. Remove private paths, save files, and other sensitive information.
 
 ## Additional context
-
