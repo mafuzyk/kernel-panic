@@ -2,14 +2,14 @@
 
 > This is a development/release-log draft, not a public release announcement.
 > The vNext UI described here remains opt-in behind `KP_VNEXT_BOOT=1`,
-> `KP_VNEXT_PATCH=1` and `KP_VNEXT_HUD=1` until
+> `KP_VNEXT_PATCH=1`, `KP_VNEXT_HUD=1` and `KP_VNEXT_U4=1` until
 > the later migration, accessibility, localization, visual-review and export
 > gates are complete.
 
 ## Scope of this log
 
 This document records the user-visible and release-relevant work executed from
-the master plan's stabilization phase through U2b. Detailed technical evidence
+the master plan's stabilization phase through U4. Detailed technical evidence
 and alternatives remain in the task reports:
 
 - [A1 repository baseline](../../.superpowers/sdd/00-MASTER-PLAN/report-A1.md)
@@ -21,6 +21,7 @@ and alternatives remain in the task reports:
 - [U2 vNext program/story selection](../../.superpowers/sdd/00-MASTER-PLAN/report-U2.md)
 - [U2b vNext patch/build decision](../../.superpowers/sdd/00-MASTER-PLAN/report-U2b.md)
 - [U3 vNext combat HUD](../../.superpowers/sdd/00-MASTER-PLAN/report-U3.md)
+- [U4 vNext state surfaces](../../.superpowers/sdd/00-MASTER-PLAN/report-U4.md)
 
 The execution branch is `codex/plan-execution`; it is based on the reviewed
 master-plan documentation and does not merge into `main` automatically.
@@ -108,6 +109,19 @@ master-plan documentation and does not merge into `main` automatically.
 - Added live split-boss bar fractions and a non-color damage-direction marker
   sourced from the real Player hit vector.
 
+### vNext pause, terminal and game-over surfaces
+
+- Added an opt-in code-drawn paused-run surface with real focusable actions,
+  frozen simulation semantics and two-step Q abandonment confirmation.
+- Added an opt-in diagnostic workstation with a real LineEdit, command
+  history, TAB completion, ESC close and Arena-owned command execution.
+- Added death/victory diagnosis surfaces with route-accurate retry, next-stage,
+  return-to-menu and story-select labels.
+- Added responsive narrow layouts for terminal columns and game-over actions,
+  safe-area geometry and field-level overflow measurements.
+- Preserved the legacy pause, terminal and game-over route when the U4 flag is
+  absent.
+
 ### Review-driven corrections
 
 The implementation was not accepted at the first green-looking result. The
@@ -142,6 +156,11 @@ following concrete defects were found and corrected:
    checks exposed those defects. The final U3 slice uses pass-through HUD
    input, live fragment bars, a dedicated boss row, measured per-field
    overflow, temporary banner projection and a Player damage-vector source.
+10. The first U4 green result left its real Controls invisible because refresh
+    ran before visibility, did not require overflow-free text, and used a Q
+    fallback that could bypass the actual router. Narrow terminal/game-over
+    overflow and overlap were then exposed by stronger checks; the final U4
+    slice fixes those issues and keeps one consistent surface parent.
 
 ## Main decisions and rationale
 
@@ -198,6 +217,8 @@ interrupting the user's study session.
 | `vnext_patch_probe` | exit 0; `PROBE_DONE fails=0` |
 | `vnext_patch_arena_probe` with `KP_VNEXT_PATCH=1` | exit 0; `PROBE_DONE fails=0` |
 | `vnext_combat_hud_probe` with `KP_VNEXT_HUD=1` | exit 0; `PROBE_DONE fails=0` |
+| `vnext_state_surfaces_probe` with `KP_VNEXT_U4=1` | exit 0; 71 passes, `PROBE_DONE fails=0` |
+| `vnext_state_surfaces_probe` with `KP_VNEXT_U4=1` under Xvfb | exit 0; 71 passes, `PROBE_DONE fails=0` |
 | existing `layout_probe` | exit 0; `PROBE_RESULT passes=130 fails=0` |
 | full `--autotest` suite | exit 0; 1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS` |
 | `git diff --check` | clean |
@@ -249,6 +270,10 @@ activation.
 - Fixed U3 panel overlap at narrow and desktop layouts, stale patch labels,
   cycle duplication between continuous and temporary feedback, and weak
   overflow measurement.
+- Fixed U4 state-surface controls being invisible after refresh, false-green
+  overflow/Q evidence, terminal title clipping at narrow width, game-over
+  button overlap, stale terminal semantics, inconsistent surface parents and
+  misleading victory action labels.
 
 ### Improved
 
@@ -263,6 +288,9 @@ activation.
   without duplicate application.
 - Improved combat readability with textual integrity/meter/dash/boss states,
   live patch labels, damage direction and a distinct temporary event slot.
+- Improved pause/terminal/game-over UX with real focusable controls, command
+  history feedback, explicit diagnosis and action labels, and responsive
+  narrow composition.
 
 ### Compatibility
 
@@ -294,6 +322,8 @@ activation.
   resource/RID/ObjectDB diagnostics; these are not hidden or considered fixed.
 - Arbitrarily long localized patch copy is detected by the overflow report but
   does not yet have a scrollable card treatment.
+- U4 state surfaces remain opt-in and have no final visual approval, PT-BR
+  copy, physical-device mobile validation or native screen-reader integration.
 
 ## Release-note hygiene
 

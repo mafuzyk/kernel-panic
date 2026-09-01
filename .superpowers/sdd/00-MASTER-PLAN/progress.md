@@ -87,7 +87,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 |---|---|---|---|
 | W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
 | A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
-| U | U1, U2, U2b, U3, U4, U5, U6 | U1–U3 completed (U3 opt-in, reviewed); U4/U5/U6 pending | U3 probe covers real Arena mounting, responsive combat zones, semantic markers, overflow, touch-safe action and legacy adapter compatibility. |
+| U | U1, U2, U2b, U3, U4, U5, U6 | U1–U4 completed (opt-in, reviewed); U5/U6 pending | U4 adds real Arena state-surface routing, pause freeze, terminal focus/history and death/victory contracts; U5/U6 still need accessibility and final migration evidence. |
 | E | E1, E2, E3, E4, E5 | Pending | Code-drawn primitives, entity contracts, visual/readability/perf evidence. |
 | G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
 | M | M1–M5 | Pending | Story data/flow, history content, rewards, localization and save tests. |
@@ -351,6 +351,65 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-U3.md`.
 - Versioned handoff: `docs/HANDOFF-U3-COMBAT-HUD.md`.
 - Next task: U4 pause, terminal and game over; do not expand U3 into U4+.
+
+## U4 vNext pause, terminal and game-over surfaces
+
+- Status: accepted on 2026-09-01 after an initial red probe, one independent
+  Luna review, controller corrections and a second review pass.
+- Initial red commit: `4e96c58` added the U4 state-surface probe and showed the
+  first concrete failure: Q confirmation did not arm through the real route.
+  Investigation proved the probe had sent `rm -rf /` first, which killed the
+  Player and made `_state != "play"`; the probe was reordered rather than the
+  production guard being weakened.
+- Production commit: `d00a7e6` adds the opt-in adapter, three surfaces, the
+  hardened probe and accumulated validator entry. No default legacy route was
+  changed when `KP_VNEXT_U4` is absent.
+- Production files: `src/ui/vnext/surfaces/pause_surface.gd`,
+  `terminal_surface.gd`, `game_over_surface.gd`, plus U4 integration in
+  `src/arena/arena.gd`. Probe: `tools/vnext_state_surfaces_probe.gd` and its
+  scene. Validator: `tools/validate_input_dispatch.sh`.
+- Ownership decision: Arena owns `_state`, pause, Q confirmation, terminal
+  commands and transitions. Surfaces own drawing, native Controls, focus and
+  action emission. One `CanvasLayer` parent is used for every replacement;
+  gameplay nodes never receive `PROCESS_MODE_ALWAYS` from U4.
+- Responsive decision: pause keeps four touch-sized actions; terminal stacks
+  event stream/index/status in narrow mode and adapts its title; game-over
+  stacks primary/menu buttons in narrow mode. A desktop two-column layout is
+  not merely shrunk into 432 px.
+- Review findings converted to red checks: invisible Controls after refresh,
+  overflow report that could stay green with actual overflow, Q dispatch
+  fallback that masked routing, narrow terminal title clipping, narrow
+  game-over button overlap, stale terminal semantic history, misleading
+  victory labels, inconsistent surface parent and deferred focus after free.
+  All were corrected before acceptance.
+- Probe scope: real Arena mounting, real `Viewport.push_input`, ESC opening
+  and closing pause, pause freeze, visible/focusable Controls, terminal
+  `LineEdit`, ENTER, TAB completion, UP/DOWN history, focused ESC, Q arm and
+  expiration, Arena-owned `rm -rf /`, death/victory semantics and labels,
+  plus safe layout and actual field overflow at 432×720, 720×720 and
+  1280×720.
+- Focused evidence: headless U4 exit 0, `71` passes, `0` fails and
+  `PROBE_DONE fails=0`; Xvfb U4 same result. No `SCRIPT ERROR` or focus
+  condition error remained after the focus correction.
+- Accumulated evidence: validator exit 0 / `VALIDATION OK`; suite `1414`
+  `AT_PASS`, `0 AT_FAIL`, `AUTOTEST_ALL_PASS`; input headless `32/0`, Xvfb
+  `34/0`; R04/R05/R06/R07/R08/B1/B2/B5/R18 and all previous vNext probes
+  green. Teardown resources/RIDs/ObjectDB/text shaping remain reported and
+  non-gating as in W0.
+- Review of reboot blocker: the reviewer suspected `_state="dead"` could
+  persist after retry. Direct inspection of `Game.start_run()` showed it
+  restores `Game.state`, unpauses and schedules a new `Arena` scene; the dead
+  `_state` belongs to the replaced node. Existing R03 tests cover the full
+  scene transition, while U4 verifies the immediate global state. No
+  speculative common-runtime change was made.
+- Known risks: no human visual approval, PT-BR, persisted accessibility,
+  native screen reader, physical mobile, Android export or final performance
+  gate. The U4 slice remains opt-in and the `rm -rf /` death transition is
+  not a license to alter gameplay semantics.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-U4.md`.
+- Versioned handoff: `docs/HANDOFF-U4-STATE-SURFACES.md`.
+- Next task: U5 accessibility/settings surface. Preserve U4 as an opt-in
+  regression route and keep localized/large-text checks ahead of promotion.
 
 ## Review checklist for every task
 
