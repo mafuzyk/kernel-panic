@@ -149,7 +149,7 @@ func _move(_delta: float) -> void:
 func _separation() -> Vector2:
 	var push := Vector2.ZERO
 	for e in shared_list:
-		if e == self or not is_instance_valid(e) or not e.participates_in_enemy_pathing():
+		if not _is_pathing_peer(e):
 			continue
 		var d: Vector2 = global_position - e.global_position
 		var dist := d.length()
@@ -210,7 +210,7 @@ func steer_distance_band(to_target: Vector2, min_distance: float, max_distance: 
 func steer_separation(radius_scale: float = 2.0) -> Vector2:
 	var push := Vector2.ZERO
 	for other in shared_list:
-		if other == self or not is_instance_valid(other):
+		if not _is_pathing_peer(other):
 			continue
 		var delta: Vector2 = global_position - other.global_position
 		var distance: float = delta.length()
@@ -223,7 +223,7 @@ func steer_separation(radius_scale: float = 2.0) -> Vector2:
 func steer_open_space(to_target: Vector2, min_distance: float, lateral_sign: float = 1.0) -> Vector2:
 	var nearby_count := 0
 	for other in shared_list:
-		if other == self or not is_instance_valid(other):
+		if not _is_pathing_peer(other):
 			continue
 		var delta: Vector2 = other.global_position - global_position
 		var threshold: float = radius + other.radius + 80.0
@@ -249,7 +249,7 @@ func steer_open_space(to_target: Vector2, min_distance: float, lateral_sign: flo
 			continue
 		var congestion := 0.0
 		for other in shared_list:
-			if other == self or not is_instance_valid(other):
+			if not _is_pathing_peer(other):
 				continue
 			var distance: float = probe_position.distance_to(other.global_position)
 			var crowd_radius: float = radius + other.radius + 96.0
@@ -259,6 +259,11 @@ func steer_open_space(to_target: Vector2, min_distance: float, lateral_sign: flo
 			best_score = congestion
 			best = candidate
 	return best.normalized() if best.length_squared() > 0.0001 else Vector2.ZERO
+
+func _is_pathing_peer(other: Variant) -> bool:
+	if not other is EnemyBase or other == self or not is_instance_valid(other):
+		return false
+	return other.participates_in_enemy_pathing()
 
 func find_bulwark_cover(player_position: Vector2) -> Vector2:
 	var player_to_self := global_position - player_position

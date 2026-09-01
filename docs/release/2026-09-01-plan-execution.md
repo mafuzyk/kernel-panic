@@ -502,3 +502,21 @@ Platforms: PC | mobile (logical/code path only; no physical mobile validation)
   dense-wave profile or gameplay-feel review. Existing teardown resource/RID
   diagnostics remain open. The next safe checkpoint is adversarial review of
   this slice; `RACE_CONDITION` is intentionally deferred.
+
+### E4 review correction — enemy pathing exclusion
+
+#### Fixed
+
+- Corrected the shared enemy pathing helpers so `ZOMBIE_PROCESS` is excluded
+  from direct separation, steer separation and open-space congestion checks.
+  The first version filtered only the base physics separation path, leaving a
+  real integration gap for enemies using the reusable steering helpers.
+
+#### Evidence
+
+- Review red: `/tmp/kernel-panic-e4-review-red2.log`, one focused assertion
+  failed before the correction.
+- Review green: `/tmp/kernel-panic-e4-review-green2.log`, 20 passes, zero
+  failures, explicit completion marker.
+- A fresh aggregate validation is required before the next release checkpoint;
+  the earlier aggregate log predates this review correction.

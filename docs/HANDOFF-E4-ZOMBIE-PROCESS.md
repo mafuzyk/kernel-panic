@@ -38,6 +38,19 @@ all use the stable `zombie_process` kind.
   It finished `VALIDATION OK`; all cases were green, E4 was 18/0, and no
   runtime ERRORs gated, while known teardown diagnostics remained separate.
 
+Post-handoff adversarial review found that the first implementation filtered
+the new pathing hook only in `EnemyBase._separation()`; the reusable
+`steer_separation()` helper could still treat the zombie as a navigation peer.
+The focused probe was extended to reproduce that integration gap, and the
+shared `_is_pathing_peer()` guard now covers direct separation, steer
+separation and open-space helper loops. The review fix is separate from the
+original feature commit:
+
+- Review red: `/tmp/kernel-panic-e4-review-red2.log`, exit 1; the focused
+  probe failed the `steer_separation` exclusion before the guard was added.
+- Review green: `/tmp/kernel-panic-e4-review-green2.log`, exit 0, 20 passes,
+  `PROBE_DONE fails=0` after the guard and stronger open-space comparison.
+
 ## Review notes
 
 The probe was corrected after an initial green attempt exposed a freed lambda
@@ -50,6 +63,9 @@ The aggregate validator's E2 byte-hash guard needed a narrow expected-baseline
 update because E4 intentionally adds a glyph to the shared file. No E2 enemy
 implementation was changed. Existing teardown leaks and the import Android
 build-tools warning remain outside E4's scope.
+
+The aggregate result above predates the post-handoff helper-coverage fix; a
+fresh aggregate validator run is required before this checkpoint is accepted.
 
 ## Files and rollback
 

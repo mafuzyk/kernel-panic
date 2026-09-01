@@ -61,6 +61,22 @@ Additional verification:
   aggregate run exposed and was corrected for the pre-existing E2 glyph hash
   guard by making its non-batch baseline include the intentional E4 glyph.
 
+## Adversarial review correction
+
+The first implementation added the pathing participation hook to
+`EnemyBase._separation()`, but the same `shared_list` is also read by the
+reusable `steer_separation()` and `steer_open_space()` helpers. A normal enemy
+using the former could still avoid a zombie as if it were an ordinary
+navigation peer. The new focused red run reproduced that concrete integration
+failure at `/tmp/kernel-panic-e4-review-red2.log` (exit 1).
+
+The review fix adds `_is_pathing_peer()` and applies it consistently to direct
+separation, steering separation, nearby-count and congestion loops. The probe
+also compares open-space output with and without two zombie blockers, then
+restores the arena shared list. Post-fix evidence is
+`/tmp/kernel-panic-e4-review-green2.log`: exit 0, 20 passes, zero failures.
+The default hook still returns true, so ordinary enemy behavior is unchanged.
+
 ## Technical decisions and compatibility
 
 `ZombieProcessEnemy` overrides `take_hit()` and expiry to queue itself without
@@ -77,6 +93,8 @@ Headless/Xvfb checks do not constitute human visual approval. No manual wide /
 compact / narrow screenshot review, physical mobile test, Android export,
 dense-wave performance profile or gameplay-feel review was performed. Existing
 teardown resource/RID/texture diagnostics remain non-gating and unresolved.
+The aggregate validator needs a fresh post-review execution; the earlier
+aggregate evidence predates the helper-coverage correction.
 The authoritative brief was found in the plan-execution worktree at the path
 requested by the task; the original checkout is a separate worktree and was
 not modified.

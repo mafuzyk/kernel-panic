@@ -116,10 +116,12 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 
 ## E4 — ZOMBIE_PROCESS
 
-- Status: implemented on 2026-09-01 as an isolated new-enemy slice; RACE_CONDITION and later items remain pending.
+- Status: implemented and adversarially corrected on 2026-09-01 as an isolated new-enemy slice; RACE_CONDITION and later items remain pending.
 - Red: focused real-path probe exit 1 with 5 failures before production code.
-- Green: focused headless and Xvfb probes exit 0 with 18 passes, 0 failures and the exact completion marker.
-- Full suite: 1414 passes, 0 failures, `AUTOTEST_ALL_PASS`; final aggregate E4 case 18/0 with no runtime ERRORs. Teardown resource/RID diagnostics remain non-gating.
+- Original green: focused headless and Xvfb probes exit 0 with 18 passes, 0 failures and the exact completion marker.
+- Review red: the newly added reusable-steering assertion failed because only direct base separation was filtered.
+- Review green: focused headless probe exit 0 with 20 passes, 0 failures; the full aggregate validator still needs a fresh post-review run.
+- Full suite and original aggregate: 1414 passes, 0 failures, `AUTOTEST_ALL_PASS`; teardown resource/RID diagnostics remain non-gating.
 - Report: `report-E4-zombie-process.md`; handoff: `docs/HANDOFF-E4-ZOMBIE-PROCESS.md`.
 
 ## E1 — entity descriptor and renderer foundation

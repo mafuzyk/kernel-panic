@@ -91,6 +91,22 @@ func _run() -> void:
 	var enemy: EnemyBase = live_zombies[0]
 	_check(enemy.collision_layer & Balance.LAYER_ENEMY != 0, "zombie blocks player projectile layer")
 	_check(not enemy.participates_in_enemy_pathing(), "zombie is excluded from enemy pathing")
+	var path_probe := DroneEnemy.new()
+	path_probe.position = Vector2(640.0, 360.0)
+	var path_blocker_a := ZombieProcessEnemy.new()
+	path_blocker_a.position = path_probe.position + Vector2(20.0, 0.0)
+	var path_blocker_b := ZombieProcessEnemy.new()
+	path_blocker_b.position = path_probe.position + Vector2(0.0, 20.0)
+	EnemyBase.shared_list = []
+	var baseline_open_space := path_probe.steer_open_space(Vector2.RIGHT * 100.0, 150.0, 1.0)
+	EnemyBase.shared_list = [path_blocker_a, path_blocker_b]
+	_check(path_probe.steer_separation(2.0) == Vector2.ZERO, "zombie is excluded from steer separation")
+	var open_space_probe := path_probe.steer_open_space(Vector2.RIGHT * 100.0, 150.0, 1.0)
+	_check(open_space_probe == baseline_open_space, "zombie is excluded from open-space pathing")
+	EnemyBase.shared_list = _arena.enemy_list
+	path_probe.free()
+	path_blocker_a.free()
+	path_blocker_b.free()
 	var before := {"hp": enemy.hp, "position": enemy.position, "life": enemy.remaining_life, "seed": Game.rng.seed}
 	var snapshot := Adapter.from_enemy(enemy)
 	_check(snapshot.get("kind", "") == "zombie_process" and snapshot.has("remaining_life"), "zombie snapshot exposes stable kind and remaining life")
