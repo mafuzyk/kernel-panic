@@ -15,7 +15,55 @@ func _check(condition: bool, message: String) -> void:
 func _run() -> void:
 	var illustration_script: Script = load("res://src/ui/vnext/entity_illustration.gd")
 	var glyph_script: Script = load("res://src/ui/glyph_lib.gd")
+	var descriptor_script: Script = load("res://src/ui/vnext/core/entity_descriptor.gd")
+	var renderer_script: Script = load("res://src/ui/vnext/core/entity_renderer.gd")
+	var adapter_script: Script = load("res://src/ui/vnext/core/entity_presentation_adapter.gd")
 	_check(illustration_script != null and glyph_script != null, "vnext entity illustration and glyph library load")
+	_check(descriptor_script != null and renderer_script != null and adapter_script != null, "entity presentation foundation scripts load")
+	if descriptor_script != null and renderer_script != null and adapter_script != null:
+		var malformed: Dictionary = {"kind": "kernel", "visual_state": "attack", "facing": Vector2(-1, 0), "hp_fraction": 0.35, "elite": true, "era_accent": Color("ff7b9c"), "loot_count": 2, "feedback_count": 3, "nested": {"markers": ["aim", {"value": 7}]}, "label": "loc.entity.kernel.name"}
+		var normalized: Dictionary = descriptor_script.call("normalize", malformed)
+		_check(str(normalized.get("kind", "")) == "kernel" and str(normalized.get("visual_state", "")) == "attack", "descriptor preserves known identity and visual state")
+		_check(normalized.get("facing", Vector2.ZERO) == Vector2(-1, 0) and is_equal_approx(float(normalized.get("hp_fraction", -1.0)), 0.35), "descriptor preserves orientation and normalized hp")
+		_check(bool(normalized.get("elite", false)) and int(normalized.get("loot_count", -1)) == 2 and int(normalized.get("feedback_count", -1)) == 3, "descriptor preserves elite and feedback counts")
+		_check(str(normalized.get("visible_label", "")) == "", "descriptor never exposes localization keys as visible copy")
+		var nested: Dictionary = normalized.get("nested", {})
+		malformed["nested"]["markers"][0] = "mutated"
+		_check(str(nested["markers"][0]) == "aim", "descriptor deep-copies nested snapshot data")
+		var safe: Dictionary = descriptor_script.call("normalize", {"kind": "missing", "facing": "bad", "hp_fraction": "bad", "loot_count": -4})
+		_check(str(safe.get("kind", "")) == "drone" and safe.get("facing", Vector2.ZERO) == Vector2.RIGHT and is_equal_approx(float(safe.get("hp_fraction", -1.0)), 1.0), "malformed descriptor fields use safe defaults")
+		for size in [24.0, 48.0, 96.0, 160.0]:
+			for facing in [Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT, Vector2.UP]:
+				malformed["facing"] = facing
+				var target := Rect2(Vector2.ZERO, Vector2(size, size))
+				var fit: Rect2 = renderer_script.call("fit_rect", malformed, target)
+				var bounds: Rect2 = renderer_script.call("draw_bounds", malformed, target)
+				_check(target.encloses(fit) and target.encloses(bounds) and fit == bounds, "extent contains %dpx %s silhouette without clipping" % [int(size), str(facing)])
+			for state in ["idle", "attack", "hit", "elite", "death"]:
+				malformed["visual_state"] = state
+				var state_fit: Rect2 = renderer_script.call("fit_rect", malformed, Rect2(Vector2.ZERO, Vector2(96, 96)))
+				_check(state_fit.size.x > 0.0 and state_fit.size.y > 0.0, "state channel has valid fit: %s" % state)
+		var render_host = illustration_script.new()
+		render_host.size = Vector2(160, 160)
+		render_host.call("configure_entity", "kernel", "attack", "")
+		add_child(render_host)
+		var before := malformed.duplicate(true)
+		render_host.queue_redraw()
+		await get_tree().process_frame
+		_check(malformed == before, "rendering leaves descriptor fixture unchanged")
+		render_host.queue_free()
+		var player_fixture := {"prog": {"kind": "kernel"}, "aim": Vector2.UP, "hp": 4, "max_hp": 8, "overclock_active": true, "dash_available": 1}
+		var enemy_fixture := {"display_name": "DRONE", "hp": 1, "max_hp": 2, "global_rotation": PI, "elite": true, "mote_count": 2, "era_accent": Color("42e8ff"), "hit_flash": 0.0}
+		var program_snapshot: Dictionary = adapter_script.call("from_player_fixture", player_fixture)
+		var enemy_snapshot: Dictionary = adapter_script.call("from_enemy_fixture", enemy_fixture)
+		var adapter_source := FileAccess.get_file_as_string("res://src/ui/vnext/core/entity_presentation_adapter.gd")
+		_check(adapter_source.contains("static func from_player(") and adapter_source.contains("static func from_enemy("), "production player and enemy adapter entry points exist")
+		_check(str(program_snapshot.get("kind", "")) == "kernel" and str(program_snapshot.get("visual_state", "")) == "elite", "one existing player program reaches the descriptor adapter")
+		_check(str(enemy_snapshot.get("kind", "")) == "drone" and bool(enemy_snapshot.get("elite", false)), "one existing enemy reaches the descriptor adapter")
+		_check(player_fixture["hp"] == 4 and enemy_fixture["hp"] == 1, "adapter fixtures retain gameplay-like fields")
+		_check(renderer_script.call("render_key", malformed, 1.25, {"color_assist": true}) == renderer_script.call("render_key", malformed, 1.25, {"color_assist": true}), "same descriptor inputs produce deterministic render key")
+		var renderer_source := FileAccess.get_file_as_string("res://src/ui/vnext/core/entity_renderer.gd")
+		_check(not renderer_source.contains("Game") and not renderer_source.contains("Sfx") and not renderer_source.contains("Arena") and not renderer_source.contains("rand"), "renderer has no gameplay, audio or random side effects")
 	if illustration_script == null or glyph_script == null:
 		_finish()
 		return
