@@ -29,6 +29,19 @@ and alternatives remain in the task reports:
 The execution branch is `codex/plan-execution`; it is based on the reviewed
 master-plan documentation and does not merge into `main` automatically.
 
+### E1 code-drawn entity foundation
+
+- Added a deterministic descriptor normalizer, shared extent/fit bounds,
+  state-aware code-drawn renderer and compatibility adapters for one existing
+  program (`kernel`) and one existing enemy (`DRONE`).
+- Preserved the legacy `VNextEntityIllustration` surface and sprite registry
+  default-off behavior; no gameplay, hitbox, balance or route was changed.
+- Evidence: focused probe red before implementation and green after import;
+  full Dummy-audio autotest 1414/0 with `AUTOTEST_ALL_PASS`.
+- This is technical evidence only. No visual approval is claimed because no E1
+  capture was inspected. Full cast, product-route wiring and sprite comparison
+  remain E2–E5 work.
+
 ## Technical changelog
 
 ### Architecture and repository

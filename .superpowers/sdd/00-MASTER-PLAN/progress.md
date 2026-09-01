@@ -88,7 +88,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
 | A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
 | U | U1, U2, U2b, U3, U4, U5, U6 | U1–U6 completed (opt-in, reviewed) | U1–U6 now cover boot, selection, patch choice, combat HUD, pause/terminal/game-over, accessibility settings and shared recoverable state primitives; final migration, locale, visual approval, physical mobile, Android/export and teardown gates remain open. |
-| E | E1, E2, E3, E4, E5 | Pending | Code-drawn primitives, entity contracts, visual/readability/perf evidence. |
+| E | E1, E2, E3, E4, E5 | E1 completed; E2–E5 pending | E1 descriptor/renderer/adapter and focused evidence landed; visual/readability/perf evidence and cast work remain. |
 | G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
 | M | M1–M5 | Pending | Story data/flow, history content, rewards, localization and save tests. |
 | L | L1–L4 | Pending | String inventory, PT-BR behavior, plural/select/Unicode/overflow tests. |
@@ -113,6 +113,21 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | 2026-09-01 | U2 vNext program/story selection | `vnext_boot_probe` exit 0; `vnext_selection_probe` exit 0; `vnext_menu_probe` exit 0; `layout_probe` 130/130; full suite 1414/0 with `AUTOTEST_ALL_PASS`; three Luna review passes (two rejects corrected, final accept) | Accepted as an opt-in slice: real program/story routes, narrow list/detail states, act tabs, project fonts, complete overflow coverage and no observed BACK fall-through | No final visual approval; PT-BR, persisted accessibility, physical-device pointer/touch, route-stack cancellation, Android export and teardown diagnostics remain open. |
 
 ## Change log of approach
+
+## E1 — entity descriptor and renderer foundation
+
+- Status: implementado em 2026-09-01, sem rota de produto e sem alteração de
+  gameplay.
+- Red: o probe focado falhou com os contratos ausentes (`PROBE_DONE fails=1`);
+  green: import exit 0 e probe exit 0 com `PROBE_DONE fails=0`.
+- Added `VNextEntityDescriptor`, `VNextEntityRenderer` e
+  `VNextEntityPresentationAdapter`; `VNextEntityIllustration` agora usa os
+  bounds e o renderer compartilhados. `kernel` e `DRONE` são cobertos por
+  fixtures side-effect-free; entradas para objetos reais existem, mas não há
+  wiring de rota nesta fatia.
+- Evidência final: autotest com Dummy audio, 1414 `AT_PASS`, 0 `AT_FAIL`,
+  `AUTOTEST_ALL_PASS`, `git diff --check` exit 0. Não houve captura
+  inspecionada, portanto não há aprovação visual.
 
 ## U6 — shared error, empty, loading and transition states
 
