@@ -88,7 +88,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
 | A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
 | U | U1, U2, U2b, U3, U4, U5, U6 | U1–U6 completed (opt-in, reviewed) | U1–U6 now cover boot, selection, patch choice, combat HUD, pause/terminal/game-over, accessibility settings and shared recoverable state primitives; final migration, locale, visual approval, physical mobile, Android/export and teardown gates remain open. |
-| E | E1, E2, E3, E4, E5 | E1 completed; E2–E5 pending | E1 descriptor/renderer/adapter and focused evidence landed; visual/readability/perf evidence and cast work remain. |
+| E | E1, E2, E3, E4, E5 | E1 and E2 batch 1 completed; E2 remainder/E3–E5 pending | E1 foundation plus DRONE/LANCER/SPEWER identity/state batch; visual approval, measured dense-wave performance and remaining cast work remain. |
 | G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
 | M | M1–M5 | Pending | Story data/flow, history content, rewards, localization and save tests. |
 | L | L1–L4 | Pending | String inventory, PT-BR behavior, plural/select/Unicode/overflow tests. |
@@ -144,6 +144,27 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
   report:
   `.superpowers/sdd/00-MASTER-PLAN/report-E1.md`; handoff:
   `docs/HANDOFF-E1-ENTITY-FOUNDATION.md`.
+
+## E2 batch 1 — legacy enemy identity
+
+- Status: implemented on 2026-09-01 for DRONE, LANCER and SPEWER; remaining
+  E2 cast batches are pending.
+- Red: focused probe before production exited 1 with `PROBE_DONE fails=15`.
+- Green: focused probe passed headless and Xvfb with 73 passes/0 failures in
+  each run, including real CanvasItem drawing, Lancer AIM/LUNGE and Spewer
+  wind-up state projection, gameplay-like field preservation and GlyphLib
+  scope hash.
+- Import exited 0; full Dummy-audio suite exited 0 with 1414 passes, 0
+  failures and `AUTOTEST_ALL_PASS`. The final accumulated validator used
+  `KP_VALIDATION_TIMEOUT_SECONDS=120` under a 300-second outer bound and
+  finished `VALIDATION OK`; E2 was 73/0 and runtime error gates were 0.
+- Commits: `2827e2b` probe, `120c2a8` production, `d734e0e` validator,
+  `a62bce9` per-frame allocation correction.
+- Report: `.superpowers/sdd/00-MASTER-PLAN/report-E2-batch-1.md`; handoff:
+  `docs/HANDOFF-E2-LEGACY-ENEMIES-BATCH-1.md`.
+- Not proven: human visual approval, fixed-seed dense-wave performance,
+  physical mobile/hardware Vega, localization and Android export; baseline
+  teardown diagnostics remain open.
 
 ## U6 — shared error, empty, loading and transition states
 
