@@ -1,6 +1,8 @@
 class_name Player
 extends Area2D
 
+const PageCache = preload("res://src/gameplay/page_cache.gd")
+
 signal hp_changed(hp: int, max_hp: int)
 signal meter_changed(v: float, ready_flag: bool)
 signal overclock_changed(active: bool)
@@ -53,6 +55,7 @@ var scrap_count := 0
 var last_damage_direction := Vector2.ZERO
 var last_damage_direction_t := 0.0
 var program_id := "kernel"
+var page_cache: RefCounted
 
 ## Read-only presentation boundary. Consumers may copy this payload, but the
 ## renderer must never use it as a gameplay command or write through it.
@@ -68,6 +71,7 @@ func presentation_snapshot() -> Dictionary:
 		"shield_mode": bool(prog.get("shield_mode", false)),
 		"shield_meter": shield_meter,
 		"shield_ready": shield_ready,
+		"page_cache": page_cache_snapshot(),
 		"dash_available": available_dash_charges(),
 		"dash_max": dash_charges,
 		"dash_active": dash_t > 0.0,
@@ -92,6 +96,7 @@ func _register_scrap_overflow() -> void:
 
 func _ready() -> void:
 	touch_mode = DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
+	page_cache = PageCache.new()
 	prog = Game.program_def()
 	program_id = str(Game.program)
 	dash_charges = int(prog.get("dash_charges", 1))
@@ -383,6 +388,27 @@ func try_overclock() -> void:
 		Fx.shake(0.35)
 		Fx.zoom_punch(0.055)
 
+func page_cache_snapshot() -> Dictionary:
+	if page_cache == null:
+		return {"capacity": PageCache.CAPACITY, "stored": 0, "flushes": 0}
+	return page_cache.snapshot()
+
+func _store_page_cache_spare() -> bool:
+	if Game.patch_level("pagecache") <= 0 or page_cache == null:
+		return false
+	var result: Dictionary = page_cache.store(1)
+	var released := int(result.get("released", 0))
+	if released <= 0:
+		return true
+	Game.add_score(5 * released)
+	for _i in released:
+		_register_scrap_overflow()
+	Game.log_event("PAGE CACHE // FLUSH %d MOTES" % released)
+	Fx.text(global_position + Vector2(0, -26), "PAGE CACHE +%d" % (5 * released), Balance.COL_PLAYER_HOT, 13)
+	Sfx.play("ready", 1.05, -4.0)
+	Sfx.haptic(18)
+	return true
+
 func collect_mote() -> void:
 	if dead:
 		return
@@ -403,6 +429,8 @@ func collect_mote() -> void:
 		_register_scrap_overflow()
 		return
 	if overclock_active:
+		if _store_page_cache_spare():
+			return
 		Game.add_score(5)
 		_register_scrap_overflow()
 		return
@@ -411,6 +439,8 @@ func collect_mote() -> void:
 	Sfx.play("pickup", 1.0 + minf(pickup_streak, 14) * 0.045, -8.0)
 	Sfx.haptic(8)
 	if oc_ready:
+		if _store_page_cache_spare():
+			return
 		Game.add_score(5)
 		_register_scrap_overflow()
 		return
