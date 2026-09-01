@@ -79,6 +79,16 @@ run_headless_probe() {
 	echo
 }
 
+run_headless_probe_with_env() {
+	local env_name="$1" slug="$2" name="$3" scene="$4"
+	local log="$LOG_DIR/$slug.log"
+	env "$env_name=1" XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . "$scene" > "$log" 2>&1
+	report_case "$name" "$log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "$name" "$log"
+	echo
+}
+
 echo "--- suite headless ---"
 XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . -- --autotest > "$LOG_DIR/suite-headless.log" 2>&1
 report_case "suite headless (--autotest)" "$LOG_DIR/suite-headless.log" "$?" "AT_PASS" "AT_FAIL" \
@@ -105,6 +115,8 @@ run_headless_probe "probe-b5-terminal-history" "B5 terminal history probe" "res:
 run_headless_probe "probe-r18-touch-multitouch" "R18 touch multitouch action probe" "res://tools/touch_multitouch_probe.tscn"
 run_headless_probe "probe-vnext-primitives" "VNext code-drawn primitive contract" "res://tools/vnext_primitives_probe.tscn"
 run_headless_probe "probe-vnext-entity-illustration" "VNext code-drawn entity illustration contract" "res://tools/vnext_entity_illustration_probe.tscn"
+run_headless_probe "probe-vnext-patch-surface" "VNext patch decision surface" "res://tools/vnext_patch_probe.tscn"
+run_headless_probe_with_env "KP_VNEXT_PATCH" "probe-vnext-patch-arena" "VNext patch Arena adapter" "res://tools/vnext_patch_arena_probe.tscn"
 
 if command -v xvfb-run >/dev/null 2>&1; then
 	XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-xvfb.log" 2>&1
