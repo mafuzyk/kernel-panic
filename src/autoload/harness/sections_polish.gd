@@ -18,7 +18,7 @@ func _settings_tabs_test(menu: Node) -> void:
 	if kit == null or not kit.has_method("set_active_section"):
 		return
 	var sections: Array = kit.call("section_names")
-	h._check(sections == ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"], "settings kit declares the five sections in order")
+	h._check(sections == ["AUDIO", "DISPLAY", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"], "settings kit declares the six sections in order")
 	menu.call("_open_settings")
 	await h._ticks(2)
 	for section in sections:
@@ -76,9 +76,9 @@ func _settings_chips_test(menu: Node) -> void:
 	kit.call("set_active_section", "SAVE DATA")
 	await h._ticks(1)
 	var chips: Array = menu.get("_settings_chip_buttons")
-	var chip_selected: bool = chips.size() == 5
+	var chip_selected: bool = chips.size() == 6
 	for i in chips.size():
-		if (i == 4) != str(chips[i].text).begins_with("▸"):
+		if (i == 5) != str(chips[i].text).begins_with("▸"):
 			chip_selected = false
 	h._check(chip_selected, "chips share the active section state with the sidebar")
 	kit.call("apply_viewport", Vector2.ZERO)

@@ -24,7 +24,7 @@ func _run() -> void:
 	_check(settings_source.contains("\"DISPLAY\""), "settings owns a separate DISPLAY section")
 	_check(settings_source.contains("fullscreen") and settings_source.contains("target_fps"), "DISPLAY section exposes both required controls")
 	if Sfx.has_method("default_target_fps"):
-		var expected_default := 60 if DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != "" else 0
+		var expected_default := 60 if DisplayServer.get_name().to_lower() == "headless" or DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != "" else 0
 		_check(int(Sfx.default_target_fps()) == expected_default, "display default is 60 on touch and unlimited on desktop")
 	var old_override := Sfx._settings_path_override
 	Sfx._settings_path_override = "user://g2c-display-settings.cfg"

@@ -134,9 +134,9 @@ const PATCH_ICON_FAMILIES := {
 	"heavy": "damage", "core": "damage", "splitshot": "damage", "ricochet": "damage", "pdash": "damage", "thorns": "damage", "staticf": "damage",
 	"rapid": "fire", "threads": "fire", "chain": "fire",
 	"hp": "defense", "shield": "defense", "absorb": "defense", "restore": "defense", "secondwind": "defense", "vampic": "defense", "recycler": "defense", "dataleech": "defense",
-	"cell": "utility", "magnet": "utility",
+	"cell": "utility", "magnet": "utility", "ring0": "utility",
 	"dash": "movement", "mdash": "movement", "turbo": "movement", "light": "movement",
-	"frag": "economy", "scrapdiet": "economy",
+	"frag": "economy", "scrapdiet": "economy", "pagecache": "economy",
 }
 
 const RASTER_DIR := "res://assets/icons/generated/"

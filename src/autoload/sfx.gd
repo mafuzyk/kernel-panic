@@ -268,6 +268,8 @@ func set_fullscreen(v: bool) -> void:
 	save_settings()
 
 func default_target_fps() -> int:
+	if DisplayServer.get_name().to_lower() == "headless":
+		return 60
 	return 60 if DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != "" else 0
 
 func display_snapshot() -> Dictionary:

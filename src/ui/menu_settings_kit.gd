@@ -249,7 +249,7 @@ func _build_settings() -> void:
 	fps_btn.pressed.connect(func() -> void:
 		var options: Array = Sfx.DISPLAY_FPS_OPTIONS
 		var current := options.find(Sfx.target_fps)
-		var next := options[(current + 1) % options.size()] if current >= 0 else options[0]
+		var next: int = int(options[(current + 1) % options.size()] if current >= 0 else options[0])
 		Sfx.set_target_fps(int(next))
 		fps_btn.text = "TARGET FPS: %s" % _target_fps_label(Sfx.target_fps)
 	)
