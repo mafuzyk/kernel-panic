@@ -17,6 +17,12 @@ program="daemon"
 mode="story"
 difficulty="hard"
 
+[weekly]
+id="W-test"
+best=77
+last_id="W-old"
+last_best=66
+
 [story]
 cleared={"boot":true}
 best={"boot":420}
@@ -27,6 +33,9 @@ unlocked={"kernel":true,"daemon":true}
 
 [achievements]
 unlocked={"first_blood":true}
+
+[bestiary]
+seen={"drone":true}
 """
 const OPTIONAL_OLD_BYTES := """[run]
 best=99
@@ -99,12 +108,39 @@ func _run_round_trip(game: Node, save_path: String) -> void:
 	var round_trip: Variant = _decode(game.export_save_string())
 	_check(_stable_projection(round_trip) == _stable_projection(exported_payload), "export/import round-trip preserves stable transfer fields")
 	_check(int(game.best) == 420 and bool(game.story_cleared.get("boot", false)), "round-trip restores run and story state")
+	_check(round_trip.get("weekly", {}) == exported_payload.get("weekly", {}), "round-trip preserves weekly fields")
+	_check(round_trip.get("bestiary", {}) == exported_payload.get("bestiary", {}), "round-trip preserves bestiary fields")
 
 func _run_invalid_inputs(game: Node, save_path: String) -> void:
 	_write_bytes(save_path, PROGRESS_BYTES.to_utf8_buffer())
 	game._load_run_config()
 	var source_bytes := _read_bytes(save_path)
-	var malformed := ["not base64", "eyJmb3JtYXQiOiJrZXJuZWwtcGFuaWMtc2F2ZSJ", _encode({"format": game.SAVE_TRANSFER_FORMAT, "version": game.SAVE_TRANSFER_VERSION, "run": "wrong", "weekly": {}}), _encode({"format": game.SAVE_TRANSFER_FORMAT, "version": game.SAVE_TRANSFER_VERSION, "run": {}, "weekly": {}, "story": "wrong"})]
+	var valid_payload := {
+		"format": game.SAVE_TRANSFER_FORMAT,
+		"version": game.SAVE_TRANSFER_VERSION,
+		"run": {},
+		"weekly": {},
+		"story": {"cleared": {}, "best": {}},
+		"bestiary": {},
+		"programs": {},
+		"achievements": {},
+	}
+	var nested_wrong_types := [
+		{"run": "wrong"},
+		{"weekly": []},
+		{"story": "wrong"},
+		{"story": {"cleared": []}},
+		{"story": {"best": "wrong"}},
+		{"bestiary": []},
+		{"programs": "wrong"},
+		{"achievements": []},
+	]
+	var malformed: Array = ["not base64", "eyJmb3JtYXQiOiJrZXJuZWwtcGFuaWMtc2F2ZSJ"]
+	for override in nested_wrong_types:
+		var invalid_payload: Dictionary = valid_payload.duplicate(true)
+		for key in override:
+			invalid_payload[key] = override[key]
+		malformed.append(_encode(invalid_payload))
 	for i in malformed.size():
 		var accepted: bool = game.import_save_string(str(malformed[i]))
 		_check(not accepted, "malformed/truncated input %d is rejected" % i)
@@ -120,14 +156,22 @@ func _decode(value: String):
 func _stable_projection(payload: Variant) -> Dictionary:
 	if not payload is Dictionary:
 		return {}
+	var story: Variant = payload.get("story", {})
+	var story_cleared: Dictionary = story.get("cleared", {}) if story is Dictionary and story.get("cleared", {}) is Dictionary else {}
+	var story_best: Dictionary = story.get("best", {}) if story is Dictionary and story.get("best", {}) is Dictionary else {}
+	var positive_story_best := {}
+	for stage_id in story_best:
+		if int(story_best[stage_id]) > 0:
+			positive_story_best[stage_id] = int(story_best[stage_id])
 	return {
 		"format": payload.get("format", ""),
 		"version": payload.get("version", 0),
 		"run": payload.get("run", {}),
 		"weekly": payload.get("weekly", {}),
-		"story_cleared": payload.get("story", {}).get("cleared", {}) if payload.get("story", {}) is Dictionary else {},
-		"story_best_boot": payload.get("story", {}).get("best", {}).get("boot", 0) if payload.get("story", {}).get("best", {}) is Dictionary else 0,
-		"story_unlock": payload.get("story", {}).get("temple_rainbow_unlocked", false) if payload.get("story", {}) is Dictionary else false,
+		"story_cleared": story_cleared,
+		"story_best": positive_story_best,
+		"story_unlock": story.get("temple_rainbow_unlocked", false) if story is Dictionary else false,
+		"bestiary": payload.get("bestiary", {}),
 		"programs": payload.get("programs", {}),
 		"achievements": payload.get("achievements", {}),
 	}
