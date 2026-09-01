@@ -27,6 +27,8 @@ static func from_player_fixture(player: Dictionary) -> Dictionary:
 			"program_id": program_id,
 			"overclock_ready": bool(player.get("overclock_ready", player.get("oc_ready", false))),
 			"overclock_active": bool(player.get("overclock_active", false)),
+			"overclock_stacks": int(player.get("overclock_stacks", 0)),
+			"overclock_recharge_lock": float(player.get("overclock_recharge_lock", 0.0)),
 			"shield_mode": bool(player.get("shield_mode", program.get("shield_mode", false))),
 			"shield_meter": float(player.get("shield_meter", 0.0)),
 			"shield_ready": bool(player.get("shield_ready", false)),

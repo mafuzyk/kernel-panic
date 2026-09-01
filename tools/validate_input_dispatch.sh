@@ -125,6 +125,7 @@ run_headless_probe "probe-e4-zombie-process" "E4 ZOMBIE_PROCESS gameplay contrac
 run_headless_probe "probe-e5-entity-quality" "E5 entity quality tier contract" "res://tools/e5_entity_quality_probe.tscn"
 run_headless_probe "probe-g1-run-context" "G1 run context contract" "res://tools/g1_run_context_probe.tscn"
 run_headless_probe "probe-g2-page-cache" "G2 Page Cache mechanic" "res://tools/g2_page_cache_probe.tscn"
+run_headless_probe "probe-g2-ring0" "G2 Ring-0 double overclock" "res://tools/g2_ring0_probe.tscn"
 run_headless_probe "probe-vnext-patch-surface" "VNext patch decision surface" "res://tools/vnext_patch_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_PATCH" "probe-vnext-patch-arena" "VNext patch Arena adapter" "res://tools/vnext_patch_arena_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_HUD" "probe-vnext-combat-hud" "VNext combat HUD Arena adapter" "res://tools/vnext_combat_hud_probe.tscn"

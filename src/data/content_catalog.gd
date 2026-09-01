@@ -61,7 +61,7 @@ const ACHIEVEMENT_HINTS := {
 	"integrity_restored": "Recover integrity after it drops.",
 }
 
-const PATCH_CODES := {"rapid": "RP", "cell": "OC", "magnet": "MG", "pagecache": "PC", "hp": "HP", "dash": "PH", "frag": "FR", "threads": "TH", "chain": "CH", "core": "HC", "restore": "SR", "light": "LF", "mdash": "MD", "heavy": "HV", "ricochet": "RC", "pdash": "PD", "staticf": "SF", "vampic": "VP", "recycler": "RY", "dataleech": "DL", "splitshot": "SP", "secondwind": "SW", "thorns": "TN", "turbo": "TD", "scrapdiet": "SD", "shield": "SH", "absorb": "AB"}
+const PATCH_CODES := {"rapid": "RP", "cell": "OC", "magnet": "MG", "pagecache": "PC", "ring0": "R0", "hp": "HP", "dash": "PH", "frag": "FR", "threads": "TH", "chain": "CH", "core": "HC", "restore": "SR", "light": "LF", "mdash": "MD", "heavy": "HV", "ricochet": "RC", "pdash": "PD", "staticf": "SF", "vampic": "VP", "recycler": "RY", "dataleech": "DL", "splitshot": "SP", "secondwind": "SW", "thorns": "TN", "turbo": "TD", "scrapdiet": "SD", "shield": "SH", "absorb": "AB"}
 
 const PATCH_RELATIONS := {
 	"heavy": {"splitshot": "TRADEOFF: HEAVY + SPLITSHOT BOTH REDUCE FIRE RATE"},
@@ -73,6 +73,7 @@ const PATCH_DEFS := [
 	{"id": "cell", "title": "OVERCLOCK CELL", "desc": "+2.0s OVERCLOCK DURATION", "max": 3, "rare": false, "legend": false},
 	{"id": "magnet", "title": "MAGNET ARRAY", "desc": "+45% MOTE PULL RANGE", "max": 3, "rare": false, "legend": false},
 	{"id": "pagecache", "title": "PAGE CACHE", "desc": "BANK 3 SPARE MOTES, AUTO-FLUSH BONUS", "max": 1, "rare": false, "legend": false},
+	{"id": "ring0", "title": "RING-0", "desc": "RE-PRESS OVERCLOCK: DOUBLE WINDOW, LONG RECOVERY", "max": 1, "rare": true, "legend": true},
 	{"id": "hp", "title": "REINTEGRATION", "desc": "+1 MAX INTEGRITY, HEAL 1", "max": 3, "rare": false, "legend": false},
 	{"id": "dash", "title": "QUICK DASH", "desc": "-18% DASH COOLDOWN", "max": 3, "rare": false, "legend": false},
 	{"id": "frag", "title": "FRAGMENTATION", "desc": "KILLS DROP +1 MOTE", "max": 2, "rare": false, "legend": false},

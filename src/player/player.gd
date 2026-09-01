@@ -20,6 +20,8 @@ var meter := 0.0
 var oc_ready := false
 var overclock_active := false
 var oc_t := 0.0
+var overclock_stacks := 0
+var _oc_recharge_lock_t := 0.0
 var pickup_streak := 0
 var streak_t := 0.0
 var dead := false
@@ -68,6 +70,8 @@ func presentation_snapshot() -> Dictionary:
 		"max_hp": max_hp,
 		"overclock_ready": oc_ready,
 		"overclock_active": overclock_active,
+		"overclock_stacks": overclock_stacks,
+		"overclock_recharge_lock": _oc_recharge_lock_t,
 		"shield_mode": bool(prog.get("shield_mode", false)),
 		"shield_meter": shield_meter,
 		"shield_ready": shield_ready,
@@ -216,6 +220,13 @@ func _physics_process(delta: float) -> void:
 	aim_assist_dir = Vector2.from_angle(rotation) if manual_touch_aim else Vector2.ZERO
 	if dash_cd > 0.0:
 		dash_cd -= delta
+	if _oc_recharge_lock_t > 0.0:
+		_oc_recharge_lock_t = maxf(_oc_recharge_lock_t - delta, 0.0)
+		if _oc_recharge_lock_t <= 0.0 and not overclock_active and not bool(prog.get("shield_mode", false)) and meter >= Balance.OC_METER_MAX:
+			oc_ready = true
+			Sfx.play("ready", 1.0, -4.0)
+			Fx.text(global_position + Vector2(0, -26), "OVERCLOCK READY", Balance.COL_PLAYER_HOT, 13)
+			meter_changed.emit(meter, true)
 	if dash_charges > 1 and dash_recharge_t > 0.0:
 		dash_recharge_t -= delta
 		if dash_recharge_t <= 0.0 and dash_available < dash_charges:
@@ -240,12 +251,16 @@ func _physics_process(delta: float) -> void:
 		try_overclock()
 	if overclock_active:
 		oc_t -= delta
-		meter = Balance.OC_METER_MAX * maxf(oc_t, 0.0) / Balance.OC_DURATION
+		meter = Balance.OC_METER_MAX * clampf(oc_t / maxf(oc_duration(), 0.001), 0.0, 1.0)
 		meter_changed.emit(meter, false)
 		if oc_t <= 0.0:
+			var used_double_overclock := overclock_stacks >= 2
 			overclock_active = false
+			overclock_stacks = 0
 			_aura.visible = false
 			meter = 0.0
+			if used_double_overclock:
+				_oc_recharge_lock_t = oc_duration()
 			meter_changed.emit(0.0, false)
 			overclock_changed.emit(false)
 	if _lockon_pulse > 0.0:
@@ -305,6 +320,12 @@ func fire_interval() -> float:
 
 func oc_duration() -> float:
 	return Balance.OC_DURATION + 2.0 * Game.patch_level("cell")
+
+func overclock_stack_count() -> int:
+	return overclock_stacks
+
+func overclock_recharge_lock() -> float:
+	return _oc_recharge_lock_t
 
 func _shoot() -> void:
 	var fire_cd_len := fire_interval()
@@ -373,9 +394,23 @@ func notify_kill() -> void:
 func try_overclock() -> void:
 	if prog.get("shield_mode", false):
 		return
-	if oc_ready and not overclock_active and not dead:
+	if dead:
+		return
+	if overclock_active:
+		if Game.patch_level("ring0") > 0 and overclock_stacks < 2:
+			overclock_stacks = 2
+			oc_t += oc_duration()
+			meter_changed.emit(Balance.OC_METER_MAX, false)
+			Sfx.play("overclock", 1.15, -4.0)
+			Fx.ring(global_position, Balance.COL_PLAYER_HOT, 8.0, 100.0, 0.35, 3.0)
+			Fx.sparks(global_position, Balance.COL_PLAYER_HOT, 8, 180.0, 0.28, 2.0)
+		return
+	if _oc_recharge_lock_t > 0.0:
+		return
+	if oc_ready:
 		oc_ready = false
 		overclock_active = true
+		overclock_stacks = 1
 		oc_t = oc_duration()
 		_aura.visible = true
 		overclock_changed.emit(true)
@@ -444,8 +479,14 @@ func collect_mote() -> void:
 		Game.add_score(5)
 		_register_scrap_overflow()
 		return
+	if _oc_recharge_lock_t > 0.0 and meter >= Balance.OC_METER_MAX:
+		if _store_page_cache_spare():
+			return
+		Game.add_score(5)
+		_register_scrap_overflow()
+		return
 	meter = minf(meter + Balance.MOTE_VALUE, Balance.OC_METER_MAX)
-	if meter >= Balance.OC_METER_MAX:
+	if meter >= Balance.OC_METER_MAX and _oc_recharge_lock_t <= 0.0:
 		oc_ready = true
 		Sfx.play("ready", 1.0, -4.0)
 		Sfx.haptic(25)
