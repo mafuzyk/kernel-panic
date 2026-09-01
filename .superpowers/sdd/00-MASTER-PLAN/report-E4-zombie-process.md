@@ -1,0 +1,88 @@
+# E4 — ZOMBIE_PROCESS
+
+## Scope and player-facing result
+
+Implementation commit: `16f6f24` (`feat: add zombie process enemy slice`).
+Documentation commit follows after this report is finalized.
+
+E4 adds the first approved new enemy slice only. `ZOMBIE_PROCESS` is a
+temporary dead shell: it blocks player bullets, does not pursue or attack,
+does not participate in enemy separation/pathing, expires after 4.0 seconds,
+and never grants score, motes, recover, combo, chain or kill notifications.
+The first `/boot` teach wave is now one zombie, followed by the existing drone
+waves. `RACE_CONDITION` and `DEADLOCK` are not implemented.
+
+## Threat sheet
+
+| Field | Decision |
+| --- | --- |
+| Purpose | Teach that a defeated process can leave short-lived projectile clutter. |
+| Telegraph | Broken shell, dead terminal caret, shrinking timer ring and a white timer bar. |
+| Counterplay | Reposition, wait for expiry, or choose another target. |
+| If ignored | Bullets are absorbed until the shell is destroyed or expires; enemies keep their normal pathing. |
+| Reward/cost | No reward, no kill/combo/chain progression, no mote/recover drop. A shot or time is the only cost. |
+| Desktop/mobile readability | Code-drawn shell and non-color caret/ring markers; bounds are measured through the shared renderer at compact sizes. |
+| Why first | It has low coupling: one temporary projectile obstacle can be taught and tested before the linked pair's shared buff/leash state. |
+
+## Files
+
+- Added `src/enemies/zombie_process.gd`.
+- Updated `EnemyBase` with virtual participation hooks and separation filtering.
+- Updated `Arena` reward handling and `Spawner` factory.
+- Updated `GlyphLib`, `Balance`, shared descriptor/adapter, content catalog,
+  bestiary and first story wave.
+- Added `tools/e4_zombie_process_probe.gd/.tscn` and validator registration.
+- Updated the existing story harness expectation and created the required
+  E4 handoff/release records.
+
+## Red/green evidence
+
+The first real-path probe was run before the production implementation:
+
+- Red log: `/tmp/kernel-panic-e4-red-2.log` (retained outside the repository).
+- Exit `1`, `PROBE_DONE fails=5`; factory, glyph, catalog, teach-wave and real
+  spawn assertions failed as expected.
+
+After implementation, the focused probe passed headless and under Xvfb:
+
+- Headless: exit `0`, 18 `PROBE_PASS`, `PROBE_DONE fails=0`.
+- Xvfb: exit `0`, 18 `PROBE_PASS`, `PROBE_DONE fails=0`.
+- It covers factory/story spawn, collision layer, pathing exclusion, expiry,
+  wave clear, no zombie rewards, ordinary drone rewards, snapshot fields,
+  bounded extent and reduced-motion/color-assist marker data.
+
+Additional verification:
+
+- Import: exit `0`; Godot printed the existing environment warning that the
+  Android `build-tools` directory could not be opened.
+- DevHarness: exit `0`, 1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`.
+- Aggregate validator: run with Dummy audio and isolated data; the E4 case was
+  `exit=0`, 17 passes, 0 fails, and the validator reported no runtime ERRORs
+  for that case. The first aggregate run exposed and was corrected for the
+  pre-existing E2 glyph hash guard by making its non-batch baseline include the
+  intentional E4 glyph.
+
+## Technical decisions and compatibility
+
+`ZombieProcessEnemy` overrides `take_hit()` and expiry to queue itself without
+emitting `died`; the arena's existing child-exit cleanup removes it from the
+shared list. `participates_in_enemy_pathing()` and
+`participates_in_kill_rewards()` default to true on `EnemyBase`, preserving old
+enemy behavior while making the exception explicit. No bullet damage/lifetime,
+player movement, score constants, ordinary enemy stats, save schema, input
+bindings or balance progression were changed.
+
+## Limitations and uncertainty
+
+Headless/Xvfb checks do not constitute human visual approval. No manual wide /
+compact / narrow screenshot review, physical mobile test, Android export,
+dense-wave performance profile or gameplay-feel review was performed. Existing
+teardown resource/RID/texture diagnostics remain non-gating and unresolved.
+The authoritative brief was found in the plan-execution worktree at the path
+requested by the task; the original checkout is a separate worktree and was
+not modified.
+
+## Next safe checkpoint
+
+Stop for adversarial review of this isolated slice. Do not begin
+`RACE_CONDITION` or any later plan item from this handoff.

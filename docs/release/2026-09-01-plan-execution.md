@@ -448,3 +448,55 @@ scope.
 - No final human visual approval, physical mobile/Android/Vega validation,
   PT-BR or native screen-reader validation is claimed. Existing teardown
   diagnostics remain open and are not represented as fixed.
+## 2026-09-01 — unreleased — ZOMBIE_PROCESS
+
+Branch: `codex/plan-execution`
+Commits: `16f6f24` implementation; documentation commit recorded in the E4 handoff
+Area: gameplay
+Platforms: PC | mobile (logical/code path only; no physical mobile validation)
+
+### Bugs found
+
+- No prior implementation could construct or teach the approved temporary
+  projectile obstacle; the first real-path probe reproduced five missing
+  contracts before the fix.
+
+### Root cause
+
+- The enemy factory, story data, bestiary/catalog, presentation vocabulary and
+  reward/pathing ownership had no temporary-process contract.
+
+### Fixes
+
+- Added a stationary 4-second `ZOMBIE_PROCESS` with explicit virtual hooks that
+  exclude it from pathing and kill rewards. Expiry and damage destruction leave
+  the normal reward path untouched.
+- Added the first isolated `/boot` teach wave, shared code-drawn shell/caret/
+  timer identity, catalog entry and real-path validator case.
+
+### Improvements and additions
+
+- Players can reposition or wait through a readable dead-process shell that
+  blocks shots briefly, with a timer represented by shape/line markers as well
+  as color.
+
+### Compatibility
+
+- No save schema, input, bullet constants, ordinary enemy stats, score rules or
+  existing enemy behavior changed. No sprite or texture was introduced.
+
+### Evidence
+
+- Red: `/tmp/kernel-panic-e4-red-2.log`, exit 1, `PROBE_DONE fails=5`.
+- Green focused headless/Xvfb: exit 0, 18 passes, `PROBE_DONE fails=0`.
+- DevHarness: exit 0, 1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`.
+- Import: exit 0; Android build-tools environment warning recorded.
+- Aggregate validator: `VALIDATION OK`; E4 17/0 and all accumulated cases
+  green, with teardown diagnostics reported separately.
+
+### Known limitations
+
+- No human visual approval, screenshots, physical mobile test, Android export,
+  dense-wave profile or gameplay-feel review. Existing teardown resource/RID
+  diagnostics remain open. The next safe checkpoint is adversarial review of
+  this slice; `RACE_CONDITION` is intentionally deferred.
