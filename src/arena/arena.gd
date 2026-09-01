@@ -377,6 +377,10 @@ func combat_snapshot() -> Dictionary:
 	var spawner_snapshot := {}
 	if spawner != null and is_instance_valid(spawner):
 		spawner_snapshot = {"wave": int(spawner.wave), "event": str(spawner.wave_event), "pending": int(spawner._pending), "running": bool(spawner._running)}
+	var patch_offers: Array = []
+	for raw_offer in _patch_offers:
+		if raw_offer is Dictionary:
+			patch_offers.append(_snapshot_patch_offer(raw_offer))
 	var snapshot := {
 		"schema_version": 1,
 		"owner": "Arena",
@@ -389,7 +393,7 @@ func combat_snapshot() -> Dictionary:
 		"enemies": enemies,
 		"spawner": spawner_snapshot,
 		"boss": {"name": str(hud._boss_name), "fraction": float(hud._boss_frac)} if hud != null and is_instance_valid(hud) else {},
-		"patch_offers": [],
+		"patch_offers": patch_offers,
 		"arena_rect": _snapshot_rect(Balance.arena_rect()),
 		"palette": {"accent": _era_color.to_html(false), "danger": Balance.COL_DANGER.to_html(false)},
 	}
@@ -402,6 +406,17 @@ func _snapshot_vector(value: Vector2) -> Dictionary:
 
 func _snapshot_rect(value: Rect2) -> Dictionary:
 	return {"x": float(value.position.x), "y": float(value.position.y), "width": float(value.size.x), "height": float(value.size.y)}
+
+func _snapshot_patch_offer(definition: Dictionary) -> Dictionary:
+	var id := str(definition.get("id", ""))
+	return {
+		"id": id,
+		"title": str(definition.get("title", id.to_upper())),
+		"description": str(definition.get("desc", "")),
+		"level": Game.patch_level(id),
+		"rare": bool(definition.get("rare", false)),
+		"legend": bool(definition.get("legend", false)),
+	}
 
 
 func handle_pause_input(event: InputEvent) -> bool:
