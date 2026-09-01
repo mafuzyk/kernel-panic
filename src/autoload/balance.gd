@@ -1,5 +1,7 @@
 class_name Balance
 
+const WEEKLY_MUTATOR_CATALOG = preload("res://src/gameplay/weekly_mutator_catalog.gd")
+
 const ARENA_W := 1208.0
 const ARENA_H := 648.0
 static var _arena_size_override := Vector2.ZERO
@@ -123,7 +125,25 @@ static func difficulty_wave_budget(wave: int) -> int:
 	if not difficulty_applies():
 		return wave_budget(wave)
 	var mult: float = DIFF_BUDGET_MULT.get(Game.difficulty, 1.0)
-	return maxi(1, int(floor(float(wave_budget(wave)) * mult)))
+	return maxi(1, int(floor(float(wave_budget(wave)) * mult * weekly_wave_budget_multiplier())))
+
+static func weekly_enemy_speed_multiplier(mutator_id: String = "") -> float:
+	var id := mutator_id
+	if id.is_empty() and Game.mode == "weekly":
+		id = Game.weekly_mutator_id()
+	if id.is_empty():
+		return 1.0
+	var definition := WEEKLY_MUTATOR_CATALOG.for_id(id)
+	return float(definition.get("multiplier", 1.0)) if definition.get("tag", "") == "movement" else 1.0
+
+static func weekly_wave_budget_multiplier(mutator_id: String = "") -> float:
+	var id := mutator_id
+	if id.is_empty() and Game.mode == "weekly":
+		id = Game.weekly_mutator_id()
+	if id.is_empty():
+		return 1.0
+	var definition := WEEKLY_MUTATOR_CATALOG.for_id(id)
+	return float(definition.get("multiplier", 1.0)) if definition.get("tag", "") == "spawn" else 1.0
 
 static func difficulty_elite_chance(wave: int) -> float:
 	if not difficulty_applies():

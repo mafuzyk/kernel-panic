@@ -336,6 +336,8 @@ func apply_menu_layout() -> void:
 		m._mode_info.offset_right = (lay["mode_info"] as Rect2).end.x
 		m._mode_info.offset_top = (lay["mode_info"] as Rect2).position.y
 		m._mode_info.offset_bottom = (lay["mode_info"] as Rect2).end.y
+	_place_center_button(m._practice_wave_btn, lay["mode_info"])
+	_set_button_min(m._practice_wave_btn, (lay["mode_info"] as Rect2).size)
 	if m._prompt != null and is_instance_valid(m._prompt):
 		m._prompt.anchor_left = 0.0
 		m._prompt.anchor_right = 0.0
@@ -493,6 +495,18 @@ func _build_button_row() -> void:
 	m._mode_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	m._mode_info.visible = false
 	m.add_child(m._mode_info)
+	m._practice_wave_btn = Button.new()
+	m._practice_wave_btn.flat = true
+	m._practice_wave_btn.focus_mode = Control.FOCUS_NONE
+	m._practice_wave_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	m._practice_wave_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	m._practice_wave_btn.add_theme_font_size_override("font_size", 12)
+	m._practice_wave_btn.add_theme_color_override("font_color", Balance.COL_MOTE)
+	m._practice_wave_btn.add_theme_color_override("font_hover_color", Balance.COL_PLAYER_HOT)
+	m._practice_wave_btn.add_theme_color_override("font_pressed_color", Balance.COL_PLAYER_HOT)
+	m._practice_wave_btn.visible = false
+	m._practice_wave_btn.pressed.connect(m._cycle_practice_wave)
+	m.add_child(m._practice_wave_btn)
 	m._refresh_mode_ui()
 
 func _style_overlay_back(back: Button) -> void:

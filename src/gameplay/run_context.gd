@@ -28,7 +28,12 @@ static func from_game(game: Object) -> RefCounted:
 	if mode_id == "story" and game.has_method("story_stage_id"):
 		var raw_stage_index: Variant = game.get("story_stage_index")
 		stage_id = str(game.call("story_stage_id", int(raw_stage_index if raw_stage_index != null else 0)))
-	return load("res://src/gameplay/run_context.gd").new(mode_id, stage_id)
+	var mutators: Array[String] = []
+	if mode_id == "weekly" and game.has_method("weekly_mutator_id"):
+		var weekly_id := str(game.call("weekly_mutator_id"))
+		if not weekly_id.is_empty():
+			mutators.append(weekly_id)
+	return load("res://src/gameplay/run_context.gd").new(mode_id, stage_id, mutators)
 
 static func from_snapshot(snapshot: Dictionary) -> RefCounted:
 	var raw_mutators: Array = snapshot.get("mutators", []) if snapshot.get("mutators", []) is Array else []

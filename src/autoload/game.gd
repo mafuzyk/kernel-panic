@@ -3,6 +3,7 @@ extends Node
 const STORY_DATA = preload("res://src/story/story_data.gd")
 const CONTENT_CATALOG = preload("res://src/data/content_catalog.gd")
 const RUN_CONTEXT = preload("res://src/gameplay/run_context.gd")
+const WEEKLY_MUTATOR_CATALOG = preload("res://src/gameplay/weekly_mutator_catalog.gd")
 
 signal score_changed(score: int, mult: int)
 signal combo_changed(mult: int, frac: float)
@@ -29,6 +30,8 @@ var vampic_cd := 0.0
 const VAMPIC_COOLDOWN := 10.0
 var unlocked_programs := {"kernel": true}
 var onehp_unlocked := false
+var best_endless_wave := 0
+var practice_wave := 1
 var bestiary := {}
 var tutorial := {}
 var rng := RandomNumberGenerator.new()
@@ -98,7 +101,7 @@ func program_def() -> Dictionary:
 
 func run_snapshot() -> Dictionary:
 	var required := ["state", "mode", "difficulty", "program", "score", "best", "mult", "combo_left", "wave", "stats", "patch_levels", "event_log", "run_seed"]
-	var optional := ["story_stage_index", "story_cleared", "story_best", "temple_rainbow_unlocked", "achievements", "unlocked_programs", "palette"]
+	var optional := ["story_stage_index", "story_cleared", "story_best", "temple_rainbow_unlocked", "achievements", "unlocked_programs", "best_endless_wave", "practice_wave", "weekly_mutator", "palette"]
 	var snapshot := {
 		"schema_version": 1,
 		"owner": "Game",
@@ -123,6 +126,9 @@ func run_snapshot() -> Dictionary:
 		"temple_rainbow_unlocked": bool(temple_rainbow_unlocked),
 		"achievements": achievements.duplicate(true),
 		"unlocked_programs": unlocked_programs.duplicate(true),
+		"best_endless_wave": int(best_endless_wave),
+		"practice_wave": int(practice_wave),
+		"weekly_mutator": weekly_mutator().duplicate(true) if mode == "weekly" else {},
 		"palette": {"player": Balance.COL_PLAYER.to_html(false), "danger": Balance.COL_DANGER.to_html(false)},
 	}
 	for field in required:
@@ -178,12 +184,18 @@ func _load_run_config() -> void:
 	if cf.load(Sfx.SAVE_PATH) == OK:
 		best = cf.get_value("run", "best_classic", cf.get_value("run", "best", 0))
 		onehp_unlocked = cf.get_value("run", "onehp_unlocked", false)
+		best_endless_wave = maxi(int(cf.get_value("run", "best_endless_wave", 0)), 0)
+		practice_wave = maxi(int(cf.get_value("game", "practice_wave", 1)), 1)
 		bestiary = cf.get_value("bestiary", "seen", {})
 		tutorial = cf.get_value("tutorial", "hints", {})
 		achievements = cf.get_value("achievements", "unlocked", {})
 		mode = cf.get_value("game", "mode", "classic")
 		if mode == "onehp" and not onehp_unlocked:
 			mode = "classic"
+		if mode == "practice" and not practice_unlocked():
+			mode = "classic"
+		if practice_unlocked():
+			practice_wave = clampi(practice_wave, 1, practice_max_wave())
 		difficulty = str(cf.get_value("game", "difficulty", "normal"))
 		if difficulty not in Balance.DIFFICULTY_ORDER:
 			difficulty = "normal"
@@ -209,6 +221,35 @@ func week_number() -> int:
 func week_id() -> String:
 	return "W%d" % week_number()
 
+func weekly_seed() -> int:
+	return week_number() * 7919 + 13
+
+func weekly_mutator() -> Dictionary:
+	return WEEKLY_MUTATOR_CATALOG.for_seed(weekly_seed())
+
+func weekly_mutator_id() -> String:
+	return str(weekly_mutator().get("id", ""))
+
+func weekly_mutator_title() -> String:
+	return str(weekly_mutator().get("title", "WEEKLY MUTATOR"))
+
+func weekly_mutator_description() -> String:
+	return str(weekly_mutator().get("description", "NO MUTATOR"))
+
+func practice_unlocked() -> bool:
+	return best_endless_wave > 0
+
+func practice_max_wave() -> int:
+	return maxi(best_endless_wave, 1) if practice_unlocked() else 0
+
+func set_practice_wave(value: int) -> void:
+	var max_wave := practice_max_wave()
+	practice_wave = clampi(value, 1, max_wave) if max_wave > 0 else 1
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("game", "practice_wave", practice_wave)
+	cf.save(Sfx.SAVE_PATH)
+
 func best_for_mode() -> int:
 	match mode:
 		"story":
@@ -224,6 +265,8 @@ func best_for_mode() -> int:
 			var cf := ConfigFile.new()
 			cf.load(Sfx.SAVE_PATH)
 			return cf.get_value("run", "best_onehp", 0)
+		"practice":
+			return 0
 	return best
 
 func unlock_onehp() -> void:
@@ -414,6 +457,8 @@ func onehp_patch_pool() -> Array:
 
 func start_run() -> void:
 	mode = mode if mode != "story" else "classic"
+	if mode == "practice" and not practice_unlocked():
+		mode = "classic"
 	Sfx.set_music_variant("normal")
 	state = State.PLAYING
 	score = 0
@@ -428,14 +473,19 @@ func start_run() -> void:
 	Sfx.set_intensity(0)
 	match mode:
 		"weekly":
-			run_seed = week_number() * 7919 + 13
+			run_seed = weekly_seed()
 			rng.seed = run_seed
 		_:
 			rng.randomize()
 			run_seed = int(rng.seed)
 	new_best = false
 	stats = {"kills": 0, "shots": 0, "hits": 0, "damage": 0, "time": 0.0, "wave": 1, "boss_kills": 0, "heals": {}}
-	log_event("BOOT // %s // SEED %d" % [program_def()["name"], run_seed])
+	var boot_line := "BOOT // %s // SEED %d" % [program_def()["name"], run_seed]
+	if mode == "weekly":
+		boot_line += " // %s" % weekly_mutator_id().to_upper()
+	if mode == "practice":
+		boot_line += " // PRACTICE WAVE %02d // RECORDS OFF" % practice_wave
+	log_event(boot_line)
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	get_tree().call_deferred("change_scene_to_file", "res://src/arena/arena.tscn")
@@ -536,6 +586,7 @@ func export_save_string() -> String:
 		"run": {
 			"best_classic": int(cf.get_value("run", "best_classic", best)),
 			"best_onehp": int(cf.get_value("run", "best_onehp", 0)),
+			"best_endless_wave": int(cf.get_value("run", "best_endless_wave", best_endless_wave)),
 			"onehp_unlocked": bool(cf.get_value("run", "onehp_unlocked", onehp_unlocked)),
 			"program": str(cf.get_value("run", "program", program)),
 		},
@@ -590,6 +641,7 @@ func import_save_string(encoded: String) -> bool:
 	cf.load(Sfx.SAVE_PATH)
 	cf.set_value("run", "best_classic", maxi(int(run_data.get("best_classic", 0)), 0))
 	cf.set_value("run", "best_onehp", maxi(int(run_data.get("best_onehp", 0)), 0))
+	cf.set_value("run", "best_endless_wave", maxi(int(run_data.get("best_endless_wave", 0)), 0))
 	cf.set_value("run", "onehp_unlocked", bool(run_data.get("onehp_unlocked", false)))
 	var imported_program := str(run_data.get("program", "kernel"))
 	cf.set_value("run", "program", imported_program if PROGRAM_DEFS.has(imported_program) else "kernel")
@@ -673,6 +725,8 @@ func end_run() -> void:
 	state = State.GAME_OVER
 	stats["wave"] = wave
 	stats["time"] = snappedf(stats["time"], 0.1)
+	if mode == "classic":
+		best_endless_wave = maxi(best_endless_wave, int(wave))
 	if can_write_records and score > best_for_mode():
 		new_best = true
 	if not can_write_records:
@@ -698,6 +752,7 @@ func end_run() -> void:
 			else:
 				new_best = false
 		_:
+			cf.set_value("run", "best_endless_wave", best_endless_wave)
 			if score > best:
 				best = score
 				cf.set_value("run", "best_classic", score)

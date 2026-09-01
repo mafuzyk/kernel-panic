@@ -24,6 +24,7 @@ var _purge_btn: Button
 var _mode_btn: Button
 var _diff_btn: Button
 var _mode_info: Label
+var _practice_wave_btn: Button
 var _klog: Label
 var _subtitle: Label
 var _controls_line: RichTextLabel
@@ -634,7 +635,7 @@ func settings_shell_snapshot() -> Dictionary:
 	var sections := TacticalUIHelper.shell_sections(size)
 	var settings_layout: Dictionary = _settings_kit.settings_layout_for_viewport(size)
 	return {
-		"groups": ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"],
+		"groups": ["AUDIO", "DISPLAY", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"],
 		"scrollable": _settings_panel != null and _settings_panel.find_child("SettingsScroll", true, false) != null,
 		"shell_rect": shell,
 		"navigation_rect": settings_layout["navigation"],
@@ -645,7 +646,7 @@ func settings_shell_snapshot() -> Dictionary:
 
 func menu_snapshot() -> Dictionary:
 	var required := ["screen", "mode", "difficulty", "program", "best", "layout"]
-	var optional := ["settings_section", "keybind_capture_visible", "palette"]
+	var optional := ["settings_section", "keybind_capture_visible", "weekly_mutator", "practice", "palette"]
 	var layout := menu_layout_for_viewport(size)
 	var encoded_layout := {}
 	for key in layout:
@@ -663,6 +664,8 @@ func menu_snapshot() -> Dictionary:
 		"layout": encoded_layout,
 		"settings_section": _settings_kit.active_section() if _settings_kit != null and _settings_kit.has_method("active_section") else "AUDIO",
 		"keybind_capture_visible": keybind_capture_visible(),
+		"weekly_mutator": Game.weekly_mutator().duplicate(true),
+		"practice": {"unlocked": Game.practice_unlocked(), "wave": Game.practice_wave, "max_wave": Game.practice_max_wave()},
 		"palette": {"accent": Balance.COL_PLAYER.to_html(false), "danger": Balance.COL_DANGER.to_html(false)},
 	}
 	for field in required:
@@ -689,13 +692,13 @@ func _snapshot_value(value):
 	return value
 
 func _cycle_mode() -> void:
-	var order := ["classic", "weekly", "onehp"]
+	var order: Array[String] = ["classic", "weekly"]
+	if Game.onehp_unlocked:
+		order.append("onehp")
+	if Game.practice_unlocked():
+		order.append("practice")
 	var idx := order.find(Game.mode)
-	for step in 3:
-		idx = (idx + 1) % 3
-		if order[idx] != "onehp" or Game.onehp_unlocked:
-			Game.mode = order[idx]
-			break
+	Game.mode = order[(idx + 1) % order.size()]
 	Sfx.play("ui", 1.1, -8.0)
 	var cf := ConfigFile.new()
 	cf.load(Sfx.SAVE_PATH)
@@ -736,17 +739,42 @@ func _refresh_mode_ui() -> void:
 			_mode_btn.text = "MODE: WEEKLY RUN"
 			var cur := int(cf.get_value("weekly", "best", 0)) if cf.get_value("weekly", "id", "") == Game.week_id() else 0
 			var last := int(cf.get_value("weekly", "last_best", 0))
-			_mode_info.text = "WEEK %s // LOCAL DETERMINISTIC // BEST %d // LAST %d" % [Game.week_id(), cur, last]
+			if size.x < 760.0:
+				_mode_info.text = "WEEK %s // %s // %s" % [Game.week_id(), Game.weekly_mutator_title(), Game.weekly_mutator_description()]
+			else:
+				_mode_info.text = "WEEK %s // LOCAL DETERMINISTIC // %s // %s // BEST %d // LAST %d" % [Game.week_id(), Game.weekly_mutator_title(), Game.weekly_mutator_description(), cur, last]
+			_mode_info.visible = true
 		"onehp":
 			_mode_btn.text = "MODE: ONE-HP"
 			_mode_info.text = "1 INTEGRITY // SCORE x3 // BEST %d" % int(cf.get_value("run", "best_onehp", 0))
+		"practice":
+			_mode_btn.text = "MODE: PRACTICE"
+			_mode_info.text = "PRACTICE // ENDLESS RECORDS AND ACHIEVEMENTS OFF"
+			_mode_info.visible = false
+			if _practice_wave_btn != null:
+				_practice_wave_btn.text = "PRACTICE WAVE: %02d / %02d" % [Game.practice_wave, Game.practice_max_wave()]
+				_practice_wave_btn.visible = true
 		_:
 			_mode_btn.text = "MODE: CLASSIC"
 			_mode_info.text = "CLASSIC // ENDLESS WAVES // HIGH SCORE %07d" % Game.best
+	if Game.mode != "weekly" and Game.mode != "practice":
+		_mode_info.visible = false
 	if Game.mode == "story":
-		_mode_info.text = "STORY // FIXED DIFFICULTY CURVE // " + _mode_info.text
+		_mode_info.text = "STORY // ACT 1 // %s // %d/%d CLEAR" % [str(Game.story_stage_def(Game.story_stage_index).get("path", "/boot")), Game.story_cleared.size(), Game.story_stage_count()] if size.x < 760.0 else "STORY // FIXED DIFFICULTY CURVE // " + _mode_info.text
+	if _practice_wave_btn != null and Game.mode != "practice":
+		_practice_wave_btn.visible = false
 	_update_best()
 	_refresh_difficulty_label()
+
+func _cycle_practice_wave() -> void:
+	if Game.mode != "practice" or not Game.practice_unlocked():
+		return
+	var next_wave := Game.practice_wave + 1
+	if next_wave > Game.practice_max_wave():
+		next_wave = 1
+	Game.set_practice_wave(next_wave)
+	Sfx.play("ui", 1.1, -8.0)
+	_refresh_mode_ui()
 
 func _set_main_menu_controls_visible(visible: bool) -> void:
 	for child in get_children():
@@ -951,16 +979,19 @@ func text_overflow_report() -> Array:
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
 	var out: Array = []
 	var longest := ""
+	var weekly_preview := "WEEK %s // %s // %s" % [Game.week_id(), Game.weekly_mutator_title(), Game.weekly_mutator_description()] if size.x < 760.0 else "WEEK W9999 // LOCAL DETERMINISTIC // SWIFT DAEMONS // DAEMONS MOVE +20% // BEST 0000000 // LAST 0000000"
+	var story_preview := "STORY // ACT 1 // /kernel // 6/6 CLEAR" if size.x < 760.0 else "STORY // FIXED DIFFICULTY CURVE // UNIX ACT 1 // CURRENT /kernel // 6/6 STAGES CLEAR"
 	for text in [
-		"UNIX ACT 1 // CURRENT /kernel // 6/6 STAGES CLEAR",
-		"WEEK W9999 // LOCAL DETERMINISTIC // BEST 0000000 // LAST 0000000",
+		story_preview,
+		weekly_preview,
 		"CLASSIC // ENDLESS WAVES // HIGH SCORE 0000000",
-		"STORY // FIXED DIFFICULTY CURVE // UNIX ACT 1 // CURRENT /kernel // 6/6 STAGES CLEAR",
+		"PRACTICE // ENDLESS RECORDS AND ACHIEVEMENTS OFF",
 	]:
 		if text.length() > longest.length():
 			longest = text
 	# Measure against the spec's real annotation column (shell margins + gutter).
 	var side := TacticalUIHelper.frame_margins(size).x + MenuChromeKitScript.GUTTER
 	var info_width: float = maxf(size.x - side * 2.0, 0.0)
-	out.append({"id": "mode_info", "fits": TacticalUI.wrapped_height(mono, longest, info_width, 12) <= 44.0})
+	var height_limit := 24.0 if size.x < 760.0 else 44.0
+	out.append({"id": "mode_info", "fits": TacticalUI.wrapped_height(mono, longest, info_width, 12) <= height_limit})
 	return out

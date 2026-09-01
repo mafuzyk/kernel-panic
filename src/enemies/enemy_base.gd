@@ -59,7 +59,7 @@ func participates_in_kill_rewards() -> bool:
 func configure(wave_scale_f: float, is_elite: bool) -> void:
 	hp = int(ceil(hp * wave_scale_f * (2.0 if is_elite else 1.0)))
 	max_hp = hp
-	speed *= wave_scale_f * (1.22 if is_elite else 1.0)
+	speed *= wave_scale_f * (1.22 if is_elite else 1.0) * Balance.weekly_enemy_speed_multiplier()
 	elite = is_elite
 	if is_elite:
 		pts *= 3

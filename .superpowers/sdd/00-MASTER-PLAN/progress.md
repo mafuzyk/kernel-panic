@@ -738,5 +738,35 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
   vNext display migration, final visual approval and device performance.
 - Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-G2-display-settings.md`.
 - Handoff: `docs/HANDOFF-G2-DISPLAY-SETTINGS.md`.
-- Next task: G3 modes/replayability, starting with weekly mutators and keeping
-  reserved Practice from being advertised as shipped.
+
+## G3 — Weekly mutator and Practice wave selection
+
+- Status: implemented on `codex/plan-execution`; focused and full evidence is
+  green, with balance/onboarding choices explicitly left for human playtest.
+- Added `WeeklyMutatorCatalog` with two deterministic, tagged, additive
+  entries: `swift_daemons` (`movement`, +20% enemy/boss movement) and
+  `rush_hour` (`spawn`, +20% wave budget). `Game.weekly_seed()` is shared by
+  the run and the preview; `RunContext` carries exactly the selected Weekly ID.
+- Weekly preview is visible in the legacy menu before launch and is shortened
+  on compact screens. Existing local deterministic/lock-on wording was
+  preserved after an old suite assertion caught its accidental removal.
+- Practice now unlocks from `best_endless_wave`, starts the real Arena at the
+  selected wave, clamps selection to the unlocked ceiling and remains empty in
+  the mutator context. Practice exits before run/lifetime/achievement writes.
+  Classic persists its highest reached wave; save transfer remains version 1
+  with an additive default for old payloads.
+- Focused red: `/tmp/g3-red-probe.log`, exit 124 at the expected missing
+  catalog/API stage before production; no completion marker accepted.
+- Focused headless green: `/tmp/g3-green7.log`, exit 0, 44 passes,
+  `PROBE_DONE fails=0`. Xvfb green: `/tmp/g3-xvfb.log`, exit 0, 44 passes,
+  `PROBE_DONE fails=0`.
+- Full DevHarness after the preview-copy and compact-overflow corrections:
+  `/tmp/kernel-panic-g3-suite2.log`, exit 0, 1427 `AT_PASS`, 0 `AT_FAIL`,
+  `AUTOTEST_ALL_PASS`, no script/parse errors.
+- The dedicated probe also covers movement/budget isolation, regular and boss
+  configure paths, mode/save boundaries, menu preview, compact copy and
+  overflow. Teardown diagnostics are unchanged baseline.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-G3-weekly-practice.md`.
+- Handoff: `docs/HANDOFF-G3-WEEKLY-PRACTICE.md`.
+- Next task: G4 boss desperation, after measuring that its cadence/telegraph
+  transition remains reactable in normal and One-HP scenarios.

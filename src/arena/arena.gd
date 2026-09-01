@@ -173,7 +173,8 @@ func _ready() -> void:
 	if Game.mode == "story":
 		_intro_kit._show_story_intro.call_deferred()
 	else:
-		spawner.start(self, enemy_container, 1)
+		var first_wave := Game.practice_wave if Game.mode == "practice" else 1
+		spawner.start(self, enemy_container, first_wave)
 	enemy_container.child_entered_tree.connect(_on_enemy_child)
 	enemy_container.child_exiting_tree.connect(_on_enemy_exit)
 	player.hp_changed.connect(_on_player_hp)

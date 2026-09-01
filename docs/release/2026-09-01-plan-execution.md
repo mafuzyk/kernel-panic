@@ -81,6 +81,31 @@ master-plan documentation and does not merge into `main` automatically.
   with no gated runtime errors. Teardown diagnostics remain separately
   reported and are not claimed as fixed.
 
+### G3 Weekly and Practice foundations
+
+- Added a visible, deterministic Weekly mutator rotation with two readable
+  effects: daemons move 20% faster or wave budgets are 20% larger. Weekly
+  records remain separate from Classic and Practice, and the selected rule is
+  shown before launch.
+- Added Practice wave selection unlocked by the highest Classic Endless wave
+  reached. Practice starts at the selected wave and is excluded from run
+  records, lifetime statistics and achievement conditions.
+- Added compact-screen copy for Weekly/Story annotations and a touchable
+  Practice wave selector to the existing responsive menu. Save transfer
+  version 1 remains compatible with older payloads.
+- Validation: dedicated G3 probe passed in headless and Xvfb; full DevHarness
+  passed with 1427 checks and `AUTOTEST_ALL_PASS`. No public release claim is
+  made for final balance feel, physical mobile support or teardown cleanliness.
+
+## G3 technical notes
+
+The two mutators are tagged `movement` and `spawn`; their effects are routed
+through `Balance` rather than hidden in UI code. The selected movement rule
+also covers RootBoss/GodBoss configure overrides. Practice's non-recording
+boundary is enforced at the existing `Game.end_run()` and achievement paths,
+not only in menu copy. The chosen first-run unlock threshold and +20% values
+are implementation assumptions awaiting human playtest.
+
 ## Technical changelog
 
 ### Architecture and repository

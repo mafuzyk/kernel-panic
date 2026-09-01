@@ -70,7 +70,7 @@ func configure(wave_scale_f: float, is_elite: bool) -> void:
 	kind = kind_for_index(boss_index)
 	if mini:
 		radius = 26.0
-		speed = 95.0
+		speed = 95.0 * Balance.weekly_enemy_speed_multiplier()
 		pts = 600
 		mote_count = 6
 		boss_title = "MINI-" + title_for_index(boss_index)
@@ -81,7 +81,7 @@ func configure(wave_scale_f: float, is_elite: bool) -> void:
 		return
 	hp = 120 + 42 * (boss_index - 1)
 	max_hp = hp
-	speed = 55.0 + 5.0 * (boss_index - 1)
+	speed = (55.0 + 5.0 * (boss_index - 1)) * Balance.weekly_enemy_speed_multiplier()
 	pts = 2500 * boss_index
 	mote_count = 26 + 6 * (boss_index - 1)
 	boss_title = title_for_index(boss_index)

@@ -10,7 +10,7 @@ var oracle_roll_count := 0
 func _init() -> void:
 	display_name = "GOD"
 	hp = 170
-	speed = 48.0
+	speed = 48.0 * Balance.weekly_enemy_speed_multiplier()
 	pts = 5000
 	radius = 56.0
 	col = Color("ffd24f")
