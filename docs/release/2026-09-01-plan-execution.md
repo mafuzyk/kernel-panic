@@ -547,3 +547,59 @@ Platforms: PC | mobile (logical/code path only; no physical mobile validation)
 - Fresh aggregate validation: `/tmp/kernel-panic-e4-review-validator-summary.log`,
   exit 0, `VALIDATION OK`; full suite 1414/0, E2 77/0 and E4 20/0, with no
   gated runtime errors. Teardown diagnostics remain reported separately.
+
+## 2026-09-01 — unreleased — E5 entity quality tiers
+
+This is an internal development-log entry. It is not yet a public release
+claim because the vNext route remains opt-in and physical mobile/visual
+approval is still open.
+
+### Added
+
+- Added an explicit quality profile for code-drawn entity previews, with
+  desktop and mobile tiers plus reduced-motion, high-contrast, color-assist
+  and grayscale flags.
+- Added a finish-only renderer layer: desktop keeps subtle outer accents,
+  while mobile removes that cosmetic work without removing identity, facing or
+  state markers.
+- Routed the profile into the vNext Boot and Program previews when touch
+  context is explicitly active.
+
+### Fixed
+
+- Fixed malformed boolean-like quality values so serialized `"false"` and
+  `"off"` do not become truthy settings.
+- Fixed preview refreshes from retaining a stale desktop quality profile.
+
+### Improved
+
+- Improved the separation between gameplay-readable structure and optional
+  cosmetic finish in the code-drawn renderer.
+- Added a real ten-entity draw-path probe and a sprite-policy check.
+
+### Compatibility
+
+- Legacy routes, gameplay, save data, input bindings and raster defaults are
+  unchanged. No raster asset was added; code-drawn output remains the default.
+
+### Performance
+
+- Mobile finish work is contractually disabled. Local script-side samples are
+  recorded for future budgeting but do not constitute physical-device or GPU
+  performance guarantees.
+
+### Known Issues
+
+- Legacy combat enemy custom drawing is not yet routed through the new quality
+  profile. Physical mobile/Android/Vega profiling, human visual approval,
+  persisted exposure of all accessibility flags, raster comparison and
+  teardown diagnostics remain open.
+
+### Evidence
+
+- E5 focused headless and Xvfb probes: 18 passes, zero failures in each.
+- Full DevHarness: 1414 passes, zero failures, `AUTOTEST_ALL_PASS`.
+- Accumulated validator: `VALIDATION OK`; all registered probes passed with
+  zero gated runtime errors.
+- Technical report: `.superpowers/sdd/00-MASTER-PLAN/report-E5-entity-quality.md`.
+- Handoff: `docs/HANDOFF-E5-ENTITY-QUALITY.md`.

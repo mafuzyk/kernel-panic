@@ -623,3 +623,38 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Handoff: `docs/HANDOFF-E3-PROGRAM-IDENTITY.md`.
 - Commits: `f5a3669`, `88313c2`, `b6e6eaa`, plus the adversarial correction
   and documentation commits that follow.
+
+## E5 — code-drawn finish tiers, mobile variant and sprite gate
+
+- Status: implemented on `codex/plan-execution`; vNext Boot and Program
+  previews now receive an explicit quality profile. Legacy combat enemy
+  custom drawing remains deliberately outside this slice.
+- Added `VNextEntityQuality` normalization, explicit desktop/mobile profiles,
+  reduced-motion phase freezing, high-contrast/color-assist/grayscale flags,
+  and a bounded finish-only draw layer. Identity, orientation, state and elite
+  markers remain structural in every tier.
+- Added `VNextEntityIllustration.set_quality_profile()` and routed the profile
+  through Boot/Program configure/layout refreshes using the existing touch and
+  accessibility context.
+- Sprite policy remains closed: no raster candidate or new image asset was
+  introduced, and the registry is still disabled by default.
+- Focused red: `/tmp/kernel-panic-e5-red.log` failed before the quality
+  boundary existed. Review red `/tmp/kernel-panic-e5-review-green.log`
+  exposed an untyped GDScript local; explicit typing and malformed-boolean
+  checks were added before acceptance.
+- Final focused headless/Xvfb: `18/0` with `PROBE_DONE fails=0` in both. The
+  probe exercises the real draw callback with ten snapshots and checks no RNG
+  or score mutation. Timings are local script-side measurements, not device
+  guarantees.
+- Import: `/tmp/kernel-panic-e5-final-import.log`, exit 0 with the known
+  Android build-tools warning. Full suite: `/tmp/kernel-panic-e5-final-full.log`,
+  `1414 AT_PASS`, `0 AT_FAIL`, `AUTOTEST_ALL_PASS`.
+- Commits: `655a7d3`, `7865f2c`, `5a88d01`; report:
+  `report-E5-entity-quality.md`; handoff:
+  `docs/HANDOFF-E5-ENTITY-QUALITY.md`.
+- Remaining: physical mobile/Android/Vega profiling, human visual approval,
+  legacy combat quality routing, persisted settings exposure for every flag,
+  raster comparison and baseline teardown diagnostics.
+- Next task: G2 gameplay foundations (Page Cache, Ring-0 double overclock and
+  display-control contract), with E4 Zombie Process treated as already
+  implemented rather than duplicated.
