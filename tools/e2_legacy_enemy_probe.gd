@@ -134,13 +134,22 @@ func _run() -> void:
 	_check(canvas.snapshot == draw_before, "real draw leaves presentation snapshot unchanged")
 	canvas.free()
 
+	var draw_host := Node2D.new()
+	add_child(draw_host)
 	for spec: Dictionary in BATCH:
 		var enemy = enemies.get(str(spec["id"]))
 		if enemy == null:
 			continue
+		enemy.process_mode = Node.PROCESS_MODE_DISABLED
+		draw_host.add_child(enemy)
+		enemy.set_physics_process(false)
 		var enemy_draw_before := _simulation_signature(enemy)
-		enemy.call("_draw")
+		enemy.queue_redraw()
+		await get_tree().process_frame
 		_check(_simulation_signature(enemy) == enemy_draw_before, "%s actual _draw leaves simulation fields unchanged" % spec["name"])
+		enemy.queue_free()
+		await get_tree().process_frame
+	draw_host.free()
 
 	for enemy in enemies.values():
 		if is_instance_valid(enemy):
