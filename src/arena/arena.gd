@@ -2,6 +2,7 @@ class_name Arena
 extends Node2D
 
 const PatchCard = preload("res://src/ui/patch_card.gd")
+const VNextPatchScript = preload("res://src/ui/vnext/surfaces/patch_surface.gd")
 const TacticalStateSurfaceHelper = preload("res://src/ui/tactical_state_surface.gd")
 const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
@@ -51,6 +52,8 @@ var touch: TouchControls
 var reticle: Reticle
 var _patch_panel: Control
 var _patch_box: HBoxContainer
+var _vnext_patch_surface: Control
+var _vnext_patch_mode := false
 var _patch_offers: Array = []
 var _patch_open := false
 var _patch_pending := 0
@@ -409,13 +412,51 @@ func _snapshot_rect(value: Rect2) -> Dictionary:
 
 func _snapshot_patch_offer(definition: Dictionary) -> Dictionary:
 	var id := str(definition.get("id", ""))
+	var level := Game.patch_level(id)
+	var max_level := int(definition.get("max", 0))
+	var relation := str(definition.get("relation", ""))
+	if relation.is_empty():
+		for active_id in Game.patch_levels.keys():
+			if str(active_id) == id:
+				continue
+			var candidate := Game.patch_relation(id, str(active_id))
+			if candidate != "NO DIRECT INTERACTION":
+				relation = candidate
+				break
+	if relation == "NO DIRECT INTERACTION":
+		relation = ""
+	var state := str(definition.get("state", ""))
+	if state.is_empty():
+		state = "locked" if bool(definition.get("locked", false)) else "unavailable" if not bool(definition.get("available", true)) or (max_level > 0 and level >= max_level) else ("conflict" if not relation.is_empty() else "ready")
+	var available := bool(definition.get("available", true))
+	if state in ["locked", "unavailable"]:
+		available = false
+	var before_build := Game.build_string()
+	var projected_levels: Dictionary = Game.patch_levels.duplicate(true)
+	projected_levels[id] = level + 1
+	var after_parts: Array[String] = []
+	for projected_id in projected_levels:
+		after_parts.append("%s%d" % [Game.PATCH_CODES.get(projected_id, str(projected_id).substr(0, 2).to_upper()), int(projected_levels[projected_id])])
+	var after_build := " ".join(after_parts) if not after_parts.is_empty() else "NO PATCHES"
+	var reason := str(definition.get("reason", ""))
+	if reason.is_empty():
+		reason = "MAX LEVEL REACHED" if state == "unavailable" else (relation if state == "conflict" else "UNLOCK CONDITION NOT MET" if state == "locked" else "")
 	return {
 		"id": id,
 		"title": str(definition.get("title", id.to_upper())),
-		"description": str(definition.get("desc", "")),
-		"level": Game.patch_level(id),
+		"description": str(definition.get("description", definition.get("desc", ""))),
+		"effect": str(definition.get("effect", definition.get("description", definition.get("desc", "")))),
+		"benefit": str(definition.get("benefit", definition.get("description", definition.get("desc", "")))),
+		"cost_benefit": str(definition.get("cost_benefit", "COST // NONE   BENEFIT // %s" % str(definition.get("description", definition.get("desc", ""))))),
+		"build_impact": str(definition.get("build_impact", "BEFORE // %s   AFTER // %s" % [before_build, after_build])),
+		"level": level,
+		"max": max_level,
 		"rare": bool(definition.get("rare", false)),
 		"legend": bool(definition.get("legend", false)),
+		"relation": relation,
+		"state": state,
+		"available": available,
+		"reason": reason,
 	}
 
 
@@ -579,6 +620,19 @@ func _show_tip() -> void:
 	tw.tween_property(_tip_label, "modulate:a", 0.0, 0.6)
 
 func _build_patch_ui() -> void:
+	_vnext_patch_mode = OS.get_environment("KP_VNEXT_PATCH") == "1"
+	if _vnext_patch_mode:
+		_vnext_patch_surface = VNextPatchScript.new()
+		_vnext_patch_surface.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_vnext_patch_surface.visible = false
+		_vnext_patch_surface.action_requested.connect(_on_vnext_patch_action)
+		_patch_panel = _vnext_patch_surface
+		var vnext_layer := CanvasLayer.new()
+		vnext_layer.layer = 65
+		vnext_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+		vnext_layer.add_child(_vnext_patch_surface)
+		add_child(vnext_layer)
+		return
 	_patch_panel = Control.new()
 	_patch_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_patch_panel.visible = false
@@ -643,6 +697,21 @@ func _try_show_patch() -> void:
 		_patch_open = false
 		return
 	get_tree().paused = true
+	if _vnext_patch_mode:
+		var patch_snapshot: Array = []
+		for definition in _patch_offers:
+			patch_snapshot.append(_snapshot_patch_offer(definition))
+		var viewport_size := get_viewport_rect().size
+		var touch_input := DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
+		_vnext_patch_surface.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_vnext_patch_surface.configure({
+			"offers": patch_snapshot,
+			"active_ids": Game.patch_levels.keys(),
+			"build": Game.build_string(),
+			"paused": true,
+		}, VNextPatchScript.context_for_viewport(viewport_size, touch_input))
+		_vnext_patch_surface.visible = true
+		return
 	for c in _patch_box.get_children():
 		c.queue_free()
 	for i in _patch_offers.size():
@@ -672,6 +741,41 @@ func _make_patch_card(def: Dictionary, idx: int) -> Control:
 	)
 	return card
 
+func vnext_patch_enabled() -> bool:
+	return _vnext_patch_mode
+
+func vnext_patch_surface() -> Control:
+	return _vnext_patch_surface
+
+func vnext_patch_visible() -> bool:
+	return _patch_open and _vnext_patch_surface != null and is_instance_valid(_vnext_patch_surface) and _vnext_patch_surface.visible
+
+func _on_vnext_patch_action(action_id: String, payload: Dictionary) -> void:
+	if not _vnext_patch_mode or not _patch_open:
+		return
+	match action_id:
+		"confirm":
+			var index := int(payload.get("index", -1))
+			if index < 0 or index >= _patch_offers.size():
+				_vnext_patch_surface.reject_action()
+				return
+			var requested_offer: Dictionary = payload.get("offer", {})
+			if str(requested_offer.get("id", "")) != str(_patch_offers[index].get("id", "")):
+				_vnext_patch_surface.reject_action()
+				return
+			_pick_patch(index)
+		"skip", "close":
+			_close_vnext_patch()
+
+func _close_vnext_patch() -> void:
+	if not _patch_open:
+		return
+	_patch_open = false
+	if _vnext_patch_surface != null and is_instance_valid(_vnext_patch_surface):
+		_vnext_patch_surface.visible = false
+	get_tree().paused = false
+	call_deferred("_try_show_patch")
+
 func _apply_patch_effects(id: String) -> void:
 	match id:
 		"hp":
@@ -687,7 +791,7 @@ func _apply_patch_effects(id: String) -> void:
 			player.heal(1)
 
 func _pick_patch(idx: int) -> void:
-	if not _patch_open or idx >= _patch_offers.size():
+	if not _patch_open or idx < 0 or idx >= _patch_offers.size():
 		return
 	var def: Dictionary = _patch_offers[idx]
 	var id: String = def["id"]
@@ -1001,6 +1105,8 @@ func _unhandled_input(event: InputEvent) -> void:
 ## LineEdit and ESC is handled solely by handle_pause_input.
 func handle_paused_gameplay_input(event: InputEvent) -> bool:
 	if _patch_open:
+		if _vnext_patch_mode and _vnext_patch_surface != null and is_instance_valid(_vnext_patch_surface):
+			return _vnext_patch_surface.handle_input(event)
 		if event is InputEventKey and event.pressed and not event.echo:
 			var k: int = event.physical_keycode
 			if k == KEY_1:

@@ -320,6 +320,11 @@ func handle_pause_input(event: InputEvent) -> bool:
 		_close_terminal()
 		return true
 	if a._patch_open:
+		if a._vnext_patch_mode:
+			if event.is_action_pressed("pause"):
+				a._close_vnext_patch()
+				return true
+			return false
 		return true
 	if a._state == "play":
 		a._set_paused(false)
@@ -355,4 +360,3 @@ func _center_panel_control(control: Control, design_top: float, control_height: 
 	control.scale = Vector2(scale, scale)
 	control.set_meta("panel_design_top", design_top)
 	control.set_meta("panel_control_height", control_height)
-
