@@ -49,6 +49,28 @@ Capture actual device model, OS, export type, resolution, quality tier and
 measurement method with every profile. Do not compare an editor run to an
 exported release as if they were equivalent.
 
+## Measurement and Budget Method
+
+The first performance task records a baseline before choosing final ceilings.
+For each supported profile, run the same fixed seed and report median, p95 and
+p99 frame time, worst frame, input-to-visible sample, peak active entities,
+peak memory/object counts, startup-to-menu and menu-to-first-input time. A
+single average FPS number is not sufficient because stutter and input latency
+are the player-visible failures.
+
+Release gates use the following interpretation: a 60 FPS target means p99
+frame time at or below 16.7 ms in the standard stress wave and no unexplained
+multi-frame spike; a 30 FPS fallback means p99 at or below 33.3 ms. If the
+device cannot meet a target, the report must show which quality tier was used,
+which visual features were reduced and whether telegraphs/action targets stayed
+legible. Entity and memory ceilings are derived from the measured stress wave,
+then fixed in the probe so later changes cannot silently grow the workload.
+
+The reference matrix contains at least one mid-range desktop export, one
+integrated-GPU or low-power desktop profile and one representative Android
+device. Editor, headless and Xvfb results remain useful diagnostics but cannot
+substitute for the export/device gates.
+
 ## Hot-Path Audit
 
 ### UI and drawing
@@ -92,6 +114,12 @@ category, bullets, motes, enemies, boss fragments, redraw count and resource
 counts over a repeatable wave sequence. It must emit a completion marker and
 never write a user save.
 
+The probe also records warm-up duration, sample count, p50/p95/p99 frame time,
+worst frame, input latency samples and a per-category peak. It writes a
+machine-readable summary beside the human log and refuses to report green when
+the scenario ended early, the sample count is below its minimum or the seed
+changed unexpectedly.
+
 ### Task P2 — UI/layout caching
 
 Move layout calculations behind invalidation keys: viewport, density, locale,
@@ -119,6 +147,11 @@ Attribute each resource to an owner, fix only confirmed leaks, and preserve a
 baseline file when a Godot backend diagnostic cannot be eliminated safely.
 Profile startup imports and avoid loading unused screens/assets during boot.
 
+Also exercise focus loss, scene restart, rapid overlay open/close, Android
+background/foreground where available and an interrupted save. A process that
+looks clean only after a normal quit is not sufficient evidence for lifecycle
+reliability.
+
 ## Determinism and Save Safety
 
 - UI capture, localization change, accessibility toggle and resize must not
@@ -128,6 +161,10 @@ Profile startup imports and avoid loading unused screens/assets during boot.
 - Versioned save migrations have a backup/read-failure fallback and a probe for
   old fixture data.
 - A failed save import never partially overwrites the current save.
+- Save writes use an atomic temporary-file/replace strategy through the existing
+  persistence owner, with a bounded recovery path after interruption. The
+  exact mechanism must match the current helper rather than introducing a
+  second writer.
 
 ## Acceptance Gates
 
@@ -136,6 +173,8 @@ Profile startup imports and avoid loading unused screens/assets during boot.
 - [ ] Stable UI frames reuse cached layout and do not load resources from `_draw()`.
 - [ ] Mobile quality reduction keeps all gameplay telegraphs and controls legible.
 - [ ] Input response and frame pacing are measured on real targets.
+- [ ] Each performance result includes p95/p99, worst frame, startup/input samples, profile and quality tier.
+- [ ] The standard stress scenario has fixed entity/memory ceilings and rejects early or incomplete runs.
 - [ ] Teardown diagnostics have a categorized before/after report.
 - [ ] Save export/import and locale/accessibility settings survive the performance changes.
 - [ ] Performance claims and known limits are recorded in the release log.

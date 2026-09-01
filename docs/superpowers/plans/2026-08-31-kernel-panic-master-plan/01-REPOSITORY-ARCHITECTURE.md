@@ -106,6 +106,26 @@ The intermediate tree may keep files at their current paths. A folder is not
 considered successful merely because it exists; the important result is that a
 module has one owner, one public contract and one testable reason to change.
 
+## Current-to-Target Migration Map
+
+The target tree is a destination, not permission for a mass rename. Before
+moving a file, record its current path, all preload/load references, class name,
+signals, public methods, scene ownership and `.uid` relationship. The default
+migration is an additive compatibility step followed by a removal step.
+
+| Current responsibility | First safe destination | Compatibility rule | Removal evidence |
+| --- | --- | --- | --- |
+| `src/ui/menu.gd` route/composition mix | `src/ui/vnext/surfaces/` plus a route adapter | `menu.tscn` and public menu actions remain valid | route probe, method inventory and no legacy imports |
+| `src/ui/menu_*_kit.gd` composition helpers | `src/ui/vnext/core/` or the owning surface | old owner delegates; kit does not become a second state owner | snapshot/action parity and teardown probe |
+| `src/ui/hud.gd` combat drawing/state wiring | `src/ui/vnext/surfaces/combat_hud_surface.gd` | Arena signal names and HUD compatibility entry point remain stable | fixed-seed capture plus lifecycle probe |
+| `src/arena/panel_kit.gd` pause/terminal composition | `src/ui/vnext/surfaces/` adapters | Arena remains the only scene coordinator | pause/terminal real-path probe |
+| inline story/program/enemy labels | `src/data/` catalogs | IDs and save values do not change when labels move | key parity and save round-trip |
+| `tools/*.gd` ad-hoc probes | `tools/probes/` | old validation entry points keep forwarding while referenced | aggregate validator and clean-checkout run |
+
+If a current file owns two responsibilities, split behavior before moving
+paths. The split commit must leave the old entry point delegating to exactly one
+new owner; otherwise the repository has two implementations that can drift.
+
 ## Refactor Sequence
 
 ### Task A1 — freeze the baseline
@@ -155,6 +175,12 @@ not contain Nodes, Callables, textures, fonts or references to autoloads.
 The snapshot producer is the gameplay/state owner. The UI reads a snapshot and
 emits a named action request; it does not mutate `Game` fields directly.
 
+Snapshot schemas receive a small `schema_version` and an owner-defined list of
+required/optional fields. Unknown optional fields are ignored by consumers;
+missing required fields fail loudly in development with the snapshot owner and
+route named in the diagnostic. Producers must not expose mutable live
+dictionaries that another surface can modify in place.
+
 **Acceptance:** probes can compare snapshots before/after one action and prove
 that drawing a snapshot does not advance `Game.rng`, create gameplay nodes or
 change save state.
@@ -174,6 +200,33 @@ longer be duplicated inside UI files.
 
 **Acceptance:** changing a title, description or bestiary label requires one
 catalog edit and does not require changing `_draw()` or combat code.
+
+### Task A5 — migration, rollback and deprecation checkpoints
+
+Every path move or public-contract change is performed in two reviewable
+stages. Stage one adds the destination and a compatibility delegate. Stage two
+removes the old path only after a repository-wide reference scan, scene-load
+probe, save round-trip, input probe and full validation are green. A move that
+changes a `res://` path must also verify imported `.uid` data from a clean
+checkout.
+
+Before stage one, save a small fixture set under the test harness (not in
+`user://`): a fresh profile, a progressed story profile, a profile with old
+optional keys and a profile with malformed/truncated data. The rollback test
+must prove that reverting the feature commit still opens the last accepted
+route and that a failed migration leaves the source save byte-for-byte
+untouched. Never use a cleanup commit to hide a failed migration.
+
+Each deprecated delegate gets an owner, a reason, a first release in which it
+appeared, a removal condition and a test that fails if it is removed too early.
+The handoff must state whether the old path remains runtime-reachable, test-only
+or dead. A compatibility layer without a removal condition is considered
+unfinished architecture.
+
+**Acceptance:** a clean checkout can build the destination path, the old path
+has no untracked consumers, the rollback fixture passes, and the handoff lists
+the exact removal gate. No file move is accepted solely because the new folder
+looks cleaner.
 
 ## Interfaces Required by Later Work
 
@@ -212,6 +265,12 @@ New preferences use an explicit section/key pair and a default. Save changes
 must go through existing helpers (`Sfx.save_settings()` for presentation
 settings or `Game` save functions for progress). No feature opens its own
 uncoordinated file under `user://`.
+
+Every persisted addition also defines its type, default, serialization name,
+version/migration behavior, reset behavior and whether it affects records. A
+save key is not reused for a different meaning, even if its old value appears
+compatible. Settings writes are coalesced at an explicit transition or on
+safe exit, never from a render callback.
 
 ## Refactor Safety Tests
 

@@ -13,7 +13,7 @@ PT-BR is the first translated catalog, and future languages can be added
 without changing gameplay or `_draw()` code.
 
 **Tech Stack:** Godot 4.7.2, GDScript autoload `Localization`, UTF-8 CSV or
-Godot translation resources kept in `res://data/localization/`,
+Godot translation resources kept in `res://src/data/localization/`,
 `TranslationServer` only where it helps editor/runtime integration, existing
 `TacticalUI.fit_block()`/`ellipsis_fit()`, and localization probes.
 
@@ -33,6 +33,9 @@ Godot translation resources kept in `res://data/localization/`,
 - Technical terms may remain in English when they are part of the game's
   fiction (`KERNEL`, `OOM`, `ROOTLET`, `PATCH`, `OVERLOCK`), but that choice is
   documented per term and must be consistent.
+- The chosen fonts and fallbacks must cover Portuguese accents, punctuation,
+  arrows, symbols and any glyph used by the terminal fiction. Missing glyphs
+  are a release failure, not a reason to remove accents from the copy.
 
 ## Locale Service Contract
 
@@ -46,6 +49,8 @@ func set_locale(locale: String) -> bool
 func tr_key(key: String, fallback: String = "", context: Dictionary = {}) -> String
 func has_key(key: String, locale: String = "") -> bool
 func format_key(key: String, values: Dictionary, fallback: String = "") -> String
+func plural_key(key: String, count: int, values: Dictionary = {}) -> String
+func select_key(key: String, branch: String, values: Dictionary = {}) -> String
 func locale_snapshot() -> Dictionary
 ```
 
@@ -54,17 +59,24 @@ that exist. `set_locale()` validates the allowed locale list, persists the
 choice through the existing settings helper and emits once per actual change.
 It must not reload the scene or reset a run.
 
-Recommended catalog fields:
+Recommended translation-inventory fields (runtime catalogs may be split by
+locale):
 
 ```text
-key,source,pt_br,context,max_lines
-menu.run_process,Run Process,Executar processo,primary_action,1
-hud.wave,Wave {wave},Onda {wave},combat_status,1
+catalog_version,key,context,en,pt_br,max_lines
+1,menu.run_process,primary_action,Run Process,Executar processo,1
+1,hud.wave,combat_status,Wave {wave},Onda {wave},1
 ```
 
 The parser must preserve commas, line breaks and Unicode safely. If Godot's
 imported translation resource is used instead, keep an equivalent validation
 report that compares key sets and placeholders.
+
+The catalog header declares its locale, schema version and source revision.
+Duplicate keys, empty player-facing values, invalid line-count metadata and
+unpaired Unicode markers fail the catalog check. The English catalog is the
+complete source of truth for key inventory; PT-BR may intentionally fall back
+only when the missing key is recorded in the localization report.
 
 ## Key Taxonomy
 
@@ -94,8 +106,8 @@ ID; `Localization.tr_key("enemy.oom.name")` produces the display label.
 
 ### Task L1 — catalog and service
 
-**Create:** `src/autoload/localization.gd`, `data/localization/en.csv`,
-`data/localization/pt-BR.csv`, `tools/localization_probe.gd/.tscn`.
+**Create:** `src/autoload/localization.gd`, `src/data/localization/en.csv`,
+`src/data/localization/pt-BR.csv`, `tools/localization_probe.gd/.tscn`.
 
 **Modify:** `project.godot` autoload registration, `Sfx` or the settings
 adapter only for persistence, and the handoff.
@@ -115,6 +127,12 @@ Migrate menu, settings, program, story, bestiary, awards, pause, terminal,
 HUD and game-over text in that order. Keep layout calculations independent from
 copy. The UI must subscribe to `locale_changed` and refresh its snapshot, not
 rebuild the entire scene unnecessarily.
+
+The migration inventory includes visible copy, tooltips, disabled/locked
+reasons, error/recovery messages, input hints, subtitles, accessibility
+descriptions, bestiary entries, story klogs and capture/debug labels that can
+reach a player-facing build. A source scan alone is insufficient: the first
+locale pass must also exercise empty, locked, failure and game-over states.
 
 Use full sentence keys for descriptions and actions. Do not translate by
 replacing words inside a technical log string at runtime.
@@ -144,6 +162,9 @@ alone.
 
 - `format_key()` accepts named values such as `{wave: 7}` and rejects unknown
   placeholders in development.
+- `plural_key()` and `select_key()` preserve named placeholders and reject
+  missing branches in development. The fallback sentence must have the same
+  placeholder contract as the translated sentence.
 - Numbers use a locale-aware formatter only for display; saved numbers stay
   numeric and deterministic.
 - Time uses a stable `MM:SS.xx` gameplay format unless a screen explicitly
@@ -160,6 +181,8 @@ alone.
 - [ ] Every visible shipped string has PT-BR copy or an intentional documented English technical term.
 - [ ] Changing locale refreshes the current route without losing selection or run state.
 - [ ] No raw keys, missing labels or accidental English/Portuguese hybrids appear in a surface.
+- [ ] Plural/select branches, placeholder names and required catalog metadata pass validation.
+- [ ] Fonts render every required Portuguese accent, symbol and terminal glyph without tofu boxes.
 - [ ] PT-BR passes overflow and line-count checks at all required viewports.
 - [ ] Screen readers/future accessibility descriptions use the same keys as visible labels.
 - [ ] Story, enemy, patch and achievement content are localized before their release is announced.

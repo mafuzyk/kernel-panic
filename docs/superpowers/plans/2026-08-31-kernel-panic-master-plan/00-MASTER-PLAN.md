@@ -89,6 +89,8 @@ The first release cycle under this plan does **not** attempt to:
 | W8 | PC/mobile UX and responsive behavior | W2, W7 | input-specific layouts, onboarding and safe-area behavior |
 | W9 | performance and reliability | W1–W8 incrementally | budgets, profiling, ownership and regression gates |
 | W10 | repository and release operations | W0, W9 | CI, contribution docs, release checklist and release log |
+| W11 | risk, decision and change governance | W0; reviewed at every checkpoint | rollback policy, stop-the-line gates and scope control |
+| W12 | product UX and feature prioritization | W0; final sign-off with W2/W4/W7/W8 | player journey, playtest protocol and idea filter |
 
 The workstreams overlap only where their contracts are already stable. For
 example, PT-BR can start with the menu catalog before the macOS story exists,
@@ -133,6 +135,7 @@ default once every replacement screen has a flow probe and visual review.
 
 - W9 performance, teardown and device matrix complete.
 - W10 CI, contribution workflow, changelog/release log and package checklist.
+- W11 governance gates and W12 product playtest/priority evidence.
 - Regression-free exports for the supported platforms and a public release
   candidate playtest.
 
@@ -151,6 +154,8 @@ Every implementation task in the micro-plans follows this exact loop:
 - [ ] Inspect the diff for unrelated changes, generated files, ownership and
   save compatibility.
 - [ ] Update the handoff and the release ledger before committing.
+- [ ] Re-check scope, decision gates and rollback after the implementation
+  result; a test passing does not approve an unreviewed expansion.
 - [ ] Commit one coherent task, push without force and stop for review at the
   checkpoint defined by the micro-plan.
 
@@ -191,6 +196,9 @@ The plan is complete only when all of these are true:
 - CI and release documentation can reproduce tests and exports from a clean
   checkout, and every user-facing change since this plan began has a release
   log entry.
+- The plan itself has no unresolved dependency, ownership, platform, save,
+  localization, accessibility, legal or rollback gap hidden behind a vague
+  “later” note; every deferred decision has an owner, gate and reason.
 
 ## Micro-Plan Index
 
@@ -205,6 +213,8 @@ The plan is complete only when all of these are true:
 - [09 — performance and reliability](09-PERFORMANCE-RELIABILITY.md)
 - [10 — repository, open source and releases](10-REPOSITORY-RELEASE-OPERATIONS.md)
 - [11 — testing, reporting and release log](11-TESTING-REPORTING-RELEASE-LOG.md)
+- [12 — product UX and suggestions](12-PRODUCT-UX-AND-SUGGESTIONS.md)
+- [13 — risk, decisions and change governance](13-RISK-DECISION-GOVERNANCE.md)
 
 ## Review and Handoff Rule
 

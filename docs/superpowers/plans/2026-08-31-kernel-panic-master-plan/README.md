@@ -3,7 +3,7 @@
 Esta pasta contém o plano de evolução do jogo a partir do estado atual. Ela é
 intencionalmente dividida: o documento `00` explica produto, ordem e gates; os
 demais documentos detalham um domínio cada. O plano descreve trabalho futuro;
-esta criação não altera o runtime.
+esta criação e sua revisão não alteram o runtime.
 
 ## Como ler
 
@@ -22,6 +22,14 @@ esta criação não altera o runtime.
 8. Use `10-REPOSITORY-RELEASE-OPERATIONS.md` e
    `11-TESTING-REPORTING-RELEASE-LOG.md` em todo checkpoint.
 9. Use `12-PRODUCT-UX-AND-SUGGESTIONS.md` como filtro para ideias novas.
+10. Use `13-RISK-DECISION-GOVERNANCE.md` para mudanças de escopo, rollback e
+    gates de release.
+
+Após ler os documentos, releia o `00` e o `13`: o primeiro responde “o que,
+por quê e em que ordem”; o segundo responde “quando parar, como decidir e como
+voltar com segurança”. A revisão do plano precisa ser atualizada quando uma
+dependência, promessa de plataforma, política de records, formato de save ou
+direção visual mudar.
 
 ## Regra de execução
 

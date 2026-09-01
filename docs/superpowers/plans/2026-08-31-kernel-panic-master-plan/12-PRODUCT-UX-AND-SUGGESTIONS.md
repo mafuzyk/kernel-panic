@@ -28,6 +28,29 @@ documentation.
 - A feature that adds a decision must make its consequence visible before commitment.
 - Every new screen has a primary action, a safe back path and a recovery path.
 - Every mode must be explainable in one short paragraph before launch.
+- New content is not accepted from a design pitch alone: it needs a player
+  problem, a smallest testable slice, a teaching moment, a failure/recovery
+  story and a maintenance owner.
+
+## Playtest and Prioritization Protocol
+
+For every major UX or gameplay slice, run a short internal playtest script
+covering first launch, first combat decision, first failure and return flow.
+Record where the player hesitated, what they expected, what they missed and
+whether they recovered without outside explanation. Do not collect telemetry
+or personally identifying data; this is a qualitative development artifact.
+
+Rank proposals with four explicit dimensions: player impact, identity/fit,
+implementation risk and maintenance cost. A high-impact feature with high risk
+must be split into a reversible vertical slice before it enters the release
+train. A low-impact feature does not outrank input, readability, fairness,
+save safety or frame pacing merely because it is visually attractive.
+
+Each accepted proposal records a success signal and a kill condition. If the
+smallest slice fails to improve comprehension, decision quality or replay value
+without adding unacceptable complexity, stop it and keep the evidence in the
+idea log. This protects the free/open-source project from an ever-growing
+catalog that the default player never needs.
 
 ## Product Pillars
 
@@ -166,6 +189,21 @@ Use local QA measurements rather than collecting player data:
 These are acceptance questions for manual playtests and probes, not remote
 analytics events.
 
+## Proposal Record
+
+Every new suggestion is recorded with: player problem, target player, affected
+moment in the journey, smallest experiment, expected benefit, risks, PC/mobile
+behavior, accessibility/localization impact, save/record/RNG impact,
+performance cost, maintenance owner, success signal, kill condition and
+decision state. This record may live in an issue or handoff, but it must be
+linked from the release decision so ideas do not disappear into chat.
+
+For a feature that changes difficulty or records, include a before/after
+comparison using the same seed and mode. For a feature that changes UI, include
+the action map, narrow-layout compromise and visual recipe. For a content
+feature, include teach wave, counterplay, bestiary copy and a reason the
+existing cast cannot already express the idea.
+
 ## Feature Decision Filter
 
 Before accepting a suggestion, answer:
@@ -191,3 +229,5 @@ idea log rather than letting it expand the release scope.
 - [ ] Mobile and accessibility choices are part of the normal UX, not hidden QA options.
 - [ ] No feature adds account, ad, energy, network or telemetry requirements.
 - [ ] New suggestions are recorded with problem, scope, cost and acceptance evidence.
+- [ ] Major slices have a playtest script, observed outcomes, success signal and kill condition.
+- [ ] Scope decisions identify player impact, identity fit, implementation risk and maintenance cost.

@@ -47,6 +47,11 @@ Fast checks for:
 - no fixed physical viewport assumptions in new layout files;
 - no sprite activation without the author gate.
 
+Static checks also validate that every new probe has a timeout, a nonzero
+failure path, a completion marker and an isolated output location. A test must
+not depend on the developer's current save, locale, audio device, window size
+or editor state.
+
 ### Layer T1 — deterministic unit-ish probes
 
 Small probes isolate:
@@ -59,6 +64,12 @@ Small probes isolate:
 - mutator and practice unlock rules.
 
 These tests are cheap but cannot replace real scene dispatch.
+
+Pure probes should also assert invariants rather than only example values:
+state transitions are legal, rewards are emitted once, IDs remain stable,
+snapshots are serializable and invalid input produces no mutation. Property or
+table-driven cases are preferred when a rule has multiple modes, thresholds or
+viewport densities.
 
 ### Layer T2 — real-path integration probes
 
@@ -74,6 +85,13 @@ Use `Viewport.push_input()`, real scenes and actual signals for:
 
 Each probe prints named phases and a completion line such as
 `PROBE_DONE fails=0`. A silent exit 0 is invalid.
+
+Integration probes use explicit phase timeouts and identify the seed, route,
+input mode and expected terminal state in their logs. A timeout is a failure,
+not an implicit pass. When a probe is flaky, preserve the first failing log,
+run a bounded repeat count to classify it and fix the lifecycle/race or mark
+the test as blocked with a concrete owner; do not increase retries until the
+failure disappears.
 
 ### Layer T3 — visual and responsive review
 
@@ -91,12 +109,25 @@ Capture clean and effect-enabled versions at 1366×768, 720×720, 432×720 and
 Captures stay outside Git unless a carefully selected README asset is
 intentionally approved.
 
+Visual review records a deterministic capture recipe: commit, command,
+viewport, locale, font/text scale, accessibility profile, effect tier and
+route state. Compare semantic regions and readable outcomes, not compression
+noise or accidental editor chrome. A visual pass without its recipe cannot be
+reproduced and does not qualify as release evidence.
+
 ### Layer T4 — device and performance review
 
 Run a fixed-seed stress scenario on a desktop export and a representative
 Android build. Record frame pacing, device profile, quality tier, input feel,
 orientation, thermals/battery observation when available and any visual
 fallbacks. Do not infer mobile performance from a desktop or headless run.
+
+Manual playtests have a short script and a result sheet: first launch, start a
+run, understand the first threat, choose a patch, pause/resume, die, retry,
+find accessibility and change language. Record observed confusion and
+recovery time without collecting personal analytics. A manual result is not a
+substitute for a deterministic regression probe; both are required when both
+feel and correctness matter.
 
 ## Aggregate Validator Contract
 
@@ -109,6 +140,13 @@ Extend `tools/validate_input_dispatch.sh` as work lands. Every case must:
 - fail on missing marker, `ERROR` gate or empty output;
 - keep non-gating teardown diagnostics in a separate section;
 - be reproducible from a clean checkout.
+
+Each case declares its owner, prerequisite, timeout, output path, completion
+marker and whether it is a correctness gate or an observation. The aggregate
+summary preserves the individual exit codes and logs; it must not replace a
+failed case with a total pass count. A test that cannot run because a required
+export template/device is unavailable is reported as unavailable, not silently
+treated as passed.
 
 The validator's case list should eventually include:
 
@@ -130,6 +168,37 @@ gameplay/new enemies
 save migration
 performance smoke
 ```
+
+## Evidence Work Packages
+
+### Task T1 — validator hardening
+
+Make the aggregate script reject empty execution, missing markers, assertion
+failures, unexpected runtime errors, stale logs and nonzero child exits. Keep
+case names stable so handoffs and release entries remain searchable. Validate
+the validator itself once with a deliberately silent fake runner and once with
+a deliberately failing marker.
+
+### Task T2 — probe coverage and invariants
+
+Add probes in dependency order: repository contracts, snapshots, localization,
+accessibility, responsive geometry, real route/input flows, new gameplay and
+save migration. Each probe must name the real path it exercises and include at
+least one invalid/edge case, not only the happy path.
+
+### Task T3 — visual/device recipes
+
+Standardize capture commands and metadata for clean/effected, grayscale,
+high-contrast, reduced-motion, PT-BR, wide/compact/narrow and exported-device
+views. Keep capture outputs outside Git by default; a selected public image
+requires explicit provenance and an intentional repository path.
+
+### Task T4 — reporting and release ledger
+
+Create the append-only release ledger, link each handoff and classify findings
+by severity. A task is not closed when the code is green but the report is
+missing its limitation, compatibility impact, reproduction recipe or next
+safe checkpoint.
 
 ## Release Log Contract
 
@@ -168,6 +237,14 @@ Platforms: PC | mobile | both
 ### Known limitations
 - What remains, why it is safe, and the next review gate.
 ```
+
+Entries are append-only after a release is published. Corrections use a dated
+amendment that points to the original entry; they do not erase an earlier
+failure or replace a red log with a later green log. Unreleased work may be
+edited until its checkpoint, but the handoff must preserve the final red/green
+history. Classify findings as blocker, high, normal or observation so a
+release candidate can make an explicit decision instead of hiding unfinished
+work under “polish”.
 
 The entry is written in player language first, with technical details beneath
 it. A release note should say “pause input no longer eats Escape in desktop
@@ -212,6 +289,12 @@ Before commit, add to the task handoff:
 12. known limitations and open decisions;
 13. commit hashes and pushed branch;
 14. next safe task.
+
+For visual, device and performance work, the report also includes the exact
+capture/profile recipe and a statement of what was not tested. For a bug that
+cannot be reproduced after the fix, preserve the original reproduction and
+explain whether the result is a confirmed fix, a guarded hypothesis or an
+environment-only observation.
 
 ## Acceptance Gates
 

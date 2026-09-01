@@ -137,6 +137,55 @@ small, short-lived and visually sparse.
 No other enemy is added until one of these candidates has a threat sheet and a
 real wave probe. A bigger roster is not automatically better content.
 
+## Art Work Packages
+
+### Task E1 — descriptor and renderer foundation
+
+Create the presentation descriptor, extent calculation, state overlay API and
+shared primitive vocabulary. Connect one existing program and one existing
+enemy through compatibility adapters before touching the complete cast.
+
+**Acceptance:** drawing a descriptor is deterministic, serializable, safe for a
+missing kind, does not mutate simulation state and supplies the same extent to
+combat, bestiary and selector previews.
+
+### Task E2 — legacy cast identity pass
+
+Work through the current enemy table in small batches, starting with the
+highest-frequency threats. For each batch, preserve collision/attack behavior,
+add the silhouette/state evidence and update the bestiary description. A visual
+pass cannot silently change hitbox size, facing, spawn timing or reward logic.
+
+**Acceptance:** each batch has clean/finished captures, grayscale and
+color-assist checks, a performance comparison and a real-path regression probe.
+
+### Task E3 — program identity pass
+
+Apply the same renderer contract to `KERNEL`, `DAEMON` and `ROOTLET` in HUD,
+program selection, pause and gameplay. Verify shield/overclock/dash states
+with the actual gameplay snapshot instead of preview-only flags.
+
+**Acceptance:** the three programs remain distinguishable at combat size and
+their art states agree with gameplay state, HUD text and accessibility markers.
+
+### Task E4 — new entity slice
+
+Implement at most one approved new enemy at a time. The threat sheet, isolated
+teach wave, bestiary entry, code-drawn identity and real-path probe land
+together. The second candidate waits for review of the first slice so roster
+size does not outrun balance and mobile readability.
+
+### Task E5 — finish tiers and sprite gate
+
+Add finish layers only after the clean structural review. Measure draw cost at
+the densest supported wave, define reduced-motion/mobile variants and compare
+any proposed raster asset against the code-drawn fallback using the sprite
+policy below.
+
+**Commit boundary:** descriptor, each cast/program batch, each new enemy and
+finish-tier work are separate commits with their own handoff and release-log
+entry.
+
 ## Testing and Art Review
 
 - silhouette test: black/white images at all target sizes;

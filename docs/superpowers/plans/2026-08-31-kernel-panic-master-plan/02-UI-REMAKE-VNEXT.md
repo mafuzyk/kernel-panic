@@ -19,6 +19,11 @@
 - Visual effects are applied after clean geometry and can be reduced globally for accessibility and mobile.
 - A surface must be readable without color, glow, scanline or animation before those effects are enabled.
 - Every screen exposes `layout_snapshot()`, `text_overflow_report()` and an action map for probes.
+- Interactive targets use the accessibility floor of 44–48 logical pixels,
+  with spacing that prevents accidental adjacent activation on touch.
+- A route owns one lifecycle: configure, enter, update, suspend, resume and
+  exit. Signals, timers, tweens and deferred calls must be disconnected or
+  invalidated when the route exits.
 
 ## Visual Translation of the References
 
@@ -92,6 +97,35 @@ Back/escape always pops one route unless the current route explicitly presents
 a destructive confirmation. The route announces its focus order and default
 focus target; it does not inspect another surface's private nodes.
 
+### Lifecycle and transition contract
+
+Route changes are transactional from the player's perspective. The outgoing
+surface stops accepting actions before the incoming surface becomes active;
+exactly one route owns focus and exactly one coordinator handles a submitted
+action. A rejected transition restores the previous route and explains the
+failure without leaving a half-created Arena, duplicated overlay or stale
+selection.
+
+Every surface cancels its timers/tweens, releases signal connections and clears
+pending deferred work on exit. Re-entering a route creates a fresh snapshot or
+reuses an explicitly immutable one; it never replays a stale action from the
+previous visit. Probes must cover rapid open/back/open, resize during a
+transition, locale change during a transition and scene replacement while a
+signal is queued.
+
+### Typography and content budget
+
+Before decorative polish, each surface defines its minimum readable body size,
+heading size, maximum text measure, line-count budget and truncation policy.
+Technical labels may use tracking and uppercase, but descriptions, error copy
+and accessibility text must retain readable mixed-case forms. A button label
+may wrap only when its target grows with it; otherwise the design supplies a
+short action label plus a detail description.
+
+Font fallback and Unicode coverage are checked for English and PT-BR before a
+capture is approved. No surface solves overflow by shrinking below the text
+floor, hiding an action, or silently replacing a translated string with a key.
+
 ## Surface-by-Surface Plan
 
 ### Task U1 — shell and boot/menu vertical slice
@@ -138,6 +172,27 @@ compatibility data providers during migration.
 **Tests:** selection and launch actions, locked stages, keyboard navigation,
 touch selection, scroll-into-view, no duplicate launch through ENTER, and
 localized/wrapped descriptions.
+
+### Task U2b — patch offer and build decision surface
+
+Patch selection deserves its own surface contract because it is a gameplay
+decision, not another content list. The offer shows the patch identity, effect,
+cost/benefit, one relevant synergy or conflict, current build impact and a
+clear confirm/skip action. It must make the consequence visible before the
+player commits and must preserve the run if the offer is closed or rejected.
+
+On narrow layouts, present one patch at a time with a deliberate next/previous
+action instead of three compressed cards. On desktop, parallel offers may be
+shown only when each card keeps its readable description and independent focus.
+Locked/unavailable/conflicting states use explicit reason text and a state
+marker, not opacity alone.
+
+**Files:** `src/ui/vnext/surfaces/patch_surface.gd`, shared patch snapshot and
+action contract, and the adapter for the current patch offer path.
+
+**Tests:** deterministic offer ordering, confirm/skip/close, conflict preview,
+keyboard/mouse/touch focus, no duplicate selection, locale/text-scale
+overflow, resize during an offer and a pause-tree/overlay recovery path.
 
 ### Task U3 — combat HUD
 
@@ -193,6 +248,23 @@ adapters for current panel files and `menu_settings_kit.gd`.
 scroll, input method labels, localization overflow, mobile stacking and
 reopening the same selected item.
 
+### Task U6 — shared error, empty, loading and transition states
+
+Define reusable states for unavailable content, invalid actions, missing
+catalog entries, save read/write failure, first-load delay and route
+transition. These states must have a readable explanation, a safe recovery
+action and a back path. They are part of the design system, not ad-hoc text
+drawn by whichever screen first encounters the error.
+
+**Files:** `src/ui/vnext/core/ui_state.gd`, `ui_focus_model.gd` and shared
+state primitives; adapters in each surface that can load data or reject an
+action.
+
+**Tests:** missing optional content, malformed save fixture, unavailable
+localized key, rapid route changes, disabled primary action and a failed
+transition under keyboard, mouse and touch. Verify no duplicate signal,
+overlay or focus owner remains after recovery.
+
 ## Effects and Drawing Order
 
 Every surface draws in this order:
@@ -207,6 +279,21 @@ Every surface draws in this order:
 text/panel contrast and preserves markers. A screenshot of layer 1–4 is the
 first visual review artifact; layer 5 is never allowed to rescue poor layout.
 
+## Visual Review Protocol
+
+Each surface receives two independent reviews before migration: a structural
+review and a finish review. The structural review uses layers 1–4, grayscale,
+large text and reduced motion to judge hierarchy, state and actionability. The
+finish review enables the intended glow/scanline/noise tier and checks whether
+the effects reinforce rather than obscure the structure.
+
+The reviewer records the route, commit, viewport, locale, text scale, input
+mode, accessibility profile and capture layer. Approval must name the primary
+action, the most important state, the narrow-layout compromise and any
+deliberately omitted decoration. “Looks close to the reference” is not a
+criterion; the evidence must explain what the screen lets the player do and
+understand.
+
 ## Migration Rules
 
 - A new surface first runs beside the legacy surface through a development
@@ -219,6 +306,10 @@ first visual review artifact; layer 5 is never allowed to rescue poor layout.
   full test log proving that no route still imports it.
 - The reference images stay in `media/Ideas/` as design material and are not
   imported as backgrounds, panels or acceptance screenshots.
+- If a legacy route remains as rollback, it must be reachable by an explicit
+  development switch, have a removal condition in the handoff and be tested
+  for save/input parity. It must not remain accidentally reachable through a
+  stale button, deep link or failed transition.
 
 ## Visual Acceptance Checklist
 
@@ -231,3 +322,6 @@ first visual review artifact; layer 5 is never allowed to rescue poor layout.
 - [ ] The surface uses at most the amount of decorative detail its smallest target can afford.
 - [ ] Captures show no clipping, overlap, hidden cursor or stale state after resize.
 - [ ] The screen has a semantic snapshot and a passing overflow report.
+- [ ] Route entry/exit does not leak focus, signals, timers, tweens or deferred actions.
+- [ ] Empty/error/loading states have recovery and safe back behavior.
+- [ ] The visual review records both the clean structural layer and the finished effect layer.

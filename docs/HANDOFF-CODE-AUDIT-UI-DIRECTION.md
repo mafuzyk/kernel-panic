@@ -151,11 +151,12 @@ um arquivo que serve apenas como referência.
 
 Foi criado o plano-mestre em
 `docs/superpowers/plans/2026-08-31-kernel-panic-master-plan/`, dividido em um
-documento de mapa e doze micro-documentos. Ele cobre, em ordem dependente,
+documento de mapa e treze micro-documentos. Ele cobre, em ordem dependente,
 organização/refatoração do repositório, remake da UI, arte code-drawn dos
 programas e inimigos, gameplay e novos inimigos, o ato narrativo macOS,
 localização PT-BR, acessibilidade, UX PC/mobile, performance, operações de
-open source, testes e release log.
+open source, testes, release log, priorização de produto e governança de
+risco/escopo.
 
 O plano registra uma interpretação importante: “MAC-OS history” foi entendido
 como um novo ato histórico jogável de macOS, não como o histórico do terminal.
@@ -167,6 +168,52 @@ Nenhum código de runtime foi alterado nesta rodada. O objetivo foi deixar a
 execução futura decomponível, com dependências, interfaces, critérios de
 aceite, matriz de plataformas e um formato obrigatório para registrar bugs,
 causas, fixes, melhorias, adições e evidências em cada checkpoint.
+
+## Revisão perfeccionista do próprio plano
+
+Depois da primeira escrita, o plano foi auditado sem implementar código. A
+revisão procurou lacunas de escopo, dependência, ownership, rollback, ciclo de
+vida, acessibilidade, localização, PC/mobile, performance, testes, release,
+licenciamento e controle de crescimento. Foram reforçados os seguintes
+pontos:
+
+- `01-REPOSITORY-ARCHITECTURE.md` agora possui um mapa explícito de migração
+  current → target, fixtures de rollback, depreciação com condição de remoção,
+  versionamento de snapshots e contrato completo para novas chaves persistidas;
+- `02-UI-REMAKE-VNEXT.md` agora cobre patch selection como superfície própria,
+  lifecycle/transition, estados de erro/vazio/loading, foco sem dono duplicado,
+  orçamento tipográfico, cancelamento de sinais/tweens e protocolo de revisão
+  estrutural versus acabamento;
+- `06-LOCALIZATION-PT-BR.md` agora exige plural/select, metadados de catálogo,
+  inventário de strings que alcançam o jogador, cobertura Unicode e testes de
+  placeholders/ramificações;
+- `07-ACCESSIBILITY-SETTINGS.md` agora separa o que será realmente suportado
+  do que ainda depende de feasibility gate de screen reader, inclui layout
+  touch canhoto, reset seguro, foco semântico e medição de flashes;
+- `08-PC-MOBILE-UX.md` agora inclui lifecycle Android, back do sistema,
+  insets/cutouts/IME, orientação, política honesta para controller e perfis
+  concretos de desktop/ultrawide;
+- `09-PERFORMANCE-RELIABILITY.md` agora define p50/p95/p99, pior frame,
+  latência, memória, teto de entidades, perfis reais e recuperação de save;
+- `10-REPOSITORY-RELEASE-OPERATIONS.md` agora cobre toolchain pinada, clean
+  cache, release candidate congelada, rollback identificável, embalagem Android
+  e verificação de release desktop;
+- `11-TESTING-REPORTING-RELEASE-LOG.md` agora exige timeout, classificação de
+  indisponibilidade, logs reproduzíveis, invariantes, política de flakiness,
+  receita de captura e playtest manual além dos probes;
+- `12-PRODUCT-UX-AND-SUGGESTIONS.md` agora inclui protocolo de playtest,
+  critérios de sucesso/abortagem e priorização por impacto, identidade, risco
+  e custo de manutenção;
+- `13-RISK-DECISION-GOVERNANCE.md` foi adicionado para registrar gates G0–G5,
+  riscos, decisões, rollback, stop-the-line, estados de escopo e revisão do
+  próprio plano em cada release train.
+
+O plano continua deliberadamente sem implementação: esta rodada alterou
+somente documentação. A revisão não encontrou uma lacuna que justificasse
+prometer screen reader nativo, suporte a controller, export macOS ou qualquer
+outra capacidade ainda não comprovada; esses pontos ficaram como gates de
+feasibility ou claims condicionais, para evitar que o documento venda uma
+plataforma que o jogo ainda não testou.
 
 ## Trabalho anterior preservado
 
@@ -222,7 +269,10 @@ ccbf19a  fix: return OOM mote ownership as UIDs
 4034a03  fix: bind HUD patch updates to its lifecycle
 ```
 
-Todos foram enviados sem force-push. Alterações locais preexistentes do
-usuário continuam fora desses commits: `docs/UI-REDESIGN-DIRECTION.md`,
-`src/ui/tactical_icon.gd`, arquivos de configuração, documentação/backlog
-local e imports de capturas.
+Todos foram enviados sem force-push. As alterações de documentação desta
+auditoria também serão publicadas em um commit separado, sem incluir arquivos
+de runtime. Os arquivos locais preexistentes — incluindo
+`src/ui/tactical_icon.gd`, `.opencode/`, `AGENTS.md`, `opencode.jsonc`,
+`docs/REVISAO-CONSOLIDADA-2026-08-31.md`, `docs/UI-REVIEW-BACKLOG.md`,
+`media/Ideas/` e imports de capturas — permanecem fora do escopo e não devem
+ser staged por engano.

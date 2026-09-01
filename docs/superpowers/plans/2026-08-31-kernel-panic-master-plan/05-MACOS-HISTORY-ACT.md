@@ -136,6 +136,50 @@ The final boss may be a new variant of `RootBoss` or a dedicated class, but it
 must share the boss desperation contract and HUD fragment interface. The act
 reward must be keyed by stage ID and survive a save export/import.
 
+## Implementation Sequence
+
+### Task M1 — act catalog and unlock contract
+
+Add the four stage definitions, stable IDs, unlock condition, reward IDs,
+profiles and wave references without yet exposing the route as a default
+button. Add a save fixture for locked, partially cleared and fully cleared
+states. Keep the existing story facade and save keys compatible.
+
+### Task M2 — narrative and localization slice
+
+Write the player-facing title, intro, klog, objective, reward and first-failure
+copy for M1 in English and PT-BR. Review it in the actual story surface at
+wide, compact and narrow sizes before writing the remaining stages. The joke
+must be understandable without knowing Apple history and must not rely on a
+copied trademark asset.
+
+### Task M3 — teachable mechanic and wave progression
+
+Select one act rule at the design gate, implement it behind the generic stage
+profile, then add the M1 teach wave and M2 reuse wave. Verify that the rule has
+a stable telegraph, a safe alternative, a touch-readable layout and no hidden
+platform detection. Only after the probe and playtest pass should it be used in
+M3/M4.
+
+### Task M4 — climax, reward and persistence
+
+Implement the final stage composition, boss/variant, desperation behavior,
+story-cleared transition, unlock/reward write and save transfer. Test an
+interrupted completion and a failed save so the player does not receive a
+partial reward or lose earlier progress.
+
+### Task M5 — visual integration and release gate
+
+Connect era profiles to the vNext story/HUD/entity surfaces, add bestiary
+entries, perform the code-drawn art review and run the complete localization,
+accessibility, responsive and performance matrix. The act is not release-ready
+when its stage probe passes but its text, boss telegraph or mobile route is
+untested.
+
+Each task ends with a handoff and one coherent commit (or a documented red/
+green test/fix pair). The route remains hidden or locked until M1–M4 are
+accepted; M5 promotes it to the release candidate.
+
 ## Acceptance Tests
 
 - [ ] The act is locked/unlocked through a documented rule and does not corrupt existing progress.

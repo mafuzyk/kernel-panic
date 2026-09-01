@@ -29,6 +29,12 @@ mouse/touch event routing and Xvfb/device captures.
 - A resize, orientation change or display-scale change recomputes layout once
   and preserves semantic selection.
 - Every screen has a usable back action and an obvious primary action.
+- The Android/window lifecycle is explicit: focus loss pauses or safely
+  suspends according to the current mode, focus regain does not duplicate
+  input, and the system back action follows the same route/confirmation policy
+  as Escape.
+- Safe areas include insets, cutouts, gesture regions and the keyboard/IME;
+  they are measured at runtime and never guessed from a phone model name.
 
 ## Layout Densities
 
@@ -55,6 +61,9 @@ rectangles. They must be tunable without editing every screen.
 - preserve mouse cursor and hover feedback outside combat;
 - allow complete menu navigation with arrows, Enter and Escape;
 - make the primary action usable by mouse and keyboard with no double-trigger.
+- support a visible text-input path for every remappable action and preserve
+  the distinction between physical mouse aiming and UI focus navigation;
+  controller support is only advertised after a real controller probe passes.
 
 ### Desktop combat
 
@@ -93,6 +102,9 @@ unreadable lines. Keep a content max width and use empty space as hierarchy.
   or pickup route;
 - configured `touch_scale` updates draw radius, hit rect and movement geometry
   together while preserving normalized movement vectors;
+- support left-handed mirroring, orientation changes, Android back/focus
+  events and IME/open-keyboard behavior without losing a run or swallowing the
+  next gameplay action;
 - portrait/very narrow layouts may stack or reduce noncritical HUD telemetry,
   but must not shrink action targets below the accessibility floor.
 
@@ -106,6 +118,41 @@ unreadable lines. Keep a content max width and use empty space as hierarchy.
 - large decorative rails disappear before title, status, focus, action and
   error copy;
 - prevent accidental destructive taps with confirmation and sufficient spacing.
+
+## Responsive Work Packages
+
+### Task X1 — safe-area and density foundation
+
+Implement viewport metrics, insets, density thresholds, action-region geometry
+and invalidation. Test resize, orientation, display scale, text scale, locale
+and accessibility changes while preserving route and selection.
+
+### Task X2 — desktop navigation and combat
+
+Validate keyboard, mouse, window modes, cursor restoration, ultrawide max-width
+and debug-input isolation. Measure mouse aim and menu input separately so a UI
+focus fix cannot degrade combat aim.
+
+### Task X3 — touch combat and lifecycle
+
+Validate dual-stick ownership, multitouch, action buttons, left-handed mode,
+safe areas, system back, focus loss/regain, pause/resume and interruption of a
+run. Use a forced-touch probe first and an exported Android build for the
+platform-specific lifecycle evidence.
+
+### Task X4 — onboarding and recovery
+
+Show only controls that match the detected or forced input mode. Teach movement,
+aim/fire, dash, overclock and pause in short dismissible steps, then verify the
+player can recover from an accidental tap, orientation change, backgrounding or
+failed transition without losing progress.
+
+### Task X5 — matrix and device sign-off
+
+Run every surface through the viewport matrix, large text, high contrast,
+reduced motion, PT-BR, touch scale and effect tiers. The handoff records the
+actual device/export profiles and separates geometry pass, input pass and
+performance pass; one cannot substitute for the others.
 
 ## Shared UX Improvements
 
@@ -129,7 +176,8 @@ Every surface is checked at:
 | 720×720 | square/compact window behavior |
 | 432×720 | narrow mobile landscape-ish logical test and overflow stress |
 | 390×844 | representative tall phone composition |
-| ultrawide desktop | max-width discipline and unused-space hierarchy |
+| 1920×1080 desktop | normal full-HD release check |
+| 2560×1080 ultrawide | max-width discipline and unused-space hierarchy |
 
 The 432×720 profile is mandatory because it already exists in the project's
 probe history. The 390×844 profile complements it; it does not replace it.
@@ -143,5 +191,7 @@ probe history. The 390×844 profile complements it; it does not replace it.
 - [ ] Aim + movement + dash/overclock multitouch works without input theft.
 - [ ] Onboarding labels match the detected/forced input mode.
 - [ ] Resize/orientation/locale/accessibility changes preserve route and safe state.
+- [ ] Android focus loss/regain, system back, cutout/inset and IME cases are covered on an exported build.
+- [ ] Left-handed controls and the advertised keyboard/mouse/controller capability match real probes.
 - [ ] PC and mobile captures are silent, reproducible and reviewed outside the repository.
 - [ ] UX regressions enter the release log with the affected platform and recovery behavior.
