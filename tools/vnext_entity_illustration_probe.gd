@@ -32,6 +32,8 @@ func _run() -> void:
 		_check(str(nested["markers"][0]) == "aim", "descriptor deep-copies nested snapshot data")
 		var safe: Dictionary = descriptor_script.call("normalize", {"kind": "missing", "facing": "bad", "hp_fraction": "bad", "loot_count": -4})
 		_check(str(safe.get("kind", "")) == "drone" and safe.get("facing", Vector2.ZERO) == Vector2.RIGHT and is_equal_approx(float(safe.get("hp_fraction", -1.0)), 1.0), "malformed descriptor fields use safe defaults")
+		var extent_ok := renderer_script.has_method("draw_extent_factor")
+		_check(extent_ok, "renderer publishes the full marker-aware extent contract")
 		for size in [24.0, 48.0, 96.0, 160.0]:
 			for facing in [Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT, Vector2.UP]:
 				malformed["facing"] = facing
@@ -39,6 +41,11 @@ func _run() -> void:
 				var fit: Rect2 = renderer_script.call("fit_rect", malformed, target)
 				var bounds: Rect2 = renderer_script.call("draw_bounds", malformed, target)
 				_check(target.encloses(fit) and target.encloses(bounds) and fit == bounds, "extent contains %dpx %s silhouette without clipping" % [int(size), str(facing)])
+			if extent_ok:
+				var factor := float(renderer_script.call("draw_extent_factor", malformed))
+				var extent_target := Rect2(Vector2.ZERO, Vector2(size, size))
+				var extent_fit: Rect2 = renderer_script.call("fit_rect", malformed, extent_target)
+				_check(factor >= 1.38 and float(renderer_script.call("draw_radius", malformed, extent_target)) * factor * 2.0 <= extent_fit.size.x + 0.01, "draw radius is bounded by the published full extent at %dpx" % int(size))
 			for state in ["idle", "attack", "hit", "elite", "death"]:
 				malformed["visual_state"] = state
 				var state_fit: Rect2 = renderer_script.call("fit_rect", malformed, Rect2(Vector2.ZERO, Vector2(96, 96)))
@@ -61,8 +68,40 @@ func _run() -> void:
 		_check(str(program_snapshot.get("kind", "")) == "kernel" and str(program_snapshot.get("visual_state", "")) == "elite", "one existing player program reaches the descriptor adapter")
 		_check(str(enemy_snapshot.get("kind", "")) == "drone" and bool(enemy_snapshot.get("elite", false)), "one existing enemy reaches the descriptor adapter")
 		_check(player_fixture["hp"] == 4 and enemy_fixture["hp"] == 1, "adapter fixtures retain gameplay-like fields")
-		_check(renderer_script.call("render_key", malformed, 1.25, {"color_assist": true}) == renderer_script.call("render_key", malformed, 1.25, {"color_assist": true}), "same descriptor inputs produce deterministic render key")
+		var player_script: Script = load("res://src/player/player.gd")
+		var enemy_script: Script = load("res://src/enemies/drone.gd")
+		var real_player = player_script.new() if player_script != null else null
+		var real_enemy = enemy_script.new() if enemy_script != null else null
+		if real_player != null:
+			real_player.prog = {"kind": "kernel"}
+			real_player.aim = Vector2.UP
+			real_player.hp = 4
+			real_player.max_hp = 8
+			real_player.overclock_active = true
+			real_player.dash_available = 1
+		var real_program_snapshot: Dictionary = adapter_script.call("from_player", real_player) if real_player != null else {}
+		if real_enemy != null:
+			real_enemy.hp = 1
+			real_enemy.max_hp = 2
+			real_enemy.rotation = PI
+			real_enemy.elite = true
+			real_enemy.mote_count = 2
+		var real_enemy_snapshot: Dictionary = adapter_script.call("from_enemy", real_enemy) if real_enemy != null else {}
+		_check(str(real_program_snapshot.get("kind", "")) == "kernel" and str(real_program_snapshot.get("visual_state", "")) == "elite", "real Player object reaches the descriptor adapter")
+		_check(str(real_enemy_snapshot.get("kind", "")) == "drone" and bool(real_enemy_snapshot.get("elite", false)), "real DroneEnemy object reaches the descriptor adapter")
+		if real_player != null:
+			real_player.free()
+		if real_enemy != null:
+			real_enemy.free()
+		var quality_a := {"grayscale": true, "color_assist": false, "reduced_motion": true}
+		var quality_b := {"reduced_motion": true, "color_assist": false, "grayscale": true}
+		_check(renderer_script.call("render_key", malformed, 1.25, quality_a) == renderer_script.call("render_key", malformed, 1.25, quality_b), "semantically equal quality dictionaries produce the same render key")
+		_check(renderer_script.has_method("orientation_angle") and not is_equal_approx(float(renderer_script.call("orientation_angle", {"facing": Vector2.RIGHT})), float(renderer_script.call("orientation_angle", {"facing": Vector2.DOWN}))), "facing changes the glyph orientation transform")
+		var accent_color: Color = renderer_script.call("color_for", {"kind": "kernel", "era_accent": Color("ff0000")}, {}) if renderer_script.has_method("color_for") else Color(0, 0, 0, 0)
+		var base_color: Color = renderer_script.call("color_for", {"kind": "kernel"}, {}) if renderer_script.has_method("color_for") else Color(0, 0, 0, 0)
+		_check(renderer_script.has_method("color_for") and accent_color != base_color, "era accent participates in resolved render color")
 		var renderer_source := FileAccess.get_file_as_string("res://src/ui/vnext/core/entity_renderer.gd")
+		_check(renderer_source.contains("draw_set_transform"), "renderer applies orientation to the identity glyph")
 		_check(not renderer_source.contains("Game") and not renderer_source.contains("Sfx") and not renderer_source.contains("Arena") and not renderer_source.contains("rand"), "renderer has no gameplay, audio or random side effects")
 	if illustration_script == null or glyph_script == null:
 		_finish()
@@ -74,6 +113,9 @@ func _run() -> void:
 	add_child(illustration)
 	illustration.call("configure_entity", "god", "ready", "GOD")
 	illustration.call("set_motion_phase", 0.75)
+	_check(illustration.has_method("set_quality") and illustration.has_method("set_facing"), "public illustration exposes quality and facing controls")
+	if illustration.has_method("set_quality"):
+		illustration.call("set_quality", {"grayscale": true, "color_assist": true, "reduced_motion": true})
 	await get_tree().process_frame
 	_check(illustration.is_inside_tree(), "entity illustration draws as a live control")
 	var kinds: Array = glyph_script.call("glyph_kinds")

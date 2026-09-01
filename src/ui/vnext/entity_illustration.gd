@@ -21,6 +21,8 @@ var _kind := "drone"
 var _state := "idle"
 var _label := ""
 var _motion_phase := 0.0
+var _facing := Vector2.RIGHT
+var _quality := {}
 var _last_size := Vector2.ZERO
 
 func _ready() -> void:
@@ -34,6 +36,14 @@ func configure_entity(kind: String, state: String = "idle", label: String = "") 
 
 func set_motion_phase(phase: float) -> void:
 	_motion_phase = phase
+	queue_redraw()
+
+func set_facing(facing: Vector2) -> void:
+	_facing = facing.normalized() if facing.length_squared() > 0.0001 else Vector2.RIGHT
+	queue_redraw()
+
+func set_quality(quality: Dictionary) -> void:
+	_quality = quality.duplicate(true)
 	queue_redraw()
 
 func visual_rect(viewport: Vector2 = Vector2.ZERO) -> Rect2:
@@ -57,6 +67,7 @@ func visual_snapshot() -> Dictionary:
 		"label": _label,
 		"renderer": "glyph-library",
 		"glyph_extent": Glyphs.glyph_extent(_kind),
+		"quality": _quality.duplicate(true),
 		"frame": visual_rect(),
 	})
 	return result
@@ -65,7 +76,7 @@ func _presentation_snapshot() -> Dictionary:
 	return Descriptor.normalize({
 		"kind": _kind,
 		"visual_state": {"ready": "idle", "locked": "idle", "danger": "hit"}.get(_state, _state),
-		"facing": Vector2.RIGHT,
+		"facing": _facing,
 		"hp_fraction": 1.0,
 		"era_accent": Color(0, 0, 0, 0),
 		"visible_label": _label,
@@ -86,7 +97,7 @@ func _draw() -> void:
 	var rect := visual_rect()
 	if rect.size.x <= 2.0 or rect.size.y <= 2.0:
 		return
-	Renderer.draw(self, _presentation_snapshot(), rect, _motion_phase, {})
+	Renderer.draw(self, _presentation_snapshot(), rect, _motion_phase, _quality)
 
 func _draw_state_marks(center: Vector2, radius: float, state_visual: Dictionary) -> void:
 	var state_color := Tokens.role_color(str(state_visual.get("role", "structure")))

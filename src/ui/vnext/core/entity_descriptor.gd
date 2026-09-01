@@ -29,7 +29,7 @@ static func normalize(snapshot: Dictionary) -> Dictionary:
 		"visual_state": state,
 		"facing": facing,
 		"hp_fraction": clampf(hp_fraction, 0.0, 1.0),
-		"elite": bool(source.get("elite", false)),
+		"elite": _bool(source.get("elite", false), false),
 		"era_accent": source.get("era_accent", Color(0, 0, 0, 0)) if source.get("era_accent", Color(0, 0, 0, 0)) is Color else Color(0, 0, 0, 0),
 		"loot_count": maxi(int(source.get("loot_count", 0)), 0),
 		"feedback_count": maxi(int(source.get("feedback_count", 0)), 0),
@@ -40,6 +40,19 @@ static func normalize(snapshot: Dictionary) -> Dictionary:
 static func _number(value: Variant, fallback: float) -> float:
 	if value is int or value is float:
 		return float(value)
+	return fallback
+
+static func _bool(value: Variant, fallback: bool) -> bool:
+	if value is bool:
+		return value
+	if value is int or value is float:
+		return not is_zero_approx(float(value))
+	if value is String:
+		var normalized: String = str(value).to_lower().strip_edges()
+		if normalized in ["true", "1", "yes", "on"]:
+			return true
+		if normalized in ["false", "0", "no", "off", ""]:
+			return false
 	return fallback
 
 static func _looks_like_localization_key(value: String) -> bool:
