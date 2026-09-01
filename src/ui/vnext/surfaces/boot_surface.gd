@@ -51,6 +51,7 @@ func configure(next_snapshot: Dictionary, next_context: RefCounted) -> void:
 		_illustration = Illustration.new()
 		add_child(_illustration)
 		_illustration.configure_entity("kernel", "ready", "PROCESS")
+	_illustration.set_quality_profile("mobile" if context.input_mode == "touch" else "desktop", context.reduce_motion, context.high_contrast)
 	_illustration.position = _layout["illustration"].position
 	_illustration.size = _layout["illustration"].size
 	_apply_action_layout()

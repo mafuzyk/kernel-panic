@@ -46,6 +46,9 @@ func set_quality(quality: Dictionary) -> void:
 	_quality = quality.duplicate(true)
 	queue_redraw()
 
+func set_quality_profile(tier: String = "desktop", reduced_motion := false, high_contrast := false, color_assist := false, grayscale := false) -> void:
+	set_quality(Renderer.quality_profile(tier, reduced_motion, high_contrast, color_assist, grayscale))
+
 func draw_target_rect(viewport: Vector2 = Vector2.ZERO) -> Rect2:
 	var target := viewport if viewport != Vector2.ZERO else size
 	return Tokens.safe_rect(target, 16.0)

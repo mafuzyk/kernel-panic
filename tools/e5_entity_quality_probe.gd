@@ -60,6 +60,12 @@ func _run() -> void:
 	_check(Quality.profile("unknown").get("tier", "") == "desktop", "unknown quality tier falls back to desktop")
 	var malformed_quality: Dictionary = Quality.normalize({"tier": "mobile", "reduced_motion": "false", "high_contrast": "true", "color_assist": "off", "grayscale": "on"})
 	_check(not bool(malformed_quality.get("reduced_motion", true)) and bool(malformed_quality.get("high_contrast", false)) and bool(malformed_quality.get("grayscale", false)), "malformed quality booleans normalize safely")
+	var illustration_script: Script = load("res://src/ui/vnext/entity_illustration.gd")
+	var illustration = illustration_script.new()
+	illustration.set_quality_profile("mobile", true, true)
+	var illustration_quality: Dictionary = illustration.visual_snapshot().get("quality", {})
+	_check(str(illustration_quality.get("tier", "")) == "mobile" and bool(illustration_quality.get("reduced_motion", false)) and bool(illustration_quality.get("high_contrast", false)), "public entity illustration applies quality profile")
+	illustration.free()
 
 	var identity_snapshot := {"kind": "lancer", "visual_state": "attack", "facing": Vector2.RIGHT, "elite": true}
 	var normal_plan: Dictionary = Renderer.finish_plan(desktop, 2.5)

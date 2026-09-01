@@ -142,6 +142,7 @@ func _apply_layout() -> void:
 	_illustration.visible = not narrow or _narrow_detail
 	launch.visible = not narrow or _narrow_detail
 	list_view.visible = narrow and _narrow_detail
+	_illustration.set_quality_profile("mobile" if context.input_mode == "touch" else "desktop", context.reduce_motion, context.high_contrast)
 	_illustration.configure_entity(Adapter.PROGRAM_KINDS.get(_selected, "kernel"), "ready", "PROGRAM")
 	_illustration.position = _layout["detail"].position + Vector2(18, 18)
 	_illustration.size = Vector2(minf(120.0, _layout["detail"].size.x * 0.32), minf(120.0, _layout["detail"].size.y))
