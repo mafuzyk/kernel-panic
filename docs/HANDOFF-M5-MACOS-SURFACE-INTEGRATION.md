@@ -16,6 +16,10 @@
 - Added a focused Mac integration probe covering story data, profiles, era
   overlay, bestiary identity, adapter projection, renderer bounds and
   responsive overflow/list-detail behavior.
+- Shortened the new Permission Root bestiary copy after the aggregate suite
+  caught that the first longer description exceeded the existing bestiary
+  text budget at narrow and square sizes. The final copy keeps the same rule
+  and counterplay while fitting the current surface.
 - Validated both desktop and narrow dimensions without adding raster art to the
   runtime path.
 
@@ -35,8 +39,10 @@
   editor import exit 0
 ```
 
-All game invocations used the Dummy audio driver. The full suite and remaining
-release checks must still be run after the next batch of changes.
+All game invocations used the Dummy audio driver. The integrated full suite is
+green after the text-budget correction: `/tmp/full-after-m5-copy-fix.log`, exit
+0, 1455 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`. Remaining release checks
+are still required.
 
 ## Review limits
 

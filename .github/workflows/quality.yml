@@ -1,0 +1,24 @@
+name: Quality
+
+on:
+	push:
+		branches: [main, "codex/**"]
+	pull_request:
+
+jobs:
+	godot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+      - name: Import project
+        run: godot --headless --audio-driver Dummy --path . --editor --quit
+      - name: Run DevHarness
+        run: godot --headless --audio-driver Dummy --path . -- --autotest
+      - name: Check patch
+        run: git diff --check

@@ -36,7 +36,8 @@ desktop, square, and narrow phone dimensions.
 After M5:
 
 - `PERMISSION ROOT` maps to a stable `permission_root` bestiary ID and has
-  player-facing counterplay text.
+  compact player-facing counterplay text that fits the current detail/card
+  budgets.
 - Story detail exposes the stage rule and reward ID alongside its briefing and
   status, making the new route's purpose inspectable before launch.
 - The new focused probe exercises all four Mac story stages through the live

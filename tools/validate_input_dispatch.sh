@@ -135,6 +135,9 @@ run_headless_probe_with_env "KP_VNEXT_HUD" "probe-vnext-combat-hud" "VNext comba
 run_headless_probe_with_env "KP_VNEXT_U4" "probe-vnext-state-surfaces" "VNext pause, terminal and game-over surfaces" "res://tools/vnext_state_surfaces_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_SETTINGS" "probe-vnext-accessibility" "VNext settings and accessibility surface" "res://tools/vnext_accessibility_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_U6" "probe-vnext-state-surface" "VNext shared state surface" "res://tools/vnext_state_surface_probe.tscn"
+run_headless_probe "probe-macos-release-gate" "M5 macOS surface integration" "res://tools/macos_release_gate_probe.tscn"
+run_headless_probe "probe-accessibility-profile" "A11/A14 accessibility effects and handed touch" "res://tools/accessibility_profile_probe.tscn"
+run_headless_probe "probe-performance-stress" "P1 deterministic performance stress profile" "res://tools/performance_stress_probe.tscn"
 
 if command -v xvfb-run >/dev/null 2>&1; then
 	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-xvfb.log" 2>&1
@@ -166,6 +169,18 @@ if command -v xvfb-run >/dev/null 2>&1; then
 	report_case "VNext shared state surface xvfb" "$LOG_DIR/probe-vnext-state-surface-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "VNext shared state surface xvfb" "$LOG_DIR/probe-vnext-state-surface-xvfb.log"
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/macos_release_gate_probe.tscn > "$LOG_DIR/probe-macos-release-gate-xvfb.log" 2>&1
+	report_case "M5 macOS surface integration xvfb" "$LOG_DIR/probe-macos-release-gate-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "M5 macOS surface integration xvfb" "$LOG_DIR/probe-macos-release-gate-xvfb.log"
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/accessibility_profile_probe.tscn > "$LOG_DIR/probe-accessibility-profile-xvfb.log" 2>&1
+	report_case "A11/A14 accessibility profile xvfb" "$LOG_DIR/probe-accessibility-profile-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "A11/A14 accessibility profile xvfb" "$LOG_DIR/probe-accessibility-profile-xvfb.log"
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/performance_stress_probe.tscn > "$LOG_DIR/probe-performance-stress-xvfb.log" 2>&1
+	report_case "P1 performance stress xvfb" "$LOG_DIR/probe-performance-stress-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "P1 performance stress xvfb" "$LOG_DIR/probe-performance-stress-xvfb.log"
 else
 	echo "== input probe xvfb: SKIP (xvfb-run not found; R03 desktop-debug coverage incomplete)"
 	overall=1
