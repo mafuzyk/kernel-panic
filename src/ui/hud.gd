@@ -116,9 +116,7 @@ func _ready() -> void:
 	Game.score_changed.connect(_on_score)
 	Game.combo_changed.connect(_on_combo)
 	Game.achievement_unlocked.connect(_on_achievement_unlocked)
-	Game.patch_picked.connect(func(_id: String) -> void:
-		_build_label.text = Game.build_string()
-	)
+	Game.patch_picked.connect(_on_patch_picked)
 	_refresh_aux_anchors()
 	_on_score(Game.score, Game.mult)
 
@@ -262,6 +260,10 @@ func _on_score(score: int, mult: int) -> void:
 	_score_label.text = "%07d" % score
 	_best_label.text = ("WEEK " + Game.week_id() + "  BEST %07d" % Game.best_for_mode()) if Game.mode == "weekly" else ("BEST %07d" % Game.best_for_mode())
 	queue_redraw()
+
+func _on_patch_picked(_id: String) -> void:
+	if _build_label != null and is_instance_valid(_build_label):
+		_build_label.text = Game.build_string()
 
 func _on_combo(mult: int, frac: float) -> void:
 	_mult = mult
