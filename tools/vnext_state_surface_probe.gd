@@ -44,6 +44,9 @@ func _ready() -> void:
 	_check(malformed.get("kind") == "error", "unknown kind falls back to error")
 	_check(not str(malformed.get("title", "")).is_empty() and not str(malformed.get("message", "")).is_empty(), "malformed state gets actionable fallback")
 	_check(not str(malformed.get("message", "")).contains("locale_missing"), "raw reason key is not visible")
+	for raw_key in ["state.error.title", "menu.retry-label", "catalog.missing"]:
+		var raw_copy: Dictionary = UIState.make("error", {"title": raw_key, "message": raw_key})
+		_check(not str(raw_copy.get("title", "")).contains(raw_key) and not str(raw_copy.get("message", "")).contains(raw_key), "raw visible key is rejected: %s" % raw_key)
 	var no_retry: Dictionary = UIState.make("error", {"title": "FAILED", "message": "Retry is unavailable.", "can_retry": false, "primary_action": "retry", "primary_label": "RETRY", "back_action": "back", "back_label": "BACK"})
 	_check(str(no_retry.get("primary_action", "")).is_empty(), "unsafe retry cannot leave inert primary")
 

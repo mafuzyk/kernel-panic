@@ -62,7 +62,12 @@ static func _visible_or_default(value: String, fallback: String) -> String:
 	return text
 
 static func _looks_like_key(value: String) -> bool:
-	return value.begins_with("loc.") or value.begins_with("ui.") or (value.contains("_") and not value.contains(" "))
+	if value.begins_with("loc.") or value.begins_with("ui."):
+		return true
+	if value.contains(" "):
+		return false
+	var lowercase_identifier := value == value.to_lower()
+	return lowercase_identifier and (value.contains("_") or value.contains(".") or value.contains("-"))
 
 static func _safe_meta(value: String, fallback: String) -> String:
 	var clean := value.strip_edges()

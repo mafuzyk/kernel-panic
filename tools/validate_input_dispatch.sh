@@ -6,7 +6,9 @@
 ## Failures (AT_FAIL / PROBE_FAIL) and engine/script ERROR lines are reported in
 ## SEPARATE sections. Runtime/script errors gate the exit code; known teardown
 ## resource/RID diagnostics remain visible but non-gating until their ownership
-## is isolated.
+## is isolated. Every invocation has a bounded timeout and a kill-after grace
+## period; this is a containment aid, not a complete supervisor for arbitrary
+## descendants spawned by a tool.
 ##
 ## Usage: tools/validate_input_dispatch.sh
 ## Logs land in .godot/codex-review-lote-1/ (gitignored runtime artifacts).
@@ -17,6 +19,7 @@ cd "$(dirname "$0")/.."
 LOG_DIR="${KP_VALIDATION_LOGS:-.godot/codex-review-lote-1}"
 XDG="$LOG_DIR/xdg"
 VALIDATION_TIMEOUT_SECONDS="${KP_VALIDATION_TIMEOUT_SECONDS:-120}"
+VALIDATION_KILL_GRACE_SECONDS="${KP_VALIDATION_KILL_GRACE_SECONDS:-5}"
 mkdir -p "$XDG"
 
 overall=0
@@ -73,7 +76,7 @@ report_errors() {
 run_headless_probe() {
 	local slug="$1" name="$2" scene="$3"
 	local log="$LOG_DIR/$slug.log"
-	timeout "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . "$scene" > "$log" 2>&1
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . "$scene" > "$log" 2>&1
 	report_case "$name" "$log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "$name" "$log"
@@ -83,7 +86,7 @@ run_headless_probe() {
 run_headless_probe_with_env() {
 	local env_name="$1" slug="$2" name="$3" scene="$4"
 	local log="$LOG_DIR/$slug.log"
-	timeout "${VALIDATION_TIMEOUT_SECONDS}s" env "$env_name=1" XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . "$scene" > "$log" 2>&1
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env "$env_name=1" XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . "$scene" > "$log" 2>&1
 	report_case "$name" "$log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "$name" "$log"
@@ -91,14 +94,14 @@ run_headless_probe_with_env() {
 }
 
 echo "--- suite headless ---"
-timeout "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . -- --autotest > "$LOG_DIR/suite-headless.log" 2>&1
+timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . -- --autotest > "$LOG_DIR/suite-headless.log" 2>&1
 report_case "suite headless (--autotest)" "$LOG_DIR/suite-headless.log" "$?" "AT_PASS" "AT_FAIL" \
 	'^AUTOTEST_ALL_PASS$:::AUTOTEST_ALL_PASS marker'
 report_errors "suite headless" "$LOG_DIR/suite-headless.log"
 echo
 
 echo "--- input dispatch probe ---"
-timeout "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-headless.log" 2>&1
+timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" godot --audio-driver Dummy --headless --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-headless.log" 2>&1
 report_case "input probe headless" "$LOG_DIR/probe-headless.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 	'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 report_errors "input probe headless" "$LOG_DIR/probe-headless.log"
@@ -124,20 +127,20 @@ run_headless_probe_with_env "KP_VNEXT_SETTINGS" "probe-vnext-accessibility" "VNe
 run_headless_probe_with_env "KP_VNEXT_U6" "probe-vnext-state-surface" "VNext shared state surface" "res://tools/vnext_state_surface_probe.tscn"
 
 if command -v xvfb-run >/dev/null 2>&1; then
-	timeout "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-xvfb.log" 2>&1
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/input_dispatch_probe.tscn > "$LOG_DIR/probe-xvfb.log" 2>&1
 	report_case "input probe xvfb (desktop debug)" "$LOG_DIR/probe-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker' \
 		'^PROBE_INFO debug_controls_enabled=true$:::debug_controls_enabled=true (desktop debug active)'
 	report_errors "input probe xvfb" "$LOG_DIR/probe-xvfb.log"
-	timeout "${VALIDATION_TIMEOUT_SECONDS}s" env KP_VNEXT_U4=1 XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/vnext_state_surfaces_probe.tscn > "$LOG_DIR/probe-vnext-state-surfaces-xvfb.log" 2>&1
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env KP_VNEXT_U4=1 XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/vnext_state_surfaces_probe.tscn > "$LOG_DIR/probe-vnext-state-surfaces-xvfb.log" 2>&1
 	report_case "VNext state surfaces xvfb" "$LOG_DIR/probe-vnext-state-surfaces-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "VNext state surfaces xvfb" "$LOG_DIR/probe-vnext-state-surfaces-xvfb.log"
-	timeout "${VALIDATION_TIMEOUT_SECONDS}s" env KP_VNEXT_SETTINGS=1 XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/vnext_accessibility_probe.tscn > "$LOG_DIR/probe-vnext-accessibility-xvfb.log" 2>&1
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env KP_VNEXT_SETTINGS=1 XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/vnext_accessibility_probe.tscn > "$LOG_DIR/probe-vnext-accessibility-xvfb.log" 2>&1
 	report_case "VNext accessibility xvfb" "$LOG_DIR/probe-vnext-accessibility-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "VNext accessibility xvfb" "$LOG_DIR/probe-vnext-accessibility-xvfb.log"
-	timeout "${VALIDATION_TIMEOUT_SECONDS}s" env KP_VNEXT_U6=1 XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/vnext_state_surface_probe.tscn > "$LOG_DIR/probe-vnext-state-surface-xvfb.log" 2>&1
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env KP_VNEXT_U6=1 XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/vnext_state_surface_probe.tscn > "$LOG_DIR/probe-vnext-state-surface-xvfb.log" 2>&1
 	report_case "VNext shared state surface xvfb" "$LOG_DIR/probe-vnext-state-surface-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "VNext shared state surface xvfb" "$LOG_DIR/probe-vnext-state-surface-xvfb.log"
