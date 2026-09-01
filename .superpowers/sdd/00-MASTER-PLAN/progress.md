@@ -90,7 +90,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | U | U1, U2, U2b, U3, U4, U5, U6 | U1–U6 completed (opt-in, reviewed) | U1–U6 now cover boot, selection, patch choice, combat HUD, pause/terminal/game-over, accessibility settings and shared recoverable state primitives; final migration, locale, visual approval, physical mobile, Android/export and teardown gates remain open. |
 | E | E1, E2, E3, E4, E5 | E1, E2 batch 1, E3 and E4 completed; E2 remainder/E5 pending | E4 adds the isolated ZOMBIE_PROCESS teach wave, temporary projectile obstacle, reward/pathing hooks, code-drawn identity and real-path probe; visual approval, physical mobile, dense-wave performance and remaining cast work remain. |
 | G | G1 and G2A completed; G2B–G7 pending | G1 explicit run context/mode contract and G2A Page Cache accepted after focused review | Deterministic gameplay probes and balance/readability validation; G3 must build on the G1 context without treating reserved Practice as shipped. |
-| M | M1–M4 completed; M5 pending | M1–M4 implemented and reviewed | Story data/flow, history content, Mac mechanic, climax, rewards and save tests; visual/performance/mobile gate remains. |
+| M | M1–M5 completed | M1–M5 implemented and reviewed | Story data/flow, history content, Mac mechanic, climax, rewards, bestiary/surface integration and responsive gate; human visual/performance/mobile/export gates remain. |
 | L | L1–L4 | Pending | String inventory, PT-BR behavior, plural/select/Unicode/overflow tests. |
 | Accessibility | A11–A15 | Pending | Settings persistence, remapping, contrast/motion/input/touch checks. |
 | X | X1–X5 | Pending | PC/mobile viewport, insets, touch, lifecycle, input and performance evidence. |

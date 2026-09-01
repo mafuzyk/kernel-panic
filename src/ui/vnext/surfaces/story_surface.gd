@@ -388,7 +388,9 @@ func _detail_entries(stage: Dictionary, scale: float) -> Array:
 	var width := maxf(detail.size.x - 28.0, 1.0)
 	var y := detail.position.y + 18.0
 	var entries := []
-	for item in [["identity", str(stage.get("title", "")), 22], ["path", str(stage.get("path", "")), 14], ["briefing", str(stage.get("intro", "")), 14], ["status", "STATUS  " + _stage_state(_selected).to_upper(), 14], ["best", "BEST    %07d" % Game.story_stage_best(_selected), 14]]:
+	var rule_label := "RULE    " + str(stage.get("act_rule", "standard")).replace("_", " ").to_upper()
+	var reward_label := "REWARD  " + str(stage.get("reward_id", "NONE")).to_upper()
+	for item in [["identity", str(stage.get("title", "")), 22], ["path", str(stage.get("path", "")), 14], ["briefing", str(stage.get("intro", "")), 14], ["rule", rule_label, 14], ["reward", reward_label, 14], ["status", "STATUS  " + _stage_state(_selected).to_upper(), 14], ["best", "BEST    %07d" % Game.story_stage_best(_selected), 14]]:
 		var font: Font = Orbitron if int(item[2]) >= 24 else ShareTechMono
 		var height := maxf(24.0, font.get_multiline_string_size(item[1], HORIZONTAL_ALIGNMENT_LEFT, width, int(round(float(item[2]) * scale))).y + 4.0)
 		entries.append({"id": item[0], "text": item[1], "rect": Rect2(detail.position + Vector2(14.0, y - detail.position.y), Vector2(width, height)), "size": item[2], "inset": 0.0})

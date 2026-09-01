@@ -22,7 +22,7 @@ const PROGRAM_DEFS := {
 	},
 }
 
-const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ZOMBIE_PROCESS": "zombie_process", "RACE_CONDITION": "race_condition", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "UPDATE_LOOP": "update_loop", "BLOATWARE": "bloatware", "GOD": "god", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault"}
+const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ZOMBIE_PROCESS": "zombie_process", "RACE_CONDITION": "race_condition", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "UPDATE_LOOP": "update_loop", "BLOATWARE": "bloatware", "GOD": "god", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault", "PERMISSION ROOT": "permission_root"}
 
 const BESTIARY_ENTRIES := [
 	{"id": "drone", "name": "DRONE", "desc": "basic corrupted process. dash through packs.", "threat": 50, "threat_class": "standard", "glyph_key": "drone", "bugs": "swarms without a scheduler. forever."},
@@ -39,6 +39,7 @@ const BESTIARY_ENTRIES := [
 	{"id": "segfault", "name": "SEGFAULT", "desc": "glitches, teleports, then opens a lance line.", "threat": 5000, "threat_class": "boss", "glyph_key": "segfault", "bugs": "address is invalid. movement is not."},
 	{"id": "bluescreen", "name": "BLUE SCREEN", "desc": "freezes systems and floods the arena with fan shots.", "threat": 7500, "threat_class": "boss", "glyph_key": "bluescreen", "bugs": "the error is blue. the projectiles are not."},
 	{"id": "pagefault", "name": "PAGE FAULT", "desc": "pages shield it until the orbiting nodes are purged.", "threat": 10000, "threat_class": "boss", "glyph_key": "pagefault", "bugs": "read protection enabled. delete the pages."},
+	{"id": "permission_root", "name": "PERMISSION ROOT", "desc": "asks for elevated access, draws a permission line, then denies the request in a directional burst.", "threat": 9000, "threat_class": "boss", "glyph_key": "boss", "bugs": "background service requests root. root says no."},
 	{"id": "recursor", "name": "RECURSOR", "desc": "teleports and leaves corruption. pools mark where it was. keep moving.", "threat": 140, "threat_class": "standard", "glyph_key": "recursor", "bugs": "leaves corruption where it *was*. check behind you."},
 	{"id": "firewall", "name": "FIREWALL", "desc": "rotating wall of orbs. kill the wall to drop the wall.", "threat": 180, "threat_class": "standard", "glyph_key": "firewall", "bugs": "wall persists after death of nearby processes."},
 	{"id": "update_loop", "name": "UPDATE_LOOP", "desc": "reinstalls once after death. finish the update before celebrating.", "threat": 190, "threat_class": "standard", "glyph_key": "update_loop", "bugs": "dies, says 'reinstalling', returns with fewer excuses."},

@@ -10,7 +10,7 @@
 ## Scope of this log
 
 This document records the user-visible and release-relevant work executed from
-the master plan's stabilization phase through M4. Detailed technical evidence
+the master plan's stabilization phase through M5. Detailed technical evidence
 and alternatives remain in the task reports:
 
 - [A1 repository baseline](../../.superpowers/sdd/00-MASTER-PLAN/report-A1.md)
@@ -28,6 +28,7 @@ and alternatives remain in the task reports:
 - [E4 ZOMBIE_PROCESS](../../.superpowers/sdd/00-MASTER-PLAN/report-E4-zombie-process.md)
 - [G1 explicit run context](../../.superpowers/sdd/00-MASTER-PLAN/report-G1-run-context.md)
 - [M4 macOS climax and rewards](../../.superpowers/sdd/00-MASTER-PLAN/report-M4-macos-climax-rewards.md)
+- [M5 macOS surface integration](../../.superpowers/sdd/00-MASTER-PLAN/report-M5-macos-surface-integration.md)
 
 The execution branch is `codex/plan-execution`; it is based on the reviewed
 master-plan documentation and does not merge into `main` automatically.
@@ -1025,3 +1026,42 @@ and HUD messaging still need playtest approval.
 - `/tmp/m4-probe-green8.log`: exit 0, `PROBE_DONE fails=0`.
 - `/tmp/m4-suite.log`: exit 0, 1453 `AT_PASS`, 0 `AT_FAIL`,
   `AUTOTEST_ALL_PASS`.
+
+## M5 — macOS surface integration and responsive release gate (unreleased)
+
+### Added
+
+- Added a distinct `permission_root` bestiary identity and player-facing
+  counterplay copy for the Mac climax boss.
+- Added `RULE` and `REWARD` metadata to the from-scratch story detail surface,
+  so the player can understand the selected node before mounting it.
+- Added a focused integration gate for the Mac story catalog, era profiles,
+  code-drawn overlay, bestiary registry, entity adapter and renderer bounds.
+
+### Changed
+
+- The Mac story gate now checks both list and detail states at desktop, square
+  and narrow-phone logical viewports: 1366×768, 720×720, 432×720 and 390×844.
+- The integration keeps the moodboard in `media/Ideas/` as art direction only;
+  no generated or proprietary raster artwork was introduced into the runtime
+  path.
+
+### Compatibility
+
+- Stage IDs, story progression, reward IDs, save format and the existing
+  generic bestiary entries remain unchanged. The new entry is additive.
+
+### Known Issues
+
+- The Permission Root still uses the shared boss glyph as a temporary
+  code-drawn fallback; it needs a human-approved dedicated silhouette.
+- Automated bounds and contract checks do not replace visual review, balance
+  playtesting, physical touch testing, dense-wave performance profiling or
+  exported Android/desktop validation.
+
+### Evidence
+
+- `/tmp/m5-macos-release-gate.log`: exit 0, 26 passes,
+  `PROBE_DONE fails=0`.
+- `/tmp/m5-story.log`: exit 0, `PROBE_DONE fails=0`.
+- `/tmp/m5-layout.log`: exit 0, 130 passes, zero failures.
