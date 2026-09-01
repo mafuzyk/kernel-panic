@@ -803,3 +803,35 @@ and HUD messaging still need playtest approval.
 
 - Focused G4 coverage passed 55 checks across all boss variants, split
   fragments, transition gating, normal damage and dash reaction margin.
+
+## 2026-09-01 — unreleased — Race Condition encounter
+
+### Added
+
+- Added the RACE_CONDITION daemon pair. Two processes become faster while
+  close, show a broken link between them and can be neutralized by separating
+  them before purging each one.
+- Added a staged introduction: the first encounter is the pair alone, the
+  second adds familiar DRONE pressure, and later waves can mix the mechanic
+  with the wider roster.
+- Added a bestiary entry and code-drawn identity that remains readable through
+  shape and white markers instead of depending on color alone.
+
+### Improved
+
+- Enemy presentation now preserves nested state from specialized entities,
+  allowing pair state to reach future HUD surfaces without coupling the HUD to
+  gameplay nodes.
+
+### Known Issues
+
+- Pair radius, speed multiplier and wave placement still require human
+  playtesting for difficulty and readability on desktop and mobile.
+- No physical-device visual/performance approval has been recorded yet.
+
+### Evidence
+
+- Focused probe: 23 passes, zero failures and `PROBE_DONE fails=0`.
+- Full DevHarness: 1427 passes, zero assertion failures and
+  `AUTOTEST_ALL_PASS`.
+- Technical report: `.superpowers/sdd/00-MASTER-PLAN/report-G5-race-condition.md`.

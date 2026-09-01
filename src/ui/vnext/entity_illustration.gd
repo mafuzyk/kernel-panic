@@ -10,6 +10,7 @@ const ENTITY_COLORS := {
 	"drone": Color("#42e8ff"),
 	"lancer": Color("#42e8ff"),
 	"oom": Color("#9d72ff"),
+	"race_condition": Color("#e878ff"),
 	"god": Color("#f4b942"),
 	"kernel": Color("#4ff2ff"),
 	"daemon": Color("#ff5b88"),

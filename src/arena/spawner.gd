@@ -2,6 +2,7 @@ class_name Spawner
 extends Node
 
 const ZombieProcess = preload("res://src/enemies/zombie_process.gd")
+const RaceCondition = preload("res://src/enemies/race_condition.gd")
 
 signal wave_started(wave: int, is_boss: bool)
 signal wave_cleared(wave: int)
@@ -20,6 +21,7 @@ var _boss_trickle_t := 0.0
 var _awaiting_boss := false
 var _spawn_generation := 0
 var _debug_spawn_index := 0
+var _race_pair_sequence := 0
 var wave_event := ""
 var arena_ref: Node2D
 var story_mode := false
@@ -162,6 +164,14 @@ func hud_banner(txt: String) -> void:
 
 func _build_queue() -> void:
 	_queue.clear()
+	# The first contact teaches only the linked-pair rule. The next contact
+	# adds familiar drones so the player can practice prioritization.
+	if wave == 4:
+		_queue = ["race_condition", "race_condition"]
+		return
+	if wave == 6:
+		_queue = ["race_condition", "race_condition", "drone", "drone"]
+		return
 	var budget := Balance.difficulty_wave_budget(wave)
 	if wave_event == "surge":
 		budget = int(budget * 1.3)
@@ -184,6 +194,8 @@ func _build_queue() -> void:
 		pool.append(["recursor", 3, 0.9 + wave * 0.06])
 	if wave >= 5:
 		pool.append(["oom", 2, 0.4 + (wave - 4) * 0.05])
+	if wave >= 8:
+		pool.append(["race_condition", 3, 0.8 + (wave - 7) * 0.1])
 	var guard := 200
 	while budget > 0 and guard > 0:
 		guard -= 1
@@ -210,6 +222,10 @@ func _build_queue() -> void:
 		var tmp = _queue[i]
 		_queue[i] = _queue[j]
 		_queue[j] = tmp
+	# A later mixed composition may roll an odd number of race tokens. Add the
+	# partner at the composition boundary so a lone process is never taught.
+	if _queue.count("race_condition") % 2 == 1:
+		_queue.append("race_condition")
 
 func _spawn_boss() -> void:
 	var idx := int(wave / float(Balance.BOSS_EVERY))
@@ -298,14 +314,33 @@ func _physics_process(delta: float) -> void:
 	_spawn_group(group)
 
 func _spawn_group(names: Array) -> void:
-	var pos := _edge_point()
 	var generation := _spawn_generation
+	var race_names: Array = []
+	var ordinary_names: Array = []
 	for n in names:
+		if str(n) == "race_condition":
+			race_names.append(n)
+		else:
+			ordinary_names.append(n)
+	if race_names.size() % 2 == 1:
+		race_names.append("race_condition")
+	for pair_start in range(0, race_names.size(), 2):
+		var origin := _edge_point()
+		var offset := Vector2.from_angle(Game.rng.randf() * TAU) * 72.0
+		var safe_rect := Balance.arena_rect().grow(-46.0)
+		var partner_pos := Vector2(clampf(origin.x + offset.x, safe_rect.position.x, safe_rect.end.x), clampf(origin.y + offset.y, safe_rect.position.y, safe_rect.end.y))
+		var pair: Array = []
+		var pair_id := "wave-%d-pair-%d" % [wave, _race_pair_sequence]
+		_race_pair_sequence += 1
 		_pending += 1
-		_telegraph_spawn(pos, n, generation)
-		pos = _edge_point()
+		_telegraph_spawn(origin, race_names[pair_start], generation, pair, pair_id)
+		_pending += 1
+		_telegraph_spawn(partner_pos, race_names[pair_start + 1], generation, pair, pair_id)
+	for n in ordinary_names:
+		_pending += 1
+		_telegraph_spawn(_edge_point(), n, generation)
 
-func _telegraph_spawn(pos: Vector2, kind: String, generation: int) -> void:
+func _telegraph_spawn(pos: Vector2, kind: String, generation: int, pair: Array = [], pair_id: String = "") -> void:
 	var col := Balance.COL_DANGER
 	Fx.ring(pos, col, 30.0, 6.0, 0.55, 2.0, true)
 	Fx.sparks(pos, col, 4, 60.0, 0.5, 2.0)
@@ -330,6 +365,10 @@ func _telegraph_spawn(pos: Vector2, kind: String, generation: int) -> void:
 		else:
 			_configure_enemy(e, Game.rng.randf() < Balance.difficulty_elite_chance(wave))
 		container.add_child(e)
+		if pair != null and kind == "race_condition":
+			pair.append(e)
+			if pair.size() == 2:
+				RaceCondition.link_pair(pair[0], pair[1], pair_id)
 	)
 
 func _configure_enemy(e: EnemyBase, is_elite: bool) -> void:
@@ -371,6 +410,8 @@ func _make_enemy(kind: String) -> EnemyBase:
 			return load("res://src/enemies/bloatware.gd").new()
 		"zombie_process":
 			return ZombieProcess.new()
+		"race_condition":
+			return RaceCondition.new()
 		"god":
 			return load("res://src/enemies/god_boss.gd").new()
 	return null

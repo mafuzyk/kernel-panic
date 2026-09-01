@@ -14,6 +14,7 @@ const KIND_COLORS := {
 	"drone": BalanceData.COL_DRONE,
 	"lancer": BalanceData.COL_LANCER,
 	"spewer": BalanceData.COL_SPEWER,
+	"race_condition": BalanceData.COL_RACE,
 	"kernel": BalanceData.COL_PLAYER,
 	"daemon": BalanceData.COL_PLAYER_HOT,
 	"rootlet": BalanceData.COL_PLAYER,

@@ -794,3 +794,33 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Handoff: `docs/HANDOFF-G4-BOSS-DESPERATION.md`.
 - Next task: G5 RACE_CONDITION enemy and wave teaching, preserving the already
   shipped ZOMBIE_PROCESS counterplay.
+
+## G5 — RACE_CONDITION enemy and wave teaching
+
+- Status: implemented on `codex/plan-execution`; the new pair mechanic is
+  focused, code-drawn and covered by a real delayed spawn probe.
+- Added `RaceConditionEnemy` with independent HP/rewards and a 170px
+  proximity rule. Linked members move at 1.18x configured speed; separation
+  removes the buff. The broken cable, open brackets and white ticks provide a
+  non-color telegraph.
+- Added deterministic teaching: wave 4 is an isolated pair, wave 6 is the
+  pair plus familiar drones, and wave 8+ admits mixed compositions. Spawner
+  grouping repairs odd later race-token rolls so a lone instance is not
+  silently spawned.
+- Added catalog/bestiary, GlyphLib silhouette/extent, renderer color routing
+  and adapter nested-payload preservation. The adapter merge also fixes a
+  generic nested presentation-data loss edge case.
+- Focused red: `/tmp/g5-red.log`, exit 1 with four expected missing-contract
+  failures and a completion marker. Focused green: `/tmp/g5-green4.log`, exit
+  0 with 23 passes, zero failures and `PROBE_DONE fails=0`.
+- Full DevHarness: `/tmp/kernel-panic-g5-suite.log`, exit 0 with 1427 passes,
+  zero assertion failures and `AUTOTEST_ALL_PASS`. Existing teardown
+  ObjectDB/resource/RID diagnostics remain baseline.
+- Review corrections before acceptance: explicit partner spawn positions,
+  stronger adapter-value assertion and typed draw locals after a parser error.
+- Not proven: final encounter feel, human normal/One-HP balance, physical
+  mobile/Vega behavior, late-wave load or visual approval.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-G5-race-condition.md`.
+- Handoff: `docs/HANDOFF-G5-RACE-CONDITION.md`.
+- Next task: G6 death heatmap/profiling and gameplay tuning, unless visual
+  review changes the pair telegraph first.
