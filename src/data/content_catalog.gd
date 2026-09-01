@@ -69,6 +69,13 @@ const PATCH_RELATIONS := {
 	"splitshot": {"heavy": "TRADEOFF: HEAVY + SPLITSHOT BOTH REDUCE FIRE RATE"},
 }
 
+## Optional desktop feedback layers. Neutral patches keep the existing music
+## bed unchanged; these groups only describe presentation, never gameplay.
+const PATCH_MUSIC_LAYERS := {
+	"offensive": ["rapid", "heavy", "core", "ricochet", "pdash", "staticf", "splitshot", "turbo", "chain"],
+	"defensive": ["hp", "restore", "shield", "absorb", "vampic", "recycler", "dataleech", "secondwind", "thorns", "scrapdiet"],
+}
+
 const PATCH_DEFS := [
 	{"id": "rapid", "title": "RAPID LOOPS", "desc": "+18% FIRE RATE", "max": 5, "rare": false, "legend": false},
 	{"id": "cell", "title": "OVERCLOCK CELL", "desc": "+2.0s OVERCLOCK DURATION", "max": 3, "rare": false, "legend": false},
@@ -125,6 +132,9 @@ func patch_codes() -> Dictionary:
 
 func patch_relations() -> Dictionary:
 	return PATCH_RELATIONS.duplicate(true)
+
+func patch_music_layers() -> Dictionary:
+	return PATCH_MUSIC_LAYERS.duplicate(true)
 
 func onehp_patch_excluded() -> Array:
 	return ONEHP_PATCH_EXCLUDED.duplicate(true)

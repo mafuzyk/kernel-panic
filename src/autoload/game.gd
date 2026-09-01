@@ -430,6 +430,7 @@ func start_story(index: int = 0) -> bool:
 	event_log.clear()
 	terminal_heal_used = false
 	_death_heatmap_run_recorded = false
+	Sfx.set_patch_layers({})
 	rng.randomize()
 	run_seed = int(rng.seed)
 	new_best = false
@@ -580,6 +581,7 @@ func start_run() -> void:
 	event_log.clear()
 	terminal_heal_used = false
 	_death_heatmap_run_recorded = false
+	Sfx.set_patch_layers({})
 	Sfx.set_intensity(0)
 	match mode:
 		"weekly":
@@ -816,6 +818,7 @@ func apply_patch(id: String) -> void:
 	patch_levels[id] = patch_level(id) + 1
 	if id == "chain":
 		combo_window = Balance.COMBO_WINDOW + 0.8 * patch_level("chain")
+	Sfx.set_patch_layers(patch_levels)
 	patch_picked.emit(id)
 
 func add_score(n: int) -> void:
@@ -910,6 +913,7 @@ func complete_story_stage() -> bool:
 func to_menu() -> void:
 	state = State.MENU
 	Sfx.set_music_variant("normal")
+	Sfx.set_patch_layers({})
 	Sfx.set_intensity(0)
 	Engine.time_scale = 1.0
 	get_tree().paused = false

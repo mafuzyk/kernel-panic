@@ -2,6 +2,7 @@ extends Node
 
 const DIR := "res://assets/audio_raw/"
 const POOL_SIZE := 14
+const ContentCatalog = preload("res://src/data/content_catalog.gd")
 
 var _streams: Dictionary = {}
 var _pool: Array[AudioStreamPlayer] = []
@@ -23,12 +24,17 @@ var aim_mode := "drag"
 var color_assist := false
 var show_run_info := false
 var music_variant := "normal"
+var offensive_music_enabled := true
+var defensive_music_enabled := true
 var last_accessibility_persisted := true
 var _settings_path_override := ""
+var _patch_levels: Dictionary = {}
+var _stem_tweens: Array = []
 
 const ACCESSIBILITY_SCHEMA_VERSION := 2
 const ACCESSIBILITY_TOUCH_SCALES := [0.85, 1.0, 1.2]
 const DISPLAY_FPS_OPTIONS := [30, 60, 120, 0]
+const PATCH_MUSIC_CROSSFADE_SECONDS := 0.5
 
 func haptic(ms: int) -> void:
 	if not haptics_enabled:
@@ -146,17 +152,76 @@ func stop_music() -> void:
 		p.stop()
 
 func set_intensity(level: int) -> void:
-	if level == _intensity or _stems.size() < 3:
+	var normalized_level := clampi(level, 0, 2)
+	var changed := normalized_level != _intensity
+	_intensity = normalized_level
+	if not changed or _stems.size() < 3:
 		return
-	_intensity = level
+	_apply_music_targets(0.9)
+
+func patch_music_supported() -> bool:
+	var display_name := DisplayServer.get_name().to_lower()
+	return display_name != "headless" and OS.get_environment("KP_FORCE_TOUCH").is_empty() and not DisplayServer.is_touchscreen_available()
+
+func set_patch_layers(levels: Dictionary) -> void:
+	_patch_levels = levels.duplicate(true)
+	_apply_music_targets(PATCH_MUSIC_CROSSFADE_SECONDS)
+
+func set_music_layer_enabled(layer: String, enabled: bool) -> bool:
+	var previous_offensive := offensive_music_enabled
+	var previous_defensive := defensive_music_enabled
+	if layer == "offensive":
+		offensive_music_enabled = enabled
+	elif layer == "defensive":
+		defensive_music_enabled = enabled
+	else:
+		return false
+	_apply_music_targets(PATCH_MUSIC_CROSSFADE_SECONDS)
+	last_accessibility_persisted = _save_settings_result()
+	if not last_accessibility_persisted:
+		offensive_music_enabled = previous_offensive
+		defensive_music_enabled = previous_defensive
+		_apply_music_targets(0.0)
+	return last_accessibility_persisted
+
+func patch_music_snapshot() -> Dictionary:
+	return {
+		"supported": patch_music_supported(),
+		"offensive_active": _patch_music_layer_active("offensive"),
+		"defensive_active": _patch_music_layer_active("defensive"),
+		"offensive_enabled": offensive_music_enabled,
+		"defensive_enabled": defensive_music_enabled,
+		"crossfade_seconds": PATCH_MUSIC_CROSSFADE_SECONDS,
+		"intensity": _intensity,
+	}.duplicate(true)
+
+func _patch_music_layer_active(layer: String) -> bool:
+	var layers: Dictionary = ContentCatalog.PATCH_MUSIC_LAYERS
+	for patch_id in layers.get(layer, []):
+		if int(_patch_levels.get(patch_id, 0)) > 0:
+			return true
+	return false
+
+func _apply_music_targets(duration: float) -> void:
+	if _stems.size() < 3:
+		return
 	var targets := [linear_to_db(music_vol) - 6.0, -80.0, -80.0]
-	if level >= 1:
+	if _intensity >= 1 or (patch_music_supported() and offensive_music_enabled and _patch_music_layer_active("offensive")):
 		targets[1] = linear_to_db(music_vol) - 4.0
-	if level >= 2:
+	if _intensity >= 2 or (patch_music_supported() and defensive_music_enabled and _patch_music_layer_active("defensive")):
 		targets[2] = linear_to_db(music_vol) - 3.0
 	for i in 3:
+		if duration <= 0.0:
+			_stems[i].volume_db = targets[i]
+			continue
+		while _stem_tweens.size() <= i:
+			_stem_tweens.append(null)
+		var previous: Tween = _stem_tweens[i]
+		if previous != null and previous.is_valid():
+			previous.kill()
 		var tw := create_tween()
-		tw.tween_property(_stems[i], "volume_db", targets[i], 0.9)
+		_stem_tweens[i] = tw
+		tw.tween_property(_stems[i], "volume_db", targets[i], duration)
 
 func duck_music(db: float, dur: float) -> void:
 	if _stems.is_empty():
@@ -188,7 +253,7 @@ func _apply_volumes() -> void:
 	AudioServer.set_bus_mute(0, muted)
 	AudioServer.set_bus_volume_db(_bus_sfx, linear_to_db(maxf(sfx_vol, 0.0001)))
 	AudioServer.set_bus_volume_db(_bus_music, linear_to_db(maxf(music_vol, 0.0001)) - 6.0)
-	set_intensity(_intensity)
+	_apply_music_targets(0.0)
 
 const SAVE_PATH := "user://kernel_panic.cfg"
 
@@ -222,6 +287,9 @@ func _load_settings() -> void:
 	shake_level = accessibility["shake_level"]
 	touch_scale = accessibility["touch_scale"]
 	color_assist = accessibility["color_assist"]
+	var music_defaults := _music_layer_defaults()
+	offensive_music_enabled = _normalize_bool(cf.get_value("accessibility", "offensive_music_enabled", music_defaults["offensive_music_enabled"]), bool(music_defaults["offensive_music_enabled"]))
+	defensive_music_enabled = _normalize_bool(cf.get_value("accessibility", "defensive_music_enabled", music_defaults["defensive_music_enabled"]), bool(music_defaults["defensive_music_enabled"]))
 	show_run_info = bool(cf.get_value("feel", "show_run_info", false))
 	_apply_display_settings()
 
@@ -245,6 +313,8 @@ func _save_settings_result() -> bool:
 	cf.set_value("feel", "aim_mode", aim_mode)
 	cf.set_value("feel", "color_assist", color_assist)
 	cf.set_value("feel", "show_run_info", show_run_info)
+	cf.set_value("accessibility", "offensive_music_enabled", offensive_music_enabled)
+	cf.set_value("accessibility", "defensive_music_enabled", defensive_music_enabled)
 	cf.set_value("display", "fullscreen", fullscreen)
 	cf.set_value("display", "target_fps", target_fps)
 	return cf.save(save_path) == OK
@@ -294,6 +364,9 @@ func set_color_assist(v: bool) -> void:
 	color_assist = v
 	save_settings()
 
+func _music_layer_defaults() -> Dictionary:
+	return {"offensive_music_enabled": true, "defensive_music_enabled": true}
+
 func accessibility_defaults() -> Dictionary:
 	return {
 		"color_assist": false,
@@ -337,17 +410,33 @@ func _normalize_bool(value, fallback: bool) -> bool:
 	return fallback
 
 func apply_accessibility_profile(profile: Dictionary, persist := true) -> Dictionary:
-	var normalized: Dictionary = _normalize_accessibility_profile(profile)
-	var previous: Dictionary = {
+	var requested := {
 		"color_assist": color_assist,
 		"haptics_enabled": haptics_enabled,
 		"shake_level": shake_level,
 		"touch_scale": touch_scale,
 	}
+	for key in requested.keys():
+		if profile.has(key):
+			requested[key] = profile[key]
+	var normalized: Dictionary = _normalize_accessibility_profile(requested)
+	var previous: Dictionary = {
+		"color_assist": color_assist,
+		"haptics_enabled": haptics_enabled,
+		"shake_level": shake_level,
+		"touch_scale": touch_scale,
+		"offensive_music_enabled": offensive_music_enabled,
+		"defensive_music_enabled": defensive_music_enabled,
+	}
 	color_assist = normalized["color_assist"]
 	haptics_enabled = normalized["haptics_enabled"]
 	shake_level = normalized["shake_level"]
 	touch_scale = normalized["touch_scale"]
+	if profile.has("offensive_music_enabled"):
+		offensive_music_enabled = _normalize_bool(profile["offensive_music_enabled"], offensive_music_enabled)
+	if profile.has("defensive_music_enabled"):
+		defensive_music_enabled = _normalize_bool(profile["defensive_music_enabled"], defensive_music_enabled)
+	_apply_music_targets(PATCH_MUSIC_CROSSFADE_SECONDS)
 	var persisted := true
 	if persist:
 		persisted = _save_settings_result()
@@ -356,6 +445,9 @@ func apply_accessibility_profile(profile: Dictionary, persist := true) -> Dictio
 			haptics_enabled = previous["haptics_enabled"]
 			shake_level = previous["shake_level"]
 			touch_scale = previous["touch_scale"]
+			offensive_music_enabled = previous["offensive_music_enabled"]
+			defensive_music_enabled = previous["defensive_music_enabled"]
+			_apply_music_targets(0.0)
 	last_accessibility_persisted = persisted
 	return normalized.duplicate(true)
 
@@ -365,9 +457,15 @@ func reset_accessibility_profile(persist := true) -> bool:
 		"haptics_enabled": haptics_enabled,
 		"shake_level": shake_level,
 		"touch_scale": touch_scale,
+		"offensive_music_enabled": offensive_music_enabled,
+		"defensive_music_enabled": defensive_music_enabled,
 	}
 	var defaults := accessibility_defaults()
 	apply_accessibility_profile(defaults, false)
+	var music_defaults := _music_layer_defaults()
+	offensive_music_enabled = bool(music_defaults["offensive_music_enabled"])
+	defensive_music_enabled = bool(music_defaults["defensive_music_enabled"])
+	_apply_music_targets(PATCH_MUSIC_CROSSFADE_SECONDS)
 	if not persist:
 		return true
 	var persisted := _save_settings_result()
@@ -377,6 +475,9 @@ func reset_accessibility_profile(persist := true) -> bool:
 		haptics_enabled = previous["haptics_enabled"]
 		shake_level = previous["shake_level"]
 		touch_scale = previous["touch_scale"]
+		offensive_music_enabled = previous["offensive_music_enabled"]
+		defensive_music_enabled = previous["defensive_music_enabled"]
+		_apply_music_targets(0.0)
 	return persisted
 
 func reload_settings() -> void:
@@ -384,7 +485,7 @@ func reload_settings() -> void:
 
 func accessibility_snapshot() -> Dictionary:
 	var required := ["muted", "haptics_enabled", "shake_level", "target_fps", "touch_scale", "aim_mode", "color_assist", "show_run_info"]
-	var optional := ["sfx_volume", "music_volume", "music_variant", "palette"]
+	var optional := ["sfx_volume", "music_volume", "music_variant", "palette", "music_layers"]
 	var profile := _normalize_accessibility_profile({
 		"color_assist": color_assist,
 		"haptics_enabled": haptics_enabled,
@@ -400,6 +501,8 @@ func accessibility_snapshot() -> Dictionary:
 			"haptics_enabled": true,
 			"shake_level": true,
 			"touch_scale": true,
+			"offensive_music_enabled": true,
+			"defensive_music_enabled": true,
 			"native_screen_reader": false,
 			"text_scale": false,
 			"high_contrast": false,
@@ -413,6 +516,9 @@ func accessibility_snapshot() -> Dictionary:
 		"target_fps": int(target_fps),
 		"fullscreen": bool(fullscreen),
 		"touch_scale": float(touch_scale),
+		"offensive_music_enabled": bool(offensive_music_enabled),
+		"defensive_music_enabled": bool(defensive_music_enabled),
+		"music_layers": {"offensive": bool(offensive_music_enabled), "defensive": bool(defensive_music_enabled)},
 		"aim_mode": str(aim_mode),
 		"color_assist": bool(color_assist),
 		"show_run_info": bool(show_run_info),

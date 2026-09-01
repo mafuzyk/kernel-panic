@@ -28,7 +28,7 @@ static func context_for_viewport(viewport: Vector2, touch := false, reduced := f
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_navigation = Navigation.new()
-	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "reset_accessibility", "back"]:
+	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "offensive_music", "defensive_music", "reset_accessibility", "back"]:
 		_create_button(action_id)
 
 func configure(next_snapshot: Dictionary, next_context: RefCounted) -> void:
@@ -61,6 +61,8 @@ func semantic_snapshot() -> Dictionary:
 			"haptics_enabled": "ON" if bool(Sfx.haptics_enabled) else "OFF",
 			"shake_level": ["OFF", "LOW", "FULL"][clampi(int(Sfx.shake_level), 0, 2)],
 			"touch_scale": _touch_size_name(),
+			"offensive_music": "ON" if bool(Sfx.offensive_music_enabled) else "OFF",
+			"defensive_music": "ON" if bool(Sfx.defensive_music_enabled) else "OFF",
 		},
 		"status": _status,
 		"reset_confirmed": _reset_completed,
@@ -79,6 +81,8 @@ func text_overflow_report() -> Array:
 		{"id": "haptics_enabled", "text": _label_for("haptics_enabled"), "rect": _layout["haptics_enabled"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "shake_level", "text": _label_for("shake_level"), "rect": _layout["shake_level"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "touch_scale", "text": _label_for("touch_scale"), "rect": _layout["touch_scale"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
+		{"id": "offensive_music", "text": _label_for("offensive_music"), "rect": _layout["offensive_music"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
+		{"id": "defensive_music", "text": _label_for("defensive_music"), "rect": _layout["defensive_music"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "reset_accessibility", "text": _label_for("reset_accessibility"), "rect": _layout["reset_accessibility"], "font": ShareTechMono, "size": 15.0, "padding": 24.0},
 		{"id": "back", "text": "< BACK", "rect": _layout["back"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "status", "text": _status, "rect": _layout["status"], "font": ShareTechMono, "size": 12.0, "padding": 0.0},
@@ -127,7 +131,7 @@ func focus_id() -> String:
 	return _focus
 
 func _focus_ids() -> Array[String]:
-	return ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "reset_accessibility", "back"]
+	return ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "offensive_music", "defensive_music", "reset_accessibility", "back"]
 
 func _layout_for_context() -> Dictionary:
 	var safe: Rect2 = context.safe_rect
@@ -138,17 +142,23 @@ func _layout_for_context() -> Dictionary:
 	var h := 52.0
 	var button_width := width
 	var button_y := y + 104.0
+	var actions := {}
+	var ids := _focus_ids()
+	for index in ids.size():
+		actions[ids[index]] = Rect2(x, button_y + float(index) * (h + gap), button_width, h)
 	return {
 		"shell": safe,
 		"title": Rect2(x, y, width, 42.0),
 		"explanation": Rect2(x, y + 44.0, width, 24.0),
 		"status": Rect2(x, y + 76.0, width, 20.0),
-		"color_assist": Rect2(x, button_y, button_width, h),
-		"haptics_enabled": Rect2(x, button_y + (h + gap), button_width, h),
-		"shake_level": Rect2(x, button_y + 2.0 * (h + gap), button_width, h),
-		"touch_scale": Rect2(x, button_y + 3.0 * (h + gap), button_width, h),
-		"reset_accessibility": Rect2(x, button_y + 4.0 * (h + gap), button_width, h),
-		"back": Rect2(x, button_y + 5.0 * (h + gap), button_width, h),
+		"color_assist": actions["color_assist"],
+		"haptics_enabled": actions["haptics_enabled"],
+		"shake_level": actions["shake_level"],
+		"touch_scale": actions["touch_scale"],
+		"offensive_music": actions["offensive_music"],
+		"defensive_music": actions["defensive_music"],
+		"reset_accessibility": actions["reset_accessibility"],
+		"back": actions["back"],
 		"unsupported": Rect2(x, safe.end.y - 22.0, width, 18.0),
 	}
 
@@ -189,6 +199,8 @@ func _label_for(action_id: String) -> String:
 		"haptics_enabled": return "HAPTICS: %s" % ("ON" if Sfx.haptics_enabled else "OFF")
 		"shake_level": return "SCREEN SHAKE: %s" % ["OFF", "LOW", "FULL"][clampi(int(Sfx.shake_level), 0, 2)]
 		"touch_scale": return "TOUCH SIZE: %s" % _touch_size_name()
+		"offensive_music": return "PATCH PERCUSSION: %s" % ("ON" if Sfx.offensive_music_enabled else "OFF")
+		"defensive_music": return "PATCH BASS: %s" % ("ON" if Sfx.defensive_music_enabled else "OFF")
 		"reset_accessibility": return "CONFIRM RESET ACCESSIBILITY" if _reset_confirmed else "RESET ACCESSIBILITY"
 	return "< BACK"
 
@@ -229,6 +241,12 @@ func _emit_action(action_id: String) -> void:
 	elif action_id == "touch_scale":
 		var index := [0.85, 1.0, 1.2].find(float(Sfx.touch_scale))
 		Sfx.apply_accessibility_profile({"touch_scale": [0.85, 1.0, 1.2][wrapi(index + 1, 0, 3)]})
+		_status = "APPLIED / PERSISTED" if Sfx.last_accessibility_persisted else "SAVE FAILED / PREVIOUS VALUES RESTORED"
+	elif action_id == "offensive_music":
+		Sfx.apply_accessibility_profile({"offensive_music_enabled": not Sfx.offensive_music_enabled})
+		_status = "APPLIED / PERSISTED" if Sfx.last_accessibility_persisted else "SAVE FAILED / PREVIOUS VALUES RESTORED"
+	elif action_id == "defensive_music":
+		Sfx.apply_accessibility_profile({"defensive_music_enabled": not Sfx.defensive_music_enabled})
 		_status = "APPLIED / PERSISTED" if Sfx.last_accessibility_persisted else "SAVE FAILED / PREVIOUS VALUES RESTORED"
 	elif action_id == "reset_accessibility":
 		if _reset_confirmed:

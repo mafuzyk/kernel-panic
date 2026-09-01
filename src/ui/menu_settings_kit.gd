@@ -357,6 +357,34 @@ func _build_settings() -> void:
 	_refresh_color_assist_label()
 	assign_section(m._color_assist_btn, "ACCESSIBILITY")
 	box.add_child(m._color_assist_btn)
+	var offensive_music := Button.new()
+	offensive_music.flat = true
+	offensive_music.text = "PATCH PERCUSSION: %s" % ("ON" if Sfx.offensive_music_enabled else "OFF")
+	offensive_music.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	offensive_music.add_theme_font_size_override("font_size", 17)
+	offensive_music.add_theme_color_override("font_color", Balance.COL_TEXT)
+	offensive_music.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+	offensive_music.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	offensive_music.pressed.connect(func() -> void:
+		Sfx.apply_accessibility_profile({"offensive_music_enabled": not Sfx.offensive_music_enabled})
+		offensive_music.text = "PATCH PERCUSSION: %s" % ("ON" if Sfx.offensive_music_enabled else "OFF")
+	)
+	assign_section(offensive_music, "ACCESSIBILITY")
+	box.add_child(offensive_music)
+	var defensive_music := Button.new()
+	defensive_music.flat = true
+	defensive_music.text = "PATCH BASS: %s" % ("ON" if Sfx.defensive_music_enabled else "OFF")
+	defensive_music.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	defensive_music.add_theme_font_size_override("font_size", 17)
+	defensive_music.add_theme_color_override("font_color", Balance.COL_TEXT)
+	defensive_music.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+	defensive_music.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	defensive_music.pressed.connect(func() -> void:
+		Sfx.apply_accessibility_profile({"defensive_music_enabled": not Sfx.defensive_music_enabled})
+		defensive_music.text = "PATCH BASS: %s" % ("ON" if Sfx.defensive_music_enabled else "OFF")
+	)
+	assign_section(defensive_music, "ACCESSIBILITY")
+	box.add_child(defensive_music)
 	var save_label := _settings_group_label("SAVE TRANSFER // PHONE ↔ PC")
 	assign_section(save_label, "SAVE DATA")
 	box.add_child(save_label)

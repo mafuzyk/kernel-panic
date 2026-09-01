@@ -848,3 +848,27 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Handoff: `docs/HANDOFF-G6-DEATH-HEATMAP.md`.
 - Next task: G7 desktop music/feedback layering, with the map's secondary
   diagnostic status retained for later accessibility review.
+
+## G7 — desktop patch music layers
+
+- Status: implemented on `codex/plan-execution`; desktop-only patch feedback
+  reuses the synchronized B/C beds and stays silent on mobile/headless.
+- `ContentCatalog` now owns the offensive/defensive patch grouping. `Game`
+  refreshes `Sfx` at run, patch and menu boundaries; `Sfx` owns the capability
+  gate, 0.5s patch crossfade, independent persisted toggles and snapshots.
+- Legacy and vNext Accessibility both expose `PATCH PERCUSSION` and `PATCH
+  BASS`; the vNext surface now covers eight controls with responsive layout.
+- Related correctness fix: partial accessibility profile updates merge with
+  live values instead of resetting omitted controls to defaults; failed saves
+  restore music flags too.
+- Red: `/tmp/g7-red.log`, exit 1, 10 expected missing contracts. Green
+  headless: `/tmp/g7-green-headless3.log`, 23/0 with support false. Green
+  Xvfb: `/tmp/g7-green-xvfb.log`, 23/0 with X11 support true and B/C audibility
+  assertions. Existing accessibility regression: `/tmp/g7-access-headless2.log`,
+  exit 0 with all checks green.
+- No new audio assets or gameplay values. Human mix approval, Android audio,
+  physical mobile behavior and baseline teardown diagnostics remain open.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-G7-patch-music.md`.
+- Handoff: `docs/HANDOFF-G7-PATCH-MUSIC.md`.
+- Next task: inspect the remaining plan order and begin the macOS story act
+  only after the current aggregate validation is green.

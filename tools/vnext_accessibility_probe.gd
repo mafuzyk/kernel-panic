@@ -91,7 +91,7 @@ func _ready() -> void:
 	_check(surface.get_script().resource_path.ends_with("accessibility_surface.gd"), "surface is dedicated accessibility route")
 	_check(surface.has_method("layout_snapshot") and surface.has_method("action_regions") and surface.has_method("semantic_snapshot") and surface.has_method("text_overflow_report") and surface.has_method("handle_input"), "surface exposes deterministic contract")
 	var regions: Dictionary = surface.action_regions()
-	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "reset_accessibility", "back"]:
+	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "offensive_music", "defensive_music", "reset_accessibility", "back"]:
 		_check(regions.has(action_id), "surface exposes real control " + action_id)
 		if regions.has(action_id):
 			_check((regions[action_id]["rect"] as Rect2).size.x >= 44.0 and (regions[action_id]["rect"] as Rect2).size.y >= 44.0, "control target meets minimum " + action_id)
@@ -113,12 +113,12 @@ func _ready() -> void:
 	var semantic: Dictionary = surface.semantic_snapshot()
 	var gui_actions: Array[String] = []
 	surface.action_requested.connect(func(action_id: String, _payload: Dictionary) -> void: gui_actions.append(action_id))
-	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale"]:
+	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "offensive_music", "defensive_music"]:
 		surface.set_focus_id(action_id)
 		get_viewport().push_input(_key(KEY_ENTER))
 		get_viewport().push_input(_key(KEY_ENTER, false))
 		await get_tree().process_frame
-	_check(gui_actions.size() == 4 and gui_actions == ["color_assist", "haptics_enabled", "shake_level", "touch_scale"], "four controls dispatch through GUI once each")
+	_check(gui_actions.size() == 6 and gui_actions == ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "offensive_music", "defensive_music"], "six controls dispatch through GUI once each")
 	semantic = surface.semantic_snapshot()
 	_check(str(semantic.get("states", {}).get("color_assist", "")).contains("ON") or str(semantic.get("states", {}).get("color_assist", "")).contains("OFF"), "state is redundant semantic text")
 	_check(surface.text_overflow_report().all(func(item: Dictionary) -> bool: return bool(item.get("fits", false))), "accessibility labels fit")

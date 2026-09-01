@@ -862,3 +862,25 @@ and HUD messaging still need playtest approval.
 - Focused G6 probe passed 24 checks with zero failures and
   `PROBE_DONE fails=0`.
 - Technical report: `.superpowers/sdd/00-MASTER-PLAN/report-G6-death-heatmap.md`.
+## G7 — Desktop patch music layers
+
+### Added
+
+- Optional desktop feedback layers: offensive patches can add percussion and
+  defensive patches can add bass using the game's existing synchronized music.
+- Independent `PATCH PERCUSSION` and `PATCH BASS` controls in Accessibility.
+
+### Changed
+
+- Patch selection now refreshes presentation audio from the authoritative build
+  state. Mobile keeps the existing simpler music path.
+- Partial accessibility updates preserve settings that were not being changed.
+
+### Compatibility
+
+- The new toggles are additive settings and default on for existing profiles.
+
+### Known Issues
+
+- Final mix balance still needs human listening approval on the target PC audio
+  setup and Android audio behavior is not yet validated.
