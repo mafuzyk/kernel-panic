@@ -38,11 +38,15 @@ static func from_enemy_fixture(enemy: Dictionary) -> Dictionary:
 		kind = "oom"
 	var hp := float(enemy.get("hp", 1))
 	var max_hp := maxf(float(enemy.get("max_hp", 1)), 1.0)
-	var state := "hit" if float(enemy.get("hit_flash", 0.0)) > 0.0 else ("elite" if bool(enemy.get("elite", false)) else "idle")
+	var fallback_state := "hit" if float(enemy.get("hit_flash", 0.0)) > 0.0 else ("elite" if bool(enemy.get("elite", false)) else "idle")
+	var state := str(enemy.get("visual_state", fallback_state))
+	var facing: Variant = enemy.get("facing", Vector2.RIGHT.rotated(float(enemy.get("global_rotation", 0.0))))
+	if not facing is Vector2:
+		facing = Vector2.RIGHT.rotated(float(enemy.get("global_rotation", 0.0)))
 	return Descriptor.normalize({
 		"kind": kind,
 		"visual_state": state,
-		"facing": Vector2.RIGHT.rotated(float(enemy.get("global_rotation", 0.0))),
+		"facing": facing,
 		"hp_fraction": hp / max_hp,
 		"elite": bool(enemy.get("elite", false)),
 		"era_accent": enemy.get("era_accent", Color(0, 0, 0, 0)),
@@ -53,6 +57,8 @@ static func from_enemy_fixture(enemy: Dictionary) -> Dictionary:
 static func from_enemy(enemy: Object) -> Dictionary:
 	if enemy == null:
 		return Descriptor.normalize({})
+	if enemy.has_method("presentation_snapshot"):
+		return from_enemy_fixture(enemy.call("presentation_snapshot"))
 	return from_enemy_fixture({
 		"display_name": enemy.get("display_name"),
 		"hp": enemy.get("hp"),

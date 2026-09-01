@@ -61,6 +61,18 @@ func phase_reentry_interval(base_interval: float) -> float:
 func telegraph_duration() -> float:
 	return 0.6
 
+func presentation_state() -> String:
+	if hit_flash > 0.0:
+		return "hit"
+	if phase == Phase.AIM or phase == Phase.LUNGE:
+		return "attack"
+	return "elite" if elite else "idle"
+
+func presentation_facing() -> Vector2:
+	if phase == Phase.AIM or phase == Phase.LUNGE:
+		return _aim.normalized() if _aim.length_squared() > 0.0001 else super.presentation_facing()
+	return super.presentation_facing()
+
 func _ghost_draw(node: Node2D, c: Color) -> void:
 	var r := radius
 	var pts := PackedVector2Array([
@@ -78,7 +90,7 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	GlyphLib.draw_glyph(self, "lancer", Vector2.ZERO, r, _glyph_color(c), t)
+	VNextEntityRenderer.draw_enemy(self, presentation_snapshot(), r, t, _glyph_color(c))
 	if phase == Phase.AIM:
 		var a := 0.35 + 0.4 * absf(sin(t * 30.0))
 		draw_line(Vector2.ZERO, Vector2(560.0, 0), Color(c.r, c.g, c.b, a), 1.6)

@@ -27,6 +27,29 @@ var player: Node2D
 var glow: Sprite2D
 var era_accent := Color(0, 0, 0, 0)
 
+## Presentation-only snapshot. It reads simulation state but never owns or mutates it.
+func presentation_snapshot() -> Dictionary:
+	return {
+		"display_name": display_name,
+		"hp": hp,
+		"max_hp": max_hp,
+		"global_rotation": global_rotation,
+		"elite": elite,
+		"mote_count": mote_count,
+		"era_accent": era_accent,
+		"hit_flash": hit_flash,
+		"visual_state": presentation_state(),
+		"facing": presentation_facing(),
+	}
+
+func presentation_state() -> String:
+	if hit_flash > 0.0:
+		return "hit"
+	return "elite" if elite else "idle"
+
+func presentation_facing() -> Vector2:
+	return Vector2.RIGHT.rotated(global_rotation)
+
 func configure(wave_scale_f: float, is_elite: bool) -> void:
 	hp = int(ceil(hp * wave_scale_f * (2.0 if is_elite else 1.0)))
 	max_hp = hp

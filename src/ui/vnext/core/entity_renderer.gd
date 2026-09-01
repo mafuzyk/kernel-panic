@@ -9,6 +9,8 @@ const MARKER_EXTENT := 1.38
 
 const KIND_COLORS := {
 	"drone": BalanceData.COL_DRONE,
+	"lancer": BalanceData.COL_LANCER,
+	"spewer": BalanceData.COL_SPEWER,
 	"kernel": BalanceData.COL_PLAYER,
 	"daemon": BalanceData.COL_PLAYER_HOT,
 	"rootlet": BalanceData.COL_PLAYER,
@@ -131,13 +133,34 @@ static func draw(canvas: CanvasItem, snapshot: Dictionary, target: Rect2, cosmet
 	if bool(normalized["elite"]):
 		canvas.draw_arc(center, radius * 1.32, 0.0, TAU, 24, BalanceData.COL_MOTE, maxf(1.0, radius * 0.06), true)
 
+static func draw_enemy(canvas: CanvasItem, snapshot: Dictionary, radius: float, cosmetic_time: float = 0.0, color_override: Color = Color(0, 0, 0, 0)) -> void:
+	if canvas == null or radius <= 0.0:
+		return
+	var normalized := Descriptor.normalize(snapshot)
+	var facing: Vector2 = normalized["facing"]
+	var prior_rotation: float = canvas.rotation
+	canvas.draw_set_transform(Vector2.ZERO, facing.angle() - prior_rotation, Vector2.ONE)
+	var color := _color_for_normalized(normalized, {}) if color_override.a <= 0.0 else color_override
+	Glyphs.draw_glyph(canvas, str(normalized["kind"]), Vector2.ZERO, radius, color, cosmetic_time)
+	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	_draw_state(canvas, Vector2.ZERO, radius * 1.2, str(normalized["visual_state"]), BalanceData.COL_TEXT)
+	if bool(normalized["elite"]):
+		canvas.draw_arc(Vector2.ZERO, radius * 1.32, 0.0, TAU, 24, BalanceData.COL_MOTE, maxf(1.0, radius * 0.06), true)
+
+static func state_signature(snapshot: Dictionary) -> String:
+	var state := str(Descriptor.normalize(snapshot)["visual_state"])
+	return {"idle": "square-notch", "attack": "forward-chevrons", "hit": "cross-mark", "elite": "core-dot", "death": "falling-arc"}.get(state, "state-marker")
+
 static func _draw_state(canvas: CanvasItem, center: Vector2, radius: float, state: String, color: Color) -> void:
 	match state:
+		"idle":
+			canvas.draw_rect(Rect2(center - Vector2.ONE * maxf(1.5, radius * 0.08), Vector2.ONE * maxf(3.0, radius * 0.16)), color, false, maxf(1.0, radius * 0.05))
 		"attack":
-			canvas.draw_line(center + Vector2(-radius, radius), center + Vector2(-radius + 8.0, radius - 8.0), color, 2.0, true)
+			canvas.draw_line(center + Vector2(-radius, radius), center + Vector2(-radius + radius * 0.32, radius - radius * 0.32), color, maxf(1.0, radius * 0.08), true)
+			canvas.draw_line(center + Vector2(-radius * 0.6, radius), center + Vector2(-radius * 0.28, radius - radius * 0.32), color, maxf(1.0, radius * 0.08), true)
 		"hit":
-			canvas.draw_line(center + Vector2(-radius, -radius), center + Vector2(radius, radius), color, 2.0, true)
-			canvas.draw_line(center + Vector2(radius, -radius), center + Vector2(-radius, radius), color, 2.0, true)
+			canvas.draw_line(center + Vector2(-radius, -radius), center + Vector2(radius, radius), color, maxf(1.0, radius * 0.08), true)
+			canvas.draw_line(center + Vector2(radius, -radius), center + Vector2(-radius, radius), color, maxf(1.0, radius * 0.08), true)
 		"death":
 			canvas.draw_arc(center, radius, 0.0, PI, 12, color, 2.0, true)
 		"elite":

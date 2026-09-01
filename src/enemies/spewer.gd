@@ -69,6 +69,16 @@ func repeated_fire_interval(base_interval: float) -> float:
 func telegraph_duration() -> float:
 	return 0.42
 
+func presentation_state() -> String:
+	if hit_flash > 0.0:
+		return "hit"
+	if _telegraph > 0.0:
+		return "attack"
+	return "elite" if elite else "idle"
+
+func presentation_facing() -> Vector2:
+	return aim_at_player()
+
 func vel() -> Vector2:
 	return _v
 
@@ -76,7 +86,7 @@ func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
 	rotation = t * 0.9
-	GlyphLib.draw_glyph(self, "spewer", Vector2.ZERO, r, _glyph_color(c), t)
+	VNextEntityRenderer.draw_enemy(self, presentation_snapshot(), r, t, _glyph_color(c))
 	var eye_r := r * 0.42
 	if _telegraph > 0.0:
 		eye_r = r * (0.42 + 0.5 * (1.0 - _telegraph / 0.42))
