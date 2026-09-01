@@ -17,8 +17,8 @@ const BATCH := [
 	{"id": "lancer", "script": "res://src/enemies/lancer.gd", "name": "LANCER"},
 	{"id": "spewer", "script": "res://src/enemies/spewer.gd", "name": "SPEWER"},
 ]
-const NON_BATCH := ["splitter", "bulwark", "trojan", "oom", "recursor", "firewall", "bloatware", "update_loop", "page", "root", "boss", "segfault", "bluescreen", "pagefault", "god", "kernel", "daemon", "rootlet"]
-const GLYPH_LIB_BASELINE_SHA256 := "2846be481b0e43eab9e47708988baa72f75c7d87720d1a95423fa012d1932ce0"
+const NON_BATCH := ["splitter", "bulwark", "trojan", "oom", "recursor", "firewall", "bloatware", "update_loop", "zombie_process", "page", "root", "boss", "segfault", "bluescreen", "pagefault", "god", "kernel", "daemon", "rootlet"]
+const GLYPH_LIB_BASELINE_SHA256 := "2dfdb4dbd29ab23f3b3737170dad6e9b2f52bd9a9dda58fe042593cd969eed0b"
 
 func _ready() -> void:
 	_run.call_deferred()

@@ -1044,6 +1044,8 @@ func _heals_line(s: Dictionary) -> String:
 	return "HEALS +%d (%s)" % [total, ", ".join(parts)]
 
 func _on_enemy_died(e: EnemyBase) -> void:
+	if not e.participates_in_kill_rewards():
+		return
 	var was_split: bool = e is RootBoss and e.get("_split_silent") == true
 	var is_fragment: bool = e is RootBoss and e.mini
 	if was_split:

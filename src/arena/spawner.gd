@@ -1,6 +1,8 @@
 class_name Spawner
 extends Node
 
+const ZombieProcess = preload("res://src/enemies/zombie_process.gd")
+
 signal wave_started(wave: int, is_boss: bool)
 signal wave_cleared(wave: int)
 signal boss_spawned(boss: RootBoss)
@@ -367,6 +369,8 @@ func _make_enemy(kind: String) -> EnemyBase:
 			return load("res://src/enemies/update_loop.gd").new()
 		"bloatware":
 			return load("res://src/enemies/bloatware.gd").new()
+		"zombie_process":
+			return ZombieProcess.new()
 		"god":
 			return load("res://src/enemies/god_boss.gd").new()
 	return null

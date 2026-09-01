@@ -5,7 +5,7 @@ extends RefCounted
 ## Pure canvas drawing: no state, no Game.rng, no node allocation.
 
 static func glyph_kinds() -> Array:
-	return ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "recursor", "firewall", "bloatware", "update_loop", "page", "root", "boss", "segfault", "bluescreen", "pagefault", "god", "kernel", "daemon", "rootlet"]
+	return ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "recursor", "firewall", "bloatware", "update_loop", "zombie_process", "page", "root", "boss", "segfault", "bluescreen", "pagefault", "god", "kernel", "daemon", "rootlet"]
 
 ## Maximum silhouette reach per kind, in multiples of the draw radius.
 ## Conservative outer bounds (lancer's lance tip reaches 2.4x, oom horns 1.6x,
@@ -13,7 +13,7 @@ static func glyph_kinds() -> Array:
 const GLYPH_EXTENT := {
 	"drone": 1.5, "lancer": 2.4, "spewer": 1.1, "splitter": 1.05, "bulwark": 1.05,
 	"trojan": 1.25, "oom": 1.6, "recursor": 1.05, "firewall": 1.05, "bloatware": 1.05,
-	"update_loop": 1.05, "page": 1.25, "root": 1.05, "boss": 1.05, "segfault": 1.45,
+	"update_loop": 1.05, "zombie_process": 1.35, "page": 1.25, "root": 1.05, "boss": 1.05, "segfault": 1.45,
 	"bluescreen": 0.95, "pagefault": 1.15, "god": 1.35, "kernel": 1.5, "daemon": 1.45,
 	"rootlet": 1.1,
 }
@@ -106,6 +106,13 @@ static func draw_glyph(canvas: CanvasItem, kind: String, center: Vector2, radius
 			canvas.draw_rect(ring, Color(c.r, c.g, c.b, 0.16))
 			canvas.draw_rect(ring, c, false, 2.0)
 			canvas.draw_circle(center, radius * 0.2, Color(1, 1, 1, 0.85))
+		"zombie_process":
+			var shell := PackedVector2Array([center + Vector2(-radius, -radius * 0.72), center + Vector2(radius * 0.8, -radius * 0.72), center + Vector2(radius, radius * 0.62), center + Vector2(-radius * 0.72, radius * 0.72)])
+			canvas.draw_colored_polygon(shell, Color(c.r, c.g, c.b, 0.18))
+			canvas.draw_polyline(shell + PackedVector2Array([shell[0]]), c, 2.4, true)
+			canvas.draw_line(center + Vector2(-radius * 0.58, -radius * 0.2), center + Vector2(radius * 0.42, -radius * 0.2), c, 2.0, true)
+			canvas.draw_line(center + Vector2(-radius * 0.58, radius * 0.18), center + Vector2(radius * 0.08, radius * 0.18), Color(c.r, c.g, c.b, 0.7), 2.0, true)
+			canvas.draw_line(center + Vector2(radius * 0.42, radius * 0.08), center + Vector2(radius * 0.42, radius * 0.48), Color(1, 1, 1, 0.9), 2.0, true)
 		"page":
 			var page := PackedVector2Array([center + Vector2(-radius, -radius * 1.2), center + Vector2(radius * 0.8, -radius), center + Vector2(radius, radius * 1.2), center + Vector2(-radius * 0.8, radius)])
 			canvas.draw_colored_polygon(page, Color(c.r, c.g, c.b, 0.18))

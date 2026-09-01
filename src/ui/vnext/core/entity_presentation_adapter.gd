@@ -82,6 +82,9 @@ static func from_enemy_fixture(enemy: Dictionary) -> Dictionary:
 		"era_accent": enemy.get("era_accent", Color(0, 0, 0, 0)),
 		"loot_count": enemy.get("mote_count", 0),
 		"feedback_count": 0,
+		"remaining_life": float(enemy.get("remaining_life", 0.0)),
+		"lifetime": float(enemy.get("lifetime", 0.0)),
+		"timer_marker": str(enemy.get("timer_marker", "")),
 	})
 
 static func from_enemy(enemy: Object) -> Dictionary:

@@ -10,7 +10,7 @@ const STAGES := [
 		"title": "BOOT SEQUENCE",
 		"intro": "The machine wakes with a clean process table. Something is already moving.",
 		"klog": ["init: mounting /boot", "watchdog: first signal acquired", "kernel: input accepted"],
-		"waves": [["drone"], ["drone", "drone"], ["drone", "drone", "drone"], ["drone", "drone", "drone", "drone"]],
+		"waves": [["zombie_process"], ["drone", "drone"], ["drone", "drone", "drone"], ["drone", "drone", "drone", "drone"]],
 		"scale": 0.92,
 		"theme": {"base_col": Color("080b18"), "grid_col": Color("193456"), "glow_col": Color("0d4160"), "accent": Color("4ff2ff")}
 	},

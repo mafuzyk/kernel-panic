@@ -22,7 +22,7 @@ const PROGRAM_DEFS := {
 	},
 }
 
-const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "UPDATE_LOOP": "update_loop", "BLOATWARE": "bloatware", "GOD": "god", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault"}
+const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ZOMBIE_PROCESS": "zombie_process", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "UPDATE_LOOP": "update_loop", "BLOATWARE": "bloatware", "GOD": "god", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault"}
 
 const BESTIARY_ENTRIES := [
 	{"id": "drone", "name": "DRONE", "desc": "basic corrupted process. dash through packs.", "threat": 50, "threat_class": "standard", "glyph_key": "drone", "bugs": "swarms without a scheduler. forever."},
@@ -32,6 +32,7 @@ const BESTIARY_ENTRIES := [
 	{"id": "bulwark", "name": "BULWARK", "desc": "armored and slow. dash past, never hug.", "threat": 300, "threat_class": "elite", "glyph_key": "bulwark", "bugs": "armor does not cover the back. or manners."},
 	{"id": "trojan", "name": "TROJAN", "desc": "leaves corruption pools. do not swim.", "threat": 140, "threat_class": "standard", "glyph_key": "trojan", "bugs": "leaves pools. calls them 'features'."},
 	{"id": "oom", "name": "OOM_KILLER", "desc": "steals your motes and runs. hunt it first.", "threat": 150, "threat_class": "standard", "glyph_key": "oom", "bugs": "steals motes. returns nothing. ever."},
+	{"id": "zombie_process", "name": "ZOMBIE_PROCESS", "desc": "temporary dead shell blocks player bullets. wait or reposition.", "threat": 80, "threat_class": "hazard", "glyph_key": "zombie_process", "bugs": "no pathing, no rewards, no resurrection. just clutter."},
 	{"id": "boss", "name": "ROOT DAEMON", "desc": "every variant has a tell. learn it. respect it.", "threat": 2500, "threat_class": "boss", "glyph_key": "boss", "bugs": "segfaults reproduce. two of them."},
 	{"id": "root", "name": "ROOT.exe", "desc": "splits at half integrity. track both processes.", "threat": 2500, "threat_class": "boss", "glyph_key": "root", "bugs": "forks once. both children are real."},
 	{"id": "segfault", "name": "SEGFAULT", "desc": "glitches, teleports, then opens a lance line.", "threat": 5000, "threat_class": "boss", "glyph_key": "segfault", "bugs": "address is invalid. movement is not."},

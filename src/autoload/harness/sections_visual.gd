@@ -93,9 +93,9 @@ func _story_test(arena: Arena) -> void:
 	h._check(not fixed_queue.is_empty(), "story spawner loads a fixed queue")
 	var fixed_only := true
 	for kind in fixed_queue:
-		if str(kind) != "drone":
+		if str(kind) != "zombie_process":
 			fixed_only = false
-	h._check(fixed_only, "boot queue contains only its declared enemy type")
+	h._check(fixed_only, "boot teach queue contains only ZOMBIE_PROCESS")
 	sp.stop()
 	sp.debug_clear_encounter()
 	Game.mode = saved_mode
@@ -365,4 +365,3 @@ func _charm_speedrun_test(arena: Arena) -> void:
 	Game.event_log = saved_events
 	Game.run_seed = saved_seed
 	h._restore_config_section("achievements", achievement_disk)
-

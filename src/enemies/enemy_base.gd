@@ -50,6 +50,12 @@ func presentation_state() -> String:
 func presentation_facing() -> Vector2:
 	return Vector2.RIGHT.rotated(global_rotation)
 
+func participates_in_enemy_pathing() -> bool:
+	return true
+
+func participates_in_kill_rewards() -> bool:
+	return true
+
 func configure(wave_scale_f: float, is_elite: bool) -> void:
 	hp = int(ceil(hp * wave_scale_f * (2.0 if is_elite else 1.0)))
 	max_hp = hp
@@ -143,7 +149,7 @@ func _move(_delta: float) -> void:
 func _separation() -> Vector2:
 	var push := Vector2.ZERO
 	for e in shared_list:
-		if e == self or not is_instance_valid(e):
+		if e == self or not is_instance_valid(e) or not e.participates_in_enemy_pathing():
 			continue
 		var d: Vector2 = global_position - e.global_position
 		var dist := d.length()

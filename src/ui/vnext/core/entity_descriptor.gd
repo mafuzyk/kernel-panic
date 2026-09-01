@@ -33,6 +33,9 @@ static func normalize(snapshot: Dictionary) -> Dictionary:
 		"era_accent": source.get("era_accent", Color(0, 0, 0, 0)) if source.get("era_accent", Color(0, 0, 0, 0)) is Color else Color(0, 0, 0, 0),
 		"loot_count": maxi(int(source.get("loot_count", 0)), 0),
 		"feedback_count": maxi(int(source.get("feedback_count", 0)), 0),
+		"remaining_life": maxf(_number(source.get("remaining_life", 0.0), 0.0), 0.0),
+		"lifetime": maxf(_number(source.get("lifetime", 0.0), 0.0), 0.0),
+		"timer_marker": str(source.get("timer_marker", "")),
 		"visible_label": visible_label,
 		"nested": source.get("nested", {}).duplicate(true) if source.get("nested", {}) is Dictionary else {},
 	}
