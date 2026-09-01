@@ -87,7 +87,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 |---|---|---|---|
 | W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
 | A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
-| U | U1, U2, U2b, U3, U4, U5, U6 | Pending | vNext foundation, input/flow, responsive/overflow/visual checks. |
+| U | U1, U2, U2b, U3, U4, U5, U6 | U1 completed (reviewed); U2/U2b/U3/U4/U5/U6 pending | U1 vNext foundation, then input/flow, responsive/overflow/visual checks. |
 | E | E1, E2, E3, E4, E5 | Pending | Code-drawn primitives, entity contracts, visual/readability/perf evidence. |
 | G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
 | M | M1–M5 | Pending | Story data/flow, history content, rewards, localization and save tests. |
@@ -109,6 +109,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | 2026-09-01 | A1 repository baseline | `62b0b87` reviewed against `project.godot`, `export_presets.cfg`, `src/autoload/game.gd`, `src/autoload/sfx.gd`; docs corrected by `76f6a0f` | Accepted: no runtime change; repository map, save keys, transfer version, exports and diagnostics recorded | Android build-tools warning; teardown leaks; exact engine/export feasibility still needs dedicated verification. |
 | 2026-09-01 | A2 owner-owned kit revalidation | Structural grep/audit plus `XDG_DATA_HOME=/tmp/kernel-panic-a2-xdg godot --headless --audio-driver Dummy --path . -- --autotest` | Accepted: delegates and source-scan landmines present; exit 0, 1414 passes, 0 failures, `AUTOTEST_ALL_PASS`; documentation-only | Controller-generated ignored brief was not visible to delegated inspection; versioned plans were used. Teardown diagnostics remain open. |
 | 2026-09-01 | A3 snapshot contracts | Focused red/green probes, forced watchdog failure, and controller-fresh full suite; `0fb5d50`/`7c55b82` add live patch-offer projection after adversarial review | Accepted: four real owners expose primitive-safe, deep-copied schemas; focused final 32/0; full suite 1414/0 with marker | No vNext renderer consumer yet; optional-field consumer behavior and actual drawing remain future evidence; teardown diagnostics remain open. |
+| 2026-09-01 | U1 vNext boot/menu slice | `vnext_boot_probe` exit 0 with `PROBE_DONE fails=0`; `vnext_menu_probe` exit 0; full suite 1414/0 with `AUTOTEST_ALL_PASS`; two independent Luna reviews, first reject then final accept | Accepted after corrections: real Buttons, stretch-normalized viewport input, one-activation checks, root BACK behavior, opt-in menu wiring, resize reconfigure, measured overflow | Opt-in only; no final visual approval; persistent accessibility, locale, route stack, and teardown cleanup remain future work. |
 
 ## Change log of approach
 
@@ -116,7 +117,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - A3 added the first runtime contract methods in `Game`, `Arena`, `Menu`, and `Sfx`, plus a focused probe. The controller later corrected a false empty patch-offer projection.
 - A1 agent report incorrectly described the `lifetime` save section as a separate file. Controller verification of `Game._record_run()` showed it loads and saves `Sfx.SAVE_PATH`; both baseline documents were corrected in `76f6a0f` before acceptance.
 - A2 report initially described the generated task brief as absent. The controller confirmed the ignored brief existed before delegation but was not visible to the delegated inspection; the report was corrected in `ead9d28` and the versioned plans remained the source of truth.
-- Next task: A4 split static content from runtime logic. A2 revalidation is documented in `report-A2.md`; A3 is documented in `report-A3.md` with its controller correction.
+- Next task: U2 program/story selection after U1's opt-in boot slice. A2–A5 and U1 are documented in their reports; each report includes its controller corrections and residual limits.
 
 ## A4 static content catalog
 
@@ -179,6 +180,19 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - A5 is accepted for current v1 compatibility after the nested-payload correction; the accepted scope is rejection-before-write and preservation of existing save bytes on invalid payloads. The write-failure seam remains a future reliability task, not silently considered solved.
 
 
+## U1 vNext boot vertical slice
+
+- Status: completed and adversarially corrected on 2026-09-01.
+- Initial red probe: the first focused contract run failed because the new surface was absent; after the initial implementation, the first independent review rejected false-green action dispatch, missing real controls, hardcoded overflow, fixed narrow geometry, and absent menu integration.
+- Controller correction red: strengthened real-input assertions initially exited 1 because pointer coordinates were in stretch/window space and the surface/menu fallback could duplicate or miss Button activation. This was fixed before acceptance.
+- Final boot probe: `env XDG_DATA_HOME=/tmp/kernel-panic-u1-real-input4-20260901 godot --headless --audio-driver Dummy --path . res://tools/vnext_boot_probe.tscn` exited 0 with `PROBE_DONE fails=0`; covers `1366×768`, `720×720`, `432×720`, safe-area containment, measured text, context flags, focus, real Button focus, and exactly-one activation through viewport ENTER/mouse/touch.
+- Final menu probe: `KP_VNEXT_BOOT=1 env XDG_DATA_HOME=/tmp/kernel-panic-u1-menu5-20260901 godot --headless --audio-driver Dummy --path . res://tools/vnext_menu_probe.tscn` exited 0 with `PROBE_DONE fails=0`; covers opt-in routing, simulated `432×720` reconfiguration, safe width, focus preservation, and one real boot action.
+- Full suite: `env XDG_DATA_HOME=/tmp/kernel-panic-u1-full-20260901 godot --headless --audio-driver Dummy --path . -- --autotest` exited 0 with `1414` passes, zero failures and `AUTOTEST_ALL_PASS`.
+- Files: new `ui_context.gd`, `ui_layout.gd`, `ui_navigation.gd`, `surfaces/boot_surface.gd`, both probes; `src/ui/menu.gd` has only an explicit `KP_VNEXT_BOOT=1` route and its integration hooks. Production commits: `830a5bb`; probe hardening commit: `4974c95`.
+- Decisions: one `Rect2` action registry feeds drawing/input/focus; transparent native Buttons own concrete activation; the opt-in root BACK exits explicitly because no prior vNext route exists; legacy menu remains default; pointer input is normalized through the stretch transform; legacy `_process` is skipped in opt-in mode.
+- Independent review: first reviewer rejected; controller fixed every blocker/high finding. Second Luna reviewer accepted. Detailed evidence, rejected approaches, compatibility impact and limitations are in `report-U1.md`.
+- Risks: the opt-in slice is not the final visual UI; BACK is temporary root-exit semantics; accessibility context is API groundwork rather than persisted preferences; translated/high text-scale variants and native screen readers remain future work; baseline teardown diagnostics remain open.
+
 ## Review checklist for every task
 
 - Read the micro-plan and current code, then inspect shared interfaces.
@@ -188,12 +202,3 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Re-read the diff as an adversarial reviewer: lifecycle, paused input, save compatibility, responsive geometry, localization, performance, error paths.
 - Record proven facts, assumptions, residual risks, and validation method here and in the relevant handoff/release document.
 - Commit only explicit task paths; keep unrelated user artifacts out of the commit.
-## U1 vNext boot vertical slice
-
-- Status: completed on 2026-09-01.
-- Red probe: `godot --audio-driver Dummy --headless --path . res://tools/vnext_boot_probe.tscn` failed because the new boot surface was absent.
-- Green probe: same command exited 0 with `PROBE_DONE fails=0`; covers wide/compact/narrow layout, >=44px targets, overflow, semantics, ENTER, mouse, touch, and no duplicate activation.
-- Full suite: `godot --audio-driver Dummy --headless --path . -- --autotest` exited 0 with `AT_FAIL=0` and `AUTOTEST_ALL_PASS`.
-- Files: new `ui_context.gd`, `ui_layout.gd`, `ui_navigation.gd`, `surfaces/boot_surface.gd`, probe/scene; `src/ui/menu.gd` has only the `KP_VNEXT_BOOT=1` opt-in route.
-- Decisions: one `Rect2` action registry feeds drawing/input/focus; no legacy composition, raster, gameplay or save changes. Navigation contract is present for stack/dispatch/focus and will gain additional routes later.
-- Risks: visual capture/review was not available and remains open; no visual approval claimed. Existing teardown diagnostics remain baseline risks.
