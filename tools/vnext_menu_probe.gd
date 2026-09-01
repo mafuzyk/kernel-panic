@@ -29,6 +29,37 @@ func _ready() -> void:
 	_check(surface.get_node_or_null("BootAction") is Button, "menu vnext surface exposes boot control")
 	var menu_actions := []
 	surface.action_requested.connect(func(action_id: String, _payload: Dictionary) -> void: menu_actions.append(action_id))
+	surface.set_focus_id("program")
+	_check(surface.handle_input(_key(KEY_ENTER)), "menu opens vnext program route")
+	await get_tree().process_frame
+	var program_surface = menu.get("_vnext_surface")
+	_check(program_surface != null and program_surface.get_node_or_null("ProgramList") is VBoxContainer, "menu owns program surface")
+	var program_actions := []
+	var program_button_events := []
+	program_surface.action_requested.connect(func(action_id: String, _payload: Dictionary) -> void: program_actions.append(action_id))
+	var program_back_button: Button = program_surface.get_node("BackAction")
+	program_back_button.pressed.connect(func() -> void: program_button_events.append("pressed"))
+	program_surface.set_focus_id("back")
+	get_viewport().push_input(_key(KEY_ENTER))
+	get_viewport().push_input(_key(KEY_ENTER, false))
+	_check(program_actions.size() == 1 and program_actions[0] == "back", "program real back emits one route action")
+	_check(program_button_events.size() == 1, "program real back is owned by Button")
+	await get_tree().process_frame
+	surface = menu.get("_vnext_surface")
+	_check(surface != null and surface.get_node_or_null("BootAction") is Button, "program back returns to boot route")
+	_check(Game.state == Game.State.MENU, "program back cannot fall through into boot")
+	surface.set_focus_id("story")
+	_check(surface.handle_input(_key(KEY_ENTER)), "menu opens vnext story route")
+	await get_tree().process_frame
+	var story_surface = menu.get("_vnext_surface")
+	_check(story_surface != null and story_surface.get_node_or_null("StoryList") is VBoxContainer, "menu owns story surface")
+	story_surface.set_focus_id("back")
+	_check(story_surface.handle_input(_key(KEY_ENTER)), "story back emits route action")
+	await get_tree().process_frame
+	surface = menu.get("_vnext_surface")
+	_check(Game.state == Game.State.MENU, "story back cannot fall through into boot")
+	var boot_actions := []
+	surface.action_requested.connect(func(action_id: String, _payload: Dictionary) -> void: boot_actions.append(action_id))
 	var first_layout: Dictionary = surface.layout_snapshot()
 	menu.size = Vector2(432, 720)
 	menu._configure_vnext_boot(Vector2(432, 720))
@@ -41,7 +72,7 @@ func _ready() -> void:
 	boot_button.grab_focus()
 	get_viewport().push_input(_key(KEY_ENTER))
 	get_viewport().push_input(_key(KEY_ENTER, false))
-	_check(Game.state == Game.State.PLAYING and menu_actions.size() == 1 and menu_actions[0] == "boot", "menu boot action enters playing state once")
+	_check(Game.state == Game.State.PLAYING and boot_actions.size() == 1 and boot_actions[0] == "boot", "menu boot action enters playing state once")
 	_finish()
 
 func _key(code: int, pressed := true) -> InputEventKey:
