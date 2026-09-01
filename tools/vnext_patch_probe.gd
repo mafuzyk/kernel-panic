@@ -44,13 +44,54 @@ func _ready() -> void:
 	_check(actions.size() == 1 and actions[0]["id"] == "confirm", "confirm dispatches once")
 	_check(not surface.handle_input(_key(KEY_ENTER)), "duplicate confirm is ignored")
 	_check(actions.size() == 1, "duplicate selection does not emit")
+	var next_rect: Rect2 = surface.action_regions()["next"]["rect"]
+	_check(surface.handle_input(_mouse(next_rect.get_center())), "mouse navigation uses action geometry")
+	_check(surface.semantic_snapshot().get("selected") == 1, "mouse navigation advances one offer")
+	var touch_rect: Rect2 = surface.action_regions()["previous"]["rect"]
+	_check(surface.handle_input(_touch(touch_rect.get_center())), "touch navigation uses action geometry")
+	surface.size = Vector2(1366, 768)
+	surface.configure(surface.snapshot, script.context_for_viewport(Vector2(1366, 768), false, true, true, 1.15))
+	_check(not surface.action_regions().has("previous"), "wide layout hides narrow navigation")
+	_check(surface.text_overflow_report().all(func(item): return bool(item.get("fits", false))), "resize during offer preserves overflow safety")
 	surface.queue_free()
+	var skip_surface = script.new()
+	add_child(skip_surface)
+	skip_surface.size = Vector2(432, 720)
+	skip_surface.configure({"offers": offers, "active_ids": [], "paused": true}, context)
+	var skip_actions: Array = []
+	skip_surface.action_requested.connect(func(id: String, _payload: Dictionary) -> void: skip_actions.append(id))
+	_check(skip_surface.set_focus_id("skip") and skip_surface.handle_input(_key(KEY_ENTER)), "keyboard skip dispatches")
+	_check(skip_actions == ["skip"], "skip preserves one command")
+	skip_surface.queue_free()
+	var close_surface = script.new()
+	add_child(close_surface)
+	close_surface.size = Vector2(432, 720)
+	close_surface.configure({"offers": offers, "paused": true}, context)
+	var close_actions: Array = []
+	close_surface.action_requested.connect(func(id: String, _payload: Dictionary) -> void: close_actions.append(id))
+	_check(close_surface.set_focus_id("close") and close_surface.handle_input(_key(KEY_ENTER)), "keyboard close dispatches")
+	_check(close_actions == ["close"], "close preserves one command")
+	close_surface.queue_free()
 	_finish()
 
 func _key(code: int) -> InputEventKey:
 	var event := InputEventKey.new()
 	event.keycode = code
 	event.physical_keycode = code
+	event.pressed = true
+	return event
+
+func _mouse(at: Vector2) -> InputEventMouseButton:
+	var event := InputEventMouseButton.new()
+	event.position = at
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	return event
+
+func _touch(at: Vector2) -> InputEventScreenTouch:
+	var event := InputEventScreenTouch.new()
+	event.position = at
+	event.index = 0
 	event.pressed = true
 	return event
 
