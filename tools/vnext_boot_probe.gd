@@ -42,9 +42,13 @@ func _ready() -> void:
 		for action_id in regions:
 			var action_rect: Rect2 = regions[action_id]["rect"]
 			_check((layout["safe_rect"] as Rect2).encloses(action_rect), "%s target stays inside safe area for %s" % [action_id, viewport])
-		_check(surface.text_overflow_report().all(func(item): return bool(item.get("fits", false)) and item.has("measured_width") and item.has("available_width")), "text is measured and fits for %s" % viewport)
+		var overflow: Array = surface.text_overflow_report()
+		_check(overflow.all(func(item): return bool(item.get("fits", false)) and item.has("measured_width") and item.has("available_width")), "text is measured and fits for %s" % viewport)
+		for expected_id in ["title", "subtitle", "telemetry", "boot", "program", "story", "back"]:
+			_check(overflow.any(func(item): return item.get("id") == expected_id), "overflow covers %s for %s" % [expected_id, viewport])
 		_check(surface.semantic_snapshot().has("markers"), "semantic markers exist for %s" % viewport)
 	_check(surface.get_node_or_null("BootAction") is Button and surface.get_node_or_null("BackAction") is Button, "actions have real focusable controls")
+	_check(surface.get_node("BootAction").get_theme_font("font") == load("res://assets/fonts/ShareTechMono.ttf"), "boot controls use project body font")
 	_check(str(surface.context.input_mode) == "touch" and bool(surface.context.reduce_motion) and bool(surface.context.high_contrast) and is_equal_approx(float(surface.context.text_scale), 1.15), "context carries input and accessibility preferences")
 	surface.set_focus_id("back")
 	_check(str(surface.focus_id()) == "back", "focus can move to back action")
