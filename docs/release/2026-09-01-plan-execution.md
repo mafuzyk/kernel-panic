@@ -518,5 +518,6 @@ Platforms: PC | mobile (logical/code path only; no physical mobile validation)
   failed before the correction.
 - Review green: `/tmp/kernel-panic-e4-review-green2.log`, 20 passes, zero
   failures, explicit completion marker.
-- A fresh aggregate validation is required before the next release checkpoint;
-  the earlier aggregate log predates this review correction.
+- Fresh aggregate validation: `/tmp/kernel-panic-e4-review-validator-summary.log`,
+  exit 0, `VALIDATION OK`; full suite 1414/0, E2 77/0 and E4 20/0, with no
+  gated runtime errors. Teardown diagnostics remain reported separately.

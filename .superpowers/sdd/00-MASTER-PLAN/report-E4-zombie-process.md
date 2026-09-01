@@ -77,6 +77,11 @@ restores the arena shared list. Post-fix evidence is
 `/tmp/kernel-panic-e4-review-green2.log`: exit 0, 20 passes, zero failures.
 The default hook still returns true, so ordinary enemy behavior is unchanged.
 
+Fresh aggregate verification after the correction is recorded in
+`/tmp/kernel-panic-e4-review-validator-summary.log`: exit 0,
+`VALIDATION OK`, full suite 1414/0, E2 77/0, E4 20/0 and no gated runtime
+errors. Teardown diagnostics remain separately reported and non-gating.
+
 ## Technical decisions and compatibility
 
 `ZombieProcessEnemy` overrides `take_hit()` and expiry to queue itself without
@@ -93,8 +98,8 @@ Headless/Xvfb checks do not constitute human visual approval. No manual wide /
 compact / narrow screenshot review, physical mobile test, Android export,
 dense-wave performance profile or gameplay-feel review was performed. Existing
 teardown resource/RID/texture diagnostics remain non-gating and unresolved.
-The aggregate validator needs a fresh post-review execution; the earlier
-aggregate evidence predates the helper-coverage correction.
+The known teardown diagnostics still need a later ownership/performance pass;
+they were not altered by E4.
 The authoritative brief was found in the plan-execution worktree at the path
 requested by the task; the original checkout is a separate worktree and was
 not modified.

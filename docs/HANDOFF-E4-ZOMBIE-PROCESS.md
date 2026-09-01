@@ -64,8 +64,9 @@ update because E4 intentionally adds a glyph to the shared file. No E2 enemy
 implementation was changed. Existing teardown leaks and the import Android
 build-tools warning remain outside E4's scope.
 
-The aggregate result above predates the post-handoff helper-coverage fix; a
-fresh aggregate validator run is required before this checkpoint is accepted.
+Fresh post-review aggregate validator: `/tmp/kernel-panic-e4-review-validator-summary.log`,
+exit 0, `VALIDATION OK`; full suite 1414/0, E2 77/0 and E4 20/0. No runtime
+errors gated. Known teardown diagnostics remain visible and non-gating.
 
 ## Files and rollback
 
