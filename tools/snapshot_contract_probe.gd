@@ -54,6 +54,7 @@ func _run() -> void:
 	var arena_save_before := _save_bytes()
 	var arena_nodes_before := tree.get_node_count()
 	var combat_snapshot: Dictionary = {}
+	arena.set("_patch_offers", [{"id": "rapid", "title": "RAPID LOOPS", "desc": "+18% FIRE RATE", "rare": false, "legend": false}])
 	if arena != null and arena.has_method("combat_snapshot"):
 		combat_snapshot = arena.combat_snapshot()
 	_check(arena != null and arena.has_method("combat_snapshot"), "Arena exposes combat_snapshot")
@@ -63,6 +64,10 @@ func _run() -> void:
 	_check(_save_bytes() == arena_save_before, "Arena snapshot preserves save bytes")
 	_check(tree.get_node_count() == arena_nodes_before, "Arena snapshot does not create gameplay nodes")
 	_check(_check_deep_copy(combat_snapshot), "Arena snapshot is isolated from nested mutation")
+	var patch_offers: Array = combat_snapshot.get("patch_offers", [])
+	var patch_offer_valid := patch_offers.size() == 1 and patch_offers[0] is Dictionary and str(patch_offers[0].get("id", "")) == "rapid"
+	_check(patch_offer_valid, "Arena snapshot projects live patch offers")
+	_check(patch_offer_valid and str(patch_offers[0].get("description", "")) == "+18% FIRE RATE", "Arena snapshot sanitizes patch offer text")
 
 	game.to_menu()
 	await tree.process_frame
