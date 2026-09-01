@@ -27,7 +27,7 @@
 
 ```text
 /tmp/m5-macos-release-gate.log
-  exit 0, 26 passes, PROBE_DONE fails=0
+  exit 0, 25 passes, PROBE_DONE fails=0
 
 /tmp/m5-story.log
   exit 0, PROBE_DONE fails=0
