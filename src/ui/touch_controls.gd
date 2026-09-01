@@ -28,10 +28,10 @@ func _input(event: InputEvent) -> void:
 				return
 			if t.position.y <= 70.0:
 				return
-			if t.position.x < size.x * 0.4 and t.position.y > 70.0 and _move_id == -1:
+			if movement_zone_rect().has_point(t.position) and t.position.y > 70.0 and _move_id == -1:
 				_move_id = t.index
 				_move_origin = t.position
-			elif t.position.x >= size.x * 0.4 and t.position.y > 70.0:
+			elif not movement_zone_rect().has_point(t.position) and t.position.y > 70.0:
 				# Action zones are independent from the aim finger: a second touch
 				# must be able to dash/boost without stealing or cancelling aim.
 				if _dash_btn().has_point(t.position):
@@ -88,6 +88,12 @@ func _input(event: InputEvent) -> void:
 func _sc() -> float:
 	return maxf(Sfx.touch_scale, 0.1)
 
+func movement_zone_rect() -> Rect2:
+	var split := size.x * 0.4
+	if bool(Sfx.left_handed_touch):
+		return Rect2(size.x - split, 70.0, split, maxf(size.y - 70.0, 0.0))
+	return Rect2(0.0, 70.0, split, maxf(size.y - 70.0, 0.0))
+
 func movement_geometry() -> Dictionary:
 	var scale := _sc()
 	return {
@@ -104,10 +110,14 @@ func movement_vector_from_offset(offset: Vector2) -> Vector2:
 
 func _dash_btn() -> Rect2:
 	var s := 120.0 * _sc()
+	if bool(Sfx.left_handed_touch):
+		return Rect2(40.0 * _sc(), size.y - s - 36.0, s, s)
 	return Rect2(size.x - s - 40.0 * _sc(), size.y - s - 36.0, s, s)
 
 func _oc_btn() -> Rect2:
 	var s := 120.0 * _sc()
+	if bool(Sfx.left_handed_touch):
+		return Rect2(40.0 * _sc(), size.y - s * 2 - 36.0 - 22.0, s, s)
 	return Rect2(size.x - s - 40.0 * _sc(), size.y - s * 2 - 36.0 - 22.0, s, s)
 
 func _pause_btn() -> Rect2:

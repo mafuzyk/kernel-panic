@@ -28,7 +28,10 @@ static func context_for_viewport(viewport: Vector2, touch := false, reduced := f
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_navigation = Navigation.new()
-	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "offensive_music", "defensive_music", "reset_accessibility", "back"]:
+	var localization := get_node_or_null("/root/Localization")
+	if localization != null and localization.has_signal("locale_changed"):
+		localization.locale_changed.connect(_on_locale_changed)
+	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "reduced_motion", "reduced_flashes", "left_handed_touch", "offensive_music", "defensive_music", "reset_accessibility", "back"]:
 		_create_button(action_id)
 
 func configure(next_snapshot: Dictionary, next_context: RefCounted) -> void:
@@ -53,21 +56,24 @@ func action_regions() -> Dictionary:
 func semantic_snapshot() -> Dictionary:
 	return {
 		"screen": "settings/accessibility",
-		"title": "ACCESSIBILITY",
+		"title": _tr("accessibility.title", "ACCESSIBILITY"),
 		"selected_tab": "ACCESSIBILITY",
 		"focus": _focus,
 		"states": {
-			"color_assist": "ON" if bool(Sfx.color_assist) else "OFF",
-			"haptics_enabled": "ON" if bool(Sfx.haptics_enabled) else "OFF",
-			"shake_level": ["OFF", "LOW", "FULL"][clampi(int(Sfx.shake_level), 0, 2)],
+			"color_assist": _on_off(Sfx.color_assist),
+			"haptics_enabled": _on_off(Sfx.haptics_enabled),
+			"shake_level": _shake_name(),
 			"touch_scale": _touch_size_name(),
-			"offensive_music": "ON" if bool(Sfx.offensive_music_enabled) else "OFF",
-			"defensive_music": "ON" if bool(Sfx.defensive_music_enabled) else "OFF",
+			"reduced_motion": _on_off(Sfx.reduced_motion),
+			"reduced_flashes": _on_off(Sfx.reduced_flashes),
+			"left_handed_touch": _on_off(Sfx.left_handed_touch),
+			"offensive_music": _on_off(Sfx.offensive_music_enabled),
+			"defensive_music": _on_off(Sfx.defensive_music_enabled),
 		},
 		"status": _status,
 		"reset_confirmed": _reset_completed,
 		"reset_armed": _reset_confirmed,
-		"unsupported_note": "NOT AVAILABLE YET: NATIVE SCREEN READERS / TEXT SCALING / HIGH CONTRAST",
+		"unsupported_note": _unsupported_text(),
 		"navigation": _navigation.snapshot() if _navigation != null else {},
 	}
 
@@ -75,16 +81,19 @@ func text_overflow_report() -> Array:
 	if context == null or _layout.is_empty():
 		return [{"id": "surface", "fits": false}]
 	var entries := [
-		{"id": "title", "text": "ACCESSIBILITY", "rect": _layout["title"], "font": Orbitron, "size": 28.0, "padding": 0.0},
+		{"id": "title", "text": _tr("accessibility.title", "ACCESSIBILITY"), "rect": _layout["title"], "font": Orbitron, "size": 28.0, "padding": 0.0},
 		{"id": "explanation", "text": _explanation_text(), "rect": _layout["explanation"], "font": ShareTechMono, "size": 14.0, "padding": 0.0},
 		{"id": "color_assist", "text": _label_for("color_assist"), "rect": _layout["color_assist"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "haptics_enabled", "text": _label_for("haptics_enabled"), "rect": _layout["haptics_enabled"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "shake_level", "text": _label_for("shake_level"), "rect": _layout["shake_level"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "touch_scale", "text": _label_for("touch_scale"), "rect": _layout["touch_scale"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
+		{"id": "reduced_motion", "text": _label_for("reduced_motion"), "rect": _layout["reduced_motion"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
+		{"id": "reduced_flashes", "text": _label_for("reduced_flashes"), "rect": _layout["reduced_flashes"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
+		{"id": "left_handed_touch", "text": _label_for("left_handed_touch"), "rect": _layout["left_handed_touch"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "offensive_music", "text": _label_for("offensive_music"), "rect": _layout["offensive_music"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "defensive_music", "text": _label_for("defensive_music"), "rect": _layout["defensive_music"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "reset_accessibility", "text": _label_for("reset_accessibility"), "rect": _layout["reset_accessibility"], "font": ShareTechMono, "size": 15.0, "padding": 24.0},
-		{"id": "back", "text": "< BACK", "rect": _layout["back"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
+		{"id": "back", "text": _tr("accessibility.back", "< BACK"), "rect": _layout["back"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "status", "text": _status, "rect": _layout["status"], "font": ShareTechMono, "size": 12.0, "padding": 0.0},
 		{"id": "unsupported", "text": _unsupported_text(), "rect": _layout["unsupported"], "font": ShareTechMono, "size": 11.0, "padding": 0.0},
 	]
@@ -131,15 +140,15 @@ func focus_id() -> String:
 	return _focus
 
 func _focus_ids() -> Array[String]:
-	return ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "offensive_music", "defensive_music", "reset_accessibility", "back"]
+	return ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "reduced_motion", "reduced_flashes", "left_handed_touch", "offensive_music", "defensive_music", "reset_accessibility", "back"]
 
 func _layout_for_context() -> Dictionary:
 	var safe: Rect2 = context.safe_rect
 	var width := minf(760.0, safe.size.x)
 	var x := safe.position.x + (safe.size.x - width) * 0.5
 	var y := safe.position.y + 24.0
-	var gap := 8.0
-	var h := 52.0
+	var gap := 5.0 if context.density != "narrow" else 4.0
+	var h := 48.0 if context.density != "narrow" else 44.0
 	var button_width := width
 	var button_y := y + 104.0
 	var actions := {}
@@ -155,6 +164,9 @@ func _layout_for_context() -> Dictionary:
 		"haptics_enabled": actions["haptics_enabled"],
 		"shake_level": actions["shake_level"],
 		"touch_scale": actions["touch_scale"],
+		"reduced_motion": actions["reduced_motion"],
+		"reduced_flashes": actions["reduced_flashes"],
+		"left_handed_touch": actions["left_handed_touch"],
 		"offensive_music": actions["offensive_music"],
 		"defensive_music": actions["defensive_music"],
 		"reset_accessibility": actions["reset_accessibility"],
@@ -195,23 +207,48 @@ func _update_labels() -> void:
 
 func _label_for(action_id: String) -> String:
 	match action_id:
-		"color_assist": return "COLOR ASSIST: %s" % ("ON" if Sfx.color_assist else "OFF")
-		"haptics_enabled": return "HAPTICS: %s" % ("ON" if Sfx.haptics_enabled else "OFF")
-		"shake_level": return "SCREEN SHAKE: %s" % ["OFF", "LOW", "FULL"][clampi(int(Sfx.shake_level), 0, 2)]
-		"touch_scale": return "TOUCH SIZE: %s" % _touch_size_name()
-		"offensive_music": return "PATCH PERCUSSION: %s" % ("ON" if Sfx.offensive_music_enabled else "OFF")
-		"defensive_music": return "PATCH BASS: %s" % ("ON" if Sfx.defensive_music_enabled else "OFF")
-		"reset_accessibility": return "CONFIRM RESET ACCESSIBILITY" if _reset_confirmed else "RESET ACCESSIBILITY"
-	return "< BACK"
+		"color_assist": return _format("accessibility.label.color_assist", {"state": _on_off(Sfx.color_assist)}, "COLOR ASSIST: %s" % _on_off(Sfx.color_assist))
+		"haptics_enabled": return _format("accessibility.label.haptics", {"state": _on_off(Sfx.haptics_enabled)}, "HAPTICS: %s" % _on_off(Sfx.haptics_enabled))
+		"shake_level": return _format("accessibility.label.shake", {"state": _shake_name()}, "SCREEN SHAKE: %s" % _shake_name())
+		"touch_scale": return _format("accessibility.label.touch_size", {"state": _touch_size_name()}, "TOUCH SIZE: %s" % _touch_size_name())
+		"reduced_motion": return _format("accessibility.label.reduced_motion", {"state": _on_off(Sfx.reduced_motion)}, "REDUCED MOTION: %s" % _on_off(Sfx.reduced_motion))
+		"reduced_flashes": return _format("accessibility.label.reduced_flashes", {"state": _on_off(Sfx.reduced_flashes)}, "REDUCED FLASHES: %s" % _on_off(Sfx.reduced_flashes))
+		"left_handed_touch": return _format("accessibility.label.left_handed", {"state": _on_off(Sfx.left_handed_touch)}, "LEFT-HANDED TOUCH: %s" % _on_off(Sfx.left_handed_touch))
+		"offensive_music": return _format("accessibility.label.offensive_music", {"state": _on_off(Sfx.offensive_music_enabled)}, "PATCH PERCUSSION: %s" % _on_off(Sfx.offensive_music_enabled))
+		"defensive_music": return _format("accessibility.label.defensive_music", {"state": _on_off(Sfx.defensive_music_enabled)}, "PATCH BASS: %s" % _on_off(Sfx.defensive_music_enabled))
+		"reset_accessibility": return _tr("accessibility.label.reset_confirm", "CONFIRM RESET ACCESSIBILITY") if _reset_confirmed else _tr("accessibility.label.reset", "RESET ACCESSIBILITY")
+	return _tr("accessibility.back", "< BACK")
 
 func _state_for(action_id: String) -> String:
 	return "FOCUS" if action_id == _focus else "READY"
 
 func _touch_size_name() -> String:
-	return ["SMALL", "NORMAL", "BIG"][clampi([0.85, 1.0, 1.2].find(float(Sfx.touch_scale)), 0, 2)]
+	return [_tr("accessibility.state.touch_small", "SMALL"), _tr("accessibility.state.touch_normal", "NORMAL"), _tr("accessibility.state.touch_big", "BIG")][clampi([0.85, 1.0, 1.2].find(float(Sfx.touch_scale)), 0, 2)]
+
+func _on_off(value: bool) -> String:
+	return _tr("accessibility.state.on", "ON") if value else _tr("accessibility.state.off", "OFF")
+
+func _shake_name() -> String:
+	return [_tr("accessibility.state.shake_off", "OFF"), _tr("accessibility.state.shake_low", "LOW"), _tr("accessibility.state.shake_full", "FULL")][clampi(int(Sfx.shake_level), 0, 2)]
+
+func _format(key: String, values: Dictionary, fallback: String) -> String:
+	var service := get_node_or_null("/root/Localization")
+	if service != null and service.has_method("format_key"):
+		return str(service.format_key(key, values, fallback))
+	return fallback
+
+func _tr(key: String, fallback: String) -> String:
+	var service := get_node_or_null("/root/Localization")
+	if service != null and service.has_method("tr_key"):
+		return str(service.tr_key(key, fallback))
+	return fallback
 
 func _on_button_focus(action_id: String) -> void:
 	_focus = action_id
+	queue_redraw()
+
+func _on_locale_changed(_locale: String) -> void:
+	_update_labels()
 	queue_redraw()
 
 func _on_button_gui_input(event: InputEvent) -> void:
@@ -241,6 +278,15 @@ func _emit_action(action_id: String) -> void:
 	elif action_id == "touch_scale":
 		var index := [0.85, 1.0, 1.2].find(float(Sfx.touch_scale))
 		Sfx.apply_accessibility_profile({"touch_scale": [0.85, 1.0, 1.2][wrapi(index + 1, 0, 3)]})
+		_status = "APPLIED / PERSISTED" if Sfx.last_accessibility_persisted else "SAVE FAILED / PREVIOUS VALUES RESTORED"
+	elif action_id == "reduced_motion":
+		Sfx.apply_accessibility_profile({"reduced_motion": not Sfx.reduced_motion})
+		_status = "APPLIED / PERSISTED" if Sfx.last_accessibility_persisted else "SAVE FAILED / PREVIOUS VALUES RESTORED"
+	elif action_id == "reduced_flashes":
+		Sfx.apply_accessibility_profile({"reduced_flashes": not Sfx.reduced_flashes})
+		_status = "APPLIED / PERSISTED" if Sfx.last_accessibility_persisted else "SAVE FAILED / PREVIOUS VALUES RESTORED"
+	elif action_id == "left_handed_touch":
+		Sfx.apply_accessibility_profile({"left_handed_touch": not Sfx.left_handed_touch})
 		_status = "APPLIED / PERSISTED" if Sfx.last_accessibility_persisted else "SAVE FAILED / PREVIOUS VALUES RESTORED"
 	elif action_id == "offensive_music":
 		Sfx.apply_accessibility_profile({"offensive_music_enabled": not Sfx.offensive_music_enabled})
@@ -293,7 +339,7 @@ func _draw() -> void:
 		draw_polyline(Tokens.frame_points(_layout[action_id], 10.0), color, 2.0 if action_id == _focus else 1.0, true)
 
 func _explanation_text() -> String:
-	return "LIVE CONTROLS ONLY" if context != null and context.density == "narrow" else "REAL CONTROLS ONLY // VALUES APPLY TO THE LIVE GAME"
+	return _tr("accessibility.explanation_narrow", "LIVE CONTROLS ONLY") if context != null and context.density == "narrow" else _tr("accessibility.explanation", "REAL CONTROLS ONLY // VALUES APPLY TO THE LIVE GAME")
 
 func _unsupported_text() -> String:
-	return "NOT AVAILABLE YET: ASSISTIVE TECH" if context != null and context.density == "narrow" else "NOT AVAILABLE YET: NATIVE SCREEN READERS / TEXT SCALING / HIGH CONTRAST"
+	return _tr("accessibility.unsupported_narrow", "NOT AVAILABLE YET: ASSISTIVE TECH") if context != null and context.density == "narrow" else _tr("accessibility.unsupported", "NOT AVAILABLE YET: NATIVE SCREEN READERS / TEXT SCALING / HIGH CONTRAST")

@@ -23,6 +23,9 @@ var touch_scale := 1.0
 var aim_mode := "drag"
 var locale := "en"
 var color_assist := false
+var reduced_motion := false
+var reduced_flashes := false
+var left_handed_touch := false
 var show_run_info := false
 var music_variant := "normal"
 var offensive_music_enabled := true
@@ -32,7 +35,7 @@ var _settings_path_override := ""
 var _patch_levels: Dictionary = {}
 var _stem_tweens: Array = []
 
-const ACCESSIBILITY_SCHEMA_VERSION := 2
+const ACCESSIBILITY_SCHEMA_VERSION := 3
 const ACCESSIBILITY_TOUCH_SCALES := [0.85, 1.0, 1.2]
 const DISPLAY_FPS_OPTIONS := [30, 60, 120, 0]
 const PATCH_MUSIC_CROSSFADE_SECONDS := 0.5
@@ -277,17 +280,26 @@ func _load_settings() -> void:
 	target_fps = _normalize_target_fps(cf.get_value("display", "target_fps", legacy_target_fps), target_fps)
 	fullscreen = _normalize_bool(cf.get_value("display", "fullscreen", false), false)
 	var raw_touch_scale = cf.get_value("feel", "touch_scale", 1.0)
+	var raw_reduced_motion = cf.get_value("feel", "reduced_motion", false)
+	var raw_reduced_flashes = cf.get_value("feel", "reduced_flashes", false)
+	var raw_left_handed_touch = cf.get_value("feel", "left_handed_touch", false)
 	aim_mode = cf.get_value("feel", "aim_mode", "drag")
 	var accessibility := _normalize_accessibility_profile({
 		"color_assist": cf.get_value("feel", "color_assist", false),
 		"haptics_enabled": raw_haptics,
 		"shake_level": raw_shake,
 		"touch_scale": raw_touch_scale,
+		"reduced_motion": raw_reduced_motion,
+		"reduced_flashes": raw_reduced_flashes,
+		"left_handed_touch": raw_left_handed_touch,
 	})
 	haptics_enabled = accessibility["haptics_enabled"]
 	shake_level = accessibility["shake_level"]
 	touch_scale = accessibility["touch_scale"]
 	color_assist = accessibility["color_assist"]
+	reduced_motion = accessibility["reduced_motion"]
+	reduced_flashes = accessibility["reduced_flashes"]
+	left_handed_touch = accessibility["left_handed_touch"]
 	var saved_locale := str(cf.get_value("localization", "locale", "en"))
 	locale = saved_locale if saved_locale in ["en", "pt-BR"] else "en"
 	var music_defaults := _music_layer_defaults()
@@ -313,6 +325,9 @@ func _save_settings_result() -> bool:
 	# Keep the old key readable for older builds and external settings tools.
 	cf.set_value("feel", "target_fps", target_fps)
 	cf.set_value("feel", "touch_scale", touch_scale)
+	cf.set_value("feel", "reduced_motion", reduced_motion)
+	cf.set_value("feel", "reduced_flashes", reduced_flashes)
+	cf.set_value("feel", "left_handed_touch", left_handed_touch)
 	cf.set_value("feel", "aim_mode", aim_mode)
 	cf.set_value("feel", "color_assist", color_assist)
 	cf.set_value("feel", "show_run_info", show_run_info)
@@ -390,6 +405,9 @@ func accessibility_defaults() -> Dictionary:
 		"haptics_enabled": true,
 		"shake_level": 2,
 		"touch_scale": 1.0,
+		"reduced_motion": false,
+		"reduced_flashes": false,
+		"left_handed_touch": false,
 	}
 
 func _normalize_accessibility_profile(profile: Dictionary) -> Dictionary:
@@ -411,6 +429,9 @@ func _normalize_accessibility_profile(profile: Dictionary) -> Dictionary:
 		"haptics_enabled": _normalize_bool(profile.get("haptics_enabled", defaults["haptics_enabled"]), bool(defaults["haptics_enabled"])),
 		"shake_level": shake,
 		"touch_scale": touch,
+		"reduced_motion": _normalize_bool(profile.get("reduced_motion", defaults["reduced_motion"]), bool(defaults["reduced_motion"])),
+		"reduced_flashes": _normalize_bool(profile.get("reduced_flashes", defaults["reduced_flashes"]), bool(defaults["reduced_flashes"])),
+		"left_handed_touch": _normalize_bool(profile.get("left_handed_touch", defaults["left_handed_touch"]), bool(defaults["left_handed_touch"])),
 	}
 
 func _normalize_bool(value, fallback: bool) -> bool:
@@ -432,6 +453,9 @@ func apply_accessibility_profile(profile: Dictionary, persist := true) -> Dictio
 		"haptics_enabled": haptics_enabled,
 		"shake_level": shake_level,
 		"touch_scale": touch_scale,
+		"reduced_motion": reduced_motion,
+		"reduced_flashes": reduced_flashes,
+		"left_handed_touch": left_handed_touch,
 	}
 	for key in requested.keys():
 		if profile.has(key):
@@ -442,6 +466,9 @@ func apply_accessibility_profile(profile: Dictionary, persist := true) -> Dictio
 		"haptics_enabled": haptics_enabled,
 		"shake_level": shake_level,
 		"touch_scale": touch_scale,
+		"reduced_motion": reduced_motion,
+		"reduced_flashes": reduced_flashes,
+		"left_handed_touch": left_handed_touch,
 		"offensive_music_enabled": offensive_music_enabled,
 		"defensive_music_enabled": defensive_music_enabled,
 	}
@@ -449,6 +476,9 @@ func apply_accessibility_profile(profile: Dictionary, persist := true) -> Dictio
 	haptics_enabled = normalized["haptics_enabled"]
 	shake_level = normalized["shake_level"]
 	touch_scale = normalized["touch_scale"]
+	reduced_motion = normalized["reduced_motion"]
+	reduced_flashes = normalized["reduced_flashes"]
+	left_handed_touch = normalized["left_handed_touch"]
 	if profile.has("offensive_music_enabled"):
 		offensive_music_enabled = _normalize_bool(profile["offensive_music_enabled"], offensive_music_enabled)
 	if profile.has("defensive_music_enabled"):
@@ -462,6 +492,9 @@ func apply_accessibility_profile(profile: Dictionary, persist := true) -> Dictio
 			haptics_enabled = previous["haptics_enabled"]
 			shake_level = previous["shake_level"]
 			touch_scale = previous["touch_scale"]
+			reduced_motion = previous["reduced_motion"]
+			reduced_flashes = previous["reduced_flashes"]
+			left_handed_touch = previous["left_handed_touch"]
 			offensive_music_enabled = previous["offensive_music_enabled"]
 			defensive_music_enabled = previous["defensive_music_enabled"]
 			_apply_music_targets(0.0)
@@ -474,6 +507,9 @@ func reset_accessibility_profile(persist := true) -> bool:
 		"haptics_enabled": haptics_enabled,
 		"shake_level": shake_level,
 		"touch_scale": touch_scale,
+		"reduced_motion": reduced_motion,
+		"reduced_flashes": reduced_flashes,
+		"left_handed_touch": left_handed_touch,
 		"offensive_music_enabled": offensive_music_enabled,
 		"defensive_music_enabled": defensive_music_enabled,
 	}
@@ -492,6 +528,9 @@ func reset_accessibility_profile(persist := true) -> bool:
 		haptics_enabled = previous["haptics_enabled"]
 		shake_level = previous["shake_level"]
 		touch_scale = previous["touch_scale"]
+		reduced_motion = previous["reduced_motion"]
+		reduced_flashes = previous["reduced_flashes"]
+		left_handed_touch = previous["left_handed_touch"]
 		offensive_music_enabled = previous["offensive_music_enabled"]
 		defensive_music_enabled = previous["defensive_music_enabled"]
 		_apply_music_targets(0.0)
@@ -501,13 +540,16 @@ func reload_settings() -> void:
 	_load_settings()
 
 func accessibility_snapshot() -> Dictionary:
-	var required := ["muted", "haptics_enabled", "shake_level", "target_fps", "touch_scale", "aim_mode", "color_assist", "show_run_info"]
+	var required := ["muted", "haptics_enabled", "shake_level", "target_fps", "touch_scale", "reduced_motion", "reduced_flashes", "left_handed_touch", "aim_mode", "color_assist", "show_run_info"]
 	var optional := ["sfx_volume", "music_volume", "music_variant", "palette", "music_layers"]
 	var profile := _normalize_accessibility_profile({
 		"color_assist": color_assist,
 		"haptics_enabled": haptics_enabled,
 		"shake_level": shake_level,
 		"touch_scale": touch_scale,
+		"reduced_motion": reduced_motion,
+		"reduced_flashes": reduced_flashes,
+		"left_handed_touch": left_handed_touch,
 	})
 	var snapshot := {
 		"schema_version": ACCESSIBILITY_SCHEMA_VERSION,
@@ -520,10 +562,12 @@ func accessibility_snapshot() -> Dictionary:
 			"touch_scale": true,
 			"offensive_music_enabled": true,
 			"defensive_music_enabled": true,
+			"reduced_motion": true,
+			"reduced_flashes": true,
+			"left_handed_touch": true,
 			"native_screen_reader": false,
 			"text_scale": false,
 			"high_contrast": false,
-			"reduced_flash": false,
 		},
 		"required_fields": required.duplicate(true),
 		"optional_fields": optional.duplicate(true),
@@ -533,6 +577,9 @@ func accessibility_snapshot() -> Dictionary:
 		"target_fps": int(target_fps),
 		"fullscreen": bool(fullscreen),
 		"touch_scale": float(touch_scale),
+		"reduced_motion": bool(reduced_motion),
+		"reduced_flashes": bool(reduced_flashes),
+		"left_handed_touch": bool(left_handed_touch),
 		"offensive_music_enabled": bool(offensive_music_enabled),
 		"defensive_music_enabled": bool(defensive_music_enabled),
 		"music_layers": {"offensive": bool(offensive_music_enabled), "defensive": bool(defensive_music_enabled)},

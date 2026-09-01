@@ -91,11 +91,11 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | E | E1, E2, E3, E4, E5 | E1, E2 batch 1, E3 and E4 completed; E2 remainder/E5 pending | E4 adds the isolated ZOMBIE_PROCESS teach wave, temporary projectile obstacle, reward/pathing hooks, code-drawn identity and real-path probe; visual approval, physical mobile, dense-wave performance and remaining cast work remain. |
 | G | G1 and G2A completed; G2B–G7 pending | G1 explicit run context/mode contract and G2A Page Cache accepted after focused review | Deterministic gameplay probes and balance/readability validation; G3 must build on the G1 context without treating reserved Practice as shipped. |
 | M | M1–M5 completed | M1–M5 implemented and reviewed | Story data/flow, history content, Mac mechanic, climax, rewards, bestiary/surface integration and responsive gate; human visual/performance/mobile/export gates remain. |
-| L | L1–L4 | Pending | String inventory, PT-BR behavior, plural/select/Unicode/overflow tests. |
-| Accessibility | A11–A15 | Pending | Settings persistence, remapping, contrast/motion/input/touch checks. |
+| L | L1–L4 | L1/L2 story slice plus accessibility-surface migration completed; L3/L4 pending | Locale boundary, catalog parity, PT-BR macOS/HUD/settings copy and accessibility labels are covered; legacy UI inventory, full migration, editorial pass and release coverage remain. |
+| Accessibility | A11–A14 partially completed; A12/A13/A15 pending | A11/A14 live motion/flash/handedness profile implemented and reviewed | Settings persistence, reduced effects, handedness and dedicated surface covered; native assistive tech, full text scaling/high contrast, remapping/controller and final migration remain. |
 | X | X1–X5 | Pending | PC/mobile viewport, insets, touch, lifecycle, input and performance evidence. |
-| P | P1–P5 | Pending | Profiles, budgets, p50/p95/p99, worst-frame and teardown measurements. |
-| RPO | RPO1–RPO4 | Pending | Save recovery, diagnostics, reproducible builds, provenance and rollback. |
+| P | P1 completed; P2–P5 pending | P1 fixed-seed profile and real-actor stress gate implemented/reviewed | Headless/Xvfb p50/p95/p99/worst/memory/entity evidence; physical mobile, long-run soak, lifecycle and teardown work remain. |
+| RPO | RPO1–RPO4 | Repository/release scaffolding completed; recovery, provenance and rollback pending | Contribution/conduct/security guidance, templates, baseline CI, art-direction contract and release checklist added; save recovery, diagnostics cleanup, reproducible exports, provenance and rollback remain. |
 | T | T1–T4 | Pending | Test taxonomy, flake policy, capture/manual playtest/release gates. |
 | UX | W12/product UX | Pending | Playtest questions, observations, prioritized proposals, kill criteria. |
 | Governance | 13/Risk/Decision | Pending | Decision log, review gates, risk register, final self-review. |

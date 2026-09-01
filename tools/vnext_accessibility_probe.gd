@@ -26,6 +26,7 @@ func _ready() -> void:
 	_check(defaults.get("haptics_enabled", null) == true, "defaults include haptics")
 	_check(defaults.get("shake_level", null) == 2, "defaults include full shake")
 	_check(defaults.get("touch_scale", null) == 1.0, "defaults include normal touch size")
+	_check(defaults.get("reduced_motion", null) == false and defaults.get("reduced_flashes", null) == false and defaults.get("left_handed_touch", null) == false, "defaults include reduced motion, flashes and handedness")
 	var snap: Dictionary = sfx.accessibility_snapshot() if sfx.has_method("accessibility_snapshot") else {}
 	_check(int(snap.get("schema_version", 0)) >= 2, "snapshot is versioned profile schema")
 	_check(snap.get("supported", {}).has("native_screen_reader") and not bool(snap["supported"]["native_screen_reader"]), "unsupported assistive tech is explicit")
@@ -37,8 +38,8 @@ func _ready() -> void:
 	fixture.set_value("feel", "u5_unrelated_setting", "keep-me")
 	fixture.set_value("audio", "u5_unrelated_setting", "also-keep-me")
 	_check(fixture.save(sfx.SAVE_PATH) == OK, "probe creates unrelated save fixture")
-	var applied: Dictionary = sfx.apply_accessibility_profile({"color_assist": true, "haptics_enabled": false, "shake_level": 0, "touch_scale": 0.85})
-	_check(applied == {"color_assist": true, "haptics_enabled": false, "shake_level": 0, "touch_scale": 0.85}, "profile applies all four live fields")
+	var applied: Dictionary = sfx.apply_accessibility_profile({"color_assist": true, "haptics_enabled": false, "shake_level": 0, "touch_scale": 0.85, "reduced_motion": true, "reduced_flashes": true, "left_handed_touch": true})
+	_check(applied == {"color_assist": true, "haptics_enabled": false, "shake_level": 0, "touch_scale": 0.85, "reduced_motion": true, "reduced_flashes": true, "left_handed_touch": true}, "profile applies all seven live fields")
 	sfx.reload_settings()
 	var reloaded: Dictionary = sfx.accessibility_snapshot()["profile"]
 	_check(reloaded == applied, "profile persists and reloads through Sfx helper")
@@ -55,7 +56,7 @@ func _ready() -> void:
 	_check(malformed_fixture.save(sfx.SAVE_PATH) == OK, "probe writes malformed profile fixture")
 	sfx.reload_settings()
 	var loaded_profile: Dictionary = sfx.accessibility_snapshot()["profile"]
-	_check(loaded_profile.get("color_assist") == false and loaded_profile.get("haptics_enabled") == true and loaded_profile.get("shake_level") == 2 and loaded_profile.get("touch_scale") == 1.2, "malformed profile values normalize during disk load")
+	_check(loaded_profile.get("color_assist") == false and loaded_profile.get("haptics_enabled") == true and loaded_profile.get("shake_level") == 2 and loaded_profile.get("touch_scale") == 1.2 and loaded_profile.get("reduced_motion") == false and loaded_profile.get("reduced_flashes") == false and loaded_profile.get("left_handed_touch") == false, "malformed profile values normalize during disk load")
 	_check(sfx.reset_accessibility_profile(), "malformed fixture is repaired through reset")
 	sfx.reload_settings()
 	_check(sfx.accessibility_snapshot()["profile"] == defaults, "repaired malformed profile reloads as defaults")
@@ -63,6 +64,7 @@ func _ready() -> void:
 		var normalized: Dictionary = sfx.apply_accessibility_profile({"color_assist": "yes", "haptics_enabled": 0, "shake_level": 99, "touch_scale": 9.0}, false)
 		_check(normalized.get("color_assist") == true and normalized.get("haptics_enabled") == false, "malformed booleans normalize")
 		_check(normalized.get("shake_level") == 2 and normalized.get("touch_scale") == 1.2, "malformed numeric values clamp")
+		_check(normalized.get("reduced_motion") == false and normalized.get("reduced_flashes") == false and normalized.get("left_handed_touch") == false, "malformed accessibility booleans use safe defaults")
 	_check(sfx.apply_accessibility_profile({"shake_level": "unknown"}, false).get("shake_level") == 2, "unknown enum safely falls back")
 	var stable_profile: Dictionary = sfx.accessibility_snapshot()["profile"]
 	sfx.set("_settings_path_override", "res://")
@@ -91,7 +93,7 @@ func _ready() -> void:
 	_check(surface.get_script().resource_path.ends_with("accessibility_surface.gd"), "surface is dedicated accessibility route")
 	_check(surface.has_method("layout_snapshot") and surface.has_method("action_regions") and surface.has_method("semantic_snapshot") and surface.has_method("text_overflow_report") and surface.has_method("handle_input"), "surface exposes deterministic contract")
 	var regions: Dictionary = surface.action_regions()
-	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "offensive_music", "defensive_music", "reset_accessibility", "back"]:
+	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "reduced_motion", "reduced_flashes", "left_handed_touch", "offensive_music", "defensive_music", "reset_accessibility", "back"]:
 		_check(regions.has(action_id), "surface exposes real control " + action_id)
 		if regions.has(action_id):
 			_check((regions[action_id]["rect"] as Rect2).size.x >= 44.0 and (regions[action_id]["rect"] as Rect2).size.y >= 44.0, "control target meets minimum " + action_id)
@@ -113,12 +115,13 @@ func _ready() -> void:
 	var semantic: Dictionary = surface.semantic_snapshot()
 	var gui_actions: Array[String] = []
 	surface.action_requested.connect(func(action_id: String, _payload: Dictionary) -> void: gui_actions.append(action_id))
-	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "offensive_music", "defensive_music"]:
+	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "reduced_motion", "reduced_flashes", "left_handed_touch", "offensive_music", "defensive_music"]:
 		surface.set_focus_id(action_id)
 		get_viewport().push_input(_key(KEY_ENTER))
 		get_viewport().push_input(_key(KEY_ENTER, false))
 		await get_tree().process_frame
-	_check(gui_actions.size() == 6 and gui_actions == ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "offensive_music", "defensive_music"], "six controls dispatch through GUI once each")
+	print("PROBE_INFO gui_actions=%s" % str(gui_actions))
+	_check(gui_actions.size() == 9 and gui_actions == ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "reduced_motion", "reduced_flashes", "left_handed_touch", "offensive_music", "defensive_music"], "nine controls dispatch through GUI once each")
 	semantic = surface.semantic_snapshot()
 	_check(str(semantic.get("states", {}).get("color_assist", "")).contains("ON") or str(semantic.get("states", {}).get("color_assist", "")).contains("OFF"), "state is redundant semantic text")
 	_check(surface.text_overflow_report().all(func(item: Dictionary) -> bool: return bool(item.get("fits", false))), "accessibility labels fit")

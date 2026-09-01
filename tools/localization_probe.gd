@@ -59,6 +59,25 @@ func _run() -> void:
 		story_surface.queue_free()
 	else:
 		_check(false, "story surface loads for PT-BR overflow review")
+	var accessibility_script: Script = load("res://src/ui/vnext/surfaces/accessibility_surface.gd")
+	var accessibility_surface: Control = accessibility_script.new() if accessibility_script != null else null
+	if accessibility_surface != null:
+		add_child(accessibility_surface)
+		await get_tree().process_frame
+		for viewport_size in [Vector2(1366.0, 768.0), Vector2(720.0, 720.0), Vector2(432.0, 720.0), Vector2(390.0, 844.0)]:
+			accessibility_surface.size = viewport_size
+			accessibility_surface.configure({}, accessibility_script.context_for_viewport(viewport_size, viewport_size.x <= 432.0))
+			await get_tree().process_frame
+			var overflow: Array = accessibility_surface.text_overflow_report()
+			var all_fit := true
+			for entry in overflow:
+				if not bool(entry.get("fits", false)):
+					all_fit = false
+			_check(all_fit, "PT-BR accessibility surface fits at %.0fx%.0f" % [viewport_size.x, viewport_size.y])
+		_check(str(accessibility_surface.semantic_snapshot().get("title", "")) == "ACESSIBILIDADE", "PT-BR accessibility title resolves")
+		accessibility_surface.queue_free()
+	else:
+		_check(false, "accessibility surface loads for PT-BR overflow review")
 	_check(_emissions == 1, "locale_changed emits once for an actual change")
 	_check(service.set_locale("pt-BR") and _emissions == 1, "reselecting the active locale emits nothing")
 	_check(not service.set_locale("xx-INVALID") and service.current_locale() == "pt-BR", "invalid locale is rejected without mutation")

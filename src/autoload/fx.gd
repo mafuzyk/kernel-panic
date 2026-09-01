@@ -138,6 +138,8 @@ func ghost(pos: Vector2, rot: float, draw_fn: Callable, color: Color, life: floa
 	_attach(g)
 
 func flash(color: Color, alpha: float, dur: float) -> void:
+	if bool(Sfx.reduced_flashes):
+		return
 	if _flash_layer == null or not is_instance_valid(_flash_layer) or not is_instance_valid(_flash_rect):
 		_flash_layer = CanvasLayer.new()
 		_flash_layer.layer = 90
@@ -155,9 +157,13 @@ func flash(color: Color, alpha: float, dur: float) -> void:
 	_flash_tween.tween_property(_flash_rect, "modulate:a", 0.0, dur).set_ease(Tween.EASE_OUT)
 
 func shake(amount: float) -> void:
+	if bool(Sfx.reduced_motion):
+		return
 	get_tree().call_group("cam_rig", "add_trauma", amount)
 
 func zoom_punch(amount: float) -> void:
+	if bool(Sfx.reduced_motion):
+		return
 	get_tree().call_group("cam_rig", "zoom_punch", amount)
 
 func hitstop(ms: float, scale: float = 0.05) -> void:
