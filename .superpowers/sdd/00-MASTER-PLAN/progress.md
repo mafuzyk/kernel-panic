@@ -87,7 +87,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 |---|---|---|---|
 | W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
 | A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
-| U | U1, U2, U2b, U3, U4, U5, U6 | U1–U4 completed (opt-in, reviewed); U5/U6 pending | U4 adds real Arena state-surface routing, pause freeze, terminal focus/history and death/victory contracts; U5/U6 still need accessibility and final migration evidence. |
+| U | U1, U2, U2b, U3, U4, U5, U6 | U1–U6 completed (opt-in, reviewed) | U1–U6 now cover boot, selection, patch choice, combat HUD, pause/terminal/game-over, accessibility settings and shared recoverable state primitives; final migration, locale, visual approval, physical mobile, Android/export and teardown gates remain open. |
 | E | E1, E2, E3, E4, E5 | Pending | Code-drawn primitives, entity contracts, visual/readability/perf evidence. |
 | G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
 | M | M1–M5 | Pending | Story data/flow, history content, rewards, localization and save tests. |
@@ -116,13 +116,33 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 
 ## U6 — shared error, empty, loading and transition states
 
-- Status: implementado e verificado em 2026-09-01; sem route de produto e sem producer real integrado.
-- Added `VNextUIState`, `VNextUIFocusModel` e `VNextStateSurface` em escopo puro/code-drawn, sem producer de produto e sem tocar Game/Arena/save/scene APIs.
-- Red: probe criada primeiro e executada com exit 1, `PROBE_DONE fails=3` por ausência dos três contratos.
-- Green focado: `PROBE_DONE fails=0` após a implementação; 142 passes em headless e Xvfb, incluindo real Button/Viewport keyboard+mouse, foco por ID, pointer/touch, layouts 1366×768/720×720/432×720/390×844, overflow e fixtures-only.
-- Import exit 0; suíte completa exit 0 com 1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`; validator acumulado `VALIDATION OK`; teardown diagnostics permanecem não-gating.
-- Commits: `a7619bd`, `c709734`, `33a3568`.
-- Report: `.superpowers/sdd/00-MASTER-PLAN/report-U6.md`; handoff: `docs/HANDOFF-U6-STATE-SURFACE.md`.
+- Status: implementado e aceito em 2026-09-01; sem route de produto e sem
+  producer real integrado.
+- Added `VNextUIState`, `VNextUIFocusModel` e `VNextStateSurface` em escopo
+  puro/code-drawn, sem producer de produto e sem tocar Game/Arena/save/scene
+  APIs.
+- Red: probe criada primeiro e executada com exit 1, `PROBE_DONE fails=3` por
+  ausência dos três contratos.
+- Green focado após revisão: `PROBE_DONE fails=0`, 145 passes em headless e
+  Xvfb, incluindo real Button/Viewport keyboard+mouse, foco por ID,
+  pointer/touch, layouts 1366×768/720×720/432×720/390×844, overflow,
+  fixtures-only e rejeição de chaves visíveis com ponto/hífen/underscore.
+- Import exit 0; suíte completa exit 0 com 1414 `AT_PASS`, 0 `AT_FAIL`,
+  `AUTOTEST_ALL_PASS`; validator acumulado `VALIDATION OK`; teardown
+  diagnostics permanecem não-gating.
+- Revisão adversarial rejeitou a primeira aceitação: `_looks_like_key()` ainda
+  deixava passar `state.error.title`, `menu.retry-label` e `catalog.missing`,
+  e o validator tinha timeout sem escalada de morte. Ambos foram corrigidos;
+  a probe sintética do timeout terminou em exit 137 após 2 segundos. O
+  validator agora usa `--kill-after=5s`, mas isso é contenção de invocações,
+  não uma garantia de supervisão de descendentes arbitrários.
+- Dois probes U6 originalmente iniciados sem limite ficaram vivos por mais de
+  7 minutos; foram encerrados explicitamente pelo controller. Isso foi uma
+  falha de higiene da execução, não uma alegação de estabilidade do produto,
+  e motivou a correção do validator e a exigência de timeout nos comandos.
+- Commits: `a7619bd`, `c709734`, `33a3568`, `ed3c660`, `fc1705c`, `7c0e7f3`.
+- Report: `.superpowers/sdd/00-MASTER-PLAN/report-U6.md`; handoff:
+  `docs/HANDOFF-U6-STATE-SURFACE.md`.
 
 - Initial direct test attempt was rejected as evidence because a newly created worktree lacked imported Godot resources. Import was performed first; this is recorded as an environment prerequisite, not a code fix.
 - A3 added the first runtime contract methods in `Game`, `Arena`, `Menu`, and `Sfx`, plus a focused probe. The controller later corrected a false empty patch-offer projection.

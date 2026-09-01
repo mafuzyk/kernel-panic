@@ -10,7 +10,7 @@
 ## Scope of this log
 
 This document records the user-visible and release-relevant work executed from
-the master plan's stabilization phase through U4. Detailed technical evidence
+the master plan's stabilization phase through U6. Detailed technical evidence
 and alternatives remain in the task reports:
 
 - [A1 repository baseline](../../.superpowers/sdd/00-MASTER-PLAN/report-A1.md)
@@ -23,6 +23,8 @@ and alternatives remain in the task reports:
 - [U2b vNext patch/build decision](../../.superpowers/sdd/00-MASTER-PLAN/report-U2b.md)
 - [U3 vNext combat HUD](../../.superpowers/sdd/00-MASTER-PLAN/report-U3.md)
 - [U4 vNext state surfaces](../../.superpowers/sdd/00-MASTER-PLAN/report-U4.md)
+- [U5 vNext settings/accessibility](../../.superpowers/sdd/00-MASTER-PLAN/report-U5.md)
+- [U6 vNext shared state surface](../../.superpowers/sdd/00-MASTER-PLAN/report-U6.md)
 
 The execution branch is `codex/plan-execution`; it is based on the reviewed
 master-plan documentation and does not merge into `main` automatically.
@@ -342,6 +344,11 @@ scope.
 - No visible route, producer integration, gameplay mutation, save path or
   legacy behavior was added by U6; catalog/save/locale/transition examples are
   fixture-only contract evidence.
+- Corrected visible-copy sanitization so lowercase identifier-like keys with
+  dots, hyphens or underscores cannot be shown as player-facing text.
+- Hardened the accumulated validator with a configurable TERM-to-KILL grace
+  period. This makes hung invocations fail closed; it is not a promise of
+  complete supervision for arbitrary child processes.
 - U6 is not a claim of Android, physical-touch, native screen-reader, PT-BR,
   device-performance or final visual support. Long copy is detected by the
   overflow report but is not yet scrollable.
