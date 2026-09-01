@@ -160,6 +160,21 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Assumptions/risks: entity-specific optional fields may grow later; optional-field tolerance needs explicit vNext consumer coverage; teardown noise remains open from W0.
 
 ## Review checklist for every task
+## A5 migration, rollback and deprecation checkpoint
+
+- Status: completed on 2026-09-01.
+- Red probe: XDG_DATA_HOME=<isolated-dir> godot --headless --path . res://tools/save_compatibility_probe.tscn — exit 1 with SAVE_PROBE_DONE fails=2; malformed run/story objects reached typed Dictionary assignments in Game.import_save_string().
+- Green probe: XDG_DATA_HOME=<isolated-dir> godot --headless --audio-driver Dummy --path . res://tools/save_compatibility_probe.tscn — exit 0 with SAVE_PROBE_DONE fails=0.
+- Probe coverage: fresh profile; progressed story profile; missing and legacy optional keys; real-path export/import round-trip; malformed/truncated inputs; byte-for-byte preservation of the source save after each rejected import; 10-second watchdog; non-zero failure exit.
+- Files: tools/save_compatibility_probe.gd, tools/save_compatibility_probe.tscn, and src/autoload/game.gd; report in report-A5.md.
+- Bug fixed minimally: validate run, weekly, and story payload types before typed use or ConfigFile writes. No gameplay/UI behavior, save key, transfer version, or res:// path changed.
+- Before/after: before, malformed structured input produced script errors; after, it returns false and leaves source bytes unchanged. Accepted import keeps current v1 normalization, so sparse story maps may canonicalize on re-export.
+- Contract: Sfx.SAVE_PATH remains user://kernel_panic.cfg; Game.SAVE_TRANSFER_FORMAT remains kernel-panic-save; Game.SAVE_TRANSFER_VERSION remains 1. Existing public export/import helpers remain the runtime compatibility boundary.
+- Deprecation/removal gate: do not remove or rename the helpers until a replacement has repository-wide zero-consumer evidence, real Menu/Arena scene-load coverage, save round-trip and invalid-import byte-preservation, input probe, full autotest, and rollback-route proof. Current status is runtime-reachable, not test-only or dead.
+- Decision: no new schema or migrator. Current v1 already has defaults, legacy run.best fallback, known-ID filtering, and numeric normalization; another schema would add an unneeded authority and rollback surface.
+- Full-suite gate: record a fresh godot --audio-driver Dummy --headless --path . -- --autotest run before accepting this checkpoint. Baseline reference remains 1414 AT_PASS, zero AT_FAIL, AUTOTEST_ALL_PASS, with known teardown diagnostics.
+- Full suite: XDG_DATA_HOME=/tmp/kernel-panic-a5-full-xdg-2 godot --audio-driver Dummy --headless --path . -- --autotest — exit 0, AT_PASS=1414, AT_FAIL=0, AUTOTEST_ALL_PASS. Teardown diagnostics match baseline and remain open.
+
 
 - Read the micro-plan and current code, then inspect shared interfaces.
 - Add/adjust a focused failing probe before production code where behavior changes.
