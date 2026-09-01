@@ -86,7 +86,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | Group | Tasks | Status | Evidence needed |
 |---|---|---|---|
 | W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
-| A | A1, A2, A3, A4, A5 | A1/A2 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, schema/state compatibility probes. A1 docs: `62b0b87` plus controller correction `76f6a0f`; A2 docs: `bd51f4c` plus controller correction `ead9d28`. |
+| A | A1, A2, A3, A4, A5 | A1–A3 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, schema/state compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`. |
 | U | U1, U2, U2b, U3, U4, U5, U6 | Pending | vNext foundation, input/flow, responsive/overflow/visual checks. |
 | E | E1, E2, E3, E4, E5 | Pending | Code-drawn primitives, entity contracts, visual/readability/perf evidence. |
 | G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
@@ -107,24 +107,27 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | 2026-09-01 | W0 baseline after Godot import | `--autotest` with Dummy audio, exit 0, 1414 passes, 0 fails, completion marker present | Functional baseline green | 5 teardown errors and 2 warnings; classify and reduce under P tasks. |
 | 2026-09-01 | Worktree isolation | `git worktree list`, branch `codex/plan-execution`, original checkout unchanged by execution | Isolation confirmed | Generated `.uid`/capture import artifacts exist only in execution worktree and must not be staged accidentally. |
 | 2026-09-01 | A1 repository baseline | `62b0b87` reviewed against `project.godot`, `export_presets.cfg`, `src/autoload/game.gd`, `src/autoload/sfx.gd`; docs corrected by `76f6a0f` | Accepted: no runtime change; repository map, save keys, transfer version, exports and diagnostics recorded | Android build-tools warning; teardown leaks; exact engine/export feasibility still needs dedicated verification. |
-| 2026-09-01 | A2 owner-owned kit revalidation | Structural grep/audit plus `XDG_DATA_HOME=/tmp/kernel-panic-a2-xdg godot --headless --audio-driver Dummy --path . -- --autotest` | Accepted: delegates and source-scan landmines present; exit 0, 1414 passes, 0 failures, `AUTOTEST_ALL_PASS`; documentation-only | Brief file absent; teardown diagnostics remain as W0 open risk. |
+| 2026-09-01 | A2 owner-owned kit revalidation | Structural grep/audit plus `XDG_DATA_HOME=/tmp/kernel-panic-a2-xdg godot --headless --audio-driver Dummy --path . -- --autotest` | Accepted: delegates and source-scan landmines present; exit 0, 1414 passes, 0 failures, `AUTOTEST_ALL_PASS`; documentation-only | Controller-generated ignored brief was not visible to delegated inspection; versioned plans were used. Teardown diagnostics remain open. |
+| 2026-09-01 | A3 snapshot contracts | Focused red/green probes, forced watchdog failure, and controller-fresh full suite; `0fb5d50`/`7c55b82` add live patch-offer projection after adversarial review | Accepted: four real owners expose primitive-safe, deep-copied schemas; focused final 32/0; full suite 1414/0 with marker | No vNext renderer consumer yet; optional-field consumer behavior and actual drawing remain future evidence; teardown diagnostics remain open. |
 
 ## Change log of approach
 
 - Initial direct test attempt was rejected as evidence because a newly created worktree lacked imported Godot resources. Import was performed first; this is recorded as an environment prerequisite, not a code fix.
-- No runtime production code has been changed in this execution branch yet.
+- A3 added the first runtime contract methods in `Game`, `Arena`, `Menu`, and `Sfx`, plus a focused probe. The controller later corrected a false empty patch-offer projection.
 - A1 agent report incorrectly described the `lifetime` save section as a separate file. Controller verification of `Game._record_run()` showed it loads and saves `Sfx.SAVE_PATH`; both baseline documents were corrected in `76f6a0f` before acceptance.
 - A2 report initially described the generated task brief as absent. The controller confirmed the ignored brief existed before delegation but was not visible to the delegated inspection; the report was corrected in `ead9d28` and the versioned plans remained the source of truth.
-- Next task: A3 snapshot contracts. A2 revalidation is documented in `report-A2.md`; no production-code change was required.
+- Next task: A4 split static content from runtime logic. A2 revalidation is documented in `report-A2.md`; A3 is documented in `report-A3.md` with its controller correction.
 
 ## A3 snapshot contracts
 
-- Status: completed on 2026-09-01.
+- Status: completed and adversarially corrected on 2026-09-01.
 - Red probe: `XDG_DATA_HOME=/tmp/kernel-panic-a3-red-xdg godot --headless --audio-driver Dummy --path . res://tools/snapshot_contract_probe.tscn` — exit 1, 12 failures caused by the four absent methods and dependent assertions.
-- Green probe: `XDG_DATA_HOME=/tmp/kernel-panic-a3-green-xdg-3 godot --headless --audio-driver Dummy --path . res://tools/snapshot_contract_probe.tscn` — exit 0, 30 `PROBE_PASS`, 0 `PROBE_FAIL`, `PROBE_DONE fails=0`.
+- Green probe (initial): `XDG_DATA_HOME=/tmp/kernel-panic-a3-green-xdg-3 godot --headless --audio-driver Dummy --path . res://tools/snapshot_contract_probe.tscn` — exit 0, 30 `PROBE_PASS`, 0 `PROBE_FAIL`, `PROBE_DONE fails=0`.
 - Hanging-process diagnostic: after the interrupted run, no exact Godot processes remained. A clean reproduction exited in 1.1s. The probe now has an explicit 8s failure watchdog; forced red run with `KP_A3_FORCE_WATCHDOG=1` exited 2 with `PROBE_FAIL watchdog timeout`, and left no Godot processes.
 - Full suite: `XDG_DATA_HOME=/tmp/kernel-panic-a3-full-xdg godot --headless --audio-driver Dummy --path . -- --autotest` — exit 0, `AT_PASS=1414`, `AT_FAIL=0`, `AUTOTEST_ALL_PASS`.
 - Teardown diagnostics: 8 resources, 3 GodotArea2D RIDs, 14 dummy textures, 147 shaped-text allocations, 2 advanced-font allocations, 10 CanvasItem RIDs, and 171 ObjectDB instances; treated as baseline/open risk, not an A3 fix.
+- Adversarial red: `XDG_DATA_HOME=/tmp/kernel-panic-controller-a3-patch-red2-20260901 godot --headless --audio-driver Dummy --path . res://tools/snapshot_contract_probe.tscn` — exit 1, 30 passes, 2 fails, `PROBE_DONE fails=2`, zero script errors.
+- Adversarial green: `XDG_DATA_HOME=/tmp/kernel-panic-controller-a3-patch-green-20260901 godot --headless --audio-driver Dummy --path . res://tools/snapshot_contract_probe.tscn` — exit 0, 32 passes, 0 fails, `PROBE_DONE fails=0`, zero script errors.
 - Changed files: `src/autoload/game.gd`, `src/autoload/sfx.gd`, `src/ui/menu.gd`, `src/arena/arena.gd`, `tools/snapshot_contract_probe.gd`, `tools/snapshot_contract_probe.tscn`, plus this report and ledger entry.
 - Commits: `9092163` test probe; `c1a9b3d` production snapshot contracts; `9c5c112` explicit probe watchdog.
 - Proven facts: all four real owners expose primitive-safe snapshots with schema metadata, required-field checks, deep-copy isolation, stable RNG/save/node counts, and no live-consumer migration. Drawing itself is not proven because no vNext renderer consumes the contracts.

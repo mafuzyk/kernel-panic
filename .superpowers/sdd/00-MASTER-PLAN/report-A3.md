@@ -138,3 +138,28 @@ Alternatives considered:
   or node count. It does not prove drawing behavior because no vNext renderer
   consumes these contracts yet.
 - Teardown diagnostics remain an open reliability item carried from W0.
+
+## Controller adversarial review correction
+
+The initial green implementation exposed a contract defect during independent
+review: `Arena.combat_snapshot()` declared `patch_offers` as optional but
+hard-coded it to an empty array, even when the owner held live offers. That
+would make a future UI render false state. The controller added two focused
+assertions to the real-owner probe and reproduced a clean red result: exit 1,
+30 passes, 2 failures, `PROBE_DONE fails=2`, and zero `SCRIPT ERROR` lines.
+The probe guard was hardened at the same time so a failed projection cannot
+cascade into an out-of-bounds access or a watchdog result.
+
+The fix projects each live offer into a primitive-only dictionary containing
+`id`, `title`, `description`, `level`, `rare`, and `legend`; it does not expose
+the source dictionary. Fresh green evidence: exit 0, 32 passes, 0 failures,
+`PROBE_DONE fails=0`, and zero script errors.
+
+Controller review commits:
+
+- `0fb5d50` — `test: cover live patch snapshot projection`
+- `7c55b82` — `fix: project live patch offers in combat snapshot`
+
+This correction does not claim that a vNext renderer consumes the snapshot;
+that remains a later U/E task. It does prove that the current combat owner’s
+offer state is no longer misrepresented by the contract.
