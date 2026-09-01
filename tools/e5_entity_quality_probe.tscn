@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource path="res://tools/e5_entity_quality_probe.gd" type="Script" id="1_e5_probe"]
+
+[node name="E5EntityQualityProbe" type="Node"]
+script = ExtResource("1_e5_probe")

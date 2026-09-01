@@ -4,6 +4,7 @@ extends RefCounted
 const BalanceData = preload("res://src/autoload/balance.gd")
 const ContentCatalog = preload("res://src/data/content_catalog.gd")
 const Descriptor = preload("res://src/ui/vnext/core/entity_descriptor.gd")
+const Quality = preload("res://src/ui/vnext/core/entity_quality.gd")
 const Glyphs = preload("res://src/ui/glyph_lib.gd")
 
 const MARKER_EXTENT := 1.38
@@ -92,7 +93,7 @@ static func _orientation_angle_normalized(normalized: Dictionary) -> float:
 
 static func color_for(snapshot: Dictionary, quality: Dictionary = {}) -> Color:
 	var normalized := Descriptor.normalize(snapshot)
-	return _color_for_normalized(normalized, quality)
+	return _color_for_normalized(normalized, Quality.normalize(quality))
 
 static func _color_for_normalized(normalized: Dictionary, quality: Dictionary) -> Color:
 	var color: Color = _base_color(str(normalized["kind"]))
@@ -104,7 +105,7 @@ static func _color_for_normalized(normalized: Dictionary, quality: Dictionary) -
 
 static func render_key(snapshot: Dictionary, cosmetic_time: float, quality: Dictionary) -> String:
 	var normalized := Descriptor.normalize(snapshot)
-	return "%s|%s|%s|%s|%s|%s|%.4f|%s" % [normalized.get("kind"), normalized.get("visual_state"), _canonical(normalized.get("facing")), normalized.get("hp_fraction"), normalized.get("elite"), _canonical(normalized.get("era_accent")), cosmetic_time, _canonical(quality)]
+	return "%s|%s|%s|%s|%s|%s|%.4f|%s" % [normalized.get("kind"), normalized.get("visual_state"), _canonical(normalized.get("facing")), normalized.get("hp_fraction"), normalized.get("elite"), _canonical(normalized.get("era_accent")), cosmetic_time, _canonical(Quality.normalize(quality))]
 
 static func _canonical(value: Variant) -> String:
 	if value is Dictionary:
@@ -129,24 +130,52 @@ static func draw(canvas: CanvasItem, snapshot: Dictionary, target: Rect2, cosmet
 	if canvas == null:
 		return
 	var normalized := Descriptor.normalize(snapshot)
+	var resolved_quality := Quality.normalize(quality)
 	var body_rect := _fit_normalized(normalized, target)
 	if body_rect.size.x <= 0.0:
 		return
 	var center := body_rect.get_center()
 	var radius := _draw_radius_normalized(normalized, body_rect)
-	var color := _color_for_normalized(normalized, quality)
+	var color := _color_for_normalized(normalized, resolved_quality)
 	var facing: Vector2 = normalized["facing"]
-	var assist := bool(quality.get("color_assist", false))
-	var reduced_motion := bool(quality.get("reduced_motion", false))
+	var assist := bool(resolved_quality.get("color_assist", false))
+	var reduced_motion := bool(resolved_quality.get("reduced_motion", false))
 	canvas.draw_set_transform(center, _orientation_angle_normalized(normalized), Vector2.ONE)
 	Glyphs.draw_glyph(canvas, str(normalized["kind"]), Vector2.ZERO, radius, color, 0.0 if reduced_motion else cosmetic_time)
 	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	canvas.draw_line(center, center + facing * radius * 1.25, Color(color.r, color.g, color.b, 0.9), maxf(1.0, radius * 0.08), true)
 	if assist:
 		canvas.draw_arc(center, radius * 1.18, facing.angle() - 0.35, facing.angle() + 0.35, 8, BalanceData.COL_TEXT, maxf(1.0, radius * 0.07), true)
-	_draw_state(canvas, center, radius * 1.2, str(normalized["visual_state"]), BalanceData.COL_TEXT)
+	var state_color := Color.WHITE if bool(resolved_quality.get("high_contrast", false)) else BalanceData.COL_TEXT
+	_draw_state(canvas, center, radius * 1.2, str(normalized["visual_state"]), state_color)
 	if bool(normalized["elite"]):
 		canvas.draw_arc(center, radius * 1.32, 0.0, TAU, 24, BalanceData.COL_MOTE, maxf(1.0, radius * 0.06), true)
+	_draw_finish(canvas, center, radius, color, resolved_quality, cosmetic_time)
+
+static func quality_profile(tier: String = "desktop", reduced_motion := false, high_contrast := false, color_assist := false, grayscale := false) -> Dictionary:
+	return Quality.profile(tier, reduced_motion, high_contrast, color_assist, grayscale)
+
+static func finish_plan(quality: Dictionary = {}, cosmetic_time: float = 0.0) -> Dictionary:
+	var resolved := Quality.normalize(quality)
+	if not bool(resolved.get("finish", false)):
+		return {"enabled": false, "segments": 0, "phase": 0.0, "alpha": 0.0}
+	return {
+		"enabled": true,
+		"segments": maxi(int(resolved.get("finish_segments", 0)), 12),
+		"phase": 0.0 if bool(resolved.get("reduced_motion", false)) else fmod(cosmetic_time, TAU),
+		"alpha": 0.24 if bool(resolved.get("high_contrast", false)) else 0.16,
+	}
+
+static func _draw_finish(canvas: CanvasItem, center: Vector2, radius: float, color: Color, quality: Dictionary, cosmetic_time: float) -> void:
+	var plan := finish_plan(quality, cosmetic_time)
+	if not bool(plan.get("enabled", false)):
+		return
+	var phase := float(plan.get("phase", 0.0))
+	var alpha := float(plan.get("alpha", 0.16))
+	var segments := int(plan.get("segments", 24))
+	var finish_color := Color(color.r, color.g, color.b, alpha)
+	canvas.draw_arc(center, radius * 1.08, phase, phase + PI * 0.72, segments, finish_color, maxf(1.0, radius * 0.045), true)
+	canvas.draw_line(center + Vector2.from_angle(phase + PI * 1.15) * radius * 0.94, center + Vector2.from_angle(phase + PI * 1.15) * radius * 1.08, finish_color, maxf(1.0, radius * 0.045), true)
 
 static func draw_enemy(canvas: CanvasItem, kind: String, facing: Vector2, state: String, elite: bool, radius: float, cosmetic_time: float = 0.0, color: Color = Color(0, 0, 0, 0)) -> void:
 	if canvas == null or radius <= 0.0:
