@@ -23,29 +23,48 @@ Status: implementado no branch `codex/plan-execution`, 2026-09-01.
 - Red: probe executado após a primeira extensão, antes dos arquivos de produção;
   exit 1, `PROBE_FAIL entity presentation foundation scripts load` e
   `PROBE_DONE fails=1`.
-- Green focado: import Godot com `--audio-driver Dummy`, exit 0; probe com o
-  mesmo driver, exit 0, `PROBE_DONE fails=0`, sem `ERROR`, `SCRIPT ERROR` ou
-  `PROBE_FAIL` no log.
+- Green focado após a correção: import Godot com `--audio-driver Dummy`, exit
+  0; probe headless exit 0 com 128 `PROBE_PASS`, 0 `PROBE_FAIL` e
+  `PROBE_DONE fails=0`; probe Xvfb com os mesmos 128/0; sem `ERROR`,
+  `SCRIPT ERROR` ou `PROBE_FAIL` nos logs focados.
 - Suíte: `godot --headless --audio-driver Dummy --path . -- --autotest`, exit 0,
   1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`.
 - `git diff --check`: exit 0.
 
 ## Revisão adversarial
 
-Verificado no diff que a renderização recebe tempo cosmético separado do
-snapshot, usa `GlyphLib` como fallback code-drawn, mantém `EntitySprite`
-desabilitado por padrão, não muta fixtures e mantém bounds compartilhados para
-fit/draw. O probe cobre 24/48/96/160 px, quatro orientações, estados, defaults,
-deep-copy, adapter de programa/inimigo e guarda lexical contra Game/Sfx/Arena/
-RNG no renderer.
+O primeiro review independente rejeitou a aceitação apesar do probe verde. Ele
+encontrou seis problemas concretos: `draw_bounds()` não cobria os marcadores
+externos, facing não girava a identidade, adapters de produção não eram
+exercitados com objetos reais, `render_key()` dependia da ordem textual de
+`Dictionary`, `era_accent` era descartado no renderer e o Control público não
+repassava os modos de acessibilidade. A probe também tinha uma falha de escopo
+que só comparava o mesmo dicionário consigo mesmo.
+
+Correção local após o review: o extent agora é o maior entre o alcance do
+`GlyphLib` e o envelope de todos os marcadores/linhas (`MARKER_EXTENT`), e o
+raio é calculado com o mesmo contrato; facing gira o glyph em torno do centro;
+`render_key()` canoniza dicionários, arrays, vetores e cores; `color_for()`
+mistura o acento de era antes do grayscale; `VNextEntityIllustration` expõe
+`set_facing()`/`set_quality()` e os repassa ao renderer; e o probe instancia
+`Player.new()`/`DroneEnemy.new()` sem `_ready()` para testar os adapters reais
+sem iniciar gameplay. A normalização de booleano também deixou de transformar
+qualquer string não-vazia em `true`.
+
+O review próprio da correção confirmou que o tempo cosmético continua separado
+do snapshot, `GlyphLib` é fallback, `EntitySprite` continua desabilitado por
+default, e não há acesso a `Game`, `Sfx`, `Arena`, RNG, filesystem ou troca de
+cena no renderer. A evidência é contratual/geométrica; não substitui captura
+visual humana.
 
 ## Limitações e incertezas
 
 - Não houve aprovação visual: não foi produzida nem inspecionada captura deste
   E1.
-- O probe prova a transformação de snapshots e o Control compatível, mas não
-  conecta uma rota de produto nem instancia o `Player`/`EnemyBase` reais; isso
-  fica deliberadamente fora do E1 para evitar efeitos de `_ready()` e gameplay.
+- O probe prova a transformação de snapshots, o Control compatível e os
+  adapters contra instâncias reais ainda fora da árvore. Não conecta uma rota
+  de produto nem instancia um Player/Enemy em uma cena viva; isso fica fora do
+  E1 para evitar efeitos de `_ready()` e gameplay.
 - O renderer usa a malha geométrica existente do `GlyphLib`; novas identidades,
   cast completo, integração de bestiary/selector/HUD e comparação com sprites
   ficam para E2–E5.

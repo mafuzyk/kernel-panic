@@ -123,11 +123,20 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Added `VNextEntityDescriptor`, `VNextEntityRenderer` e
   `VNextEntityPresentationAdapter`; `VNextEntityIllustration` agora usa os
   bounds e o renderer compartilhados. `kernel` e `DRONE` são cobertos por
-  fixtures side-effect-free; entradas para objetos reais existem, mas não há
+  fixtures side-effect-free e por instâncias reais fora da árvore; não há
   wiring de rota nesta fatia.
-- Evidência final: autotest com Dummy audio, 1414 `AT_PASS`, 0 `AT_FAIL`,
+- O primeiro review independente rejeitou E1: extent não cobria marcadores,
+  facing não girava o glyph, adapters reais não eram exercitados, a chave não
+  era canônica, o acento de era era descartado e o Control não encaminhava
+  qualidade/facing. A prova foi ampliada antes da correção; `be92d2b` corrige
+  esses pontos e também normaliza booleanos malformados.
+- Evidência final: probe 128 `PROBE_PASS`/0 `PROBE_FAIL` em headless e Xvfb,
+  import exit 0, autotest com Dummy audio 1414 `AT_PASS`, 0 `AT_FAIL`,
   `AUTOTEST_ALL_PASS`, `git diff --check` exit 0. Não houve captura
   inspecionada, portanto não há aprovação visual.
+- Commits: `2212c12`, `99e5695`, `901da80`, `be92d2b`; report:
+  `.superpowers/sdd/00-MASTER-PLAN/report-E1.md`; handoff:
+  `docs/HANDOFF-E1-ENTITY-FOUNDATION.md`.
 
 ## U6 — shared error, empty, loading and transition states
 
