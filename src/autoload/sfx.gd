@@ -21,6 +21,7 @@ var target_fps := 60
 var fullscreen := false
 var touch_scale := 1.0
 var aim_mode := "drag"
+var locale := "en"
 var color_assist := false
 var show_run_info := false
 var music_variant := "normal"
@@ -287,6 +288,8 @@ func _load_settings() -> void:
 	shake_level = accessibility["shake_level"]
 	touch_scale = accessibility["touch_scale"]
 	color_assist = accessibility["color_assist"]
+	var saved_locale := str(cf.get_value("localization", "locale", "en"))
+	locale = saved_locale if saved_locale in ["en", "pt-BR"] else "en"
 	var music_defaults := _music_layer_defaults()
 	offensive_music_enabled = _normalize_bool(cf.get_value("accessibility", "offensive_music_enabled", music_defaults["offensive_music_enabled"]), bool(music_defaults["offensive_music_enabled"]))
 	defensive_music_enabled = _normalize_bool(cf.get_value("accessibility", "defensive_music_enabled", music_defaults["defensive_music_enabled"]), bool(music_defaults["defensive_music_enabled"]))
@@ -313,6 +316,7 @@ func _save_settings_result() -> bool:
 	cf.set_value("feel", "aim_mode", aim_mode)
 	cf.set_value("feel", "color_assist", color_assist)
 	cf.set_value("feel", "show_run_info", show_run_info)
+	cf.set_value("localization", "locale", locale)
 	cf.set_value("accessibility", "offensive_music_enabled", offensive_music_enabled)
 	cf.set_value("accessibility", "defensive_music_enabled", defensive_music_enabled)
 	cf.set_value("display", "fullscreen", fullscreen)
@@ -363,6 +367,19 @@ func _apply_display_settings() -> void:
 func set_color_assist(v: bool) -> void:
 	color_assist = v
 	save_settings()
+
+func current_locale() -> String:
+	return locale
+
+func set_locale(v: String) -> bool:
+	if v not in ["en", "pt-BR"]:
+		return false
+	var previous := locale
+	locale = v
+	if _save_settings_result():
+		return true
+	locale = previous
+	return false
 
 func _music_layer_defaults() -> Dictionary:
 	return {"offensive_music_enabled": true, "defensive_music_enabled": true}

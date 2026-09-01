@@ -231,7 +231,20 @@ func _on_vnext_boot_action(action_id: String, _payload: Dictionary) -> void:
 		else:
 			get_tree().quit()
 
+func _on_locale_changed(_locale: String) -> void:
+	if _settings_kit != null and _settings_kit.has_method("refresh_localized_controls"):
+		_settings_kit.refresh_localized_controls()
+	if _story_panel != null and is_instance_valid(_story_panel):
+		_story_panel.queue_redraw()
+	if _vnext_surface != null and is_instance_valid(_vnext_surface):
+		_configure_vnext_surface()
+	if not _vnext_mode:
+		_refresh_mode_ui()
+
 func _ready() -> void:
+	var localization := get_node_or_null("/root/Localization")
+	if localization != null and localization.has_signal("locale_changed"):
+		localization.locale_changed.connect(_on_locale_changed)
 	if OS.get_environment("KP_VNEXT_BOOT") == "1" or OS.get_environment("KP_VNEXT_SETTINGS") == "1":
 		_vnext_mode = true
 		set_anchors_preset(Control.PRESET_FULL_RECT)

@@ -24,12 +24,29 @@ const TEXT := {
 }
 
 static func text(key: String) -> String:
-	return str(TEXT.get(key, key))
+	var fallback := str(TEXT.get(key, ""))
+	var service: Node = _localization_service()
+	if service != null and service.has_method("tr_key"):
+		return str(service.tr_key("story.macos." + key, fallback))
+	return fallback
 
 static func lines(key: String) -> Array[String]:
 	var raw: Variant = TEXT.get(key, [])
-	var result: Array[String] = []
+	var fallback: Array[String] = []
 	if raw is Array:
 		for line in raw:
+			fallback.append(str(line))
+	var service: Node = _localization_service()
+	if service != null and service.has_method("tr_key"):
+		var translated := str(service.tr_key("story.macos." + key, "\n".join(fallback)))
+		var result: Array[String] = []
+		for line in translated.split("\n"):
 			result.append(str(line))
-	return result
+		return result
+	return fallback
+
+static func _localization_service() -> Node:
+	var loop := Engine.get_main_loop()
+	if loop == null or loop.root == null:
+		return null
+	return loop.root.get_node_or_null("Localization")

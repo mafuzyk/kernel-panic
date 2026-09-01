@@ -23,6 +23,7 @@ config/icon="res://assets/icons/launcher.png"
 
 Game="*res://src/autoload/game.gd"
 Sfx="*res://src/autoload/sfx.gd"
+Localization="*res://src/autoload/localization.gd"
 Fx="*res://src/autoload/fx.gd"
 DevHarness="*res://src/autoload/dev_harness.gd"
 

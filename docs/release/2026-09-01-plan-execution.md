@@ -920,3 +920,37 @@ and HUD messaging still need playtest approval.
 - Full DevHarness passed 1453 checks with zero assertion failures and
   `AUTOTEST_ALL_PASS`; existing teardown diagnostics remain tracked and
   non-gating.
+
+## L1/L2 — localization foundation and macOS narrative slice (unreleased)
+
+### Added
+
+- Added English and Brazilian Portuguese locale catalogs with a persisted
+  language selector.
+- Added safe fallback, named placeholder, plural and select formatting for
+  future UI/content migration.
+- Added Brazilian Portuguese titles, introductions and diagnostic logs for
+  the four macOS history nodes.
+
+### Changed
+
+- Mac story data now resolves player-facing copy through the locale service;
+  stage IDs, waves and progression remain language-independent.
+- Changing language refreshes the current menu/story route without reloading a
+  scene or resetting the run.
+
+### Compatibility
+
+- Locale is an additive local presentation setting and is not included in
+  portable progress transfer. Existing saves remain readable.
+
+### Known Issues
+
+- The rest of the legacy UI/content still contains English literals and needs
+  the L2/L3 migration and Brazilian editorial review before PT-BR is a full
+  release feature.
+- Native screen-reader support is not claimed.
+
+### Evidence
+
+- Locale service/content probe exited 0 with `PROBE_DONE fails=0`.

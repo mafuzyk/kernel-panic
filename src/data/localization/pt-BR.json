@@ -1,0 +1,26 @@
+{
+  "_meta": {"schema_version": 1, "locale": "pt-BR", "source_revision": "plan-execution-2026-09-01"},
+  "keys": {
+    "app.title": "KERNEL PANIC",
+    "settings.language": "IDIOMA",
+    "settings.language_value": {"en": "English", "pt-BR": "Português (Brasil)"},
+    "hud.wave": "Onda {wave}",
+    "hud.daemon_count": {"one": "{count} daemon", "other": "{count} daemons"},
+    "story.macos.mac_classic_title": "A SHELL AMIGÁVEL",
+    "story.macos.mac_classic_intro": "Uma área de trabalho limpa promete simplicidade. A tabela de processos tem outros planos.",
+    "story.macos.mac_classic_klog": "finder: uma janela aberta\nbarra de menus: fingindo calma\ntabela de processos: bem-vindo, pequeno daemon",
+    "story.macos.mac_aqua_title": "A CAMADA BONITA",
+    "story.macos.mac_aqua_intro": "Tudo é translúcido, suave e esconde uma rota. Leia o telégrafo, não o verniz.",
+    "story.macos.mac_aqua_klog": "aqua: superfície fluida ativada\ncompositor: profundidade não é segurança\nrace condition: duas janelas compartilham uma má ideia",
+    "story.macos.mac_darwin_title": "O SUBSTRATO POR BAIXO",
+    "story.macos.mac_darwin_intro": "A shell se abre para sua camada inferior. Serviços em segundo plano continuam sendo serviços, mesmo quando parecem caros.",
+    "story.macos.mac_darwin_klog": "darwin: substrato visível\nlaunchd: trabalho em segundo plano detectado\nmemória: a shell polida ainda está consumindo tudo",
+    "story.macos.mac_modern_title": "PERMISSÃO PARA ENTRAR EM PÂNICO",
+    "story.macos.mac_modern_intro": "O sistema pede permissão para tudo e depois esquece quem autorizou. Limpe a rota e mantenha seu processo vivo.",
+    "story.macos.mac_modern_klog": "segurança: diálogo de consentimento perdido\nserviço: executando em segundo plano\nroot: permissão negada // tentando de novo",
+    "story.macos.act_label": "ATO 4 // HISTÓRICO DO MACOS",
+    "story.macos.unlock_label": "LIBERA APÓS TEMPLEOS // A HISTÓRIA CONTINUA",
+    "story.macos.locked_label": "HISTÓRICO DO MACOS // LIMPE A ROTA DO ORÁCULO PRIMEIRO",
+    "story.macos.reward_label": "ROTA DO HISTÓRICO DO MACOS MONTADA"
+  }
+}

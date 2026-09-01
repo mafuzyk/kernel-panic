@@ -260,6 +260,22 @@ func _build_settings() -> void:
 	display_hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
 	assign_section(display_hint, "DISPLAY")
 	box.add_child(display_hint)
+	var language := Button.new()
+	language.name = "Language"
+	language.flat = true
+	language.text = _language_label()
+	language.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	language.add_theme_font_size_override("font_size", 17)
+	language.add_theme_color_override("font_color", Balance.COL_TEXT)
+	language.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+	language.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	language.pressed.connect(func() -> void:
+		var next_locale := "pt-BR" if Localization.current_locale() == "en" else "en"
+		if Localization.set_locale(next_locale):
+			language.text = _language_label()
+	)
+	assign_section(language, "DISPLAY")
+	box.add_child(language)
 	var gameplay_label := _settings_group_label("GAMEPLAY // FEEL")
 	assign_section(gameplay_label, "GAMEPLAY")
 	box.add_child(gameplay_label)
@@ -563,6 +579,14 @@ func _settings_group_label(text: String) -> Label:
 
 func _target_fps_label(value: int) -> String:
 	return "UNLIMITED" if value == 0 else str(value)
+
+func _language_label() -> String:
+	return "%s: %s" % [Localization.tr_key("settings.language", "LANGUAGE"), Localization.locale_label()]
+
+func refresh_localized_controls() -> void:
+	for control in _section_members.get("DISPLAY", []):
+		if control != null and is_instance_valid(control) and control is Button and control.name == "Language":
+			control.text = _language_label()
 
 func _build_keybind_settings(parent: VBoxContainer) -> void:
 	m._keybind_box = VBoxContainer.new()

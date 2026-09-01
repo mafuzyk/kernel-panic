@@ -1,0 +1,26 @@
+{
+  "_meta": {"schema_version": 1, "locale": "en", "source_revision": "plan-execution-2026-09-01"},
+  "keys": {
+    "app.title": "KERNEL PANIC",
+    "settings.language": "LANGUAGE",
+    "settings.language_value": {"en": "English", "pt-BR": "Português (Brasil)"},
+    "hud.wave": "Wave {wave}",
+    "hud.daemon_count": {"one": "{count} daemon", "other": "{count} daemons"},
+    "story.macos.mac_classic_title": "THE FRIENDLY SHELL",
+    "story.macos.mac_classic_intro": "A clean desktop promises simplicity. The process table has other plans.",
+    "story.macos.mac_classic_klog": "finder: one window opened\nmenu bar: pretending to be calm\nprocess table: welcome, small daemon",
+    "story.macos.mac_aqua_title": "THE BEAUTIFUL LAYER",
+    "story.macos.mac_aqua_intro": "Everything is translucent, smooth and hiding a route. Read the telegraph, not the polish.",
+    "story.macos.mac_aqua_klog": "aqua: fluid surface enabled\ncompositor: depth is not safety\nrace condition: two windows share a bad idea",
+    "story.macos.mac_darwin_title": "THE SUBSTRATE UNDERNEATH",
+    "story.macos.mac_darwin_intro": "The shell opens onto its lower layer. Background services are still services, even when they look expensive.",
+    "story.macos.mac_darwin_klog": "darwin: substrate visible\nlaunchd: background work detected\nmemory: the polished shell is still consuming it",
+    "story.macos.mac_modern_title": "PERMISSION TO PANIC",
+    "story.macos.mac_modern_intro": "The system asks for permission to do everything, then forgets who granted it. Clear the route and keep your process alive.",
+    "story.macos.mac_modern_klog": "security: consent dialog misplaced\nservice: running in the background\nroot: permission denied // retrying",
+    "story.macos.act_label": "ACT 4 // MACOS HISTORY LOG",
+    "story.macos.unlock_label": "UNLOCKS AFTER TEMPLEOS // THE HISTORY CONTINUES",
+    "story.macos.locked_label": "MACOS HISTORY // CLEAR THE ORACLE ROUTE FIRST",
+    "story.macos.reward_label": "MACOS HISTORY ROUTE MOUNTED"
+  }
+}

@@ -901,3 +901,33 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Handoff: `docs/HANDOFF-M1-MACOS-ACT-CATALOG.md`.
 - Open: M2 narrative review/PT-BR slice, M3 chosen act mechanic, M4 actual
   climax/reward persistence, M5 visual/accessibility/performance gate.
+
+## L1/L2 — localization foundation and macOS narrative slice
+
+- Status: implemented and reviewed; full-game migration remains open.
+- Added the `Localization` autoload with UTF-8 JSON catalogs in
+  `src/data/localization/en.json` and `pt-BR.json`. English is the complete
+  key inventory; PT-BR is validated for parity, empty values and named
+  placeholder signatures. The service provides fallback, formatting,
+  plural/select helpers, snapshots and one-emission locale changes.
+- Added `[localization] locale` persistence through Sfx's existing save path,
+  with invalid values falling back to English and failed writes rolling back.
+  The preference is local-only and does not enter the progress transfer.
+- Migrated all macOS act titles, intros and klogs to `story.macos.*` keys and
+  added Brazilian Portuguese copy with explicit technical-term choices. The
+  legacy Display settings panel exposes the language selector; Menu refreshes
+  story/vNext state on `locale_changed` without reloading a scene.
+- Red: `/tmp/l1-red2.log` failed on the missing service contract. Import:
+  `/tmp/l1-import2.log` exited 0 after correcting strict typed-inference
+  errors. Green: `/tmp/l1-green4.log` exited 0 with `PROBE_DONE fails=0`.
+  Existing Mac selection regression `/tmp/macos-selection3.log` stayed green.
+- Second-pass review checked raw-key leakage, fallback order, signal
+  cardinality, persistence scope, stable stage IDs, locale refresh and mixed
+  copy. The remaining risk is migration completeness: old English literals
+  outside the Mac slice are still present and must be inventoried before
+  announcing PT-BR.
+- Reports: `.superpowers/sdd/00-MASTER-PLAN/report-L1-localization-service.md`
+  and `report-M2-macos-narrative-localization.md`.
+- Handoff: `docs/HANDOFF-L1-L2-LOCALIZATION.md`.
+- Next: L2/L3 global string migration and L4 Brazilian editorial pass, then
+  the M3 Mac mechanic gate.
