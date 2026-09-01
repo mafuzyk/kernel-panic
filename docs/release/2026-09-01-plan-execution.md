@@ -410,3 +410,33 @@ scope.
   baseline teardown diagnostics.
 - Report: `.superpowers/sdd/00-MASTER-PLAN/report-U5.md`.
 - Handoff: `docs/HANDOFF-U5-SETTINGS-ACCESSIBILITY.md`.
+
+## E3 — Program identity runtime slice
+
+### Added
+
+- Added distinct code-drawn runtime identities for KERNEL, DAEMON and ROOTLET
+  in the opt-in vNext program selector, combat HUD and pause surface.
+- Added user-visible ability status labels derived from the active run:
+  overclock, dash and shield readiness/activity.
+
+### Fixed
+
+- Fixed DAEMON and ROOTLET being displayed as KERNEL when the real player was
+  routed through the vNext presentation adapter.
+
+### Improved
+
+- Improved narrow HUD readability so the live program ability and score fit in
+  the compact layout.
+
+### Compatibility
+
+- vNext remains opt-in; legacy UI, gameplay, saves, input, balance and routes
+  are unchanged by E3.
+
+### Known Issues
+
+- No final human visual approval, physical mobile/Android/Vega validation,
+  PT-BR or native screen-reader validation is claimed. Existing teardown
+  diagnostics remain open and are not represented as fixed.

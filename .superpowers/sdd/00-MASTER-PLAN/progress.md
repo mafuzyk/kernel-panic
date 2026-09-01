@@ -554,3 +554,24 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
   visual approval and teardown diagnostics remain explicitly outside the
   evidence.
 - Commits now pushed: `f435c03`, `0d980dc`, `4500538`, `1de633f`.
+
+### E3 — program identity runtime slice
+
+- Status: implemented on `codex/plan-execution`; vNext remains opt-in.
+- Fixed confirmed adapter bug: because `PROGRAM_DEFS` has no `kind`, the old
+  real-player path defaulted DAEMON and ROOTLET to KERNEL. Added stable
+  `program_id -> kind` mapping and a read-only `Player.presentation_snapshot()`.
+- Routed real overclock, dash and shield facts into the program selector,
+  combat HUD and pause semantics; removed fragile silhouette-string mapping.
+- Focused red probe: exit 1 with 16 failures before production. Final probe:
+  headless/Xvfb exit 0, 29 passes, 0 fails, exact completion marker.
+- Additional checks: import exit 0; full suite exit 0 with 1414 AT_PASS, 0
+  AT_FAIL and AUTOTEST_ALL_PASS; accumulated validator final VALIDATION OK,
+  including E3 29/0 and no runtime ERROR gates.
+- The first accumulated run was rejected for a malformed completion marker;
+  `b6e6eaa` corrected the probe and the validator was rerun.
+- Not proven: human visual approval, dense-wave profiling, Android/device/
+  physical touch, Vega, PT-BR, native screen reader and teardown diagnostics.
+- Report: `.superpowers/sdd/00-MASTER-PLAN/report-E3-program-identity.md`.
+- Handoff: `docs/HANDOFF-E3-PROGRAM-IDENTITY.md`.
+- Commits: `f5a3669`, `88313c2`, `b6e6eaa`; documentation commit follows.
