@@ -1,14 +1,15 @@
 # KERNEL PANIC — plan execution log (2026-09-01)
 
 > This is a development/release-log draft, not a public release announcement.
-> The vNext UI described here remains opt-in behind `KP_VNEXT_BOOT=1` until
+> The vNext UI described here remains opt-in behind `KP_VNEXT_BOOT=1` and
+> `KP_VNEXT_PATCH=1` until
 > the later migration, accessibility, localization, visual-review and export
 > gates are complete.
 
 ## Scope of this log
 
 This document records the user-visible and release-relevant work executed from
-the master plan's stabilization phase through U2. Detailed technical evidence
+the master plan's stabilization phase through U2b. Detailed technical evidence
 and alternatives remain in the task reports:
 
 - [A1 repository baseline](../../.superpowers/sdd/00-MASTER-PLAN/report-A1.md)
@@ -18,6 +19,7 @@ and alternatives remain in the task reports:
 - [A5 save compatibility](../../.superpowers/sdd/00-MASTER-PLAN/report-A5.md)
 - [U1 vNext boot](../../.superpowers/sdd/00-MASTER-PLAN/report-U1.md)
 - [U2 vNext program/story selection](../../.superpowers/sdd/00-MASTER-PLAN/report-U2.md)
+- [U2b vNext patch/build decision](../../.superpowers/sdd/00-MASTER-PLAN/report-U2b.md)
 
 The execution branch is `codex/plan-execution`; it is based on the reviewed
 master-plan documentation and does not merge into `main` automatically.
@@ -80,6 +82,21 @@ master-plan documentation and does not merge into `main` automatically.
 - Corrected the Menu integration path so child BACK returns to boot and does not
   accidentally fall through into a BOOT action.
 
+### vNext patch/build decision
+
+- Added a from-scratch code-drawn patch decision surface, opt-in through
+  `KP_VNEXT_PATCH=1`, without changing the default legacy patch overlay.
+- Desktop shows all offered patches in parallel; narrow layouts show one
+  readable offer with deliberate previous/next navigation.
+- Added visible effect, cost/benefit, current-level, relation and before/after
+  build information. Locked and unavailable offers explain why they cannot be
+  installed; current tradeoff relations remain selectable warnings.
+- Added real Arena integration with paused-tree recovery for ESC close, Skip and
+  Confirm. Arena validates the snapshot identity and remains the only owner of
+  `Game.apply_patch()` and pause state.
+- Added deep-copy isolation, safe-area layout, resize reflow, native focusable
+  controls, keyboard/mouse/touch handling, and exactly-once command gates.
+
 ### Review-driven corrections
 
 The implementation was not accepted at the first green-looking result. The
@@ -101,6 +118,13 @@ following concrete defects were found and corrected:
 6. A review claim that enabled program launch color was inverted was rejected by
    direct code inspection and a resolved-color assertion; no speculative change
    was made.
+7. The first U2b probe was a false green: it did not integrate Arena, showed one
+   desktop offer, allowed empty confirmation and missed narrow overlap. The
+   controller replaced it with decision-data, state, geometry and real-Arena
+   probes before accepting the slice.
+8. A second U2b review found weak presentation projection and retry/lifecycle
+   evidence. Explicit fields and lock reasons are now preserved, build preview
+   is pure, adapter rejection can retry, and next-offer work is deferred.
 
 ## Main decisions and rationale
 
@@ -129,6 +153,20 @@ Narrow screens use a list first and a detail/briefing state second. The tradeoff
 is one extra confirmation step before launching, but the player can read the
 consequence and navigate back without tiny cards or clipped copy.
 
+### Treat patch conflict as a warning until balance says otherwise
+
+The current relation table describes heavy+splitshot as a tradeoff, not an
+invalid combination. The surface exposes the warning and keeps Confirm
+available. Disabling the choice would silently change gameplay balance, so that
+decision remains with a future gameplay/balance task.
+
+### Keep presentation pure
+
+The patch surface receives copied data and emits commands. The Arena adapter
+creates the before/after build preview from a copied level map and applies only
+after validating the command. This avoids preview side effects and keeps the
+pause/gameplay lifecycle in one owner.
+
 ## Verification record
 
 All game execution in this slice used the silent audio driver to avoid
@@ -140,6 +178,8 @@ interrupting the user's study session.
 | `vnext_boot_probe` | exit 0; `PROBE_DONE fails=0` |
 | `vnext_selection_probe` | exit 0; `PROBE_DONE fails=0` |
 | `vnext_menu_probe` | exit 0; `PROBE_DONE fails=0` |
+| `vnext_patch_probe` | exit 0; `PROBE_DONE fails=0` |
+| `vnext_patch_arena_probe` with `KP_VNEXT_PATCH=1` | exit 0; `PROBE_DONE fails=0` |
 | existing `layout_probe` | exit 0; `PROBE_RESULT passes=130 fails=0` |
 | full `--autotest` suite | exit 0; 1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS` |
 | `git diff --check` | clean |
@@ -147,7 +187,8 @@ interrupting the user's study session.
 The focused probes cover 1366×768, 720×720 and 432×720 logical viewports,
 safe-area containment, text scale 1.15, reduced motion/high contrast context,
 keyboard, focus, real Button ENTER, direct pointer/touch dispatch, locked
-states, route return, resize and duplicate activation.
+and tradeoff states, route return, resize, empty offers and duplicate
+activation.
 
 ## Clean release notes draft
 
@@ -160,6 +201,8 @@ states, route return, resize and duplicate activation.
 - Added story act tabs, stage status markers, locked-node explanations and
   readable briefings.
 - Added mobile-friendly list/detail navigation for program and story browsing.
+- Added an opt-in patch/build decision surface with visible consequences and
+  narrow previous/next navigation.
 - Added stronger keyboard, mouse and touch interaction coverage in development
   builds.
 
@@ -170,6 +213,8 @@ states, route return, resize and duplicate activation.
 - Program/story selection is separate from the final BOOT/MOUNT action, making
   the consequence visible before starting.
 - The legacy menu remains the default while the new route is validated.
+- The legacy patch overlay remains the default while the new decision surface
+  is validated.
 
 ### Fixed
 
@@ -178,6 +223,8 @@ states, route return, resize and duplicate activation.
 - Fixed missing story act-tab keyboard focus.
 - Fixed narrow-layout clipping risk by separating list and detail states.
 - Fixed incomplete boot-surface text overflow coverage.
+- Fixed the first patch-surface false green by integrating the real Arena path,
+  rejecting empty/unavailable confirmation, and testing layout/data semantics.
 
 ### Improved
 
@@ -186,6 +233,10 @@ states, route return, resize and duplicate activation.
   markers instead of opacity alone.
 - Improved validation so green probes require completion markers and exercise
   actual route/control behavior.
+- Improved patch decisions with build before/after preview, explicit tradeoff
+  warnings, and state reasons instead of relying on opacity or color.
+- Improved paused-overlay input so ESC, Skip and Confirm recover the Arena
+  without duplicate application.
 
 ### Compatibility
 
@@ -197,6 +248,8 @@ states, route return, resize and duplicate activation.
 
 - New vNext surfaces do not add a gameplay polling loop, physics body or timer.
 - Performance budgets and device profiling remain future plan gates.
+- The patch surface is laid out and measured on configure/resize and adds no
+  gameplay polling, physics body or per-frame update while hidden.
 
 ### Known Issues
 
@@ -208,6 +261,8 @@ states, route return, resize and duplicate activation.
   export and teardown resource/RID diagnostics still need dedicated evidence.
 - The test suite is functionally green but still reports the recorded teardown
   resource/RID/ObjectDB diagnostics; these are not hidden or considered fixed.
+- Arbitrarily long localized patch copy is detected by the overflow report but
+  does not yet have a scrollable card treatment.
 
 ## Release-note hygiene
 

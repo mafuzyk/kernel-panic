@@ -253,6 +253,67 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
   snapshot/action/overflow discipline and add confirm/skip/close/conflict,
   resize and paused-overlay recovery evidence.
 
+## U2b vNext patch/build decision surface
+
+- Status: accepted on 2026-09-01 after controller correction and an
+  independent Luna review.
+- Initial red commit: `7154876` added the focused patch probe. Initial feature
+  commit: `b2f6f6b` added the first opt-in surface. The first green-looking
+  result was rejected because the surface was not integrated with Arena,
+  desktop showed one offer, empty confirmation was possible, narrow footer
+  controls overlapped, state/data semantics were incomplete, and resize/input
+  evidence was artificial.
+- Controller red hardening then added the real decision-data, state,
+  non-overlap, empty/locked, retry, resize and GUI-routing assertions. A real
+  Arena probe was added before the adapter integration and failed with three
+  missing-route checks.
+- Production scope: `src/ui/vnext/surfaces/patch_surface.gd`,
+  `src/arena/arena.gd`, `src/arena/panel_kit.gd`. Probe/tooling scope:
+  `tools/vnext_patch_probe.gd`, `tools/vnext_patch_arena_probe.gd`,
+  `tools/vnext_patch_arena_probe.tscn`, and
+  `tools/validate_input_dispatch.sh`.
+- Surface contract: deep-copied normalized snapshot, project fonts/tokens,
+  desktop parallel cards, narrow one-card navigation, native Buttons, shared
+  action geometry, keyboard/mouse/touch, exactly-once final commands, safe
+  area, resize reflow and measurable overflow. It emits commands only.
+- Adapter contract: Arena owns pause and `Game.apply_patch()`. The opt-in
+  `KP_VNEXT_PATCH=1` route handles real ESC close, Skip and Confirm while the
+  simulation is paused; Confirm validates index and offer identity, and
+  close/skip defer queued-offer work to avoid reentrancy. The legacy route is
+  unchanged when the flag is absent.
+- State decision: `TRADEOFF` remains a selectable warning because the current
+  heavy+splitshot relation is not a gameplay lock. Locked and unavailable
+  states are explicit and non-confirmable. This does not invent a new balance
+  rule.
+- Content decision: Arena preserves explicit effect/cost/build/state fields;
+  current catalog descriptions are the canonical effect text and patch offers
+  have no resource cost. Before/after build codes are computed from a copied
+  level map without emitting gameplay signals.
+- Controller-fresh surface evidence:
+  `env XDG_DATA_HOME=/tmp/kernel-panic-u2b-green-surface4-20260901 godot
+  --headless --audio-driver Dummy --path .
+  res://tools/vnext_patch_probe.tscn` — exit 0, `PROBE_DONE fails=0`.
+- Controller-fresh real Arena evidence:
+  `KP_VNEXT_PATCH=1 XDG_DATA_HOME=/tmp/kernel-panic-u2b-green-arena11-20260901
+  godot --headless --audio-driver Dummy --path .
+  res://tools/vnext_patch_arena_probe.tscn` — exit 0,
+  `PROBE_DONE fails=0`; covers open/pause/ESC close/reopen/skip/reopen/confirm
+  and exactly one patch application.
+- Full-suite evidence after U2b: exit 0, `1414 AT_PASS`, `0 AT_FAIL`,
+  `AUTOTEST_ALL_PASS`; import/editor scan exit 0; `git diff --check` clean.
+- Review outcome: the first Luna review rejected the initial result; the
+  controller corrected the findings. The second Luna review accepted the
+  corrected implementation and verified the focused probes, real Arena input,
+  data/state projection, responsive geometry, retry path and legacy default.
+- Residuals: no final visual approval; oversized arbitrary/localized copy is
+  detected but not scrollable; PT-BR, persisted accessibility, physical-device
+  mobile, Android export and W0 teardown diagnostics remain open. The Arena
+  probe intentionally reports additional exit-time resource/RID/ObjectDB
+  diagnostics because it creates a live Arena directly.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-U2b.md`.
+- Versioned handoff: `docs/HANDOFF-U2B-PATCH-DECISION.md`.
+- Next task: U3 combat HUD. Keep U2b opt-in available as a regression surface.
+
 ## Review checklist for every task
 
 - Read the micro-plan and current code, then inspect shared interfaces.
