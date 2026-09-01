@@ -188,3 +188,12 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Re-read the diff as an adversarial reviewer: lifecycle, paused input, save compatibility, responsive geometry, localization, performance, error paths.
 - Record proven facts, assumptions, residual risks, and validation method here and in the relevant handoff/release document.
 - Commit only explicit task paths; keep unrelated user artifacts out of the commit.
+## U1 vNext boot vertical slice
+
+- Status: completed on 2026-09-01.
+- Red probe: `godot --audio-driver Dummy --headless --path . res://tools/vnext_boot_probe.tscn` failed because the new boot surface was absent.
+- Green probe: same command exited 0 with `PROBE_DONE fails=0`; covers wide/compact/narrow layout, >=44px targets, overflow, semantics, ENTER, mouse, touch, and no duplicate activation.
+- Full suite: `godot --audio-driver Dummy --headless --path . -- --autotest` exited 0 with `AT_FAIL=0` and `AUTOTEST_ALL_PASS`.
+- Files: new `ui_context.gd`, `ui_layout.gd`, `ui_navigation.gd`, `surfaces/boot_surface.gd`, probe/scene; `src/ui/menu.gd` has only the `KP_VNEXT_BOOT=1` opt-in route.
+- Decisions: one `Rect2` action registry feeds drawing/input/focus; no legacy composition, raster, gameplay or save changes. Navigation contract is present for stack/dispatch/focus and will gain additional routes later.
+- Risks: visual capture/review was not available and remains open; no visual approval claimed. Existing teardown diagnostics remain baseline risks.
