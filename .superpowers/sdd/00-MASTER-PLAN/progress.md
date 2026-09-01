@@ -116,8 +116,8 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 
 ## E1 — entity descriptor and renderer foundation
 
-- Status: implementado em 2026-09-01, sem rota de produto e sem alteração de
-  gameplay.
+- Status: implementado e adversarialmente corrigido em 2026-09-01, sem rota de
+  produto e sem alteração de gameplay.
 - Red: o probe focado falhou com os contratos ausentes (`PROBE_DONE fails=1`);
   green: import exit 0 e probe exit 0 com `PROBE_DONE fails=0`.
 - Added `VNextEntityDescriptor`, `VNextEntityRenderer` e
@@ -130,11 +130,15 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
   era canônica, o acento de era era descartado e o Control não encaminhava
   qualidade/facing. A prova foi ampliada antes da correção; `be92d2b` corrige
   esses pontos e também normaliza booleanos malformados.
-- Evidência final: probe 128 `PROBE_PASS`/0 `PROBE_FAIL` em headless e Xvfb,
+- A segunda revisão rejeitou a semântica de fit/bounds/raio; a probe reproduziu
+  21 falhas contra o commit anterior e `7a62a90` unificou esses cálculos.
+- Evidência final: probe 129 `PROBE_PASS`/0 `PROBE_FAIL` em headless e Xvfb,
   import exit 0, autotest com Dummy audio 1414 `AT_PASS`, 0 `AT_FAIL`,
-  `AUTOTEST_ALL_PASS`, `git diff --check` exit 0. Não houve captura
-  inspecionada, portanto não há aprovação visual.
-- Commits: `2212c12`, `99e5695`, `901da80`, `be92d2b`; report:
+  `AUTOTEST_ALL_PASS`, `git diff --check` exit 0. A segunda revisão encontrou
+  21 falhas no commit anterior para a semântica fit/bounds/raio; `7a62a90`
+  corrigiu e a probe final ficou verde. Não houve captura inspecionada,
+  portanto não há aprovação visual.
+- Commits: `2212c12`, `99e5695`, `901da80`, `be92d2b`, `7a62a90`; report:
   `.superpowers/sdd/00-MASTER-PLAN/report-E1.md`; handoff:
   `docs/HANDOFF-E1-ENTITY-FOUNDATION.md`.
 

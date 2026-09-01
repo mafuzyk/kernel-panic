@@ -16,7 +16,9 @@ Status: implementado no branch `codex/plan-execution`, 2026-09-01.
   `EnemyBase`, além de fixtures puras. O probe conecta exatamente `kernel` e
   `DRONE`; nenhum comportamento, rota, hitbox ou balanceamento foi alterado.
 - `VNextEntityIllustration` preserva suas APIs anteriores e passa a delegar
-  extent e `_draw()` ao foundation compartilhado.
+  extent e `_draw()` ao foundation compartilhado; `visual_rect()` agora
+  representa o envelope completo e `glyph_radius()` usa o mesmo contrato do
+  renderer.
 
 ## Evidência red/green
 
@@ -24,11 +26,14 @@ Status: implementado no branch `codex/plan-execution`, 2026-09-01.
   exit 1, `PROBE_FAIL entity presentation foundation scripts load` e
   `PROBE_DONE fails=1`.
 - Green focado após a correção: import Godot com `--audio-driver Dummy`, exit
-  0; probe headless exit 0 com 128 `PROBE_PASS`, 0 `PROBE_FAIL` e
-  `PROBE_DONE fails=0`; probe Xvfb com os mesmos 128/0; sem `ERROR`,
+  0; probe headless exit 0 com 129 `PROBE_PASS`, 0 `PROBE_FAIL` e
+  `PROBE_DONE fails=0`; probe Xvfb com os mesmos 129/0; sem `ERROR`,
   `SCRIPT ERROR` ou `PROBE_FAIL` nos logs focados.
 - Suíte: `godot --headless --audio-driver Dummy --path . -- --autotest`, exit 0,
   1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`.
+- Validador acumulado: `KP_VALIDATION_LOGS=.godot/codex-review-e1-final tools/validate_input_dispatch.sh`, exit 0, `VALIDATION OK`; entity probe
+  129/0 e todas as probes acumuladas passaram. Os diagnósticos de teardown
+  seguem visíveis e não-gating, sem novo erro de runtime.
 - `git diff --check`: exit 0.
 
 ## Revisão adversarial
@@ -56,6 +61,17 @@ do snapshot, `GlyphLib` é fallback, `EntitySprite` continua desabilitado por
 default, e não há acesso a `Game`, `Sfx`, `Arena`, RNG, filesystem ou troca de
 cena no renderer. A evidência é contratual/geométrica; não substitui captura
 visual humana.
+
+Uma segunda revisão independente encontrou outra inconsistência concreta: o
+renderer publicava `MARKER_EXTENT`, mas `fit_rect()` e `draw_bounds()` ainda
+retornavam o mesmo quadrado, enquanto `glyph_radius()` do Control calculava
+fora do foundation. A probe foi ampliada para exigir a relação
+`draw_bounds.size = fit.size * extent` e a equivalência do raio público. Contra
+o commit anterior, a execução reproduziu 21 falhas; `7a62a90` corrige a
+geometria: `fit_rect()` é a alocação interna do corpo, `draw_bounds()` é o
+envelope externo completo, e ambos derivam do mesmo fator de extent. O raio
+agora usa o extent real do glyph dentro do corpo. O teste verde final foi
+executado novamente em headless e Xvfb, e a suíte completa permaneceu verde.
 
 ## Limitações e incertezas
 
