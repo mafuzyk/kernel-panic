@@ -770,3 +770,27 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Handoff: `docs/HANDOFF-G3-WEEKLY-PRACTICE.md`.
 - Next task: G4 boss desperation, after measuring that its cadence/telegraph
   transition remains reactable in normal and One-HP scenarios.
+
+## G4 — Boss desperation and late-wave pressure
+
+- Status: implemented on `codex/plan-execution`; structural fairness checks
+  are green, while human normal/One-HP feel remains a release gate.
+- RootBoss variants, split fragments and GodBoss now enter a one-shot state at
+  `<= 8%` HP. The state grants a 0.75s stagger/transition window, blocks an
+  immediate scheduled attack, then shortens future attack cooldowns to 72% of
+  their previous value. Incoming damage is unchanged.
+- The state is redundant and non-color: white outer border, rotating ticks,
+  transition arc and `DESPERATION // CADENCE UP`; snapshot/adapter fields are
+  available for later HUD presentation.
+- Pre-feature isolated red: `/tmp/g4-red.log`, exit 1, four missing-contract
+  failures and no implementation acceptance. Focused green:
+  `/tmp/g4-green4.log`, exit 0, 55 passes, `PROBE_DONE fails=0`, no script
+  errors. The probe covers all RootBoss kinds, a split fragment and GOD.
+- The first GodBoss patch had an incorrect unconditional return that could
+  suppress oracle casts permanently; it was fixed before acceptance and
+  documented in the G4 report. Full aggregate validation remains the next
+  checkpoint. Teardown resource diagnostics remain baseline.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-G4-boss-desperation.md`.
+- Handoff: `docs/HANDOFF-G4-BOSS-DESPERATION.md`.
+- Next task: G5 RACE_CONDITION enemy and wave teaching, preserving the already
+  shipped ZOMBIE_PROCESS counterplay.

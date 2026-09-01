@@ -17,6 +17,9 @@ func _init() -> void:
 	mote_count = 34
 
 func configure(wave_scale_f: float, _is_elite: bool) -> void:
+	desperation_active = false
+	desperation_transition_t = 0.0
+	desperation_trigger_count = 0
 	boss_index = 1
 	hp = int(ceil(170.0 * wave_scale_f))
 	max_hp = hp
@@ -34,14 +37,16 @@ func roll_oracle_attack() -> String:
 	return last_oracle_attack
 
 func _move(delta: float) -> void:
+	_step_desperation(delta)
 	var to_player := player.global_position - global_position if player != null and is_instance_valid(player) else Vector2.ZERO
 	var desired := steer_distance_band(to_player, 190.0, 330.0, -1.0, 0.72)
 	desired += steer_separation(2.4) * 0.7
 	_v = _v.move_toward(desired.limit_length(1.0) * speed, 260.0 * delta)
 	oracle_cd -= delta
 	if oracle_cd <= 0.0:
-		oracle_cd = maxf(2.2 - 0.18 * (3 - phase), 1.15)
-		_oracle_cast(roll_oracle_attack())
+		oracle_cd = _desperation_interval(maxf(2.2 - 0.18 * (3 - phase), 1.15))
+		if desperation_transition_t <= 0.0:
+			_oracle_cast(roll_oracle_attack())
 	var frac := float(hp) / float(max_hp) if max_hp > 0 else 0.0
 	phase = 3 if frac < 0.33 else (2 if frac < 0.66 else 1)
 
@@ -69,6 +74,7 @@ func take_hit(dmg: int, from: Vector2) -> void:
 	Sfx.play("hit", 1.0, -6.0)
 	if hp <= 0:
 		die()
+	_step_desperation(0.0)
 	boss_hp_changed.emit(float(maxi(hp, 0)) / float(maxi(max_hp, 1)))
 
 func vel() -> Vector2:
@@ -89,3 +95,4 @@ func _draw() -> void:
 	draw_arc(Vector2.ZERO, radius + 10.0, -PI / 2.0, -PI / 2.0 + TAU * hp_frac, 48, c, 2.8, true)
 	if elite:
 		draw_arc(Vector2.ZERO, radius + 14.0, 0.0, TAU, 36, Color(1, 1, 1, 0.75), 1.8, true)
+	_draw_desperation_telegraph()

@@ -89,6 +89,13 @@ static func from_enemy_fixture(enemy: Dictionary) -> Dictionary:
 		"remaining_life": float(enemy.get("remaining_life", 0.0)),
 		"lifetime": float(enemy.get("lifetime", 0.0)),
 		"timer_marker": str(enemy.get("timer_marker", "")),
+		"nested": {
+			"boss_title": str(enemy.get("boss_title", "")),
+			"boss_variant": int(enemy.get("boss_variant", 0)),
+			"mini": bool(enemy.get("mini", false)),
+			"desperation_active": bool(enemy.get("desperation_active", false)),
+			"desperation_transition_t": maxf(float(enemy.get("desperation_transition_t", 0.0)), 0.0),
+		},
 	})
 
 static func from_enemy(enemy: Object) -> Dictionary:

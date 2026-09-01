@@ -37,7 +37,13 @@ var split_done := false
 var kind := 1
 var _mini_side := 1.0
 var _glitch_off := Vector2.ZERO
+var desperation_active := false
+var desperation_transition_t := 0.0
+var desperation_trigger_count := 0
 const TELEPORT_SAFE_DISTANCE := 240.0
+const DESPERATION_THRESHOLD := 0.08
+const DESPERATION_TRANSITION_DURATION := 0.75
+const DESPERATION_CADENCE_MULTIPLIER := 0.72
 
 const MK_DATA := [
 	{"title": "ROOT.exe", "col": Color("ff3d81"), "quote": "you have 1 unread virus"},
@@ -67,6 +73,9 @@ func _init() -> void:
 	mote_count = 26
 
 func configure(wave_scale_f: float, is_elite: bool) -> void:
+	desperation_active = false
+	desperation_transition_t = 0.0
+	desperation_trigger_count = 0
 	kind = kind_for_index(boss_index)
 	if mini:
 		radius = 26.0
@@ -92,6 +101,40 @@ func configure(wave_scale_f: float, is_elite: bool) -> void:
 	if kind == 3:
 		_freeze_cd = 4.0
 
+func presentation_snapshot() -> Dictionary:
+	var snapshot := super.presentation_snapshot()
+	snapshot["boss_title"] = boss_title
+	snapshot["boss_variant"] = kind
+	snapshot["mini"] = mini
+	snapshot["desperation_active"] = desperation_active
+	snapshot["desperation_transition_t"] = desperation_transition_t
+	return snapshot
+
+func desperation_transition_duration() -> float:
+	return DESPERATION_TRANSITION_DURATION
+
+func desperation_cadence_multiplier() -> float:
+	return DESPERATION_CADENCE_MULTIPLIER if desperation_active else 1.0
+
+func _step_desperation(delta: float) -> void:
+	if desperation_transition_t > 0.0:
+		desperation_transition_t = maxf(desperation_transition_t - delta, 0.0)
+	if desperation_active or hp <= 0 or max_hp <= 0:
+		return
+	if float(hp) / float(max_hp) > DESPERATION_THRESHOLD:
+		return
+	desperation_active = true
+	desperation_trigger_count += 1
+	desperation_transition_t = DESPERATION_TRANSITION_DURATION
+	act = Act.STAGGER
+	act_t = DESPERATION_TRANSITION_DURATION
+	Fx.ring(global_position, Color.WHITE, radius, radius + 150.0, 0.65, 6.0, true)
+	Fx.text(global_position + Vector2(0, -radius - 28.0), "DESPERATION // CADENCE UP", Color.WHITE, 14)
+	Sfx.play("charge", 1.2, -3.0)
+
+func _desperation_interval(base_interval: float) -> float:
+	return base_interval * desperation_cadence_multiplier()
+
 func _ready() -> void:
 	super._ready()
 	add_to_group("boss")
@@ -99,6 +142,7 @@ func _ready() -> void:
 	glow.scale = Vector2.ONE * (radius * 3.2 / 128.0)
 
 func _move(delta: float) -> void:
+	_step_desperation(delta)
 	act_t -= delta
 	if _exposed > 0.0:
 		_exposed -= delta
@@ -233,14 +277,16 @@ func _move_mini(delta: float) -> void:
 				act = Act.HOVER
 
 func _try_attacks() -> void:
+	if desperation_transition_t > 0.0:
+		return
 	if mini:
 		if act != Act.HOVER:
 			return
 		if _burst_cd <= 0.0:
-			_burst_cd = 3.4
+			_burst_cd = _desperation_interval(3.4)
 			_do_burst(6, 180.0)
 		if _lance_cd <= 0.0:
-			_lance_cd = 5.0
+			_lance_cd = _desperation_interval(5.0)
 			act = Act.LANCE_WIND
 			act_t = 0.42
 			_lance_dir = aim_at_player()
@@ -252,10 +298,10 @@ func _try_attacks() -> void:
 	match kind:
 		1:
 			if _burst_cd <= 0.0:
-				_burst_cd = 2.5 if phase == Phase.ONE else (2.1 if phase == Phase.TWO else 1.7)
+				_burst_cd = _desperation_interval(2.5 if phase == Phase.ONE else (2.1 if phase == Phase.TWO else 1.7))
 				_do_burst(14 + 4 * (phase - 1), 205.0 + 10.0 * phase)
 			if not mini and phase >= Phase.TWO and _summon_cd <= 0.0 and _summons_alive() < 6:
-				_summon_cd = 8.5
+				_summon_cd = _desperation_interval(8.5)
 				_do_summon("drone")
 			if phase >= Phase.THREE and _charge_cd <= 0.0:
 				_start_charge()
@@ -312,7 +358,7 @@ func _try_attacks() -> void:
 				_summon_cd = repeated_cooldown(11.0)
 				_do_summon("trojan")
 	if mk >= 4 and phase >= Phase.THREE and _charge_cd <= 0.0 and act == Act.HOVER and kind != 4:
-		_charge_cd = 5.2
+		_charge_cd = _desperation_interval(5.2)
 		_start_charge()
 
 func _start_charge() -> void:
@@ -337,7 +383,7 @@ func hover_direction(to_target: Vector2) -> Vector2:
 	return desired.limit_length(1.0)
 
 func repeated_cooldown(base_interval: float) -> float:
-	return base_interval * Balance.difficulty_cadence(threat_wave) if is_ranged_profile() else base_interval
+	return _desperation_interval(base_interval) * Balance.difficulty_cadence(threat_wave) if is_ranged_profile() else _desperation_interval(base_interval)
 
 func _start_spiral(shots: int, dur: float) -> void:
 	_spiral_cd = repeated_cooldown(5.5)
@@ -507,7 +553,7 @@ func _process(delta: float) -> void:
 	if act == Act.SPIRAL and _spiral_shots > 0:
 		var fire_acc: float = get_meta("sp_acc", 0.0) + delta
 		while fire_acc >= 0.085 and _spiral_shots > 0:
-			fire_acc -= 0.085 * Balance.difficulty_cadence(threat_wave)
+			fire_acc -= 0.085 * Balance.difficulty_cadence(threat_wave) * desperation_cadence_multiplier()
 			_spiral_shots -= 1
 			_spiral_angle += 0.47
 			_spawn_orb(Vector2.from_angle(_spiral_angle), 235.0)
@@ -580,6 +626,7 @@ func take_hit(dmg: int, from: Vector2) -> void:
 		_split_into_minis()
 		return
 	super.take_hit(dmg, from)
+	_step_desperation(0.0)
 	boss_hp_changed.emit(float(maxf(hp, 0)) / float(max_hp))
 	if kind == 4 and not mini and not _shield_rebuilt and hp > 0 and hp <= max_hp / 2 and _pages_alive() == 0:
 		_shield_rebuilt = true
@@ -693,6 +740,20 @@ func _draw() -> void:
 			_draw_pagefault(c, r)
 		_:
 			_draw_root(c, r)
+	_draw_desperation_telegraph()
+
+func _draw_desperation_telegraph() -> void:
+	if not desperation_active:
+		return
+	var pulse := 0.65 + 0.35 * absf(sin(t * 9.0))
+	var border := Color(1.0, 1.0, 1.0, pulse)
+	draw_arc(Vector2.ZERO, radius + 17.0, 0.0, TAU, 48, border, 5.0, true)
+	for i in 8:
+		var start := TAU * float(i) / 8.0 + t * 0.35
+		draw_line(Vector2.from_angle(start) * (radius + 20.0), Vector2.from_angle(start + 0.16) * (radius + 30.0), border, 3.0)
+	if desperation_transition_t > 0.0:
+		var transition_alpha := clampf(desperation_transition_t / DESPERATION_TRANSITION_DURATION, 0.0, 1.0)
+		draw_arc(Vector2.ZERO, radius + 25.0, -PI / 2.0, -PI / 2.0 + TAU * transition_alpha, 32, Color.WHITE, 3.0, true)
 
 func _draw_root(c: Color, r: float) -> void:
 	GlyphLib.draw_glyph(self, "root", Vector2.ZERO, r, _glyph_color(c), t)

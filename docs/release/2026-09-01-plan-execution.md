@@ -751,3 +751,55 @@ and HUD messaging still need playtest approval.
   `PROBE_DONE fails=0`.
 - Technical report: `.superpowers/sdd/00-MASTER-PLAN/report-G2-display-settings.md`.
 - Handoff: `docs/HANDOFF-G2-DISPLAY-SETTINGS.md`.
+
+## 2026-09-01 — unreleased — Weekly and Practice foundations
+
+### Added
+
+- Weekly mode now previews and runs one deterministic mutator per week:
+  daemons move 20% faster, or wave budgets are 20% larger. The rotation is
+  tagged and visible before launch.
+- Practice wave selection unlocks from the highest Classic Endless wave
+  reached. Practice starts at the selected wave and is excluded from run
+  records, lifetime statistics and achievement conditions.
+- Compact menu copy and a touchable Practice wave selector keep these states
+  readable on narrow layouts.
+
+### Compatibility
+
+- Weekly scores remain in their existing separate record namespace. Save
+  transfer version 1 remains compatible; older payloads default the new
+  Endless-wave field to zero.
+
+### Known Issues
+
+- The two mutators and first-run Practice unlock threshold need human balance
+  and onboarding approval. Physical mobile behavior, final visual approval and
+  teardown cleanliness remain open.
+
+### Evidence
+
+- Headless and Xvfb G3 probes passed with `PROBE_DONE fails=0`.
+- Full DevHarness passed with 1427 checks, zero failures and
+  `AUTOTEST_ALL_PASS`.
+
+## 2026-09-01 — unreleased — Boss desperation
+
+### Added
+
+- Bosses now enter a one-shot late-health state at 8% HP with a 0.75-second
+  reaction window, a high-contrast non-color telegraph and faster attack
+  cadence afterward. Incoming damage is unchanged.
+- RootBoss variants, split fragments and GOD share the rule and expose the
+  state to the presentation adapter.
+
+### Known Issues
+
+- Normal and One-HP human playtests still need to confirm that the cadence and
+  transition window feel dangerous without turning an existing projectile
+  pattern into a forced death.
+
+### Evidence
+
+- Focused G4 coverage passed 55 checks across all boss variants, split
+  fragments, transition gating, normal damage and dash reaction margin.
