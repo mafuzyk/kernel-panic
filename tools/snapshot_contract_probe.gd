@@ -20,6 +20,7 @@ func _check(condition: bool, message: String) -> void:
 
 func _run() -> void:
 	var tree := get_tree()
+	_watchdog.call_deferred()
 	var game: Node = get_node("/root/Game")
 	var sfx: Node = get_node("/root/Sfx")
 	var menu := tree.current_scene
@@ -45,8 +46,8 @@ func _run() -> void:
 	_check(_check_deep_copy(game_snapshot), "Game snapshot is isolated from nested mutation")
 
 	game.start_run()
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await tree.process_frame
+	await tree.process_frame
 	var arena := tree.current_scene
 	_check(arena != null and arena.name == "Arena", "real Arena starts through Game.start_run")
 	var arena_rng_before: int = game.rng.state
@@ -148,6 +149,14 @@ func _save_bytes() -> PackedByteArray:
 	if not FileAccess.file_exists(save_path):
 		return PackedByteArray()
 	return FileAccess.get_file_as_bytes(save_path)
+
+func _watchdog() -> void:
+	var timeout_s := 8.0
+	if OS.get_environment("KP_A3_FORCE_WATCHDOG") != "":
+		timeout_s = 0.0
+	await get_tree().create_timer(timeout_s, true, false, true).timeout
+	print("PROBE_FAIL watchdog timeout")
+	get_tree().quit(2)
 
 func _finish() -> void:
 	print("PROBE_DONE fails=%d" % _fails)
