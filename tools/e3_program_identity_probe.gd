@@ -23,10 +23,11 @@ func _check_player_contract() -> void:
 	var expected := {
 		"kernel": {"aim": Vector2.RIGHT, "hp": 4, "max_hp": 4, "overclock_active": false, "oc_ready": true, "dash_available": 1, "shield_mode": false, "shield_ready": false, "shield_meter": 0.0},
 		"daemon": {"aim": Vector2.UP, "hp": 2, "max_hp": 3, "overclock_active": false, "oc_ready": false, "dash_available": 1, "dash_t": 0.0, "shield_mode": false, "shield_ready": false, "shield_meter": 0.0},
-		"rootlet": {"aim": Vector2.LEFT, "hp": 5, "max_hp": 5, "overclock_active": false, "oc_ready": false, "dash_available": 0, "dash_t": 0.0, "shield_mode": true, "shield_ready": false, "shield_meter": 0.0},
+		"rootlet": {"aim": Vector2.LEFT, "hp": 5, "max_hp": 5, "overclock_active": false, "oc_ready": false, "dash_available": 1, "dash_t": 0.0, "shield_mode": true, "shield_ready": false, "shield_meter": 0.0},
 	}
 	for id in expected:
 		var player := Player.new()
+		player.program_id = id
 		player.prog = Game.PROGRAM_DEFS[id].duplicate(true)
 		for key in expected[id]:
 			player.set(key, expected[id][key])
@@ -42,6 +43,7 @@ func _check_player_contract() -> void:
 
 func _check_real_renderer_path() -> void:
 	var player := Player.new()
+	player.program_id = "rootlet"
 	player.prog = Game.PROGRAM_DEFS["rootlet"].duplicate(true)
 	player.aim = Vector2.LEFT
 	player.shield_meter = 100.0
@@ -60,6 +62,7 @@ func _check_real_renderer_path() -> void:
 func _check_consumers() -> void:
 	var context := Context.from_viewport(Vector2(432.0, 720.0))
 	var player := Player.new()
+	player.program_id = "rootlet"
 	player.prog = Game.PROGRAM_DEFS["rootlet"].duplicate(true)
 	player.shield_ready = true
 	player.shield_meter = Balance.OC_METER_MAX
@@ -75,7 +78,12 @@ func _check_consumers() -> void:
 	hud.configure({"program": snapshot.get("nested", {}).get("program_id"), "program_kind": snapshot.get("kind"), "program_snapshot": snapshot, "hp": player.hp, "max_hp": player.max_hp, "meter": player.shield_meter, "meter_max": Balance.OC_METER_MAX, "dash_available": player.dash_available, "dash_frac": 0.0, "patches": []}, context)
 	_check(str(hud.semantic_snapshot().get("program_id", "")) == "rootlet", "combat HUD receives real program identity")
 	_check(str(hud.semantic_snapshot().get("ability_state", "")) == "SHIELD READY", "combat HUD receives real shield state")
-	_check(not bool(hud.text_overflow_report().get("has_overflow", true)), "combat HUD narrow text fits")
+	var hud_overflow := hud.text_overflow_report()
+	_check(not bool(hud_overflow.get("has_overflow", true)), "combat HUD narrow text fits")
+	if bool(hud_overflow.get("has_overflow", false)):
+		for field_id in hud_overflow.get("fields", {}):
+			if not bool(hud_overflow["fields"][field_id].get("fits", false)):
+				print("PROBE_INFO overflow_field=%s text=%s" % [field_id, hud_overflow["fields"][field_id].get("text", "")])
 	var pause := PauseSurface.new()
 	add_child(pause)
 	pause.show_pause({"context": "ROOTLET // SHIELD READY", "program_snapshot": snapshot, "visible": true})

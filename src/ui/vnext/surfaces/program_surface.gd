@@ -6,6 +6,7 @@ const Tokens = preload("res://src/ui/vnext/ui_tokens.gd")
 const Illustration = preload("res://src/ui/vnext/entity_illustration.gd")
 const Orbitron: Font = preload("res://assets/fonts/Orbitron.ttf")
 const ShareTechMono: Font = preload("res://assets/fonts/ShareTechMono.ttf")
+const Adapter = preload("res://src/ui/vnext/core/entity_presentation_adapter.gd")
 
 signal action_requested(action_id: String, payload: Dictionary)
 
@@ -141,7 +142,7 @@ func _apply_layout() -> void:
 	_illustration.visible = not narrow or _narrow_detail
 	launch.visible = not narrow or _narrow_detail
 	list_view.visible = narrow and _narrow_detail
-	_illustration.configure_entity(str(Game.PROGRAM_DEFS[_selected].get("visual", {}).get("silhouette", "kernel_arrow")).replace("_arrow", "").replace("_fork", "").replace("_block", ""), "ready", "PROGRAM")
+	_illustration.configure_entity(Adapter.PROGRAM_KINDS.get(_selected, "kernel"), "ready", "PROGRAM")
 	_illustration.position = _layout["detail"].position + Vector2(18, 18)
 	_illustration.size = Vector2(minf(120.0, _layout["detail"].size.x * 0.32), minf(120.0, _layout["detail"].size.y))
 
@@ -154,7 +155,7 @@ func _update_buttons() -> void:
 		button.add_theme_color_override("font_color", Tokens.role_color("focus") if _selected == key else Tokens.role_color("structure") if unlocked else Tokens.role_color("muted"))
 	var definition: Dictionary = Game.PROGRAM_DEFS.get(_selected, Game.PROGRAM_DEFS["kernel"])
 	if _illustration != null:
-		_illustration.configure_entity(str(definition.get("visual", {}).get("silhouette", "kernel_arrow")).replace("_arrow", "").replace("_fork", "").replace("_block", ""), "ready", "PROGRAM")
+		_illustration.configure_entity(Adapter.PROGRAM_KINDS.get(_selected, "kernel"), "ready", "PROGRAM")
 	var launch: Button = _buttons["launch_program"]
 	launch.text = ">> BOOT %s  [ENTER]" % str(definition.get("name", "KERNEL"))
 	launch.disabled = not Game.unlocked_programs.has(_selected)

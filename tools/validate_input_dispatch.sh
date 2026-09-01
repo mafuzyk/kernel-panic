@@ -120,6 +120,7 @@ run_headless_probe "probe-r18-touch-multitouch" "R18 touch multitouch action pro
 run_headless_probe "probe-vnext-primitives" "VNext code-drawn primitive contract" "res://tools/vnext_primitives_probe.tscn"
 run_headless_probe "probe-vnext-entity-illustration" "VNext code-drawn entity illustration contract" "res://tools/vnext_entity_illustration_probe.tscn"
 run_headless_probe "probe-e2-legacy-enemies" "E2 legacy enemy presentation contract" "res://tools/e2_legacy_enemy_probe.tscn"
+run_headless_probe "probe-e3-program-identity" "E3 program identity presentation contract" "res://tools/e3_program_identity_probe.tscn"
 run_headless_probe "probe-vnext-patch-surface" "VNext patch decision surface" "res://tools/vnext_patch_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_PATCH" "probe-vnext-patch-arena" "VNext patch Arena adapter" "res://tools/vnext_patch_arena_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_HUD" "probe-vnext-combat-hud" "VNext combat HUD Arena adapter" "res://tools/vnext_combat_hud_probe.tscn"

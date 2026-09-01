@@ -14,7 +14,7 @@ const KIND_COLORS := {
 	"spewer": BalanceData.COL_SPEWER,
 	"kernel": BalanceData.COL_PLAYER,
 	"daemon": BalanceData.COL_PLAYER_HOT,
-	"rootlet": BalanceData.COL_PLAYER,
+	"rootlet": BalanceData.COL_MOTE,
 }
 
 static func fit_rect(snapshot: Dictionary, target: Rect2) -> Rect2:

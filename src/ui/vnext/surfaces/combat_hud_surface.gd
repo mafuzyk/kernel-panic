@@ -82,6 +82,14 @@ func sync_from_hud(source: Node, damage_direction: String = "NONE") -> void:
 	_refresh_patch_labels()
 	snapshot["patches"] = _patch_labels
 	snapshot["damage_direction"] = damage_direction
+	var player: Node = source.get("player")
+	if player != null and is_instance_valid(player):
+		var adapter := preload("res://src/ui/vnext/core/entity_presentation_adapter.gd")
+		var program_snapshot: Dictionary = adapter.from_player(player)
+		snapshot["program_snapshot"] = program_snapshot
+		snapshot["program_id"] = str(program_snapshot.get("nested", {}).get("program_id", Game.program))
+		snapshot["program_kind"] = str(program_snapshot.get("kind", "kernel"))
+		snapshot["ability_state"] = _ability_state(program_snapshot)
 	_refresh_semantic()
 	queue_redraw()
 
@@ -167,7 +175,19 @@ func _refresh_semantic() -> void:
 		"boss_split": bool(snapshot.get("boss_split", false)),
 		"boss_bars": boss_bars_snapshot(),
 		"cycle_label": str(snapshot.get("cycle", "CYCLE %02d" % int(snapshot.get("wave", 0)))),
+		"program_id": str(snapshot.get("program_id", snapshot.get("program", Game.program))),
+		"program_kind": str(snapshot.get("program_kind", "kernel")),
+		"ability_state": str(snapshot.get("ability_state", _ability_state(snapshot.get("program_snapshot", {})))),
 	}
+
+func _ability_state(program_snapshot: Dictionary) -> String:
+	var nested: Dictionary = program_snapshot.get("nested", {}) if program_snapshot.get("nested", {}) is Dictionary else {}
+	var id := str(nested.get("program_id", snapshot.get("program", Game.program)))
+	if id == "rootlet":
+		return "SHIELD READY" if bool(nested.get("shield_ready", false)) else ("SHIELD CHARGING" if float(nested.get("shield_meter", 0.0)) > 0.0 else "SHIELD DOWN")
+	if id == "daemon":
+		return "DASH ACTIVE" if bool(nested.get("dash_active", false)) else ("DASH READY" if int(nested.get("dash_available", 0)) > 0 else "DASH COOLDOWN")
+	return "OVERCLOCK ACTIVE" if bool(nested.get("overclock_active", false)) else ("OVERCLOCK READY" if bool(nested.get("overclock_ready", false)) else "OVERCLOCK CHARGING")
 
 func text_overflow_report() -> Dictionary:
 	var scale := float(context.text_scale) if context != null else 1.0
@@ -179,12 +199,13 @@ func text_overflow_report() -> Dictionary:
 	var score: Rect2 = _layout.get("score", Rect2())
 	var boss: Rect2 = _layout.get("boss", Rect2())
 	_add_overflow_field(fields, "integrity", "INTEGRITY // " + str(_semantic.get("integrity_state", "STABLE")), integrity, ShareTechMono, 12, 24.0, scale)
-	_add_overflow_field(fields, "program", "PROGRAM // " + str(Game.program).to_upper(), integrity, ShareTechMono, 10, 24.0, scale)
+	_add_overflow_field(fields, "program", "PROGRAM // " + str(_semantic.get("program_id", Game.program)).to_upper(), integrity, ShareTechMono, 10, 24.0, scale)
 	_add_overflow_field(fields, "event", _event_text if not _event_text.is_empty() else "PROCESS PURGE", event_rect, ShareTechMono, 13, 24.0, scale)
 	_add_overflow_field(fields, "cycle", str(snapshot.get("cycle", "CYCLE %02d" % int(snapshot.get("wave", 0)))), patches, ShareTechMono, 11, 24.0, scale)
 	_add_overflow_field(fields, "patches", _patch_text(), patches, ShareTechMono, 11, 24.0, scale)
-	_add_overflow_field(fields, "dash", "ABILITY // DASH", dash, ShareTechMono, 11, 24.0, scale)
-	_add_overflow_field(fields, "score", "SCORE %07d" % int(snapshot.get("score", 0)), score, Orbitron, 18, 24.0, scale)
+	_add_overflow_field(fields, "ability", "ABILITY // " + str(_semantic.get("program_id", Game.program)).to_upper(), dash, ShareTechMono, 11, 24.0, scale)
+	var score_size := 16 if bool(_layout.get("narrow", false)) else 18
+	_add_overflow_field(fields, "score", "SCORE %07d" % int(snapshot.get("score", 0)), score, Orbitron, score_size, 24.0, scale)
 	_add_overflow_field(fields, "run", str(snapshot.get("time", "TIME 00:00.0")) + " // " + str(snapshot.get("run", "RUN")), score, ShareTechMono, 10, 24.0, scale)
 	if boss.size.x > 0.0 and boss.size.y > 0.0:
 		_add_overflow_field(fields, "boss", "BOSS // " + str(snapshot.get("boss_name", "ROOT.exe")), boss, ShareTechMono, 10, 24.0, scale)
@@ -274,13 +295,13 @@ func _draw_patches(rect: Rect2) -> void:
 	_draw_text("STATUS // ONLINE", rect.position + Vector2(12, 90), rect.size.x - 24, 9, Tokens.role_color("ready"))
 
 func _draw_dash(rect: Rect2, semantic: Dictionary) -> void:
-	_draw_text("ABILITY // DASH", rect.position + Vector2(12, 20), rect.size.x - 24, 11, Tokens.role_color("structure"))
+	_draw_text("ABILITY // " + str(semantic.get("program_id", Game.program)).to_upper(), rect.position + Vector2(12, 20), rect.size.x - 24, 11, Tokens.role_color("structure"))
 	var state := str(semantic["dash_state"])
 	_draw_text(state, rect.position + Vector2(12, 50), rect.size.x - 24, 22, Tokens.role_color("ready") if state == "READY" else Tokens.role_color("warning"), Orbitron)
 	_draw_text("TAP / SPACE", rect.position + Vector2(12, 76), rect.size.x - 24, 10, Tokens.role_color("muted"))
 
 func _draw_score(rect: Rect2) -> void:
-	_draw_text("SCORE %07d" % int(snapshot.get("score", 0)), rect.position + Vector2(12, 22), rect.size.x - 24, 18, Tokens.role_color("focus"), Orbitron)
+	_draw_text("SCORE %07d" % int(snapshot.get("score", 0)), rect.position + Vector2(12, 22), rect.size.x - 24, 16 if bool(_layout.get("narrow", false)) else 18, Tokens.role_color("focus"), Orbitron)
 	_draw_text("COMBO x%d" % int(snapshot.get("combo", 1)), rect.position + Vector2(12, 48), rect.size.x - 24, 11, Tokens.role_color("warning"))
 	_draw_text(str(snapshot.get("time", "TIME 00:00.0")) + " // " + str(snapshot.get("run", "RUN")), rect.position + Vector2(12, 73), rect.size.x - 24, 10, Tokens.role_color("muted"))
 

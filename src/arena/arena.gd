@@ -796,7 +796,10 @@ func _show_vnext_u4_pause() -> void:
 	if not _vnext_u4_surface.has_method("show_pause"):
 		_mount_vnext_u4_surface(VNextPauseScript)
 	_vnext_u4_view = "pause"
-	_vnext_u4_surface.show_pause({"context": "%s // SCORE %07d // CYCLE %02d" % [Game.program_def()["name"], Game.score, Game.wave], "confirmation": PAUSE_INFO_CONFIRM if _abandon_armed else PAUSE_INFO_DEFAULT, "abandon_armed": _abandon_armed})
+	var pause_snapshot := {}
+	if player != null and is_instance_valid(player):
+		pause_snapshot = preload("res://src/ui/vnext/core/entity_presentation_adapter.gd").from_player(player)
+	_vnext_u4_surface.show_pause({"context": "%s // SCORE %07d // CYCLE %02d" % [Game.program_def()["name"], Game.score, Game.wave], "confirmation": PAUSE_INFO_CONFIRM if _abandon_armed else PAUSE_INFO_DEFAULT, "abandon_armed": _abandon_armed, "program_snapshot": pause_snapshot})
 
 func _show_vnext_u4_terminal() -> void:
 	if not _vnext_u4_mode:

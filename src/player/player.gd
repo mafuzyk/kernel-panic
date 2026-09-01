@@ -52,6 +52,29 @@ var thorns_cd := 0.0
 var scrap_count := 0
 var last_damage_direction := Vector2.ZERO
 var last_damage_direction_t := 0.0
+var program_id := "kernel"
+
+## Read-only presentation boundary. Consumers may copy this payload, but the
+## renderer must never use it as a gameplay command or write through it.
+func presentation_snapshot() -> Dictionary:
+	return {
+		"program_id": program_id,
+		"kind": {"kernel": "kernel", "daemon": "daemon", "rootlet": "rootlet"}.get(program_id, "kernel"),
+		"facing": aim if aim.length_squared() > 0.0001 else Vector2.RIGHT,
+		"hp": hp,
+		"max_hp": max_hp,
+		"overclock_ready": oc_ready,
+		"overclock_active": overclock_active,
+		"shield_mode": bool(prog.get("shield_mode", false)),
+		"shield_meter": shield_meter,
+		"shield_ready": shield_ready,
+		"dash_available": available_dash_charges(),
+		"dash_max": dash_charges,
+		"dash_active": dash_t > 0.0,
+		"dash_cooldown": dash_cd,
+		"dead": dead,
+		"invulnerable": invuln > 0.0,
+	}
 
 func _scrap_threshold() -> int:
 	return 25 - 5 * Game.patch_level("scrapdiet")
@@ -70,6 +93,7 @@ func _register_scrap_overflow() -> void:
 func _ready() -> void:
 	touch_mode = DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
 	prog = Game.program_def()
+	program_id = str(Game.program)
 	dash_charges = int(prog.get("dash_charges", 1))
 	dash_available = dash_charges
 	shield_ready = bool(prog.get("shield_mode", false))
