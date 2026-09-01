@@ -114,6 +114,16 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 
 ## Change log of approach
 
+## U6 — shared error, empty, loading and transition states
+
+- Status: implementado e verificado em 2026-09-01; sem route de produto e sem producer real integrado.
+- Added `VNextUIState`, `VNextUIFocusModel` e `VNextStateSurface` em escopo puro/code-drawn, sem producer de produto e sem tocar Game/Arena/save/scene APIs.
+- Red: probe criada primeiro e executada com exit 1, `PROBE_DONE fails=3` por ausência dos três contratos.
+- Green focado: `PROBE_DONE fails=0` após a implementação; 142 passes em headless e Xvfb, incluindo real Button/Viewport keyboard+mouse, foco por ID, pointer/touch, layouts 1366×768/720×720/432×720/390×844, overflow e fixtures-only.
+- Import exit 0; suíte completa exit 0 com 1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`; validator acumulado `VALIDATION OK`; teardown diagnostics permanecem não-gating.
+- Commits: `a7619bd`, `c709734`, `33a3568`.
+- Report: `.superpowers/sdd/00-MASTER-PLAN/report-U6.md`; handoff: `docs/HANDOFF-U6-STATE-SURFACE.md`.
+
 - Initial direct test attempt was rejected as evidence because a newly created worktree lacked imported Godot resources. Import was performed first; this is recorded as an environment prerequisite, not a code fix.
 - A3 added the first runtime contract methods in `Game`, `Arena`, `Menu`, and `Sfx`, plus a focused probe. The controller later corrected a false empty patch-offer projection.
 - A1 agent report incorrectly described the `lifetime` save section as a separate file. Controller verification of `Game._record_run()` showed it loads and saves `Sfx.SAVE_PATH`; both baseline documents were corrected in `76f6a0f` before acceptance.

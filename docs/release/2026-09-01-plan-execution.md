@@ -334,6 +334,18 @@ only behavior that could affect a player, tester or maintainer. This draft must
 be revisited when U2b–U6 and the final migration gates change the user-facing
 scope.
 
+## U6 — shared recoverable state primitive
+
+- Added a reusable vNext state contract and code-drawn surface for loading,
+  error, empty and transition states, with safe semantic actions, explicit
+  back/cancel policy, real Buttons, focus and measured responsive layouts.
+- No visible route, producer integration, gameplay mutation, save path or
+  legacy behavior was added by U6; catalog/save/locale/transition examples are
+  fixture-only contract evidence.
+- U6 is not a claim of Android, physical-touch, native screen-reader, PT-BR,
+  device-performance or final visual support. Long copy is detected by the
+  overflow report but is not yet scrollable.
+
 ## U5 — vNext Settings and Accessibility
 
 - Status: implemented and verified on 2026-09-01; opt-in only through
