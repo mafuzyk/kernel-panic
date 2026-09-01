@@ -58,6 +58,8 @@ func _run() -> void:
 	_check(not bool(reduced.get("motion", true)) and bool(reduced.get("finish", false)), "reduced motion freezes phase without removing structure")
 	_check(bool(assist.get("high_contrast", false)) and bool(assist.get("color_assist", false)) and bool(assist.get("grayscale", false)), "assist flags survive mobile normalization")
 	_check(Quality.profile("unknown").get("tier", "") == "desktop", "unknown quality tier falls back to desktop")
+	var malformed_quality: Dictionary = Quality.normalize({"tier": "mobile", "reduced_motion": "false", "high_contrast": "true", "color_assist": "off", "grayscale": "on"})
+	_check(not bool(malformed_quality.get("reduced_motion", true)) and bool(malformed_quality.get("high_contrast", false)) and bool(malformed_quality.get("grayscale", false)), "malformed quality booleans normalize safely")
 
 	var identity_snapshot := {"kind": "lancer", "visual_state": "attack", "facing": Vector2.RIGHT, "elite": true}
 	var normal_plan: Dictionary = Renderer.finish_plan(desktop, 2.5)
