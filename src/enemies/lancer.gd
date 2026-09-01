@@ -90,7 +90,7 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	VNextEntityRenderer.draw_enemy(self, presentation_snapshot(), r, t, _glyph_color(c))
+	VNextEntityRenderer.draw_enemy(self, "lancer", presentation_facing(), presentation_state(), elite, r, t, _glyph_color(c))
 	if phase == Phase.AIM:
 		var a := 0.35 + 0.4 * absf(sin(t * 30.0))
 		draw_line(Vector2.ZERO, Vector2(560.0, 0), Color(c.r, c.g, c.b, a), 1.6)

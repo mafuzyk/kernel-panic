@@ -48,7 +48,7 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
-	VNextEntityRenderer.draw_enemy(self, presentation_snapshot(), r, t, _glyph_color(c))
+	VNextEntityRenderer.draw_enemy(self, "drone", presentation_facing(), presentation_state(), elite, r, t, _glyph_color(c))
 	if elite and elite_kind == "volatile":
 		var pulse := 0.5 + 0.5 * absf(sin(t * 8.0))
 		draw_circle(Vector2(r * 0.15, 0), r * (0.42 + 0.2 * pulse), Color(1.0, 0.6, 0.1, 0.5 + 0.5 * pulse))

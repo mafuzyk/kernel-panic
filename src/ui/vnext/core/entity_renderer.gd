@@ -133,18 +133,16 @@ static func draw(canvas: CanvasItem, snapshot: Dictionary, target: Rect2, cosmet
 	if bool(normalized["elite"]):
 		canvas.draw_arc(center, radius * 1.32, 0.0, TAU, 24, BalanceData.COL_MOTE, maxf(1.0, radius * 0.06), true)
 
-static func draw_enemy(canvas: CanvasItem, snapshot: Dictionary, radius: float, cosmetic_time: float = 0.0, color_override: Color = Color(0, 0, 0, 0)) -> void:
+static func draw_enemy(canvas: CanvasItem, kind: String, facing: Vector2, state: String, elite: bool, radius: float, cosmetic_time: float = 0.0, color: Color = Color(0, 0, 0, 0)) -> void:
 	if canvas == null or radius <= 0.0:
 		return
-	var normalized := Descriptor.normalize(snapshot)
-	var facing: Vector2 = normalized["facing"]
 	var prior_rotation: float = canvas.rotation
 	canvas.draw_set_transform(Vector2.ZERO, facing.angle() - prior_rotation, Vector2.ONE)
-	var color := _color_for_normalized(normalized, {}) if color_override.a <= 0.0 else color_override
-	Glyphs.draw_glyph(canvas, str(normalized["kind"]), Vector2.ZERO, radius, color, cosmetic_time)
+	var resolved_color: Color = KIND_COLORS.get(kind, BalanceData.COL_PLAYER) if color.a <= 0.0 else color
+	Glyphs.draw_glyph(canvas, kind, Vector2.ZERO, radius, resolved_color, cosmetic_time)
 	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	_draw_state(canvas, Vector2.ZERO, radius * 1.2, str(normalized["visual_state"]), BalanceData.COL_TEXT)
-	if bool(normalized["elite"]):
+	_draw_state(canvas, Vector2.ZERO, radius * 1.2, state, BalanceData.COL_TEXT)
+	if elite:
 		canvas.draw_arc(Vector2.ZERO, radius * 1.32, 0.0, TAU, 24, BalanceData.COL_MOTE, maxf(1.0, radius * 0.06), true)
 
 static func state_signature(snapshot: Dictionary) -> String:

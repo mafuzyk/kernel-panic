@@ -86,7 +86,7 @@ func _draw() -> void:
 	var c := _flash_col(col)
 	var r := radius
 	rotation = t * 0.9
-	VNextEntityRenderer.draw_enemy(self, presentation_snapshot(), r, t, _glyph_color(c))
+	VNextEntityRenderer.draw_enemy(self, "spewer", presentation_facing(), presentation_state(), elite, r, t, _glyph_color(c))
 	var eye_r := r * 0.42
 	if _telegraph > 0.0:
 		eye_r = r * (0.42 + 0.5 * (1.0 - _telegraph / 0.42))
