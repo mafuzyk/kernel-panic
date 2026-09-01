@@ -17,6 +17,8 @@ func _ready() -> void:
 	_check_real_renderer_path()
 	_check_consumers()
 	print("PROBE_DONE fails=%d passes=%d" % [_fails, _passes])
+	if _fails == 0:
+		print("PROBE_DONE fails=0")
 	get_tree().quit(1 if _fails > 0 else 0)
 
 func _check_player_contract() -> void:
