@@ -835,3 +835,30 @@ and HUD messaging still need playtest approval.
 - Full DevHarness: 1427 passes, zero assertion failures and
   `AUTOTEST_ALL_PASS`.
 - Technical report: `.superpowers/sdd/00-MASTER-PLAN/report-G5-race-condition.md`.
+
+## 2026-09-01 — unreleased — Local death map
+
+### Added
+
+- Added a private local death map that groups the last 50 deaths per mode (or
+  story stage) into a small arena grid.
+- Added a secondary game-over diagnostic view in the legacy and vNext surfaces;
+  it never replaces the cause, run summary or retry/abandon actions.
+
+### Compatibility
+
+- The history is stored locally in the existing settings file, with a bounded
+  versioned format. No screenshots, network telemetry or save-transfer fields
+  are added.
+
+### Known Issues
+
+- The map still needs physical mobile/macOS validation, final visual approval
+  and an accessibility legend/pattern treatment if color intensity is not
+  sufficient for a given profile.
+
+### Evidence
+
+- Focused G6 probe passed 24 checks with zero failures and
+  `PROBE_DONE fails=0`.
+- Technical report: `.superpowers/sdd/00-MASTER-PLAN/report-G6-death-heatmap.md`.

@@ -38,6 +38,7 @@ var _over_title: Label
 var _over_sub: Label
 var _over_primary: Button
 var _over_menu: Button
+var _over_heatmap: Control
 var _story_stage: Dictionary = {}
 var _story_intro_panel: Control
 var _story_intro_path: Label
@@ -813,7 +814,7 @@ func _show_vnext_u4_game_over(victory: bool) -> void:
 	if not _vnext_u4_mode:
 		return
 	_mount_vnext_u4_surface(VNextGameOverScript)
-	_vnext_u4_surface.show_game_over({"variant": "victory" if victory else "death", "title": "STAGE CLEARED" if victory else "PROCESS TERMINATED", "diagnosis": "VICTORY DIAGNOSIS // ROUTE COMPLETE" if victory else "DIAGNOSIS // PROCESS TERMINATED", "stats": _over_core_stats.text + "\n" + _over_run_stats.text, "primary_available": true, "primary_label": ("NEXT STAGE [ENTER]" if _story_next_stage >= 0 else "RETURN TO MENU [ENTER]") if victory else "RETRY RUN [ENTER]", "menu_label": "STORY SELECT [ESC]" if victory else "ABANDON PROCESS [ESC]"})
+	_vnext_u4_surface.show_game_over({"variant": "victory" if victory else "death", "title": "STAGE CLEARED" if victory else "PROCESS TERMINATED", "diagnosis": "VICTORY DIAGNOSIS // ROUTE COMPLETE" if victory else "DIAGNOSIS // PROCESS TERMINATED", "stats": _over_core_stats.text + "\n" + _over_run_stats.text, "death_heatmap": Game.death_heatmap_snapshot() if not victory else {}, "primary_available": true, "primary_label": ("NEXT STAGE [ENTER]" if _story_next_stage >= 0 else "RETURN TO MENU [ENTER]") if victory else "RETRY RUN [ENTER]", "menu_label": "STORY SELECT [ESC]" if victory else "ABANDON PROCESS [ESC]"})
 	_vnext_u4_view = "game_over"
 
 func _mount_vnext_u4_surface(surface_script: Script) -> void:
@@ -929,6 +930,7 @@ func _on_player_hp(hp: int, _max_hp: int) -> void:
 func _on_player_died() -> void:
 	if _state != "play":
 		return
+	Game.record_death_position(player.global_position if player != null and is_instance_valid(player) else Balance.arena_rect().get_center())
 	_clear_abandon_confirmation()
 	_panel_kit._close_terminal()
 	_state = "dead"
@@ -947,6 +949,8 @@ func _show_game_over() -> void:
 	_over_primary.text = "REBOOT  [ENTER]"
 	_over_menu.text = "ABANDON PROCESS  [ESC]"
 	Game.end_run()
+	if _over_heatmap != null and is_instance_valid(_over_heatmap):
+		_over_heatmap.call("configure", Game.death_heatmap_snapshot())
 	var s := Game.stats
 	var acc := 0.0
 	if s["shots"] > 0:
@@ -1020,6 +1024,8 @@ func _show_story_victory(stage_id: String) -> void:
 	var best_value := Game.story_stage_best(index)
 	_over_core_stats.text = "STAGE          %s\nBEST           %07d\n\n%s" % [str(_story_stage.get("title", "STAGE CLEARED")), best_value, next_line]
 	_over_run_stats.text = "STAGE SCORE      %07d\nDAEMONS PURGED   %d\nUPTIME           %02d:%02d" % [Game.score, int(Game.stats.get("kills", 0)), int(float(Game.stats.get("time", 0.0)) / 60.0), int(float(Game.stats.get("time", 0.0))) % 60]
+	if _over_heatmap != null and is_instance_valid(_over_heatmap):
+		_over_heatmap.call("configure", {})
 	_over_primary.text = "NEXT STAGE  [ENTER]" if _story_next_stage >= 0 else "RETURN TO MENU  [ENTER]"
 	_over_menu.text = "STORY SELECT  [ESC]"
 	_over_panel.modulate.a = 0.0

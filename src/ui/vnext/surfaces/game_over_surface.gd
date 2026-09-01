@@ -80,6 +80,14 @@ func _focus_first() -> void:
 func _refresh() -> void:
 	if context == null: context = Context.from_viewport(get_viewport_rect().size)
 	var safe: Rect2 = context.safe_rect; var narrow: bool = context.density == "narrow"; var panel := Rect2(safe.position + Vector2(16,16), safe.size - Vector2(32,32)); var width := panel.size.x if narrow else minf(panel.size.x, 760); var x := panel.position.x if narrow else panel.get_center().x - width * 0.5; var regions := {"safe":safe, "panel":Rect2(x,panel.position.y,width,panel.size.y), "title":Rect2(x+20,panel.position.y+24,width-40,44), "diagnosis":Rect2(x+20,panel.position.y+82,width-40,58), "stats":Rect2(x+20,panel.position.y+150,width-40,150), "primary":Rect2(x+20,panel.end.y-94,width-40 if narrow else (width-52)/2,46), "menu":Rect2(x+20+(0 if narrow else (width-52)/2+12),panel.end.y-94,width-40 if narrow else (width-52)/2,46)}
+	var heatmap_data: Dictionary = snapshot.get("death_heatmap", {}) if snapshot.get("death_heatmap", {}) is Dictionary else {}
+	var heatmap := Rect2()
+	if str(snapshot.get("variant", "death")) == "death" and int(heatmap_data.get("run_count", 0)) > 0:
+		var heatmap_width := minf(180.0, width - 40.0)
+		heatmap = Rect2(x + width - heatmap_width - 20.0, panel.end.y - 184.0, heatmap_width, 66.0) if not narrow else Rect2(x + 20.0, panel.end.y - 222.0, width - 40.0, 60.0)
+		if not narrow:
+			regions["stats"] = Rect2(x + 20.0, panel.position.y + 150.0, maxf(width - heatmap_width - 52.0, 120.0), 150.0)
+	regions["heatmap"] = heatmap
 	if narrow:
 		regions["primary"] = Rect2(x + 20, panel.end.y - 148, width - 40, 46)
 		regions["menu"] = Rect2(x + 20, panel.end.y - 94, width - 40, 46)
@@ -90,4 +98,27 @@ func _refresh() -> void:
 func _draw() -> void:
 	if _layout.is_empty() or not visible: return
 	var panel: Rect2 = _layout["regions"]["panel"]; var points := TacticalUI.angular_points(panel, 16); draw_colored_polygon(points, Color(0.01,0.015,0.04,0.98)); draw_polyline(points + PackedVector2Array([points[0]]), Tokens.role_color("danger") if str(snapshot.get("variant","death")) == "death" else Tokens.role_color("player"), 1.5, true)
-	draw_string(Orbitron, _layout["regions"]["title"].position + Vector2(0,30), str(snapshot.get("title","PROCESS TERMINATED")), HORIZONTAL_ALIGNMENT_LEFT,-1,27,Tokens.role_color("text")); draw_string(ShareTechMono, _layout["regions"]["diagnosis"].position, str(snapshot.get("diagnosis","RUN DIAGNOSIS // PROCESS STOPPED")), HORIZONTAL_ALIGNMENT_LEFT,-1,15,Tokens.role_color("danger")); draw_string(ShareTechMono, _layout["regions"]["stats"].position, str(snapshot.get("stats","CORE STATUS // CAPTURED\nRUN STATUS // RECORDED")), HORIZONTAL_ALIGNMENT_LEFT,_layout["regions"]["stats"].size.x,14,Tokens.role_color("text"))
+	draw_string(Orbitron, _layout["regions"]["title"].position + Vector2(0,30), str(snapshot.get("title","PROCESS TERMINATED")), HORIZONTAL_ALIGNMENT_LEFT,-1,27,Tokens.role_color("text")); draw_string(ShareTechMono, _layout["regions"]["diagnosis"].position, str(snapshot.get("diagnosis","RUN DIAGNOSIS // PROCESS STOPPED")), HORIZONTAL_ALIGNMENT_LEFT,-1,15,Tokens.role_color("danger")); draw_string(ShareTechMono, _layout["regions"]["stats"].position, str(snapshot.get("stats","CORE STATUS // CAPTURED\nRUN STATUS // RECORDED")), HORIZONTAL_ALIGNMENT_LEFT,_layout["regions"]["stats"].size.x,14,Tokens.role_color("text")); _draw_death_heatmap(_layout["regions"].get("heatmap", Rect2()), snapshot.get("death_heatmap", {}))
+
+func _draw_death_heatmap(rect: Rect2, data: Variant) -> void:
+	if rect.size.x <= 2.0 or rect.size.y <= 2.0 or not data is Dictionary:
+		return
+	var columns := maxi(int(data.get("columns", 1)), 1)
+	var rows := maxi(int(data.get("rows", 1)), 1)
+	var max_count := maxi(int(data.get("max_cell_count", 1)), 1)
+	var grid := Rect2(rect.position + Vector2(2.0, 17.0), Vector2(rect.size.x - 4.0, rect.size.y - 19.0))
+	var danger := Tokens.role_color("danger")
+	draw_string(ShareTechMono, rect.position + Vector2(2.0, 11.0), "LOCAL DEATH MAP // %d RUNS" % int(data.get("run_count", 0)), HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 4.0, 10, Tokens.role_color("muted"))
+	draw_rect(grid, Color(0.02, 0.03, 0.07, 0.9), true)
+	var cell_size := Vector2(grid.size.x / columns, grid.size.y / rows)
+	for y in rows:
+		for x in columns:
+			draw_rect(Rect2(grid.position + Vector2(x, y) * cell_size, cell_size), Color(danger.r, danger.g, danger.b, 0.18), false, 0.5)
+	for raw_cell in data.get("cells", []):
+		if not raw_cell is Dictionary:
+			continue
+		var x := clampi(int(raw_cell.get("x", -1)), 0, columns - 1)
+		var y := clampi(int(raw_cell.get("y", -1)), 0, rows - 1)
+		var intensity := clampf(float(raw_cell.get("count", 0)) / max_count, 0.0, 1.0)
+		var cell := Rect2(grid.position + Vector2(x, y) * cell_size + Vector2(1.0, 1.0), cell_size - Vector2(2.0, 2.0))
+		draw_rect(cell, Color(danger.r, danger.g, danger.b, 0.22 + intensity * 0.7), true)

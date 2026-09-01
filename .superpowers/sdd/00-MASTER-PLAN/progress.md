@@ -824,3 +824,27 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Handoff: `docs/HANDOFF-G5-RACE-CONDITION.md`.
 - Next task: G6 death heatmap/profiling and gameplay tuning, unless visual
   review changes the pair telegraph first.
+
+## G6 — local death feedback and heatmap
+
+- Status: implemented on `codex/plan-execution`; one quantized death cell per
+  run is stored locally by mode/story scope and bounded to 50 runs per scope.
+- Added schema-1 diagnostics storage under the established Sfx ConfigFile
+  path. Coordinates are clamped and quantized to a 12×7 grid; invalid scopes,
+  versions, runs and coordinates are rejected on load. Snapshots expose
+  aggregate counts rather than screenshots/raw positions.
+- Arena records at the real player-death boundary. Legacy and vNext game-over
+  views show a compact secondary map without owning gameplay or hiding cause,
+  retry or abandon actions; victory does not show it.
+- Focused red: `/tmp/g6-red.log`, exit 1 with four expected contract misses.
+  Focused green: `/tmp/g6-green-final.log`, exit 0 with 33 passes, zero failures
+  and `PROBE_DONE fails=0`, including layout/overflow and mode isolation.
+- The acceptance probe used isolated XDG data. User save data was restored
+  after an earlier non-isolated diagnostic run before the final isolated
+  evidence was captured.
+- Not proven: Android/macOS persistence, disk-full handling, physical mobile
+  layout, final accessibility pattern/legend and final visual approval.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-G6-death-heatmap.md`.
+- Handoff: `docs/HANDOFF-G6-DEATH-HEATMAP.md`.
+- Next task: G7 desktop music/feedback layering, with the map's secondary
+  diagnostic status retained for later accessibility review.

@@ -41,10 +41,16 @@ var event_log: Array[Dictionary] = []
 var run_seed := 0
 var terminal_heal_used := false
 var achievements: Dictionary = {}
+var death_heatmaps: Dictionary = {}
+var _death_heatmap_run_recorded := false
 
 const ACHIEVEMENT_DEFS = CONTENT_CATALOG.ACHIEVEMENT_DEFS
 const SAVE_TRANSFER_FORMAT := "kernel-panic-save"
 const SAVE_TRANSFER_VERSION := 1
+const DEATH_HEATMAP_SCHEMA_VERSION := 1
+const DEATH_HEATMAP_MAX_RUNS := 50
+const DEATH_HEATMAP_COLUMNS := 12
+const DEATH_HEATMAP_ROWS := 7
 
 const COMBO_WINDOW := Balance.COMBO_WINDOW
 
@@ -189,6 +195,7 @@ func _load_run_config() -> void:
 		bestiary = cf.get_value("bestiary", "seen", {})
 		tutorial = cf.get_value("tutorial", "hints", {})
 		achievements = cf.get_value("achievements", "unlocked", {})
+		death_heatmaps = _normalize_death_heatmaps(cf.get_value("diagnostics", "death_heatmaps", {}))
 		mode = cf.get_value("game", "mode", "classic")
 		if mode == "onehp" and not onehp_unlocked:
 			mode = "classic"
@@ -213,6 +220,107 @@ func _load_run_config() -> void:
 		if not story_best is Dictionary:
 			story_best = {}
 	rng.randomize()
+	death_heatmaps = _normalize_death_heatmaps(death_heatmaps)
+
+func _heatmap_scope_is_valid(scope: String) -> bool:
+	if scope in ["classic", "weekly", "onehp", "practice"]:
+		return true
+	if not scope.begins_with("story:"):
+		return false
+	return str(scope.substr(6)) in STORY_DATA.stage_ids()
+
+func _normalize_death_heatmaps(raw: Variant) -> Dictionary:
+	var result := {}
+	if not raw is Dictionary:
+		return result
+	for raw_scope in raw:
+		var scope := str(raw_scope)
+		if not _heatmap_scope_is_valid(scope) or result.size() >= STORY_DATA.stage_count() + 4:
+			continue
+		var raw_entry: Variant = raw[raw_scope]
+		if not raw_entry is Dictionary:
+			continue
+		if int(raw_entry.get("version", DEATH_HEATMAP_SCHEMA_VERSION)) != DEATH_HEATMAP_SCHEMA_VERSION:
+			continue
+		var raw_runs: Variant = raw_entry.get("runs", [])
+		if not raw_runs is Array:
+			continue
+		var clean_runs: Array = []
+		for raw_run in raw_runs:
+			if not raw_run is Dictionary:
+				continue
+			var x := int(raw_run.get("x", -1))
+			var y := int(raw_run.get("y", -1))
+			if x < 0 or x >= DEATH_HEATMAP_COLUMNS or y < 0 or y >= DEATH_HEATMAP_ROWS:
+				continue
+			clean_runs.append({"x": x, "y": y})
+		if clean_runs.size() > DEATH_HEATMAP_MAX_RUNS:
+			clean_runs = clean_runs.slice(clean_runs.size() - DEATH_HEATMAP_MAX_RUNS)
+		result[scope] = {"version": DEATH_HEATMAP_SCHEMA_VERSION, "runs": clean_runs}
+	return result
+
+func death_heatmap_scope() -> String:
+	var context := run_context()
+	if context.mode_id() == "story":
+		return "story:" + context.stage_id()
+	return context.mode_id()
+
+func record_death_position(position: Vector2) -> void:
+	if _death_heatmap_run_recorded:
+		return
+	var arena := Balance.arena_rect()
+	if arena.size.x <= 0.0 or arena.size.y <= 0.0:
+		return
+	var relative_x := clampf((position.x - arena.position.x) / arena.size.x, 0.0, 0.999999)
+	var relative_y := clampf((position.y - arena.position.y) / arena.size.y, 0.0, 0.999999)
+	var cell := {"x": mini(int(relative_x * DEATH_HEATMAP_COLUMNS), DEATH_HEATMAP_COLUMNS - 1), "y": mini(int(relative_y * DEATH_HEATMAP_ROWS), DEATH_HEATMAP_ROWS - 1)}
+	var scope := death_heatmap_scope()
+	var entry: Dictionary = death_heatmaps.get(scope, {"version": DEATH_HEATMAP_SCHEMA_VERSION, "runs": []})
+	var runs: Array = entry.get("runs", []) if entry.get("runs", []) is Array else []
+	runs.append(cell)
+	if runs.size() > DEATH_HEATMAP_MAX_RUNS:
+		runs = runs.slice(runs.size() - DEATH_HEATMAP_MAX_RUNS)
+	death_heatmaps[scope] = {"version": DEATH_HEATMAP_SCHEMA_VERSION, "runs": runs}
+	_death_heatmap_run_recorded = true
+	_save_death_heatmaps()
+
+func _save_death_heatmaps() -> void:
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("diagnostics", "death_heatmaps", _normalize_death_heatmaps(death_heatmaps))
+	cf.save(Sfx.SAVE_PATH)
+
+func death_heatmap_snapshot(scope: String = "") -> Dictionary:
+	var selected_scope := scope if not scope.is_empty() else death_heatmap_scope()
+	var entry: Dictionary = death_heatmaps.get(selected_scope, {}) if death_heatmaps.get(selected_scope, {}) is Dictionary else {}
+	var runs: Array = entry.get("runs", []) if entry.get("runs", []) is Array else []
+	var counts := {}
+	for run in runs:
+		if not run is Dictionary:
+			continue
+		var x := int(run.get("x", -1))
+		var y := int(run.get("y", -1))
+		if x < 0 or x >= DEATH_HEATMAP_COLUMNS or y < 0 or y >= DEATH_HEATMAP_ROWS:
+			continue
+		var key := "%d:%d" % [x, y]
+		counts[key] = int(counts.get(key, 0)) + 1
+	var cells: Array = []
+	var max_count := 0
+	for key in counts:
+		var parts := str(key).split(":")
+		var count := int(counts[key])
+		max_count = maxi(max_count, count)
+		cells.append({"x": int(parts[0]), "y": int(parts[1]), "count": count})
+	return {
+		"version": DEATH_HEATMAP_SCHEMA_VERSION,
+		"scope": selected_scope,
+		"capacity": DEATH_HEATMAP_MAX_RUNS,
+		"columns": DEATH_HEATMAP_COLUMNS,
+		"rows": DEATH_HEATMAP_ROWS,
+		"run_count": mini(runs.size(), DEATH_HEATMAP_MAX_RUNS),
+		"max_cell_count": max_count,
+		"cells": cells,
+	}
 
 func week_number() -> int:
 	var days := int(Time.get_unix_time_from_system() / 86400.0)
@@ -321,6 +429,7 @@ func start_story(index: int = 0) -> bool:
 	_max_chain_seen = 1
 	event_log.clear()
 	terminal_heal_used = false
+	_death_heatmap_run_recorded = false
 	rng.randomize()
 	run_seed = int(rng.seed)
 	new_best = false
@@ -470,6 +579,7 @@ func start_run() -> void:
 	_max_chain_seen = 1
 	event_log.clear()
 	terminal_heal_used = false
+	_death_heatmap_run_recorded = false
 	Sfx.set_intensity(0)
 	match mode:
 		"weekly":

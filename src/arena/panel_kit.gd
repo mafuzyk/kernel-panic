@@ -190,6 +190,11 @@ func _build_game_over_panel() -> void:
 	a._over_run_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_position_game_over_stat(a._over_run_stats, true)
 	a._over_panel.add_child(a._over_run_stats)
+	var heatmap_script: Script = load("res://src/ui/death_heatmap_view.gd")
+	if heatmap_script != null:
+		a._over_heatmap = heatmap_script.new()
+		a._over_heatmap.set_anchors_preset(Control.PRESET_FULL_RECT)
+		a._over_panel.add_child(a._over_heatmap)
 	a._over_primary = _make_button("REBOOT  [ENTER]", 500)
 	_position_game_over_button(a._over_primary, false)
 	a._over_primary.pressed.connect(a._handle_over_primary)
