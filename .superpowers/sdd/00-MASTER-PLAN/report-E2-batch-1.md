@@ -49,8 +49,12 @@ the full suite, import and accumulated validator were rerun. A deliberately
 direct `_draw()` invocation failed with Godot's draw-phase guard and was
 discarded as evidence; the final tree-based probe is the accepted path.
 
-Source review found no new gameplay/audio/RNG/scene dependency and no
-non-batch GlyphLib edit.
+Source review found no new gameplay/audio/RNG/scene dependency. The original
+E2 byte-hash guard was stale after the separately accepted Zombie Process and
+Race Condition batches extended `GlyphLib`; the guard was refreshed to the
+current accepted E2/E4/G5 presentation baseline and its message now names the
+scope explicitly. This is a test-maintenance correction, not a GlyphLib code
+change in this slice.
 
 ## Limitations
 

@@ -18,7 +18,7 @@ const BATCH := [
 	{"id": "spewer", "script": "res://src/enemies/spewer.gd", "name": "SPEWER"},
 ]
 const NON_BATCH := ["splitter", "bulwark", "trojan", "oom", "recursor", "firewall", "bloatware", "update_loop", "zombie_process", "page", "root", "boss", "segfault", "bluescreen", "pagefault", "god", "kernel", "daemon", "rootlet"]
-const GLYPH_LIB_BASELINE_SHA256 := "2dfdb4dbd29ab23f3b3737170dad6e9b2f52bd9a9dda58fe042593cd969eed0b"
+const GLYPH_LIB_BASELINE_SHA256 := "f4f09e6bdf7d19bf4e7ea25719f3445a8aee462628f41017541e9afb45421941"
 
 func _ready() -> void:
 	_run.call_deferred()
@@ -114,7 +114,7 @@ func _run() -> void:
 	var glyph_hash := HashingContext.new()
 	glyph_hash.start(HashingContext.HASH_SHA256)
 	glyph_hash.update(source_guard.to_utf8_buffer())
-	_check(glyph_hash.finish().hex_encode() == GLYPH_LIB_BASELINE_SHA256, "GlyphLib is byte-identical outside the E2 batch")
+	_check(glyph_hash.finish().hex_encode() == GLYPH_LIB_BASELINE_SHA256, "GlyphLib matches the accepted E2/E4/G5 presentation baseline")
 	for kind: String in NON_BATCH:
 		_check(source_guard.contains('\n\t\t\"%s\":' % kind) or source_guard.contains('\n\t\t\"%s\"' % kind), "non-batch glyph scope retains %s branch" % kind)
 	var catalog: Script = load("res://src/data/content_catalog.gd")
