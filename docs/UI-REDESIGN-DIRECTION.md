@@ -35,6 +35,149 @@ O objetivo é que uma captura em preto e branco ainda permita responder:
   textura ou elementos que realmente ganhem com pintura. Nunca devem virar a
   fonte de verdade de layout, estado ou legibilidade.
 
+## Decisões herdadas
+
+- O bloco atual de correções de layout e fluxo está aprovado como trabalho
+  técnico e como estado intermediário jogável.
+- Essa aprovação não transforma a composição atual em direção visual final e
+  não obriga a preservá-la durante a reconstrução.
+- A direção híbrida está aprovada em princípio; telas finais, paleta final,
+  wireframes finais e arquitetura definitiva ainda precisam passar pela
+  revisão visual durante a construção.
+
+## Leitura das referências em `media/Ideas`
+
+As imagens disponíveis nessa pasta são um moodboard de direção, não uma
+especificação pixel-perfect. Elas mostram com clareza a família visual que
+vale perseguir, mas textos, números, coordenadas, proporções e detalhes ainda
+estão abertos. Telas ou imagens que não aparecem na pasta continuam decisões
+em aberto; a ausência de uma referência não deve ser tratada como requisito
+implícito.
+
+| Arquivo | Referência | O que ela ensina |
+| --- | --- | --- |
+| `imagem1.png` | menu principal | shell persistente, marca grande, telemetria lateral e uma ação primária inequívoca |
+| `iamgem9.png` | mapa/story | navegação por nós, progresso de capítulos e briefing contextual em três áreas |
+| `imagem10.png` | seleção de programas | lista à esquerda, ficha detalhada à direita e ação de execução sempre visível |
+| `imagem2.png` | bestiary | catálogo + dossiê, estatísticas comparáveis e silhueta como identidade |
+| `imagem3.png` | configurações | navegação lateral e grupos de opções separados por responsabilidade |
+| `imagem4.png` | awards | grade de cartões, progresso e distinção clara entre desbloqueado, progresso e bloqueado |
+| `imagem5.png` | HUD de combate | bordas periféricas, centro livre, ameaça e feedback temporário acima da arena |
+| `imagem6.png` | pausa | jogo ainda visível e escurecido, menu curto e foco de seleção explícito |
+| `imagem7.png` | morte/game over | diagnóstico dramático, resumo da run e duas decisões finais bem separadas |
+| `imagem8.png` | terminal de pausa | console diegético, histórico de eventos e painéis de diagnóstico ao lado |
+
+O nome `iamgem9.png` está grafado assim no diretório e é mantido como está;
+não vale criar ruído de versionamento só para corrigir o nome de um asset de
+referência.
+
+### O que deve sobreviver na nova UI
+
+- Um **shell de sistema** recorrente: estado online/offline/pausado, rota
+  atual, usuário ou sessão e uma telemetria discreta. Ele deve dar unidade às
+  telas, sem transformar todo painel em um retângulo decorativo.
+- Composição assimétrica e editorial: marca, navegação e diagnóstico não
+  precisam ocupar a mesma largura nem compartilhar o mesmo alinhamento.
+- Tipografia grande e espaçada para títulos, texto monoespacial curto para
+  telemetria e valores, e uma leitura de contraste ciano/branco com magenta
+  reservado para falha, ameaça ou bloqueio.
+- Seleção visível como estrutura, não só como mudança de cor: barra lateral,
+  brackets, cursor, linha de conexão ou mudança de peso podem indicar foco.
+- Dados organizados como instrumentos: barras segmentadas, contadores,
+  pequenos glyphs e linhas de separação devem ajudar a comparar estados.
+- A arena deve respirar. A referência do HUD usa o perímetro para informação e
+  deixa o centro para inimigos, projéteis, motes e leitura de perigo.
+- Cada tela deve ter uma ação dominante. Uma tela pode ter várias áreas de
+  informação, mas o jogador nunca deve precisar adivinhar qual comando fecha,
+  confirma, executa ou retorna.
+
+### O que continua exploratório
+
+Não estão aprovados como contrato: a cópia exata das telas, o texto em inglês,
+os números exibidos, a versão `0.2.3`, os valores de exemplo, o slogan, a
+presença obrigatória das rails laterais, a quantidade de colunas, o mapa de
+fundo, o ruído de CRT, cada microtraço ou a reprodução de uma fonte específica.
+Esses elementos podem ser removidos quando não melhorarem a leitura do jogo.
+
+As imagens são composições desktop muito densas. Elas provam uma direção de
+arte e hierarquia, não que a mesma quantidade de informação deva caber numa
+tela pequena. O critério é preservar a personalidade e o diagnóstico, não
+preservar cada ornamento.
+
+### Regra de simplificação
+
+Todo detalhe precisa pagar seu custo em pelo menos uma destas moedas:
+
+1. identifica uma tela, entidade ou estado;
+2. melhora a navegação ou a comparação de dados;
+3. dá feedback sobre uma mudança recente;
+4. reforça a atmosfera sem competir com os três itens anteriores.
+
+Se não pagar nenhuma dessas moedas, o detalhe sai. Em especial, grade,
+scanline, glow, ruído, conectores e microglyphs devem ser camadas opcionais e
+reduzíveis. Primeiro aprovamos silhueta, agrupamento, espaçamento, foco e
+contraste em uma captura limpa; depois adicionamos acabamento com orçamento
+limitado por tela.
+
+## Adaptação para PC e mobile
+
+A referência visual nasce de uma tela larga, mas a implementação não pode ser
+um desktop encolhido. O layout deve calcular uma `safe_rect` lógica e escolher
+uma composição por espaço disponível, nunca por resolução física fixa.
+
+### Composições por espaço disponível
+
+- **Largo:** pode usar shell completo, rails, duas ou três áreas de conteúdo e
+  ficha lateral. É o alvo para o menu, story, bestiary, settings e awards.
+- **Compacto:** recolhe telemetria secundária, reduz decoração e transforma
+  fichas lado a lado em duas etapas ou duas colunas leves. A ação primária e o
+  retorno continuam sempre visíveis.
+- **Estreito:** usa uma coluna, cabeçalho curto, navegação explícita e conteúdo
+  empilhado. Lista e detalhe viram estados navegáveis; a grade de awards vira
+  lista ou cartões de uma coluna; o terminal prioriza o stream e o comando.
+
+Os limites exatos ficam nos tokens e são validados pela geometria real, não
+copiados deste documento. Como matriz inicial: 1366×768, 720×720 e 432×720.
+Uma superfície só passa quando não depende de hover, não trunca texto, não
+esconde o botão de voltar e não coloca informação crítica sob os controles de
+touch.
+
+### Regras de interação adaptativa
+
+- Mouse, teclado e touch devem apontar para a mesma geometria de ação e o
+  mesmo estado semântico.
+- Alvos acionáveis precisam de área confortável, com pelo menos 44–48 px
+  lógicos conforme o contexto; o desenho pode ser menor que a área de toque.
+- Foco de teclado e toque devem ter um marcador visível equivalente. Cor
+  sozinha nunca pode ser a única diferença entre selecionado, bloqueado e
+  pronto.
+- Em mobile, ações raras vão para uma camada secundária; a ação principal,
+  retorno, pausa e estado de perigo permanecem na primeira leitura.
+- No HUD, os controles virtuais ocupam cantos reservados e não podem cobrir
+  player, ameaça ou pickups. O centro continua sendo espaço de jogo.
+- Em telas de alta densidade, ornamentos perdem prioridade antes de texto,
+  foco, feedback e estado. Não reduzir tudo proporcionalmente até virar
+  microtexto.
+
+### Mapeamento das referências para a implementação
+
+As imagens não serão importadas como painéis nem usadas como fundo de UI. A
+tradução pretendida é:
+
+- shell, rails, brackets, separadores e barras → `ui_primitives.gd`;
+- menu, seleção, story, settings, bestiary, awards, pausa e morte →
+  superfícies com snapshots e composição responsiva;
+- glyphs de programas, inimigos e patches → ilustrações code-drawn com
+  silhueta, estado e fallback verificáveis;
+- textura, ruído ou ilustração estática, se ainda fizer sentido depois do
+  teste em preto e branco → raster seletivo, fora da fonte de verdade;
+- input, foco, safe area e hit test → contrato comum, incluindo touch.
+
+O primeiro vertical slice deve capturar a sensação de `imagem1.png` sem
+reconstruir o menu atual: shell mínimo, marca, uma ação de boot, uma ilustração
+code-drawn e uma variante estreita. Depois dele, a mesma linguagem pode ser
+testada no HUD de `imagem5.png` antes de expandir para as telas de dados.
+
 ## Linguagem visual
 
 ### Forma

@@ -120,6 +120,33 @@ A composição final não deve ser decidida copiando o menu atual. O próximo
 vertical slice deve ser uma tela de boot/menu nova com um frame, uma ação e
 uma ilustração, validada visualmente antes de conectar o resto do jogo.
 
+## Referências visuais alinhadas
+
+As dez imagens disponíveis em `media/Ideas/` foram inspecionadas e agora estão
+registradas em `docs/UI-REDESIGN-DIRECTION.md`: `imagem1.png` (menu),
+`iamgem9.png` (story), `imagem10.png` (programas), `imagem2.png` (bestiary),
+`imagem3.png` (settings), `imagem4.png` (awards), `imagem5.png` (HUD),
+`imagem6.png` (pausa), `imagem7.png` (morte) e `imagem8.png` (terminal).
+
+Elas foram classificadas como moodboard de direção, não como especificação
+pixel-perfect. O que fica aprovado como linguagem é o shell de sistema
+recorrente, a composição assimétrica, a seleção estrutural, a telemetria
+segmentada, o contraste ciano/branco com magenta semântico e o centro livre no
+HUD. Cópia, números, texto, rails, quantidade de colunas, mapa de fundo,
+scanline, glow e microdetalhes continuam experimentais.
+
+A densidade das referências é desktop-first. A nova implementação deve
+preservar personalidade, estado e hierarquia ao simplificar: remover detalhe
+que não identifica, orienta, dá feedback ou reforça a atmosfera. As
+superfícies precisam escolher composição larga, compacta ou estreita pela
+`safe_rect` lógica, com stacking/navegação de lista-detalhe no mobile, alvos
+touch de 44–48 px lógicos e decoração reduzida antes de texto, foco ou estado.
+Os tamanhos iniciais de validação seguem 1366×768, 720×720 e 432×720.
+
+Imagens ou telas ausentes permanecem abertas; a falta de uma referência não é
+um requisito oculto. A grafia `iamgem9.png` é mantida para não criar churn em
+um arquivo que serve apenas como referência.
+
 ## Trabalho anterior preservado
 
 Os lotes R01–R10, T01–T04 e B1/B2/B5 já estão na ancestralidade desta branch
