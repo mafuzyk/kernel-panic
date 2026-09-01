@@ -8,7 +8,13 @@ Branch: `codex/plan-execution`
 
 Reviewed the A2 section of `docs/superpowers/plans/2026-08-31-kernel-panic-master-plan/01-REPOSITORY-ARCHITECTURE.md`, the mechanical source-of-truth plan `docs/superpowers/plans/2026-08-30-structure-refactor.md`, `KERNEL-PANIC-HANDOFF.md`, `docs/HANDOFF-R10-T02-T04-RUNTIME-INTEGRATION.md`, and `.superpowers/sdd/00-MASTER-PLAN/progress.md`.
 
-The separately named `task-A2-brief.md`, an `A2`-named plan file, and a pre-existing `report-A2.md` were not present in this worktree. This is recorded as an uncertainty; the available master-plan A2 section and structure-refactor plan were used as the applicable specification.
+The plan has no separately named `A2` micro-plan file; the applicable
+specification is the A2 section in the master architecture plan plus the
+mechanical structure-refactor plan. The controller generated
+`task-A2-brief.md` in the ignored SDD workspace before delegation, but the
+delegated inspection did not observe that generated file. This is a process
+visibility discrepancy, not a repository/runtime finding; the available
+versioned plans were used as the source of truth.
 
 ## Evidence
 
