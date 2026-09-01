@@ -22,6 +22,12 @@ func _run() -> void:
 	var illustration = illustration_script.new()
 	_check(illustration.has_method("configure_entity") and illustration.has_method("visual_rect") and illustration.has_method("visual_snapshot"), "entity illustration exposes stateful code-drawn APIs")
 	_check(illustration.has_method("text_overflow_report"), "entity illustration exposes an overflow contract")
+	illustration.size = Vector2(432, 720)
+	add_child(illustration)
+	illustration.call("configure_entity", "god", "ready", "GOD")
+	illustration.call("set_motion_phase", 0.75)
+	await get_tree().process_frame
+	_check(illustration.is_inside_tree(), "entity illustration draws as a live control")
 	var kinds: Array = glyph_script.call("glyph_kinds")
 	for kind in ["drone", "lancer", "oom", "god", "kernel", "rootlet"]:
 		_check(kind in kinds, "illustration example kind exists in GlyphLib: %s" % kind)
@@ -40,7 +46,8 @@ func _run() -> void:
 	illustration.call("configure_entity", "unknown", "unknown", "")
 	var fallback: Dictionary = illustration.call("visual_snapshot")
 	_check(str(fallback.get("kind", "")) == "drone" and str(fallback.get("state", "")) == "idle", "unknown entity inputs fall back to a safe drawable state")
-	illustration.free()
+	illustration.queue_free()
+	await get_tree().process_frame
 	_finish()
 
 func _finish() -> void:

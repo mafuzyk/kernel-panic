@@ -23,6 +23,14 @@ func _run() -> void:
 	var primitive_api = primitives.new()
 	_check(primitive_api.has_method("frame_rect") and primitive_api.has_method("semantic_snapshot"), "vnext primitive exposes shared frame geometry and semantic snapshot")
 	primitive_api.free()
+	var drawable = primitives.new()
+	drawable.size = Vector2(432, 720)
+	drawable.call("configure_surface", "danger", "danger", "ALERT", 0.5)
+	add_child(drawable)
+	await get_tree().process_frame
+	_check(drawable.is_inside_tree(), "vnext primitive draws as a live control")
+	drawable.queue_free()
+	await get_tree().process_frame
 	for viewport in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
 		var safe: Rect2 = tokens.call("safe_rect", viewport)
 		_check(Rect2(Vector2.ZERO, viewport).encloses(safe), "safe area stays inside %dx%d" % [int(viewport.x), int(viewport.y)])
