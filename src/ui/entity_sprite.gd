@@ -2,19 +2,28 @@ class_name EntitySprite
 extends RefCounted
 
 ## Sprite trial registry (author-gated, non-default): per-entity path lookup
-## with the code-drawn GlyphLib silhouettes as the shipped fallback. The
-## registry ships empty — zero visual change until the author drops sheets in.
-## Long-term art direction (author decision 2026-08-30): progressive migration
-## from code-drawn glyphs to generated art; registries-with-fallback are the
-## migration mechanism and this trial is its first step.
+## with the code-drawn GlyphLib silhouettes as the shipped presentation. The
+## generated sheets remain available for experiments, but the arena switch is
+## deliberately closed until a visual pass proves facing, idle motion, hit
+## feedback, and state readability at gameplay scale.
 
 const SPRITE_DIR := "res://assets/sprites/generated/"
 
+## Arena entities stay code-drawn until a sprite pass proves behavior parity:
+## facing, idle motion, hit feedback, silhouettes at gameplay scale, and all
+## state changes must read as well as the current GlyphLib drawings.
+const SPRITES_ENABLED := false
+
 static var _sprite_tex_cache := {}
+
+static func sprites_enabled() -> bool:
+	return SPRITES_ENABLED
 
 ## Per-entity sprite path; "" keeps the glyph fallback active. Renaming or
 ## subfolder rules live here only — call sites never touch the filesystem.
 static func sprite_path(kind: String) -> String:
+	if not SPRITES_ENABLED:
+		return ""
 	var path := SPRITE_DIR + kind + ".png"
 	return path if ResourceLoader.exists(path) else ""
 

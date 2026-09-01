@@ -217,9 +217,10 @@ func _leak_guard_test() -> void:
 func _sprite_trial_test() -> void:
 	print("AT_STEP sprite_trial")
 	var sprite_script: Script = load("res://src/ui/entity_sprite.gd")
-	h._check(sprite_script != null and sprite_script.has_method("sprite_path") and sprite_script.has_method("has_sprite"), "entity sprite registry exposes the path lookup")
+	h._check(sprite_script != null and sprite_script.has_method("sprite_path") and sprite_script.has_method("has_sprite") and sprite_script.has_method("sprites_enabled"), "entity sprite registry exposes the path lookup and author gate")
 	if sprite_script == null:
 		return
+	h._check(not bool(sprite_script.call("sprites_enabled")), "arena entity sprites remain disabled until behavior parity review")
 	var seed_before := Game.rng.seed
 	for kind in ["drone", "lancer", "root", "god", "kernel"]:
 		var has := bool(sprite_script.call("has_sprite", str(kind)))
