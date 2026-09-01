@@ -45,8 +45,8 @@ The first real-path probe was run before the production implementation:
 
 After implementation, the focused probe passed headless and under Xvfb:
 
-- Headless: exit `0`, 18 `PROBE_PASS`, `PROBE_DONE fails=0`.
-- Xvfb: exit `0`, 18 `PROBE_PASS`, `PROBE_DONE fails=0`.
+- Headless: exit `0`, 18 `PROBE_PASS`, `PROBE_DONE fails=0` (`/tmp/kernel-panic-e4-focused-green.log`).
+- Xvfb: exit `0`, 18 `PROBE_PASS`, `PROBE_DONE fails=0` (`/tmp/kernel-panic-e4-focused-green-xvfb.log`).
 - It covers factory/story spawn, collision layer, pathing exclusion, expiry,
   wave clear, no zombie rewards, ordinary drone rewards, snapshot fields,
   bounded extent and reduced-motion/color-assist marker data.
@@ -56,11 +56,10 @@ Additional verification:
 - Import: exit `0`; Godot printed the existing environment warning that the
   Android `build-tools` directory could not be opened.
 - DevHarness: exit `0`, 1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`.
-- Aggregate validator: run with Dummy audio and isolated data; the E4 case was
-  `exit=0`, 17 passes, 0 fails, and the validator reported no runtime ERRORs
-  for that case. The first aggregate run exposed and was corrected for the
-  pre-existing E2 glyph hash guard by making its non-batch baseline include the
-  intentional E4 glyph.
+- Aggregate validator: `/tmp/kernel-panic-e4-post-validator.log`, `VALIDATION
+  OK`; E4 was `exit=0`, 18 passes, 0 fails, and no runtime ERRORs. The first
+  aggregate run exposed and was corrected for the pre-existing E2 glyph hash
+  guard by making its non-batch baseline include the intentional E4 glyph.
 
 ## Technical decisions and compatibility
 

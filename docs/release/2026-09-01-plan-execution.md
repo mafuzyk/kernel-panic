@@ -492,7 +492,9 @@ Platforms: PC | mobile (logical/code path only; no physical mobile validation)
 - DevHarness: exit 0, 1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`.
 - Import: exit 0; Android build-tools environment warning recorded.
 - Aggregate validator: `VALIDATION OK`; E4 17/0 and all accumulated cases
-  green, with teardown diagnostics reported separately.
+  green, with teardown diagnostics reported separately. Final post-commit
+  rerun: `/tmp/kernel-panic-e4-post-validator.log`, E4 18/0 and
+  `VALIDATION OK`.
 
 ### Known limitations
 

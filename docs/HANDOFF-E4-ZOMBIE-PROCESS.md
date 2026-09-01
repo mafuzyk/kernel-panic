@@ -6,7 +6,7 @@
 - Worktree: `/tmp/kernel-panic-plan-execution`
 - Base: `295cc0c`
 - Implementation commit: `16f6f24` — `feat: add zombie process enemy slice`
-- Documentation commit: recorded in the final report below
+- Documentation commits: `8443afb` and the final evidence amendment below
 - Scope: first approved new enemy only, `ZOMBIE_PROCESS`.
 - Explicit non-scope: `RACE_CONDITION`, `DEADLOCK` and later plan items.
 
@@ -34,8 +34,9 @@ all use the stable `zombie_process` kind.
 - Full DevHarness: `/tmp/kernel-panic-e4-suite-2.log`, exit 0, 1414 passes,
   0 failures, `AUTOTEST_ALL_PASS`.
 - Aggregate validator summary: `/tmp/kernel-panic-e4-validator-final-summary.log`.
-  It finished `VALIDATION OK`; all cases were green with no runtime ERRORs
-  gating, while known teardown diagnostics remained separately reported.
+- Final post-commit aggregate: `/tmp/kernel-panic-e4-post-validator.log`.
+  It finished `VALIDATION OK`; all cases were green, E4 was 18/0, and no
+  runtime ERRORs gated, while known teardown diagnostics remained separate.
 
 ## Review notes
 
