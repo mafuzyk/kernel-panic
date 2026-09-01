@@ -603,3 +603,51 @@ approval is still open.
   zero gated runtime errors.
 - Technical report: `.superpowers/sdd/00-MASTER-PLAN/report-E5-entity-quality.md`.
 - Handoff: `docs/HANDOFF-E5-ENTITY-QUALITY.md`.
+
+## 2026-09-01 — unreleased — Page Cache
+
+This is an internal development-log entry. It is not yet a public release
+claim; the mechanic still needs HUD discoverability, playtest and final
+balance approval.
+
+### Added
+
+- Added the optional PAGE CACHE passive patch. It stores up to three spare
+  overclock motes and automatically releases a grouped bonus when the third is
+  stored.
+- Added a read-only cache state to the player presentation payload so a future
+  HUD can show stored capacity without taking ownership of gameplay state.
+
+### Changed
+
+- When PAGE CACHE is active, spare-mote overflow is delayed until the cache
+  flushes. Shield-mode collection keeps its existing precedence.
+
+### Compatibility
+
+- Without PAGE CACHE, existing full-meter overflow remains immediate.
+- No save keys, transfer format, input actions, routes or existing patch
+  behavior were removed or changed.
+
+### Economy
+
+- The current implementation preserves the existing overflow unit: each of
+  the three released motes gives `+5` score and one existing scrap-progression
+  unit, for `+15` per flush. This is an implementation assumption because the
+  approved mechanic did not specify a separate reward number.
+
+### Known Issues
+
+- The legacy HUD does not yet show a stored `0/3`, `1/3` or `2/3` cache meter;
+  flush feedback is the current discoverability channel.
+- Final reward feel, human playtest, physical mobile behavior, dense-wave
+  performance and teardown diagnostics remain open.
+
+### Evidence
+
+- Focused red bootstrap: `/tmp/kernel-panic-g2a-red.log`, exit `124` before
+  implementation and without a completion marker.
+- Focused green: `/tmp/kernel-panic-g2a-green3.log`, exit `0`, `13` passes,
+  zero failures and `PROBE_DONE fails=0`.
+- Technical report: `.superpowers/sdd/00-MASTER-PLAN/report-G2-page-cache.md`.
+- Handoff: `docs/HANDOFF-G2-PAGE-CACHE.md`.

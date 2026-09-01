@@ -89,7 +89,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
 | U | U1, U2, U2b, U3, U4, U5, U6 | U1–U6 completed (opt-in, reviewed) | U1–U6 now cover boot, selection, patch choice, combat HUD, pause/terminal/game-over, accessibility settings and shared recoverable state primitives; final migration, locale, visual approval, physical mobile, Android/export and teardown gates remain open. |
 | E | E1, E2, E3, E4, E5 | E1, E2 batch 1, E3 and E4 completed; E2 remainder/E5 pending | E4 adds the isolated ZOMBIE_PROCESS teach wave, temporary projectile obstacle, reward/pathing hooks, code-drawn identity and real-path probe; visual approval, physical mobile, dense-wave performance and remaining cast work remain. |
-| G | G1 completed; G2–G7 pending | G1 explicit run context/mode contract accepted after persistence review | Deterministic gameplay probes and balance/readability validation; G3 must build on the G1 context without treating reserved Practice as shipped. |
+| G | G1 and G2A completed; G2B–G7 pending | G1 explicit run context/mode contract and G2A Page Cache accepted after focused review | Deterministic gameplay probes and balance/readability validation; G3 must build on the G1 context without treating reserved Practice as shipped. |
 | M | M1–M5 | Pending | Story data/flow, history content, rewards, localization and save tests. |
 | L | L1–L4 | Pending | String inventory, PT-BR behavior, plural/select/Unicode/overflow tests. |
 | Accessibility | A11–A15 | Pending | Settings persistence, remapping, contrast/motion/input/touch checks. |
@@ -658,3 +658,38 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Next task: G2 gameplay foundations (Page Cache, Ring-0 double overclock and
   display-control contract), with E4 Zombie Process treated as already
   implemented rather than duplicated.
+
+## G2A — Page Cache overflow mechanic
+
+- Status: implemented on `codex/plan-execution`; the new patch is selectable
+  through the existing catalog and the legacy route remains unchanged unless
+  the patch is installed.
+- Production commit: `2d2cac6` — `feat: add page cache overflow mechanic`.
+- Added `PageCache` as a bounded `RefCounted` contract with capacity three,
+  automatic flush, no decay and no manual release path. `Player` owns the
+  lifetime, preserves Rootlet shield precedence, and routes the grouped flush
+  through the existing score/scrap overflow functions. The read-only Player
+  presentation snapshot and vNext adapter now expose cache capacity/count for
+  a later HUD indicator.
+- Catalog decision: Page Cache is represented as a normal max-one passive patch
+  because the existing offer/tooltip system is the established acquisition
+  boundary. No save schema or new persistence key was introduced.
+- Reward decision: the approved rule did not specify a separate number. The
+  implementation preserves the established full-meter overflow unit (`+5`
+  score and one scrap-progression unit per released mote), making a full flush
+  `+15`. This remains an explicit product assumption to revisit before release.
+- Focused red: `/tmp/kernel-panic-g2a-red.log`, exit `124` before the required
+  production preload existed and without a completion marker.
+- Focused green: `/tmp/kernel-panic-g2a-green3.log`, exit `0`, `13` passes,
+  `PROBE_DONE fails=0`; covers storage, no-decay, automatic/repeated flush,
+  malformed input, no manual release, real Player collection, score timing,
+  meter isolation and presentation projection.
+- Review correction: the first integration rerun exposed an invalid
+  two-argument `Object.get()` in the adapter fallback. It was corrected before
+  acceptance and the final focused run had no script/parse/compile errors.
+- Not proven: visual HUD discoverability, final reward feel, dense-wave timing,
+  physical mobile behavior and the existing non-gating teardown diagnostics.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-G2-page-cache.md`.
+- Handoff: `docs/HANDOFF-G2-PAGE-CACHE.md`.
+- Next task: G2B Ring-0 double overclock, with DAEMON dash interaction tested
+  explicitly before any balance claim.
