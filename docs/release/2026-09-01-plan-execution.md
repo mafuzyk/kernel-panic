@@ -1,8 +1,8 @@
 # KERNEL PANIC — plan execution log (2026-09-01)
 
 > This is a development/release-log draft, not a public release announcement.
-> The vNext UI described here remains opt-in behind `KP_VNEXT_BOOT=1` and
-> `KP_VNEXT_PATCH=1` until
+> The vNext UI described here remains opt-in behind `KP_VNEXT_BOOT=1`,
+> `KP_VNEXT_PATCH=1` and `KP_VNEXT_HUD=1` until
 > the later migration, accessibility, localization, visual-review and export
 > gates are complete.
 
@@ -20,6 +20,7 @@ and alternatives remain in the task reports:
 - [U1 vNext boot](../../.superpowers/sdd/00-MASTER-PLAN/report-U1.md)
 - [U2 vNext program/story selection](../../.superpowers/sdd/00-MASTER-PLAN/report-U2.md)
 - [U2b vNext patch/build decision](../../.superpowers/sdd/00-MASTER-PLAN/report-U2b.md)
+- [U3 vNext combat HUD](../../.superpowers/sdd/00-MASTER-PLAN/report-U3.md)
 
 The execution branch is `codex/plan-execution`; it is based on the reviewed
 master-plan documentation and does not merge into `main` automatically.
@@ -96,6 +97,14 @@ master-plan documentation and does not merge into `main` automatically.
   `Game.apply_patch()` and pause state.
 - Added deep-copy isolation, safe-area layout, resize reflow, native focusable
   controls, keyboard/mouse/touch handling, and exactly-once command gates.
+
+### vNext combat HUD
+
+- Added an opt-in code-drawn combat HUD mounted on the real Arena HUD path.
+- Added responsive information zones, reserved playfield center, conditional
+  boss integrity and a touch-safe dash affordance.
+- Added explicit state markers and overflow diagnostics while preserving the
+  legacy HUD API and default rendering path.
 
 ### Review-driven corrections
 
@@ -180,6 +189,7 @@ interrupting the user's study session.
 | `vnext_menu_probe` | exit 0; `PROBE_DONE fails=0` |
 | `vnext_patch_probe` | exit 0; `PROBE_DONE fails=0` |
 | `vnext_patch_arena_probe` with `KP_VNEXT_PATCH=1` | exit 0; `PROBE_DONE fails=0` |
+| `vnext_combat_hud_probe` with `KP_VNEXT_HUD=1` | exit 0; `PROBE_DONE fails=0` |
 | existing `layout_probe` | exit 0; `PROBE_RESULT passes=130 fails=0` |
 | full `--autotest` suite | exit 0; 1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS` |
 | `git diff --check` | clean |

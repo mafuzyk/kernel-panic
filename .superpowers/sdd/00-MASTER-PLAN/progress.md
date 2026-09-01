@@ -87,7 +87,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 |---|---|---|---|
 | W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
 | A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
-| U | U1, U2, U2b, U3, U4, U5, U6 | U1–U2 completed (reviewed); U2b/U3/U4/U5/U6 pending | U1 foundation and U2 input/flow/responsive/overflow checks are green; remaining surfaces need their own gates. |
+| U | U1, U2, U2b, U3, U4, U5, U6 | U1–U3 completed (U3 opt-in, reviewed); U4/U5/U6 pending | U3 probe covers real Arena mounting, responsive combat zones, semantic markers, overflow, touch-safe action and legacy adapter compatibility. |
 | E | E1, E2, E3, E4, E5 | Pending | Code-drawn primitives, entity contracts, visual/readability/perf evidence. |
 | G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
 | M | M1–M5 | Pending | Story data/flow, history content, rewards, localization and save tests. |
@@ -313,6 +313,33 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-U2b.md`.
 - Versioned handoff: `docs/HANDOFF-U2B-PATCH-DECISION.md`.
 - Next task: U3 combat HUD. Keep U2b opt-in available as a regression surface.
+
+## U3 vNext combat HUD
+
+- Status: implemented and verified on 2026-09-01; opt-in only.
+- Red probe: `tools/vnext_combat_hud_probe.gd` initially failed because the
+  combat surface script was absent. Green result: exit 0,
+  `PROBE_DONE fails=0`, including real Arena mounting.
+- Production scope: `src/ui/vnext/surfaces/combat_hud_surface.gd`,
+  `src/ui/hud.gd` adapter and `src/arena/arena.gd` integration methods.
+  Tooling scope: focused probe and validation-script entry.
+- Surface contract: code-drawn responsive zones, cached layout/semantic state,
+  defensive public snapshots, overflow report, touch-safe dash action and
+  explicit non-color state markers. `PROCESS_MODE_ALWAYS` is limited to UI
+  input/lifecycle; no gameplay polling loop was added.
+- Compatibility: legacy HUD rendering, fields, API and gameplay ownership stay
+  unchanged unless `KP_VNEXT_HUD=1` is explicitly set. No balance file was
+  touched.
+- Evidence: 1–12 HP, empty/full meter, ready/cooldown dash, fixed wave/boss
+  state, long event text, 432×720/1280×720/1920×720, center reservation,
+  boss/player separation, resize and Arena integration all passed.
+- Review ruling: no duplicate legacy draw in opt-in, no stale entity refs,
+  no anchor-conflict resize, no new gameplay model. Teardown resource/RID/
+  ObjectDB diagnostics remain the W0 baseline residual. Visual quality still
+  needs human art review and physical touch validation.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-U3.md`.
+- Versioned handoff: `docs/HANDOFF-U3-COMBAT-HUD.md`.
+- Next task: U4 pause, terminal and game over; do not expand U3 into U4+.
 
 ## Review checklist for every task
 
