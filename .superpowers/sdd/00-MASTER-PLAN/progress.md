@@ -86,7 +86,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | Group | Tasks | Status | Evidence needed |
 |---|---|---|---|
 | W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
-| A | A1, A2, A3, A4, A5 | A1–A3 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, schema/state compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`. |
+| A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
 | U | U1, U2, U2b, U3, U4, U5, U6 | Pending | vNext foundation, input/flow, responsive/overflow/visual checks. |
 | E | E1, E2, E3, E4, E5 | Pending | Code-drawn primitives, entity contracts, visual/readability/perf evidence. |
 | G | G1–G7 | Pending | Deterministic gameplay probes and balance/readability validation. |
@@ -159,7 +159,6 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Alternatives: no shared Resource boundary, no UI consumer replacement, and no state ownership moved to kits; all rejected to preserve A3 scope and behavior.
 - Assumptions/risks: entity-specific optional fields may grow later; optional-field tolerance needs explicit vNext consumer coverage; teardown noise remains open from W0.
 
-## Review checklist for every task
 ## A5 migration, rollback and deprecation checkpoint
 
 - Status: completed on 2026-09-01.
@@ -174,7 +173,13 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Decision: no new schema or migrator. Current v1 already has defaults, legacy run.best fallback, known-ID filtering, and numeric normalization; another schema would add an unneeded authority and rollback surface.
 - Full-suite gate: record a fresh godot --audio-driver Dummy --headless --path . -- --autotest run before accepting this checkpoint. Baseline reference remains 1414 AT_PASS, zero AT_FAIL, AUTOTEST_ALL_PASS, with known teardown diagnostics.
 - Full suite: XDG_DATA_HOME=/tmp/kernel-panic-a5-full-xdg-2 godot --audio-driver Dummy --headless --path . -- --autotest — exit 0, AT_PASS=1414, AT_FAIL=0, AUTOTEST_ALL_PASS. Teardown diagnostics match baseline and remain open.
+- Independent review rejected this first A5 result: nested `story.best`, `story.cleared`, `bestiary`, `programs`, and `achievements` containers could still be wrong types and be silently normalized; round-trip assertions were too narrow; write-failure injection was not available; and the A5 section had been appended after the checklist. The controller added the missing nested-type cases first: the probe went red with 10 failures, then changed `Game.import_save_string()` to validate every container before creating or saving the `ConfigFile` (`4e4beb2`).
+- Controller-fresh nested green: `XDG_DATA_HOME=/tmp/kernel-panic-controller-a5-nested-green-20260901 timeout 20s godot --headless --audio-driver Dummy --path . tools/save_compatibility_probe.tscn` — exit 0, `SAVE_PROBE_DONE fails=0`. Full suite after the correction: exit 0, 1414 passes, zero failures, `AUTOTEST_ALL_PASS`, and the same baseline teardown diagnostics.
+- Round-trip now includes weekly and bestiary sections and compares semantic story maps after sparse-map canonicalization. Write-error injection remains an explicit limitation: the current Godot `ConfigFile` path has no safe test seam for forcing a failed save without changing the production persistence boundary. No claim of write-failure coverage is made.
+- A5 is accepted for current v1 compatibility after the nested-payload correction; the accepted scope is rejection-before-write and preservation of existing save bytes on invalid payloads. The write-failure seam remains a future reliability task, not silently considered solved.
 
+
+## Review checklist for every task
 
 - Read the micro-plan and current code, then inspect shared interfaces.
 - Add/adjust a focused failing probe before production code where behavior changes.

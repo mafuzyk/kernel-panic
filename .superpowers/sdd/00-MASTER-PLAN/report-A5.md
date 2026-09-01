@@ -35,3 +35,34 @@ Accepted imports may canonicalize sparse dictionaries on re-export; rejected imp
 Changed: src/autoload/game.gd; added tools/save_compatibility_probe.gd and tools/save_compatibility_probe.tscn; updated the ignored master-plan ledger.
 
 Full suite: XDG_DATA_HOME=/tmp/kernel-panic-a5-full-xdg-2 godot --audio-driver Dummy --headless --path . -- --autotest exited 0 with AT_PASS=1414, AT_FAIL=0, and AUTOTEST_ALL_PASS. Existing teardown diagnostics matched baseline and remain open.
+
+## Independent review and correction
+
+The first review rejected A5 because validation stopped at the three root
+containers. A payload could still provide an array/string for
+`story.cleared`, `story.best`, `bestiary`, `programs`, or `achievements`; the
+existing normalization would silently turn some of those values into empty
+state and `import_save_string()` could return `true`. The round-trip assertion
+also inspected only one story-best entry and did not exercise weekly or
+bestiary preservation.
+
+The controller added those nested wrong-type fixtures before changing
+production code. The focused probe then went red with 10 failures, including
+source-byte changes for accepted malformed payloads. `Game.import_save_string()`
+now validates every required container before constructing or saving its
+`ConfigFile`; the malformed cases return `false` and leave the source save
+byte-for-byte unchanged. The round-trip fixture now includes weekly and
+bestiary data and compares full relevant sections, while ignoring only the
+known sparse-story zero entries that the existing importer canonicalizes.
+
+Controller-fresh nested green exited 0 with `SAVE_PROBE_DONE fails=0`; the
+full suite after the correction exited 0 with 1414 passes, zero failures and
+`AUTOTEST_ALL_PASS`. The correction is commit `4e4beb2`.
+
+The reviewer also identified that forcing a real `ConfigFile.save()` failure
+is not safely injectable through the current persistence boundary. That gap is
+explicitly retained as a future reliability task. A5 therefore proves
+rejection-before-write and invalid-source preservation, but does not claim to
+prove behavior after an operating-system write failure. The watchdog is
+bounded and uses an always-processing timer; no forced watchdog mutation was
+needed because the focused run completed within the bound.
