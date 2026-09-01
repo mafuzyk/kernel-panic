@@ -5,6 +5,7 @@ const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 const MenuSettingsKitScript = preload("res://src/ui/menu_settings_kit.gd")
 const MenuChromeKitScript = preload("res://src/ui/menu_chrome_kit.gd")
+const VNextBootScript = preload("res://src/ui/vnext/surfaces/boot_surface.gd")
 
 var _title: Label
 var _title_r: Label
@@ -59,6 +60,7 @@ var _settings_nav_hint: Label
 var _settings_keybind_grid: GridContainer
 var _settings_kit
 var _chrome_kit
+var _vnext_boot: Control
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
@@ -158,6 +160,12 @@ func _refresh_aim_label(btn: Button) -> void:
 	btn.text = "AIM MODE: %s" % Game.effective_aim_mode().to_upper()
 
 func _ready() -> void:
+	if OS.get_environment("KP_VNEXT_BOOT") == "1":
+		_vnext_boot = VNextBootScript.new()
+		_vnext_boot.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(_vnext_boot)
+		_vnext_boot.configure({"program": Game.program, "best": Game.best_for_mode()}, VNextBootScript.context_for_viewport(size))
+		return
 	_settings_kit = MenuSettingsKitScript.new(self)
 	_chrome_kit = MenuChromeKitScript.new(self)
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -804,6 +812,10 @@ func _start() -> void:
 	Game.start_run()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _vnext_boot != null:
+		if _vnext_boot.handle_input(event):
+			get_viewport().set_input_as_handled()
+		return
 	if _starting:
 		return
 	if _settings_panel != null and _settings_panel.visible:
