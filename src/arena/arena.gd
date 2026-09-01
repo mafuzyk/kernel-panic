@@ -363,6 +363,46 @@ func pause_action_labels() -> Array[String]:
 func pause_action_icon_kinds() -> Array[String]:
 	return _panel_kit.pause_action_icon_kinds()
 
+func combat_snapshot() -> Dictionary:
+	var required := ["state", "wave", "score", "player", "enemies", "spawner"]
+	var optional := ["boss", "patch_offers", "arena_rect", "palette"]
+	var enemies: Array = []
+	for enemy in enemy_list:
+		if not is_instance_valid(enemy):
+			continue
+		enemies.append({"id": str(enemy.display_name).to_lower(), "hp": int(enemy.hp), "max_hp": int(enemy.max_hp), "elite": bool(enemy.elite), "position": _snapshot_vector(enemy.global_position), "color": enemy.col.to_html(false)})
+	var player_snapshot := {}
+	if player != null and is_instance_valid(player):
+		player_snapshot = {"hp": int(player.hp), "max_hp": int(player.max_hp), "meter": float(player.meter), "overclock_active": bool(player.overclock_active), "dash_available": int(player.dash_available), "position": _snapshot_vector(player.global_position)}
+	var spawner_snapshot := {}
+	if spawner != null and is_instance_valid(spawner):
+		spawner_snapshot = {"wave": int(spawner.wave), "event": str(spawner.wave_event), "pending": int(spawner._pending), "running": bool(spawner._running)}
+	var snapshot := {
+		"schema_version": 1,
+		"owner": "Arena",
+		"required_fields": required.duplicate(true),
+		"optional_fields": optional.duplicate(true),
+		"state": str(_state),
+		"wave": int(Game.wave),
+		"score": int(Game.score),
+		"player": player_snapshot,
+		"enemies": enemies,
+		"spawner": spawner_snapshot,
+		"boss": {"name": str(hud._boss_name), "fraction": float(hud._boss_frac)} if hud != null and is_instance_valid(hud) else {},
+		"patch_offers": [],
+		"arena_rect": _snapshot_rect(Balance.arena_rect()),
+		"palette": {"accent": _era_color.to_html(false), "danger": Balance.COL_DANGER.to_html(false)},
+	}
+	for field in required:
+		assert(snapshot.has(field), "Arena combat_snapshot missing required field: " + str(field))
+	return snapshot.duplicate(true)
+
+func _snapshot_vector(value: Vector2) -> Dictionary:
+	return {"x": float(value.x), "y": float(value.y)}
+
+func _snapshot_rect(value: Rect2) -> Dictionary:
+	return {"x": float(value.position.x), "y": float(value.position.y), "width": float(value.size.x), "height": float(value.size.y)}
+
 
 func handle_pause_input(event: InputEvent) -> bool:
 	return _panel_kit.handle_pause_input(event)

@@ -116,6 +116,39 @@ const PROGRAM_DEFS := {
 func program_def() -> Dictionary:
 	return PROGRAM_DEFS.get(program, PROGRAM_DEFS["kernel"])
 
+func run_snapshot() -> Dictionary:
+	var required := ["state", "mode", "difficulty", "program", "score", "best", "mult", "combo_left", "wave", "stats", "patch_levels", "event_log", "run_seed"]
+	var optional := ["story_stage_index", "story_cleared", "story_best", "temple_rainbow_unlocked", "achievements", "unlocked_programs", "palette"]
+	var snapshot := {
+		"schema_version": 1,
+		"owner": "Game",
+		"required_fields": required.duplicate(true),
+		"optional_fields": optional.duplicate(true),
+		"state": int(state),
+		"mode": str(mode),
+		"difficulty": str(difficulty),
+		"program": str(program),
+		"score": int(score),
+		"best": int(best),
+		"mult": int(mult),
+		"combo_left": float(combo_left),
+		"wave": int(wave),
+		"stats": stats.duplicate(true),
+		"patch_levels": patch_levels.duplicate(true),
+		"event_log": event_log.duplicate(true),
+		"run_seed": int(run_seed),
+		"story_stage_index": int(story_stage_index),
+		"story_cleared": story_cleared.duplicate(true),
+		"story_best": story_best.duplicate(true),
+		"temple_rainbow_unlocked": bool(temple_rainbow_unlocked),
+		"achievements": achievements.duplicate(true),
+		"unlocked_programs": unlocked_programs.duplicate(true),
+		"palette": {"player": Balance.COL_PLAYER.to_html(false), "danger": Balance.COL_DANGER.to_html(false)},
+	}
+	for field in required:
+		assert(snapshot.has(field), "Game run_snapshot missing required field: " + str(field))
+	return snapshot.duplicate(true)
+
 func unlock_program(id: String) -> void:
 	if unlocked_programs.has(id):
 		return

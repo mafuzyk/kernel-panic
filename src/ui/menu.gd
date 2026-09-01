@@ -562,6 +562,51 @@ func settings_shell_snapshot() -> Dictionary:
 		"title_rect": settings_layout["title"],
 	}
 
+func menu_snapshot() -> Dictionary:
+	var required := ["screen", "mode", "difficulty", "program", "best", "layout"]
+	var optional := ["settings_section", "keybind_capture_visible", "palette"]
+	var layout := menu_layout_for_viewport(size)
+	var encoded_layout := {}
+	for key in layout:
+		encoded_layout[str(key)] = _snapshot_value(layout[key])
+	var snapshot := {
+		"schema_version": 1,
+		"owner": "Menu",
+		"required_fields": required.duplicate(true),
+		"optional_fields": optional.duplicate(true),
+		"screen": "main" if _settings_panel == null or not _settings_panel.visible else "settings",
+		"mode": str(Game.mode),
+		"difficulty": str(Game.difficulty),
+		"program": str(Game.program),
+		"best": int(Game.best_for_mode()),
+		"layout": encoded_layout,
+		"settings_section": _settings_kit.active_section() if _settings_kit != null and _settings_kit.has_method("active_section") else "AUDIO",
+		"keybind_capture_visible": keybind_capture_visible(),
+		"palette": {"accent": Balance.COL_PLAYER.to_html(false), "danger": Balance.COL_DANGER.to_html(false)},
+	}
+	for field in required:
+		assert(snapshot.has(field), "Menu menu_snapshot missing required field: " + str(field))
+	return snapshot.duplicate(true)
+
+func _snapshot_value(value):
+	if value is Rect2:
+		return {"x": float(value.position.x), "y": float(value.position.y), "width": float(value.size.x), "height": float(value.size.y)}
+	if value is Vector2:
+		return {"x": float(value.x), "y": float(value.y)}
+	if value is Color:
+		return value.to_html(false)
+	if value is Dictionary:
+		var result := {}
+		for key in value:
+			result[str(key)] = _snapshot_value(value[key])
+		return result
+	if value is Array:
+		var result: Array = []
+		for child in value:
+			result.append(_snapshot_value(child))
+		return result
+	return value
+
 func _cycle_mode() -> void:
 	var order := ["classic", "weekly", "onehp"]
 	var idx := order.find(Game.mode)

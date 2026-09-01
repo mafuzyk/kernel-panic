@@ -232,3 +232,28 @@ func set_target_fps(v: int) -> void:
 func set_color_assist(v: bool) -> void:
 	color_assist = v
 	save_settings()
+
+func accessibility_snapshot() -> Dictionary:
+	var required := ["muted", "haptics_enabled", "shake_level", "target_fps", "touch_scale", "aim_mode", "color_assist", "show_run_info"]
+	var optional := ["sfx_volume", "music_volume", "music_variant", "palette"]
+	var snapshot := {
+		"schema_version": 1,
+		"owner": "Sfx",
+		"required_fields": required.duplicate(true),
+		"optional_fields": optional.duplicate(true),
+		"muted": bool(muted),
+		"haptics_enabled": bool(haptics_enabled),
+		"shake_level": int(shake_level),
+		"target_fps": int(target_fps),
+		"touch_scale": float(touch_scale),
+		"aim_mode": str(aim_mode),
+		"color_assist": bool(color_assist),
+		"show_run_info": bool(show_run_info),
+		"sfx_volume": float(sfx_vol),
+		"music_volume": float(music_vol),
+		"music_variant": str(music_variant),
+		"palette": {"accent": Balance.COL_PLAYER.to_html(false), "danger": Balance.COL_DANGER.to_html(false)},
+	}
+	for field in required:
+		assert(snapshot.has(field), "Sfx accessibility_snapshot missing required field: " + str(field))
+	return snapshot.duplicate(true)
