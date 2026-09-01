@@ -30,6 +30,8 @@ func _run() -> void:
 	var a_ids := a.carried_ids.duplicate()
 	var b_ids := b.carried_ids.duplicate()
 	_check(a_ids.size() == 2 and b_ids.size() == 2, "two OOMs hold distinct mote sets")
+	var stolen_ids: Array = field.stolen_ids()
+	_check(stolen_ids.size() == 4 and 0 not in stolen_ids and 4 in stolen_ids, "mote field exposes stolen UIDs rather than packed slot indices")
 	a.die()
 	await get_tree().process_frame
 	_check(b.carried_ids.size() == 2, "surviving OOM keeps its carried IDs")

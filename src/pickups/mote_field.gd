@@ -251,7 +251,7 @@ func stolen_ids() -> Array:
 	var out: Array = []
 	for i in _count:
 		if (_flags[i] & F_STOLEN) != 0 and alive_at(i):
-			out.append(i)
+			out.append(_uid[i])
 	return out
 
 func _push_instances() -> void:
