@@ -118,6 +118,18 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - A2 report initially described the generated task brief as absent. The controller confirmed the ignored brief existed before delegation but was not visible to the delegated inspection; the report was corrected in `ead9d28` and the versioned plans remained the source of truth.
 - Next task: A4 split static content from runtime logic. A2 revalidation is documented in `report-A2.md`; A3 is documented in `report-A3.md` with its controller correction.
 
+## A4 static content catalog
+
+- Status: completed on 2026-09-01.
+- Probe red: `XDG_DATA_HOME=/tmp/kernel-panic-a4-red-xdg godot --headless --audio-driver Dummy --path . res://tools/content_catalog_probe.tscn` — exit 1 with six explicit failures because the catalog resource did not exist yet.
+- Probe green: `XDG_DATA_HOME=/tmp/kernel-panic-a4-green-xdg godot --headless --audio-driver Dummy --path . res://tools/content_catalog_probe.tscn` — exit 0 with `PROBE_DONE fails=0`; verifies IDs/order, aliases, bestiary fields, deep-copy accessors, StoryData authority, and source-scan non-duplication.
+- Full suite: `XDG_DATA_HOME=/tmp/kernel-panic-a4-full-xdg godot --headless --audio-driver Dummy --path . -- --autotest` — exit 0, `1414` `AT_PASS`, zero `AT_FAIL`, `AUTOTEST_ALL_PASS`.
+- Changed files: `src/data/content_catalog.gd`, `src/autoload/game.gd`, `src/ui/bestiary_panel.gd`, `src/ui/achievements_panel.gd`, `tools/content_catalog_probe.gd`, `tools/content_catalog_probe.tscn`, and `report-A4.md`.
+- Source authority: `ContentCatalog` owns programs, bestiary metadata/map, achievements/hints, patches/codes/relations/exclusions. `StoryData` remains the sole stage/act catalog. Compatibility constants are direct aliases; accessor methods deep-copy nested data.
+- Alternatives: no `Resource` asset boundary, no UI consumer rewrite, no StoryData move, and no enemy constructor changes; all were unnecessary for behavior-preserving extraction.
+- Compatibility/risk: public names and data order remain stable; save keys and gameplay are unchanged. Direct aliases are legacy read-only surfaces, while mutable consumers should use catalog accessors. Baseline teardown diagnostics remain open and are not attributed to A4.
+- Commits: `b106be8` (focused test), `105d3bb` (refactor), and this docs commit.
+
 ## A3 snapshot contracts
 
 - Status: completed and adversarially corrected on 2026-09-01.
