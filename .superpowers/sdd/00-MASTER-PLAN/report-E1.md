@@ -26,13 +26,13 @@ Status: implementado no branch `codex/plan-execution`, 2026-09-01.
   exit 1, `PROBE_FAIL entity presentation foundation scripts load` e
   `PROBE_DONE fails=1`.
 - Green focado após a correção: import Godot com `--audio-driver Dummy`, exit
-  0; probe headless exit 0 com 129 `PROBE_PASS`, 0 `PROBE_FAIL` e
-  `PROBE_DONE fails=0`; probe Xvfb com os mesmos 129/0; sem `ERROR`,
+  0; probe headless exit 0 com 136 `PROBE_PASS`, 0 `PROBE_FAIL` e
+  `PROBE_DONE fails=0`; probe Xvfb com os mesmos 136/0; sem `ERROR`,
   `SCRIPT ERROR` ou `PROBE_FAIL` nos logs focados.
 - Suíte: `godot --headless --audio-driver Dummy --path . -- --autotest`, exit 0,
   1414 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`.
-- Validador acumulado: `KP_VALIDATION_LOGS=.godot/codex-review-e1-final tools/validate_input_dispatch.sh`, exit 0, `VALIDATION OK`; entity probe
-  129/0 e todas as probes acumuladas passaram. Os diagnósticos de teardown
+- Validador acumulado final: `KP_VALIDATION_LOGS=.godot/codex-review-e1-final2 tools/validate_input_dispatch.sh`, exit 0, `VALIDATION OK`; entity probe
+  136/0 e todas as probes acumuladas passaram. Os diagnósticos de teardown
   seguem visíveis e não-gating, sem novo erro de runtime.
 - `git diff --check`: exit 0.
 
@@ -72,6 +72,16 @@ geometria: `fit_rect()` é a alocação interna do corpo, `draw_bounds()` é o
 envelope externo completo, e ambos derivam do mesmo fator de extent. O raio
 agora usa o extent real do glyph dentro do corpo. O teste verde final foi
 executado novamente em headless e Xvfb, e a suíte completa permaneceu verde.
+
+O review final encontrou ainda uma falha de composição: `visual_rect()` já
+publicava o envelope expandido e `_draw()` o entregava ao renderer como se
+fosse a alocação original, aplicando inset/extent duas vezes. A probe vermelha
+reproduziu quatro falhas em viewport normal, estreita e mínima; `1e5812c`
+adicionou `draw_target_rect()` como fonte única da alocação, fez `visual_rect()`
+e `_draw()` usarem essa mesma alocação uma única vez, e criou o cálculo inverso
+`draw_radius_from_bounds()` para o raio público. A probe verde final cobre
+432×720, 160×96 e 2×2; o review adversarial seguinte aceitou E1. A suíte e o
+validador acumulado foram executados depois dessa correção.
 
 ## Limitações e incertezas
 

@@ -12,7 +12,7 @@ ausência de dependências de gameplay.
 
 O import e a suíte completa foram executados com `--audio-driver Dummy`. A
 suíte terminou com 1414 passes, zero falhas e `AUTOTEST_ALL_PASS`. A prova
-focada final terminou com 129 passes/0 falhas em headless e Xvfb. O validator
+focada final terminou com 136 passes/0 falhas em headless e Xvfb. O validator
 acumulado foi reexecutado após a correção, terminou com `VALIDATION OK`, e
 inclui este probe; nenhuma nova entry foi necessária. Os diagnósticos de
 teardown permanecem reportados como não-gating e não houve erro de runtime
@@ -47,7 +47,11 @@ ao Control. Essas lacunas foram corrigidas em `be92d2b` e cobertas pela nova
 prova vermelha/verde. A segunda revisão encontrou uma inconsistência entre
 `fit_rect()`, `draw_bounds()` e `glyph_radius()`; aplicada ao commit anterior,
 a probe reproduziu 21 falhas. `7a62a90` corrigiu essa semântica e a probe final
-passou com 129/0 em headless e Xvfb. Sem captura inspecionada, não há afirmação de aprovação
+passou com 129/0 em headless e Xvfb. A revisão final encontrou a dupla
+aplicação do fit no caminho público do Control; a probe reproduziu 4 falhas.
+`1e5812c` fez o Control desenhar a partir da alocação original e adicionou o
+raio inverso para bounds já publicados. A probe final passou com 136/0 em
+headless e Xvfb, e a revisão adversarial seguinte aceitou E1. Sem captura inspecionada, não há afirmação de aprovação
 visual. E2 deve aplicar identidade aos inimigos existentes; E3 aos programas;
 E4 a novos inimigos; E5 às camadas de acabamento e gate de sprites. Android,
 mobile físico, localização, migração de rota e teardown permanecem fora deste
@@ -62,3 +66,5 @@ handoff.
   acento e acessibilidade.
 - `7a62a90` — correção adversarial da semântica fit/bounds e unificação do
   cálculo de `glyph_radius()`.
+- `1e5812c` — correção adversarial da composição pública do Control e raio a
+  partir de bounds já calculados.

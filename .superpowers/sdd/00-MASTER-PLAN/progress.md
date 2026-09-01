@@ -132,13 +132,16 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
   esses pontos e também normaliza booleanos malformados.
 - A segunda revisão rejeitou a semântica de fit/bounds/raio; a probe reproduziu
   21 falhas contra o commit anterior e `7a62a90` unificou esses cálculos.
-- Evidência final: probe 129 `PROBE_PASS`/0 `PROBE_FAIL` em headless e Xvfb,
+- A revisão final encontrou dupla aplicação do fit no caminho público do
+  Control; a probe reproduziu 4 falhas e `1e5812c` passou a usar a alocação
+  original e o raio inverso de bounds.
+- Evidência final: probe 136 `PROBE_PASS`/0 `PROBE_FAIL` em headless e Xvfb,
   import exit 0, autotest com Dummy audio 1414 `AT_PASS`, 0 `AT_FAIL`,
-  `AUTOTEST_ALL_PASS`, `git diff --check` exit 0. A segunda revisão encontrou
-  21 falhas no commit anterior para a semântica fit/bounds/raio; `7a62a90`
-  corrigiu e a probe final ficou verde. Não houve captura inspecionada,
+  `AUTOTEST_ALL_PASS`, `git diff --check` exit 0. A revisão Luna final aceitou
+  o conjunto após a correção pública. Não houve captura inspecionada,
   portanto não há aprovação visual.
-- Commits: `2212c12`, `99e5695`, `901da80`, `be92d2b`, `7a62a90`; report:
+- Commits: `2212c12`, `99e5695`, `901da80`, `be92d2b`, `7a62a90`, `1e5812c`;
+  report:
   `.superpowers/sdd/00-MASTER-PLAN/report-E1.md`; handoff:
   `docs/HANDOFF-E1-ENTITY-FOUNDATION.md`.
 

@@ -36,8 +36,8 @@ master-plan documentation and does not merge into `main` automatically.
   program (`kernel`) and one existing enemy (`DRONE`).
 - Preserved the legacy `VNextEntityIllustration` surface and sprite registry
   default-off behavior; no gameplay, hitbox, balance or route was changed.
-- Evidence: focused probe red before implementation and green after two review
-  corrections with 129/0 passes in headless and Xvfb; full Dummy-audio autotest
+- Evidence: focused probe red before implementation and green after adversarial
+  corrections with 136/0 passes in headless and Xvfb; full Dummy-audio autotest
   1414/0 with `AUTOTEST_ALL_PASS`.
 - This is technical evidence only. No visual approval is claimed because no E1
   capture was inspected. Full cast, product-route wiring and sprite comparison
