@@ -90,7 +90,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | U | U1, U2, U2b, U3, U4, U5, U6 | U1–U6 completed (opt-in, reviewed) | U1–U6 now cover boot, selection, patch choice, combat HUD, pause/terminal/game-over, accessibility settings and shared recoverable state primitives; final migration, locale, visual approval, physical mobile, Android/export and teardown gates remain open. |
 | E | E1, E2, E3, E4, E5 | E1, E2 batch 1, E3 and E4 completed; E2 remainder/E5 pending | E4 adds the isolated ZOMBIE_PROCESS teach wave, temporary projectile obstacle, reward/pathing hooks, code-drawn identity and real-path probe; visual approval, physical mobile, dense-wave performance and remaining cast work remain. |
 | G | G1 and G2A completed; G2B–G7 pending | G1 explicit run context/mode contract and G2A Page Cache accepted after focused review | Deterministic gameplay probes and balance/readability validation; G3 must build on the G1 context without treating reserved Practice as shipped. |
-| M | M1–M5 | Pending | Story data/flow, history content, rewards, localization and save tests. |
+| M | M1–M4 completed; M5 pending | M1–M4 implemented and reviewed | Story data/flow, history content, Mac mechanic, climax, rewards and save tests; visual/performance/mobile gate remains. |
 | L | L1–L4 | Pending | String inventory, PT-BR behavior, plural/select/Unicode/overflow tests. |
 | Accessibility | A11–A15 | Pending | Settings persistence, remapping, contrast/motion/input/touch checks. |
 | X | X1–X5 | Pending | PC/mobile viewport, insets, touch, lifecycle, input and performance evidence. |
@@ -956,3 +956,31 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-M3-macos-layered-reveal.md`.
 - Handoff: `docs/HANDOFF-M3-MACOS-LAYERED-REVEAL.md`.
 - Next: M4 full route, climax/boss and reward/save-transfer behavior.
+
+## M4 — macOS climax, boss identity and rewards
+
+- Status: implemented and reviewed on 2026-09-01; M5 visual/accessibility/
+  performance gate remains open.
+- Added `PermissionRootBoss`, a RootBoss-derived Mac climax variant with a
+  directional `PERMISSION CHECK` wind-up and `PERMISSION DENIED` burst. The
+  shared RootBoss integrity, phases, HUD signal and desperation contract remain
+  authoritative.
+- The final stage now declares `boss_variant: "permission_root"`; Spawner
+  selects it only at the generic story-boss boundary, leaving classic and GOD
+  paths unchanged.
+- Story clear rewards now have catalog-whitelisted stable IDs. Game loads,
+  saves, snapshots, exports and imports the reward map. Completion builds the
+  new cleared/best/reward state first and commits it only after the checkpoint
+  write succeeds. A failed write preserves prior progress and shows a retryable
+  Arena state rather than a false victory.
+- Red: `/tmp/m4-probe-red2.log` exited non-zero on the missing boss/reward
+  contracts. The first probe also exposed and corrected its own strict typed
+  inference and closure/resource assertions before green evidence.
+- Green: `/tmp/m4-probe-green8.log` exit 0, `PROBE_DONE fails=0`; editor import
+  `/tmp/m4-import-green2.log` exit 0; full suite `/tmp/m4-suite.log` exit 0,
+  1453/0 with `AUTOTEST_ALL_PASS`; `git diff --check` exit 0.
+- Detailed report: `.superpowers/sdd/00-MASTER-PLAN/report-M4-macos-climax-rewards.md`.
+  Handoff: `docs/HANDOFF-M4-MACOS-CLIMAX-REWARDS.md`.
+- Remaining uncertainty: human visual approval, physical mobile/Vega budget,
+  crash-safe save journaling and a dedicated vNext save-failure state are not
+  complete. Known shutdown resource/ObjectDB/RID diagnostics remain open.

@@ -613,8 +613,28 @@ func _on_story_cleared(stage_id: String) -> void:
 		return
 	_state = "story_complete"
 	if not Game.complete_story_stage():
+		_show_story_save_failure(stage_id)
 		return
 	_show_story_victory(stage_id)
+
+func _show_story_save_failure(stage_id: String) -> void:
+	_story_victory = false
+	_story_next_stage = -1
+	_over_title.text = "STORY SAVE FAILED"
+	_over_title.add_theme_color_override("font_color", Balance.COL_DANGER)
+	_over_sub.text = "%s // progress not committed" % str(_story_stage.get("path", stage_id))
+	_over_core_stats.text = "NO REWARD GRANTED\n\nThe run ended, but the story checkpoint could not be written.\nRetry the stage or return to story select."
+	_over_run_stats.text = "STAGE SCORE      %07d\nDAEMONS PURGED   %d" % [Game.score, int(Game.stats.get("kills", 0))]
+	_over_primary.text = "RETRY STAGE  [ENTER]"
+	_over_menu.text = "STORY SELECT  [ESC]"
+	_over_panel.modulate.a = 0.0
+	_over_panel.visible = true
+	if _vnext_u4_mode:
+		_over_panel.visible = false
+		_show_vnext_u4_game_over(false)
+	var tw := create_tween()
+	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
+
 
 func _show_tip() -> void:
 	if _tip_label == null:
@@ -1022,6 +1042,8 @@ func _show_story_victory(stage_id: String) -> void:
 		next_line = "BONUS ACT // TEMPLEOS COMPLETE" if stage_id == "temple_god" else "STORY // ALL MOUNTED PATHS COMPLETE"
 		if stage_id == "temple_god":
 			next_line += "\nRAINBOW GRID UNLOCKED FOR ENDLESS"
+		elif stage_id == "mac_modern":
+			next_line = "HISTORY ACT // MACOS COMPLETE\nREWARD // %s" % Game.story_reward_id(index).to_upper()
 	var best_value := Game.story_stage_best(index)
 	_over_core_stats.text = "STAGE          %s\nBEST           %07d\n\n%s" % [str(_story_stage.get("title", "STAGE CLEARED")), best_value, next_line]
 	_over_run_stats.text = "STAGE SCORE      %07d\nDAEMONS PURGED   %d\nUPTIME           %02d:%02d" % [Game.score, int(Game.stats.get("kills", 0)), int(float(Game.stats.get("time", 0.0)) / 60.0), int(float(Game.stats.get("time", 0.0))) % 60]

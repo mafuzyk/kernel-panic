@@ -20,7 +20,7 @@ const STAGES := [
 		"waves": [["zombie_process", "drone", "lancer"], ["bloatware", "drone", "drone"], ["update_loop", "zombie_process", "spewer"], ["bloatware", "race_condition", "lancer", "drone"]], "scale": 1.08,
 	},
 	{
-		"id": "mac_modern", "act": ACT_ID, "path": "Mac::MODERN", "profile": "modern", "act_rule": "layered_reveal", "reveal_delay": 0.85, "title_key": "mac_modern_title", "intro_key": "mac_modern_intro", "klog_key": "mac_modern_klog", "reward_id": "macos_modern_clear", "boss": "PERMISSION ROOT", "boss_kind": "boss", "boss_index": 3, "boss_scale": 1.12,
+		"id": "mac_modern", "act": ACT_ID, "path": "Mac::MODERN", "profile": "modern", "act_rule": "layered_reveal", "reveal_delay": 0.85, "title_key": "mac_modern_title", "intro_key": "mac_modern_intro", "klog_key": "mac_modern_klog", "reward_id": "macos_modern_clear", "boss": "PERMISSION ROOT", "boss_kind": "boss", "boss_variant": "permission_root", "boss_index": 3, "boss_scale": 1.12,
 		"waves": [["drone", "zombie_process", "race_condition"], ["bloatware", "update_loop", "spewer", "lancer"], ["recursor", "firewall", "race_condition", "zombie_process"], ["boss"]], "scale": 1.12,
 	},
 ]

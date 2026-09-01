@@ -3,6 +3,7 @@ extends Node
 
 const ZombieProcess = preload("res://src/enemies/zombie_process.gd")
 const RaceCondition = preload("res://src/enemies/race_condition.gd")
+const PermissionRootBoss = preload("res://src/enemies/permission_root_boss.gd")
 
 signal wave_started(wave: int, is_boss: bool)
 signal wave_cleared(wave: int)
@@ -252,7 +253,10 @@ func _spawn_story_boss() -> void:
 		if generation != _spawn_generation or not _running or not is_instance_valid(container):
 			return
 		_awaiting_boss = false
-		_boss = GodBoss.new() if _story_boss_kind == "god" else RootBoss.new()
+		if str(story_stage.get("boss_variant", "")) == "permission_root":
+			_boss = PermissionRootBoss.new()
+		else:
+			_boss = GodBoss.new() if _story_boss_kind == "god" else RootBoss.new()
 		_boss.boss_index = idx
 		_boss.threat_wave = wave
 		_boss.configure(float(story_stage.get("boss_scale", _story_wave_scale)), false)

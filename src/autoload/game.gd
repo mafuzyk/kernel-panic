@@ -26,6 +26,7 @@ var program := "kernel"
 var story_stage_index := 0
 var story_cleared: Dictionary = {}
 var story_best: Dictionary = {}
+var story_rewards: Dictionary = {}
 var temple_rainbow_unlocked := false
 var vampic_cd := 0.0
 const VAMPIC_COOLDOWN := 10.0
@@ -108,7 +109,7 @@ func program_def() -> Dictionary:
 
 func run_snapshot() -> Dictionary:
 	var required := ["state", "mode", "difficulty", "program", "score", "best", "mult", "combo_left", "wave", "stats", "patch_levels", "event_log", "run_seed"]
-	var optional := ["story_stage_index", "story_cleared", "story_best", "temple_rainbow_unlocked", "achievements", "unlocked_programs", "best_endless_wave", "practice_wave", "weekly_mutator", "palette"]
+	var optional := ["story_stage_index", "story_cleared", "story_best", "story_rewards", "temple_rainbow_unlocked", "achievements", "unlocked_programs", "best_endless_wave", "practice_wave", "weekly_mutator", "palette"]
 	var snapshot := {
 		"schema_version": 1,
 		"owner": "Game",
@@ -130,6 +131,7 @@ func run_snapshot() -> Dictionary:
 		"story_stage_index": int(story_stage_index),
 		"story_cleared": story_cleared.duplicate(true),
 		"story_best": story_best.duplicate(true),
+		"story_rewards": story_rewards.duplicate(true),
 		"temple_rainbow_unlocked": bool(temple_rainbow_unlocked),
 		"achievements": achievements.duplicate(true),
 		"unlocked_programs": unlocked_programs.duplicate(true),
@@ -215,11 +217,14 @@ func _load_run_config() -> void:
 			program = saved_prog
 		story_cleared = cf.get_value("story", "cleared", {})
 		story_best = cf.get_value("story", "best", {})
+		story_rewards = _known_bool_map(cf.get_value("story", "rewards", {}), story_reward_ids())
 		temple_rainbow_unlocked = bool(cf.get_value("story", "temple_rainbow_unlocked", false))
 		if not story_cleared is Dictionary:
 			story_cleared = {}
 		if not story_best is Dictionary:
 			story_best = {}
+		if not story_rewards is Dictionary:
+			story_rewards = {}
 	rng.randomize()
 	death_heatmaps = _normalize_death_heatmaps(death_heatmaps)
 
@@ -413,6 +418,20 @@ func story_stage_id(index: int) -> String:
 
 func story_stage_best(index: int) -> int:
 	return int(story_best.get(story_stage_id(index), 0))
+
+func story_reward_ids() -> Array:
+	var result: Array = []
+	for index in story_stage_count():
+		var reward_id := str(story_stage_def(index).get("reward_id", ""))
+		if not reward_id.is_empty() and reward_id not in result:
+			result.append(reward_id)
+	return result
+
+func story_reward_id(index: int) -> String:
+	return str(story_stage_def(index).get("reward_id", ""))
+
+func story_reward_unlocked(reward_id: String) -> bool:
+	return bool(story_rewards.get(reward_id, false))
 
 func story_stage_unlocked(index: int) -> bool:
 	if index < 0 or index >= story_stage_count():
@@ -721,6 +740,7 @@ func export_save_string() -> String:
 		"story": {
 			"cleared": _known_bool_map(story_cleared, STORY_DATA.stage_ids()),
 			"best": story_best.duplicate(true),
+			"rewards": _known_bool_map(story_rewards, story_reward_ids()),
 			"temple_rainbow_unlocked": temple_rainbow_unlocked,
 		},
 		"bestiary": _known_bool_map(bestiary, BESTIARY_MAP.values()),
@@ -752,7 +772,8 @@ func import_save_string(encoded: String) -> bool:
 		return false
 	var imported_story_cleared = imported_story.get("cleared", {})
 	var imported_story_best = imported_story.get("best", {})
-	if not imported_story_cleared is Dictionary or not imported_story_best is Dictionary:
+	var imported_story_rewards = imported_story.get("rewards", {})
+	if not imported_story_cleared is Dictionary or not imported_story_best is Dictionary or not imported_story_rewards is Dictionary:
 		return false
 	var imported_bestiary = parsed.get("bestiary", {})
 	var imported_programs_raw = parsed.get("programs", {})
@@ -776,6 +797,7 @@ func import_save_string(encoded: String) -> bool:
 	for stage_id in STORY_DATA.stage_ids():
 		clean_story_best[stage_id] = maxi(int(imported_story_best.get(stage_id, 0)), 0)
 	cf.set_value("story", "best", clean_story_best)
+	cf.set_value("story", "rewards", _known_bool_map(imported_story_rewards, story_reward_ids()))
 	cf.set_value("story", "temple_rainbow_unlocked", bool(imported_story.get("temple_rainbow_unlocked", false)))
 	cf.set_value("bestiary", "seen", _known_bool_map(imported_bestiary, BESTIARY_MAP.values()))
 	var imported_programs := _known_bool_map(imported_programs_raw, PROGRAM_DEFS.keys())
@@ -894,27 +916,48 @@ func end_run() -> void:
 	lf.set_value("lifetime", "killers", kd)
 	lf.save(Sfx.SAVE_PATH)
 
+func _persist_story_completion(id: String, updated_cleared: Dictionary, updated_best: Dictionary, updated_rewards: Dictionary, updated_temple: bool) -> bool:
+	var cf := ConfigFile.new()
+	var save_path := Sfx._settings_path()
+	var load_result := cf.load(save_path)
+	if load_result != OK and load_result != ERR_FILE_NOT_FOUND:
+		return false
+	cf.set_value("story", "cleared", updated_cleared)
+	cf.set_value("story", "best", updated_best)
+	cf.set_value("story", "rewards", updated_rewards)
+	cf.set_value("story", "temple_rainbow_unlocked", updated_temple)
+	return cf.save(save_path) == OK
+
 func complete_story_stage() -> bool:
 	if mode != "story" or state != State.PLAYING:
 		return false
 	var index := story_stage_index
 	var id := story_stage_id(index)
-	end_run()
 	if id.is_empty():
 		return false
-	story_cleared[id] = true
+	var updated_cleared: Dictionary = story_cleared.duplicate(true)
+	updated_cleared[id] = true
+	var updated_best: Dictionary = story_best.duplicate(true)
 	var previous_best := story_stage_best(index)
 	if score > previous_best:
-		story_best[id] = score
+		updated_best[id] = score
+	var updated_rewards: Dictionary = story_rewards.duplicate(true)
+	var reward_id := story_reward_id(index)
+	if not reward_id.is_empty():
+		updated_rewards[reward_id] = true
+	var updated_temple := temple_rainbow_unlocked or id == "temple_god"
+	var previous_new_best := new_best
+	end_run()
+	if not _persist_story_completion(id, updated_cleared, updated_best, updated_rewards, updated_temple):
+		new_best = previous_new_best
+		log_event("STORY SAVE FAILED // %s" % id.to_upper())
+		return false
+	story_cleared = updated_cleared
+	story_best = updated_best
+	story_rewards = updated_rewards
+	temple_rainbow_unlocked = updated_temple
+	if score > previous_best:
 		new_best = true
-	var cf := ConfigFile.new()
-	cf.load(Sfx.SAVE_PATH)
-	cf.set_value("story", "cleared", story_cleared)
-	cf.set_value("story", "best", story_best)
-	if id == "temple_god":
-		temple_rainbow_unlocked = true
-		cf.set_value("story", "temple_rainbow_unlocked", true)
-	cf.save(Sfx.SAVE_PATH)
 	if id == "mem" and not unlocked_programs.has("rootlet"):
 		unlock_program("rootlet")
 	log_event("STORY CLEAR // %s" % id.to_upper())

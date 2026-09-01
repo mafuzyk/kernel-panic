@@ -10,7 +10,7 @@
 ## Scope of this log
 
 This document records the user-visible and release-relevant work executed from
-the master plan's stabilization phase through U6. Detailed technical evidence
+the master plan's stabilization phase through M4. Detailed technical evidence
 and alternatives remain in the task reports:
 
 - [A1 repository baseline](../../.superpowers/sdd/00-MASTER-PLAN/report-A1.md)
@@ -27,6 +27,7 @@ and alternatives remain in the task reports:
 - [U6 vNext shared state surface](../../.superpowers/sdd/00-MASTER-PLAN/report-U6.md)
 - [E4 ZOMBIE_PROCESS](../../.superpowers/sdd/00-MASTER-PLAN/report-E4-zombie-process.md)
 - [G1 explicit run context](../../.superpowers/sdd/00-MASTER-PLAN/report-G1-run-context.md)
+- [M4 macOS climax and rewards](../../.superpowers/sdd/00-MASTER-PLAN/report-M4-macos-climax-rewards.md)
 
 The execution branch is `codex/plan-execution`; it is based on the reviewed
 master-plan documentation and does not merge into `main` automatically.
@@ -979,3 +980,48 @@ and HUD messaging still need playtest approval.
 ### Evidence
 
 - Focused real-story mechanic probe passed with `PROBE_DONE fails=0`.
+
+## M4 — macOS climax, boss identity and rewards (unreleased)
+
+### Added
+
+- Added the `PERMISSION ROOT` code-drawn climax variant for the final Mac
+  history node. It uses a directional `PERMISSION CHECK` wind-up and a
+  readable `PERMISSION DENIED` burst while retaining the shared boss phases,
+  integrity bar and desperation behavior.
+- Added stable, catalog-whitelisted story reward IDs and included them in the
+  existing local save and portable save-transfer contracts.
+- Added a focused real-path probe for the Mac boss, completion reward,
+  export/import and forced checkpoint failure.
+
+### Changed
+
+- The story spawner now selects the declared Mac boss variant at its generic
+  story-boss boundary; classic and TempleOS boss paths remain unchanged.
+- Story completion now prepares the cleared stage, best score and reward map,
+  writes the checkpoint, and only then updates in-memory story progress.
+- A failed story checkpoint now presents a retryable `STORY SAVE FAILED`
+  result and grants no new story reward.
+
+### Compatibility
+
+- Existing saves and version-1 transfer payloads remain readable. A payload
+  without the optional reward map imports with no reward flags; unknown reward
+  IDs are ignored.
+- The entity presentation adapter now preserves the named boss variant and
+  permission telegraph for future vNext consumers.
+
+### Known Issues
+
+- This does not provide crash-safe/journaled writes against power loss; the
+  existing ConfigFile save architecture still needs the RPO recovery phase.
+- The new telegraph has automated path/state coverage but no final human visual
+  approval, dense-wave performance measurement or physical mobile validation.
+- The vNext game-over surface still renders save failure through its generic
+  game-over path rather than a dedicated save-failure variant.
+
+### Evidence
+
+- `/tmp/m4-probe-green8.log`: exit 0, `PROBE_DONE fails=0`.
+- `/tmp/m4-suite.log`: exit 0, 1453 `AT_PASS`, 0 `AT_FAIL`,
+  `AUTOTEST_ALL_PASS`.
