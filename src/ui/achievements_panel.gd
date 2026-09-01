@@ -8,14 +8,8 @@ extends Control
 const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
 const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
-
-const ACHIEVEMENT_HINTS := {
-	"first_blood": "Terminate your first daemon.",
-	"boss_purge": "Take down a ROOT-class boss.",
-	"chain_max": "Push the combo meter to its maximum multiplier.",
-	"terminal_operator": "Grant a sudo heal in the terminal.",
-	"integrity_restored": "Recover integrity after it drops.",
-}
+const ContentCatalogScript = preload("res://src/data/content_catalog.gd")
+const ACHIEVEMENT_HINTS = ContentCatalogScript.ACHIEVEMENT_HINTS
 
 var _header: Label
 var _row_controls: Array[Control] = []
