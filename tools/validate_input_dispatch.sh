@@ -126,6 +126,7 @@ run_headless_probe "probe-e5-entity-quality" "E5 entity quality tier contract" "
 run_headless_probe "probe-g1-run-context" "G1 run context contract" "res://tools/g1_run_context_probe.tscn"
 run_headless_probe "probe-g2-page-cache" "G2 Page Cache mechanic" "res://tools/g2_page_cache_probe.tscn"
 run_headless_probe "probe-g2-ring0" "G2 Ring-0 double overclock" "res://tools/g2_ring0_probe.tscn"
+run_headless_probe "probe-g2-display-settings" "G2 display settings contract" "res://tools/g2_display_settings_probe.tscn"
 run_headless_probe "probe-vnext-patch-surface" "VNext patch decision surface" "res://tools/vnext_patch_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_PATCH" "probe-vnext-patch-arena" "VNext patch Arena adapter" "res://tools/vnext_patch_arena_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_HUD" "probe-vnext-combat-hud" "VNext combat HUD Arena adapter" "res://tools/vnext_combat_hud_probe.tscn"
@@ -139,6 +140,10 @@ if command -v xvfb-run >/dev/null 2>&1; then
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker' \
 		'^PROBE_INFO debug_controls_enabled=true$:::debug_controls_enabled=true (desktop debug active)'
 	report_errors "input probe xvfb" "$LOG_DIR/probe-xvfb.log"
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/g2_display_settings_probe.tscn > "$LOG_DIR/probe-g2-display-settings-xvfb.log" 2>&1
+	report_case "G2 display settings xvfb" "$LOG_DIR/probe-g2-display-settings-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "G2 display settings xvfb" "$LOG_DIR/probe-g2-display-settings-xvfb.log"
 	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env KP_VNEXT_U4=1 XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/vnext_state_surfaces_probe.tscn > "$LOG_DIR/probe-vnext-state-surfaces-xvfb.log" 2>&1
 	report_case "VNext state surfaces xvfb" "$LOG_DIR/probe-vnext-state-surfaces-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'

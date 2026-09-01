@@ -17,6 +17,7 @@ var music_vol := 0.75
 var haptics_enabled := true
 var shake_level := 2
 var target_fps := 60
+var fullscreen := false
 var touch_scale := 1.0
 var aim_mode := "drag"
 var color_assist := false
@@ -27,6 +28,7 @@ var _settings_path_override := ""
 
 const ACCESSIBILITY_SCHEMA_VERSION := 2
 const ACCESSIBILITY_TOUCH_SCALES := [0.85, 1.0, 1.2]
+const DISPLAY_FPS_OPTIONS := [30, 60, 120, 0]
 
 func haptic(ms: int) -> void:
 	if not haptics_enabled:
@@ -194,16 +196,20 @@ func _settings_path() -> String:
 	return _settings_path_override if not _settings_path_override.is_empty() else SAVE_PATH
 
 func _load_settings() -> void:
+	target_fps = default_target_fps()
+	fullscreen = false
 	var cf := ConfigFile.new()
 	if cf.load(_settings_path()) != OK:
+		_apply_display_settings()
 		return
 	muted = cf.get_value("audio", "muted", false)
 	sfx_vol = cf.get_value("audio", "sfx_vol", 0.9)
 	music_vol = cf.get_value("audio", "music_vol", 0.75)
 	var raw_haptics = cf.get_value("feel", "haptics", true)
 	var raw_shake = cf.get_value("feel", "shake", 2)
-	target_fps = cf.get_value("feel", "target_fps", 60)
-	Engine.max_fps = target_fps
+	var legacy_target_fps = cf.get_value("feel", "target_fps", target_fps)
+	target_fps = _normalize_target_fps(cf.get_value("display", "target_fps", legacy_target_fps), target_fps)
+	fullscreen = _normalize_bool(cf.get_value("display", "fullscreen", false), false)
 	var raw_touch_scale = cf.get_value("feel", "touch_scale", 1.0)
 	aim_mode = cf.get_value("feel", "aim_mode", "drag")
 	var accessibility := _normalize_accessibility_profile({
@@ -217,6 +223,7 @@ func _load_settings() -> void:
 	touch_scale = accessibility["touch_scale"]
 	color_assist = accessibility["color_assist"]
 	show_run_info = bool(cf.get_value("feel", "show_run_info", false))
+	_apply_display_settings()
 
 func save_settings() -> void:
 	_save_settings_result()
@@ -232,11 +239,14 @@ func _save_settings_result() -> bool:
 	cf.set_value("audio", "music_vol", music_vol)
 	cf.set_value("feel", "haptics", haptics_enabled)
 	cf.set_value("feel", "shake", shake_level)
+	# Keep the old key readable for older builds and external settings tools.
 	cf.set_value("feel", "target_fps", target_fps)
 	cf.set_value("feel", "touch_scale", touch_scale)
 	cf.set_value("feel", "aim_mode", aim_mode)
 	cf.set_value("feel", "color_assist", color_assist)
 	cf.set_value("feel", "show_run_info", show_run_info)
+	cf.set_value("display", "fullscreen", fullscreen)
+	cf.set_value("display", "target_fps", target_fps)
 	return cf.save(save_path) == OK
 
 func set_aim_mode(v: String) -> void:
@@ -248,9 +258,35 @@ func set_touch_scale(v: float) -> void:
 	save_settings()
 
 func set_target_fps(v: int) -> void:
-	target_fps = v
-	Engine.max_fps = v
+	target_fps = _normalize_target_fps(v, default_target_fps())
+	Engine.max_fps = target_fps
 	save_settings()
+
+func set_fullscreen(v: bool) -> void:
+	fullscreen = v
+	_apply_display_settings()
+	save_settings()
+
+func default_target_fps() -> int:
+	return 60 if DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != "" else 0
+
+func display_snapshot() -> Dictionary:
+	return {
+		"fullscreen": bool(fullscreen),
+		"target_fps": int(target_fps),
+		"target_fps_options": DISPLAY_FPS_OPTIONS.duplicate(),
+		"default_target_fps": default_target_fps(),
+	}.duplicate(true)
+
+func _normalize_target_fps(value, fallback: int) -> int:
+	var candidate := int(value) if value is int or value is float else fallback
+	return candidate if candidate in DISPLAY_FPS_OPTIONS else fallback
+
+func _apply_display_settings() -> void:
+	Engine.max_fps = target_fps
+	if DisplayServer.get_name().to_lower() == "headless":
+		return
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
 
 func set_color_assist(v: bool) -> void:
 	color_assist = v
@@ -373,6 +409,7 @@ func accessibility_snapshot() -> Dictionary:
 		"haptics_enabled": bool(haptics_enabled),
 		"shake_level": int(shake_level),
 		"target_fps": int(target_fps),
+		"fullscreen": bool(fullscreen),
 		"touch_scale": float(touch_scale),
 		"aim_mode": str(aim_mode),
 		"color_assist": bool(color_assist),

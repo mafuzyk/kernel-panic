@@ -10,8 +10,8 @@ const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
 
 var m
 
-const SETTINGS_SECTIONS := ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"]
-const SECTION_CHIP_LABELS := {"AUDIO": "AUDIO", "GAMEPLAY": "GAME", "CONTROLS": "KEYS", "ACCESSIBILITY": "ACCESS", "SAVE DATA": "DATA"}
+const SETTINGS_SECTIONS := ["AUDIO", "DISPLAY", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"]
+const SECTION_CHIP_LABELS := {"AUDIO": "AUDIO", "DISPLAY": "DISPLAY", "GAMEPLAY": "GAME", "CONTROLS": "KEYS", "ACCESSIBILITY": "ACCESS", "SAVE DATA": "DATA"}
 const COMPACT_BREAKPOINT := 760.0
 var _active_section := "AUDIO"
 var _section_members := {}
@@ -224,6 +224,42 @@ func _build_settings() -> void:
 	mute_hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.4))
 	assign_section(mute_hint, "AUDIO")
 	box.add_child(mute_hint)
+	var display_label := _settings_group_label("DISPLAY // OUTPUT")
+	assign_section(display_label, "DISPLAY")
+	box.add_child(display_label)
+	var fullscreen := CheckButton.new()
+	fullscreen.text = "FULLSCREEN"
+	fullscreen.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	fullscreen.add_theme_font_size_override("font_size", 17)
+	fullscreen.add_theme_color_override("font_color", Balance.COL_TEXT)
+	fullscreen.button_pressed = Sfx.fullscreen
+	fullscreen.toggled.connect(func(on: bool) -> void:
+		Sfx.set_fullscreen(on)
+	)
+	assign_section(fullscreen, "DISPLAY")
+	box.add_child(fullscreen)
+	var fps_btn := Button.new()
+	fps_btn.flat = true
+	fps_btn.text = "TARGET FPS: %s" % _target_fps_label(Sfx.target_fps)
+	fps_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	fps_btn.add_theme_font_size_override("font_size", 17)
+	fps_btn.add_theme_color_override("font_color", Balance.COL_TEXT)
+	fps_btn.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+	fps_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	fps_btn.pressed.connect(func() -> void:
+		var options: Array = Sfx.DISPLAY_FPS_OPTIONS
+		var current := options.find(Sfx.target_fps)
+		var next := options[(current + 1) % options.size()] if current >= 0 else options[0]
+		Sfx.set_target_fps(int(next))
+		fps_btn.text = "TARGET FPS: %s" % _target_fps_label(Sfx.target_fps)
+	)
+	assign_section(fps_btn, "DISPLAY")
+	box.add_child(fps_btn)
+	var display_hint := _settings_group_label("UNLIMITED = 0 // MOBILE DEFAULTS TO 60")
+	display_hint.add_theme_font_size_override("font_size", 11)
+	display_hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
+	assign_section(display_hint, "DISPLAY")
+	box.add_child(display_hint)
 	var gameplay_label := _settings_group_label("GAMEPLAY // FEEL")
 	assign_section(gameplay_label, "GAMEPLAY")
 	box.add_child(gameplay_label)
@@ -496,6 +532,9 @@ func _settings_group_label(text: String) -> Label:
 	label.add_theme_color_override("font_color", Balance.COL_MOTE)
 	label.custom_minimum_size = Vector2(0.0, 22.0)
 	return label
+
+func _target_fps_label(value: int) -> String:
+	return "UNLIMITED" if value == 0 else str(value)
 
 func _build_keybind_settings(parent: VBoxContainer) -> void:
 	m._keybind_box = VBoxContainer.new()
