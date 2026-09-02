@@ -43,8 +43,7 @@ func _build_pause_panel() -> void:
 	a._pause_buttons.append(b_resume)
 	var b_restart := _make_button("RESTART", 334)
 	b_restart.pressed.connect(func() -> void:
-		a._set_paused(false)
-		a._restart_current_run()
+		a._request_restart_confirmation()
 	)
 	a._pause_panel.add_child(b_restart)
 	a._pause_buttons.append(b_restart)

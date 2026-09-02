@@ -51,7 +51,12 @@ func _input_safety_test(arena: Arena) -> void:
 	h._check(Game.state == Game.State.PLAYING and arena.get("_abandon_armed") == true, "first Q arms abandon confirmation without leaving run")
 	h._check(arena._pause_info.text.contains("PRESS Q AGAIN // ABANDON PROCESS"), "pause explains two-step abandon confirmation")
 	arena._unhandled_input(h._key_event(KEY_Q))
-	h._check(Game.state == Game.State.MENU, "second Q within confirmation window returns to menu")
+	# The scene-transition harness keeps this Arena reference alive; the real
+	# monotonic interval is covered by input_dispatch_probe. Age the armed state
+	# here so this unit section can continue without yielding into a freed scene.
+	arena.set("_pause_destructive_started_msec", Time.get_ticks_msec() - 600)
+	arena._unhandled_input(h._key_event(KEY_Q))
+	h._check(Game.state == Game.State.MENU, "second Q after the safety interval returns to menu")
 	Game.state = Game.State.PLAYING
 	arena._set_paused(true)
 	arena._unhandled_input(h._key_event(KEY_Q))
@@ -63,15 +68,17 @@ func _input_safety_test(arena: Arena) -> void:
 	if stale_timer != null:
 		stale_timer.emit_signal("timeout")
 	h._check(arena.get("_abandon_armed") == true, "stale abandon timer cannot clear a rearmed confirmation")
+	arena.set("_pause_destructive_started_msec", Time.get_ticks_msec() - 600)
 	arena._unhandled_input(h._key_event(KEY_Q))
-	h._check(Game.state == Game.State.MENU, "rearmed confirmation still accepts the second Q")
+	h._check(Game.state == Game.State.MENU, "rearmed confirmation accepts a deliberate second Q")
 	Game.state = Game.State.PLAYING
 	arena._set_paused(true)
 	arena._unhandled_input(h._key_event(KEY_Q))
 	arena._unhandled_input(h._key_event(KEY_Q, true))
 	h._check(Game.state == Game.State.PLAYING and arena.get("_abandon_armed") == true, "echo Q does not confirm abandon")
+	arena.set("_pause_destructive_started_msec", Time.get_ticks_msec() - 600)
 	arena._unhandled_input(h._key_event(KEY_Q))
-	h._check(Game.state == Game.State.MENU, "physical Q after echo confirms abandon")
+	h._check(Game.state == Game.State.MENU, "physical Q after echo confirms abandon after the safety interval")
 	Game.state = Game.State.PLAYING
 	arena._set_paused(true)
 	arena._unhandled_input(h._key_event(KEY_Q))
@@ -89,7 +96,11 @@ func _input_safety_test(arena: Arena) -> void:
 	h._check(Game.state == Game.State.PLAYING and arena.get("_abandon_armed") == true, "first abandon button press arms confirmation")
 	if abandon_button != null:
 		abandon_button.emit_signal("pressed")
-	h._check(Game.state == Game.State.MENU, "second abandon button press confirms within window")
+	h._check(Game.state == Game.State.PLAYING and arena.get("_abandon_armed") == true, "rapid second abandon button press is ignored")
+	arena.set("_pause_destructive_started_msec", Time.get_ticks_msec() - 600)
+	if abandon_button != null:
+		abandon_button.emit_signal("pressed")
+	h._check(Game.state == Game.State.MENU, "deliberate abandon button press confirms after the safety interval")
 	Game.state = Game.State.PLAYING
 	arena._set_paused(true)
 	arena._unhandled_input(h._key_event(KEY_Q))
@@ -395,4 +406,3 @@ func _task5_test(arena: Arena) -> void:
 	if is_instance_valid(oom):
 		oom.queue_free()
 	await h._ticks(2)
-

@@ -67,8 +67,10 @@ var _boss_phase_clear_done := false
 var _boss_rewards_claimed := {}
 var wave_signal_count := 0
 const ABANDON_CONFIRM_WINDOW := 2.0
-const PAUSE_INFO_DEFAULT := "[ESC] RESUME      [R] RESTART      [Q] ARM ABANDON PROCESS"
-const PAUSE_INFO_CONFIRM := "[ESC] RESUME      [R] RESTART      [Q] PRESS Q AGAIN // ABANDON PROCESS"
+const PAUSE_CONFIRM_MIN_INTERVAL := 0.5
+const PAUSE_INFO_DEFAULT := "[ESC] RESUME      [R] ARM RESTART      [Q] ARM ABANDON PROCESS"
+const PAUSE_INFO_RESTART_CONFIRM := "[ESC] RESUME      [R] PRESS R AGAIN // RESTART RUN"
+const PAUSE_INFO_CONFIRM := "[ESC] RESUME      [R] ARM RESTART      [Q] PRESS Q AGAIN // ABANDON PROCESS"
 const PANEL_REFERENCE_HEIGHT := 720.0
 const PANEL_CONTENT_HEIGHT := 500.0
 const PANEL_SAFE_MARGIN := 16.0
@@ -78,6 +80,9 @@ var _abandon_armed := false
 var _abandon_t := 0.0
 var _abandon_timer: SceneTreeTimer
 var _abandon_generation := 0
+var _restart_armed := false
+var _pause_destructive_action := ""
+var _pause_destructive_started_msec := 0
 var _pause_info: Label
 var _pause_title: Label
 var _pause_buttons: Array[Button] = []
@@ -859,7 +864,8 @@ func _show_vnext_u4_pause() -> void:
 	var pause_snapshot := {}
 	if player != null and is_instance_valid(player):
 		pause_snapshot = preload("res://src/ui/vnext/core/entity_presentation_adapter.gd").from_player(player)
-	_vnext_u4_surface.show_pause({"context": "%s // SCORE %07d // CYCLE %02d" % [Game.program_def()["name"], Game.score, Game.wave], "confirmation": PAUSE_INFO_CONFIRM if _abandon_armed else PAUSE_INFO_DEFAULT, "abandon_armed": _abandon_armed, "program_snapshot": pause_snapshot})
+	var pause_confirmation := PAUSE_INFO_RESTART_CONFIRM if _pause_destructive_action == "restart" else PAUSE_INFO_CONFIRM if _pause_destructive_action == "abandon" else PAUSE_INFO_DEFAULT
+	_vnext_u4_surface.show_pause({"context": "%s // SCORE %07d // CYCLE %02d" % [Game.program_def()["name"], Game.score, Game.wave], "confirmation": pause_confirmation, "abandon_armed": _abandon_armed, "restart_armed": _restart_armed, "destructive_action": _pause_destructive_action, "program_snapshot": pause_snapshot})
 
 func _show_vnext_u4_terminal() -> void:
 	if not _vnext_u4_mode:
@@ -896,7 +902,7 @@ func _on_vnext_u4_action(action_id: String, _payload: Dictionary) -> void:
 		"pause":
 			match action_id:
 				"resume": _set_paused(false)
-				"restart": _set_paused(false); _restart_current_run()
+				"restart": _request_restart_confirmation()
 				"terminal": _show_vnext_u4_terminal()
 				"abandon": _request_abandon_confirmation()
 		"terminal":
@@ -1300,8 +1306,9 @@ func handle_paused_gameplay_input(event: InputEvent) -> bool:
 	if _terminal_panel != null and is_instance_valid(_terminal_panel) and _terminal_panel.visible:
 		return false
 	if event.is_action_pressed("restart"):
-		_set_paused(false)
-		_restart_current_run()
+		if event is InputEventKey and (not event.pressed or event.echo):
+			return true
+		_request_restart_confirmation()
 		return true
 	if event.is_action_pressed("abandon"):
 		if event is InputEventKey and event.echo:
@@ -1312,7 +1319,7 @@ func handle_paused_gameplay_input(event: InputEvent) -> bool:
 
 func _set_paused(v: bool) -> void:
 	if not v:
-		_clear_abandon_confirmation()
+		_clear_pause_confirmation()
 		_panel_kit._close_terminal()
 	get_tree().paused = v
 	_pause_panel.visible = v
@@ -1410,36 +1417,62 @@ func restart_hold_duration() -> float:
 	return RESTART_HOLD_DURATION
 
 func _request_abandon_confirmation() -> void:
+	_request_pause_destructive_action("abandon")
+
+func _request_restart_confirmation() -> void:
+	_request_pause_destructive_action("restart")
+
+func _request_pause_destructive_action(action: String) -> void:
 	if not get_tree().paused or _state != "play":
 		return
-	if _abandon_armed and _abandon_t > 0.0:
-		_clear_abandon_confirmation()
+	if action != "abandon" and action != "restart":
+		return
+	if _pause_destructive_action == action and _abandon_t > 0.0:
+		var elapsed_msec := Time.get_ticks_msec() - _pause_destructive_started_msec
+		if elapsed_msec < int(PAUSE_CONFIRM_MIN_INTERVAL * 1000.0):
+			# A second mouse press in the same click burst is not confirmation.
+			# Keep the armed state alive and require a deliberate follow-up.
+			return
 		_set_paused(false)
-		Game.to_menu()
+		if action == "abandon":
+			Game.to_menu()
+		else:
+			_restart_current_run()
 		return
 	_abandon_generation += 1
-	_abandon_armed = true
+	_pause_destructive_action = action
+	_pause_destructive_started_msec = Time.get_ticks_msec()
+	_restart_armed = action == "restart"
+	_abandon_armed = action == "abandon"
 	_abandon_t = ABANDON_CONFIRM_WINDOW
-	_pause_info.text = PAUSE_INFO_CONFIRM
+	_pause_info.text = PAUSE_INFO_RESTART_CONFIRM if action == "restart" else PAUSE_INFO_CONFIRM
 	if _vnext_u4_mode:
 		_show_vnext_u4_pause()
 	var generation := _abandon_generation
 	_abandon_timer = get_tree().create_timer(ABANDON_CONFIRM_WINDOW, true, false, true)
-	_abandon_timer.timeout.connect(_on_abandon_timeout.bind(generation))
+	_abandon_timer.timeout.connect(_on_pause_destructive_timeout.bind(generation))
 
-func _on_abandon_timeout(generation: int) -> void:
-	if _abandon_armed and generation == _abandon_generation:
-		_clear_abandon_confirmation()
+func _on_pause_destructive_timeout(generation: int) -> void:
+	if not _pause_destructive_action.is_empty() and generation == _abandon_generation:
+		_clear_pause_confirmation()
 
-func _clear_abandon_confirmation() -> void:
+func _clear_pause_confirmation() -> void:
 	_abandon_generation += 1
+	_pause_destructive_action = ""
+	_pause_destructive_started_msec = 0
 	_abandon_armed = false
+	_restart_armed = false
 	_abandon_t = 0.0
 	_abandon_timer = null
 	if _pause_info != null and is_instance_valid(_pause_info):
 		_pause_info.text = PAUSE_INFO_DEFAULT
 	if _vnext_u4_mode and _vnext_u4_view == "pause" and _vnext_u4_surface != null and is_instance_valid(_vnext_u4_surface):
 		_show_vnext_u4_pause()
+
+func _clear_abandon_confirmation() -> void:
+	# Compatibility name kept for older harness sections and handoffs. The
+	# state is now shared by restart and abandon confirmations.
+	_clear_pause_confirmation()
 
 func _notification(what: int) -> void:
 	if is_inside_tree() and _state == "play" and not get_tree().paused:
@@ -1452,10 +1485,10 @@ func _process(delta: float) -> void:
 		_intro_kit._tick_story_intro(delta)
 	if _intro_bars.size() > 1 and is_instance_valid(_intro_bars[1]):
 		_intro_bars[1].pivot_offset.y = get_viewport_rect().size.y
-	if _abandon_armed and get_tree().paused:
+	if not _pause_destructive_action.is_empty() and get_tree().paused:
 		_abandon_t = maxf(_abandon_t - delta, 0.0)
 		if _abandon_t <= 0.0:
-			_clear_abandon_confirmation()
+			_clear_pause_confirmation()
 	if _windows_watermark != null and is_instance_valid(_windows_watermark):
 		_windows_watermark.visible = fmod(float(Game.stats.get("time", 0.0)), 2.6) < 2.0
 	if _temple_mode or (Game.mode != "story" and Game.temple_rainbow_unlocked):

@@ -154,7 +154,7 @@ func _refresh() -> void:
 	_layout = {"safe": safe, "regions": regions, "narrow": narrow}
 	var program_snapshot := _program_snapshot()
 	var nested: Dictionary = program_snapshot.get("nested", {})
-	_semantic = {"paused": true, "frozen": true, "focus": _focus_id, "title_font_size": _title_font_size(), "abandon_armed": bool(snapshot.get("abandon_armed", false)), "disabled_actions": [], "program_id": str(nested.get("program_id", Game.program)), "program_kind": str(program_snapshot.get("kind", "kernel")), "ability_state": _ability_state()}
+	_semantic = {"paused": true, "frozen": true, "focus": _focus_id, "title_font_size": _title_font_size(), "abandon_armed": bool(snapshot.get("abandon_armed", false)), "restart_armed": bool(snapshot.get("restart_armed", false)), "destructive_action": _destructive_action(), "disabled_actions": [], "program_id": str(nested.get("program_id", Game.program)), "program_kind": str(program_snapshot.get("kind", "kernel")), "ability_state": _ability_state()}
 	for id in _buttons:
 		var button: Button = _buttons[id]
 		button.position = regions[id].position
@@ -200,9 +200,19 @@ func _dispatch(id: String) -> bool:
 		return false
 	_dispatching = true
 	_focus_id = id
-	action_requested.emit(id, {"confirmation": bool(snapshot.get("abandon_armed", false))})
+	action_requested.emit(id, {"confirmation": _destructive_action() != ""})
 	call_deferred("_clear_dispatching")
 	return true
+
+func _destructive_action() -> String:
+	var action := str(snapshot.get("destructive_action", ""))
+	if action == "restart" or action == "abandon":
+		return action
+	if bool(snapshot.get("abandon_armed", false)):
+		return "abandon"
+	if bool(snapshot.get("restart_armed", false)):
+		return "restart"
+	return ""
 
 func _clear_dispatching() -> void:
 	_dispatching = false
@@ -216,4 +226,4 @@ func _draw() -> void:
 	draw_polyline(points + PackedVector2Array([points[0]]), Tokens.role_color("structure"), 1.5, true)
 	draw_string(Orbitron, _layout["regions"]["title"].position + Vector2(0, 30), PAUSE_TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, _title_font_size(), Tokens.role_color("text"))
 	draw_string(ShareTechMono, _layout["regions"]["context"].position, _display_context(), HORIZONTAL_ALIGNMENT_LEFT, _layout["regions"]["context"].size.x, 15, Tokens.role_color("player"))
-	draw_string(ShareTechMono, _layout["regions"]["confirmation"].position, str(snapshot.get("confirmation", "STATE MARKER // PAUSED / FROZEN")), HORIZONTAL_ALIGNMENT_LEFT, _layout["regions"]["confirmation"].size.x, 13, Tokens.role_color("danger") if bool(snapshot.get("abandon_armed", false)) else Tokens.role_color("text"))
+	draw_string(ShareTechMono, _layout["regions"]["confirmation"].position, str(snapshot.get("confirmation", "STATE MARKER // PAUSED / FROZEN")), HORIZONTAL_ALIGNMENT_LEFT, _layout["regions"]["confirmation"].size.x, 13, Tokens.role_color("danger") if _destructive_action() != "" else Tokens.role_color("text"))

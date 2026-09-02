@@ -54,6 +54,12 @@ func _push_key(code: int, echo := false) -> void:
 	get_viewport().push_input(_key(true, code, echo))
 	get_viewport().push_input(_key(false, code))
 
+func _click_button(button: Button) -> void:
+	# Button.pressed is the common endpoint for mouse/touch activation. Calling
+	# the signal keeps this dispatch probe independent from a headless window's
+	# native pointer routing while still exercising the real bound callback.
+	button.pressed.emit()
+
 func _arena_loaded() -> bool:
 	return get_tree().current_scene != null and get_tree().current_scene.name == "Arena"
 
@@ -85,6 +91,24 @@ func _run() -> void:
 	Game.set_program("kernel")
 	await _ticks(5)
 
+	# ---- B7: two rapid real mouse clicks never confirm a destructive action
+	if not await _load_classic():
+		return _finish()
+	_push_key(KEY_ESCAPE)
+	var abandon_button := _pause_button("ABANDON PROCESS")
+	_check(abandon_button != null, "B7 pause exposes a real abandon button")
+	if abandon_button != null:
+		_click_button(abandon_button)
+		_click_button(abandon_button)
+	await _ticks(2)
+	_check(get_tree().paused and _arena._abandon_armed, "B7 rapid mouse double-click leaves abandon armed")
+	await get_tree().create_timer(0.6, true, false, true).timeout
+	if abandon_button != null:
+		_click_button(abandon_button)
+	var click_abandon_ok := await _until(func() -> bool:
+		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 8.0, "mouse abandon returns to menu")
+	_check(click_abandon_ok and Game.state == Game.State.MENU, "B7 deliberate mouse confirmation abandons the run")
+
 	# ---- R01: Q arms/echo/expire, second Q confirms with a real scene change
 	if not await _load_classic():
 		return _finish()
@@ -101,6 +125,7 @@ func _run() -> void:
 	_check(not _arena._abandon_armed, "R01 armed abandon expires after the confirmation window")
 	_push_key(KEY_Q)
 	_check(_arena._abandon_armed, "R01 Q rearms after expiry")
+	await get_tree().create_timer(0.6, true, false, true).timeout
 	_push_key(KEY_Q)
 	var abandon_ok := await _until(func() -> bool:
 		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 8.0, "abandon returns to menu")
@@ -122,10 +147,18 @@ func _run() -> void:
 	_push_key(KEY_ESCAPE)
 	_check(get_tree().paused, "R01 ESC pauses after story intro dismissal")
 	var story_arena_id := _arena.get_instance_id()
+	var story_scene_before_restart := get_tree().current_scene.get_instance_id()
+	_push_key(KEY_R)
+	_check(get_tree().paused and _arena.get("_restart_armed") == true and get_tree().current_scene.get_instance_id() == story_scene_before_restart, "R01 first R arms restart without leaving the frozen pause")
+	_push_key(KEY_R, true)
+	_check(_arena.get("_restart_armed") == true and get_tree().paused, "R01 echo R does not confirm restart")
+	_push_key(KEY_R)
+	_check(_arena.get("_restart_armed") == true and get_tree().paused and get_tree().current_scene.get_instance_id() == story_scene_before_restart, "R01 rapid second R is ignored as accidental double input")
+	await get_tree().create_timer(0.6, true, false, true).timeout
 	_push_key(KEY_R)
 	var restart_ok := await _until(func() -> bool:
 		return _arena_loaded() and get_tree().current_scene.get_instance_id() != story_arena_id, 8.0, "R restart reloads the stage")
-	_check(restart_ok, "R01 R restarts while paused with a real scene transition")
+	_check(restart_ok, "R01 confirmed R restarts while paused with a real scene transition")
 	await _ticks(2)
 	if restart_ok:
 		_arena = get_tree().current_scene
