@@ -283,7 +283,7 @@ func _touch_hud_layout_test() -> void:
 	var hud_script: Script = load("res://src/ui/hud.gd")
 	var hud_src := str(hud_script.source_code)
 	h._check(hud_src.contains("if not touch_layout():"), "combat hud skips desktop-only dash module drawing on touch")
-	h._check(hud_src.contains("label += \"  READY\""), "overclock ready keeps its label without the [E] keyboard hint on touch")
+	h._check(hud_src.contains("if not touch_layout():") and hud_src.contains("label += \" [E]\""), "overclock ready keeps its label without the [E] keyboard hint on touch")
 	h._check(hud_src.contains("\"[SHIFT]\" if not touch_layout()"), "dash charge text gates the [SHIFT] keyboard hint on touch")
 	h._check(hud_src.contains("_banner.text = \"\" if hide_main else text"), "compact wave banner omits the duplicated cycle line")
 	h._check(hud_src.contains("_banner_sub_l.offset_top = 186"), "compact wave banner repositions below the encounter panel")
@@ -392,4 +392,3 @@ func _charm_save_transfer_test(menu: Node) -> void:
 	Game.achievements = saved_achievements
 	Game.story_cleared = saved_story_cleared
 	Game.story_best = saved_story_best
-
