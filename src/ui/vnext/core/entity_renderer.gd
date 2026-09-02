@@ -10,6 +10,15 @@ const Glyphs = preload("res://src/ui/glyph_lib.gd")
 const MARKER_EXTENT := 1.38
 const DIAGONAL_MARKER_EXTENT := 1.70
 
+const VISUAL_IDENTITIES := {
+	"drone": {"silhouette": "sensor_dart", "motif": "forward_sensor", "telegraph": "tracking_arc"},
+	"lancer": {"silhouette": "execution_spear", "motif": "charge_lance", "telegraph": "forward_spear"},
+	"spewer": {"silhouette": "nozzle_pod", "motif": "burst_mouth", "telegraph": "scatter_cone"},
+	"kernel": {"silhouette": "process_core", "motif": "forward_core", "telegraph": "aim_axis"},
+	"daemon": {"silhouette": "claw_dart", "motif": "forked_tail", "telegraph": "close_range_fangs"},
+	"rootlet": {"silhouette": "shield_kernel", "motif": "barrier_core", "telegraph": "shield_arc"},
+}
+
 const KIND_COLORS := {
 	"drone": BalanceData.COL_DRONE,
 	"lancer": BalanceData.COL_LANCER,
@@ -95,6 +104,11 @@ static func _orientation_angle_normalized(normalized: Dictionary) -> float:
 static func color_for(snapshot: Dictionary, quality: Dictionary = {}) -> Color:
 	var normalized := Descriptor.normalize(snapshot)
 	return _color_for_normalized(normalized, Quality.normalize(quality))
+
+static func visual_identity(kind: String) -> Dictionary:
+	var normalized_kind := kind.to_lower()
+	var identity: Dictionary = VISUAL_IDENTITIES.get(normalized_kind, {"silhouette": "coded_process", "motif": "state_core", "telegraph": "state_marker"})
+	return identity.duplicate(true)
 
 static func _color_for_normalized(normalized: Dictionary, quality: Dictionary) -> Color:
 	var color: Color = _base_color(str(normalized["kind"]))

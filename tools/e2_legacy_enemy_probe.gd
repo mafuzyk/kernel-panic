@@ -18,7 +18,11 @@ const BATCH := [
 	{"id": "spewer", "script": "res://src/enemies/spewer.gd", "name": "SPEWER"},
 ]
 const NON_BATCH := ["splitter", "bulwark", "trojan", "oom", "recursor", "firewall", "bloatware", "update_loop", "zombie_process", "page", "root", "boss", "segfault", "bluescreen", "pagefault", "god", "kernel", "daemon", "rootlet"]
-const GLYPH_LIB_BASELINE_SHA256 := "f4f09e6bdf7d19bf4e7ea25719f3445a8aee462628f41017541e9afb45421941"
+## Updated with the approved reference-remake Drone/Lancer/Spewer/program
+## silhouettes. This guard still protects the non-batch glyphs and makes the
+## intentional visual delta explicit instead of silently accepting arbitrary
+## legacy changes.
+const GLYPH_LIB_BASELINE_SHA256 := "74c83f953ef3ad2b9a9a739928c37a8ff86c48459434cd20aafbaed173c393df"
 
 func _ready() -> void:
 	_run.call_deferred()

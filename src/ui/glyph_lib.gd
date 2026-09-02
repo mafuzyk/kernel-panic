@@ -11,7 +11,7 @@ static func glyph_kinds() -> Array:
 ## Conservative outer bounds (lancer's lance tip reaches 2.4x, oom horns 1.6x,
 ## segfault jitter 1.45x); detail views use this to fit glyphs into fixed boxes.
 const GLYPH_EXTENT := {
-	"drone": 1.5, "lancer": 2.4, "spewer": 1.1, "splitter": 1.05, "bulwark": 1.05,
+	"drone": 1.5, "lancer": 2.4, "spewer": 1.25, "splitter": 1.05, "bulwark": 1.05,
 	"trojan": 1.25, "oom": 1.6, "recursor": 1.05, "firewall": 1.05, "bloatware": 1.05,
 	"update_loop": 1.05, "zombie_process": 1.35, "race_condition": 1.35, "page": 1.25, "root": 1.05, "boss": 1.05, "segfault": 1.45,
 	"bluescreen": 0.95, "pagefault": 1.15, "god": 1.35, "kernel": 1.5, "daemon": 1.45,
@@ -37,18 +37,11 @@ static func draw_glyph(canvas: CanvasItem, kind: String, center: Vector2, radius
 	var c := color
 	match kind:
 		"drone":
-			_dart(canvas, center, radius, c, 1.15, 0.85, 0.25)
-			canvas.draw_circle(center + Vector2(radius * 0.15, 0), radius * 0.3, c)
+			_draw_drone(canvas, center, radius, c, t)
 		"lancer":
-			_dart(canvas, center, radius, c, 1.6, 0.7, 0.45)
-			canvas.draw_line(center + Vector2(radius * 1.3, 0), center + Vector2(radius * 2.4, 0), Color(c.r, c.g, c.b, 0.5), 1.5)
+			_draw_lancer(canvas, center, radius, c, t)
 		"spewer":
-			var hex := PackedVector2Array()
-			for i in 6:
-				hex.push_back(center + Vector2.from_angle(TAU * i / 6.0 + t * 0.9) * radius)
-			canvas.draw_colored_polygon(hex, Color(c.r, c.g, c.b, 0.2))
-			canvas.draw_polyline(hex + PackedVector2Array([hex[0]]), c, 2.0, true)
-			canvas.draw_circle(center, radius * 0.32, c)
+			_draw_spewer(canvas, center, radius, c, t)
 		"splitter":
 			canvas.draw_circle(center, radius, Color(c.r, c.g, c.b, 0.18))
 			canvas.draw_arc(center, radius, 0, TAU, 32, c, 2.2, true)
@@ -179,16 +172,9 @@ static func draw_glyph(canvas: CanvasItem, kind: String, center: Vector2, radius
 			canvas.draw_polyline(hex + PackedVector2Array([hex[0]]), c, 1.6, true)
 			canvas.draw_circle(center + Vector2(radius * 0.25, 0), radius * 0.22, c)
 		"daemon":
-			_dart(canvas, center, radius, c, 1.4, 1.05, 0.4)
-			for side in [-1, 1]:
-				var fork := PackedVector2Array([center + Vector2(-radius * 0.2, 0), center + Vector2(-radius * 0.9, side * radius * 0.7)])
-				canvas.draw_polyline(fork, Color(c.r, c.g, c.b, 0.8), 2.0, true)
-			canvas.draw_circle(center + Vector2(radius * 0.3, 0), radius * 0.24, c)
+			_draw_daemon(canvas, center, radius, c, t)
 		"rootlet":
-			var shield := PackedVector2Array([center + Vector2(0, -radius * 1.1), center + Vector2(radius * 0.85, -radius * 0.5), center + Vector2(radius * 0.85, radius * 0.2), center + Vector2(0, radius * 1.1), center + Vector2(-radius * 0.85, radius * 0.2), center + Vector2(-radius * 0.85, -radius * 0.5)])
-			canvas.draw_colored_polygon(shield, Color(c.r, c.g, c.b, 0.25))
-			canvas.draw_polyline(shield + PackedVector2Array([shield[0]]), c, 2.4, true)
-			canvas.draw_arc(center, radius * 0.45, 0, TAU, 24, Color(1, 1, 1, 0.7), 1.6, true)
+			_draw_rootlet(canvas, center, radius, c, t)
 
 static func _dart(canvas: CanvasItem, center: Vector2, radius: float, c: Color, nose: float, wing: float, tail: float) -> void:
 	var pts := PackedVector2Array([
@@ -197,6 +183,133 @@ static func _dart(canvas: CanvasItem, center: Vector2, radius: float, c: Color, 
 	])
 	canvas.draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.22))
 	canvas.draw_polyline(pts + PackedVector2Array([pts[0]]), c, 2.0, true)
+
+static func _draw_drone(canvas: CanvasItem, center: Vector2, radius: float, c: Color, t: float) -> void:
+	# The drone is a compact pursuit chassis: a forward sensor, a dense core,
+	# two stabilizer fins and exhaust ticks. The silhouette remains legible
+	# without glow or animation and is intentionally unlike the player dart.
+	var chassis := PackedVector2Array([
+		center + Vector2(radius * 1.30, 0.0),
+		center + Vector2(radius * 0.48, -radius * 0.62),
+		center + Vector2(-radius * 0.72, -radius * 0.48),
+		center + Vector2(-radius * 0.98, 0.0),
+		center + Vector2(-radius * 0.72, radius * 0.48),
+		center + Vector2(radius * 0.48, radius * 0.62),
+	])
+	canvas.draw_colored_polygon(chassis, Color(c.r, c.g, c.b, 0.18))
+	canvas.draw_polyline(chassis + PackedVector2Array([chassis[0]]), c, maxf(1.8, radius * 0.11), true)
+	var sensor_center := center + Vector2(radius * 0.68, 0.0)
+	canvas.draw_circle(sensor_center, radius * 0.28, Color(c.r, c.g, c.b, 0.12))
+	canvas.draw_arc(sensor_center, radius * 0.28, -PI * 0.7, PI * 0.7, 12, c, maxf(1.2, radius * 0.07), true)
+	canvas.draw_line(sensor_center - Vector2(radius * 0.18, 0.0), sensor_center + Vector2(radius * 0.18, 0.0), c, maxf(1.0, radius * 0.055), true)
+	canvas.draw_line(sensor_center - Vector2(0.0, radius * 0.18), sensor_center + Vector2(0.0, radius * 0.18), c, maxf(1.0, radius * 0.055), true)
+	var core := Rect2(center - Vector2(radius * 0.23, radius * 0.23), Vector2.ONE * radius * 0.46)
+	canvas.draw_rect(core, Color(c.r, c.g, c.b, 0.18))
+	canvas.draw_rect(core, Color(c.r, c.g, c.b, 0.82), false, maxf(1.0, radius * 0.07))
+	canvas.draw_circle(center, radius * (0.09 + 0.025 * sin(t * 5.0)), c)
+	for side in [-1.0, 1.0]:
+		var fin := PackedVector2Array([
+			center + Vector2(-radius * 0.18, side * radius * 0.32),
+			center + Vector2(-radius * 0.64, side * radius * 0.92),
+			center + Vector2(-radius * 0.52, side * radius * 0.20),
+		])
+		canvas.draw_polyline(fin, Color(c.r, c.g, c.b, 0.72), maxf(1.0, radius * 0.06), true)
+	for index in 3:
+		var length := radius * (0.16 + 0.08 * float(index))
+		var alpha := 0.72 - float(index) * 0.16
+		var y := (float(index) - 1.0) * radius * 0.18
+		canvas.draw_line(center + Vector2(-radius * 1.02, y), center + Vector2(-radius * 1.02 - length, y), Color(c.r, c.g, c.b, alpha), maxf(1.0, radius * 0.05), true)
+
+static func _draw_lancer(canvas: CanvasItem, center: Vector2, radius: float, c: Color, t: float) -> void:
+	# A charge spear rather than a generic dart: the long forward lance is the
+	# readable threat, while the split rear fins and charge ticks explain its
+	# movement/attack role at small sizes.
+	var body := PackedVector2Array([
+		center + Vector2(radius * 1.22, 0.0),
+		center + Vector2(-radius * 0.58, -radius * 0.72),
+		center + Vector2(-radius * 0.38, 0.0),
+		center + Vector2(-radius * 0.58, radius * 0.72),
+	])
+	canvas.draw_colored_polygon(body, Color(c.r, c.g, c.b, 0.16))
+	canvas.draw_polyline(body + PackedVector2Array([body[0]]), c, maxf(1.8, radius * 0.1), true)
+	canvas.draw_line(center + Vector2(radius * 0.42, 0.0), center + Vector2(radius * 2.4, 0.0), c, maxf(1.2, radius * 0.065), true)
+	canvas.draw_line(center + Vector2(radius * 1.95, -radius * 0.08), center + Vector2(radius * 2.4, 0.0), Color(c.r, c.g, c.b, 0.62), maxf(1.0, radius * 0.045), true)
+	canvas.draw_line(center + Vector2(radius * 1.95, radius * 0.08), center + Vector2(radius * 2.4, 0.0), Color(c.r, c.g, c.b, 0.62), maxf(1.0, radius * 0.045), true)
+	var core := Rect2(center - Vector2(radius * 0.22, radius * 0.22), Vector2.ONE * radius * 0.44)
+	canvas.draw_rect(core, Color(c.r, c.g, c.b, 0.26))
+	canvas.draw_rect(core, c, false, maxf(1.0, radius * 0.06))
+	for index in 3:
+		var offset := (float(index) - 1.0) * radius * 0.22
+		var phase_alpha := 0.38 + 0.22 * sin(t * 4.0 + index)
+		canvas.draw_line(center + Vector2(-radius * 0.88, offset - radius * 0.08), center + Vector2(-radius * 0.88 - radius * 0.22, offset - radius * 0.08), Color(c.r, c.g, c.b, phase_alpha), maxf(1.0, radius * 0.045), true)
+
+static func _draw_spewer(canvas: CanvasItem, center: Vector2, radius: float, c: Color, t: float) -> void:
+	# The nozzle is the identity: a pressure pod with a directional mouth and
+	# side vents. Its asymmetry makes the attack cone legible without particles.
+	var pod := PackedVector2Array()
+	for i in 6:
+		pod.push_back(center + Vector2.from_angle(TAU * i / 6.0 + PI / 6.0) * radius * (0.94 + 0.04 * sin(t * 1.4)))
+	canvas.draw_colored_polygon(pod, Color(c.r, c.g, c.b, 0.17))
+	canvas.draw_polyline(pod + PackedVector2Array([pod[0]]), c, maxf(1.8, radius * 0.1), true)
+	var mouth := PackedVector2Array([
+		center + Vector2(radius * 0.18, -radius * 0.28),
+		center + Vector2(radius * 1.14, 0.0),
+		center + Vector2(radius * 0.18, radius * 0.28),
+	])
+	canvas.draw_colored_polygon(mouth, Color(c.r, c.g, c.b, 0.34))
+	canvas.draw_polyline(mouth + PackedVector2Array([mouth[0]]), c, maxf(1.2, radius * 0.065), true)
+	canvas.draw_circle(center + Vector2(-radius * 0.22, 0.0), radius * 0.21, c)
+	for side in [-1.0, 1.0]:
+		var vent := PackedVector2Array([
+			center + Vector2(-radius * 0.32, side * radius * 0.46),
+			center + Vector2(-radius * 0.78, side * radius * 0.72),
+			center + Vector2(-radius * 0.56, side * radius * 0.28),
+		])
+		canvas.draw_polyline(vent, Color(c.r, c.g, c.b, 0.72), maxf(1.0, radius * 0.055), true)
+
+static func _draw_daemon(canvas: CanvasItem, center: Vector2, radius: float, c: Color, t: float) -> void:
+	# Daemon is a close-range claw: the forked tail and split front jaws are
+	# deliberately more animal/menacing than the player's clean process dart.
+	var body := PackedVector2Array([
+		center + Vector2(radius * 1.28, 0.0),
+		center + Vector2(radius * 0.35, -radius * 0.58),
+		center + Vector2(-radius * 0.46, -radius * 0.42),
+		center + Vector2(-radius * 0.88, 0.0),
+		center + Vector2(-radius * 0.46, radius * 0.42),
+		center + Vector2(radius * 0.35, radius * 0.58),
+	])
+	canvas.draw_colored_polygon(body, Color(c.r, c.g, c.b, 0.2))
+	canvas.draw_polyline(body + PackedVector2Array([body[0]]), c, maxf(1.8, radius * 0.1), true)
+	for side in [-1.0, 1.0]:
+		var jaw := PackedVector2Array([
+			center + Vector2(radius * 0.55, side * radius * 0.18),
+			center + Vector2(radius * 1.42, side * radius * 0.64),
+			center + Vector2(radius * 1.08, side * radius * 0.08),
+		])
+		canvas.draw_polyline(jaw, Color(c.r, c.g, c.b, 0.82), maxf(1.0, radius * 0.06), true)
+	for side in [-1.0, 1.0]:
+		canvas.draw_line(center + Vector2(-radius * 0.32, 0.0), center + Vector2(-radius * 1.16, side * radius * 0.74), Color(c.r, c.g, c.b, 0.76), maxf(1.0, radius * 0.07), true)
+	canvas.draw_circle(center + Vector2(radius * 0.3, 0.0), radius * (0.18 + 0.03 * sin(t * 4.0)), c)
+
+static func _draw_rootlet(canvas: CanvasItem, center: Vector2, radius: float, c: Color, _t: float) -> void:
+	# Rootlet reads as a compact shielded kernel: broad barrier, inset process
+	# core and two braces that remain visible behind the HUD-scale outline.
+	var shield := PackedVector2Array([
+		center + Vector2(0.0, -radius * 1.05),
+		center + Vector2(radius * 0.82, -radius * 0.5),
+		center + Vector2(radius * 0.82, radius * 0.22),
+		center + Vector2(0.0, radius * 1.05),
+		center + Vector2(-radius * 0.82, radius * 0.22),
+		center + Vector2(-radius * 0.82, -radius * 0.5),
+	])
+	canvas.draw_colored_polygon(shield, Color(c.r, c.g, c.b, 0.22))
+	canvas.draw_polyline(shield + PackedVector2Array([shield[0]]), c, maxf(1.8, radius * 0.1), true)
+	var core := Rect2(center - Vector2(radius * 0.28, radius * 0.28), Vector2.ONE * radius * 0.56)
+	canvas.draw_rect(core, Color(c.r, c.g, c.b, 0.16))
+	canvas.draw_rect(core, Color(1.0, 1.0, 1.0, 0.76), false, maxf(1.0, radius * 0.05))
+	canvas.draw_line(center + Vector2(-radius * 0.55, -radius * 0.36), center + Vector2(radius * 0.55, radius * 0.36), c, maxf(1.0, radius * 0.055), true)
+	canvas.draw_line(center + Vector2(-radius * 0.55, radius * 0.36), center + Vector2(radius * 0.55, -radius * 0.36), c, maxf(1.0, radius * 0.055), true)
+	canvas.draw_arc(center + Vector2(radius * 0.04, 0.0), radius * 0.72, -PI * 0.68, PI * 0.68, 18, Color(1.0, 1.0, 1.0, 0.7), maxf(1.0, radius * 0.06), true)
 
 static func _horn(canvas: CanvasItem, base: Vector2, size: float, c: Color, mirrored: bool = false) -> void:
 	var sign_x := -1.0 if mirrored else 1.0

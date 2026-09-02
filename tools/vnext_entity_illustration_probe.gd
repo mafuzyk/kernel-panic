@@ -107,6 +107,17 @@ func _run() -> void:
 		var renderer_source := FileAccess.get_file_as_string("res://src/ui/vnext/core/entity_renderer.gd")
 		_check(renderer_source.contains("draw_set_transform"), "renderer applies orientation to the identity glyph")
 		_check(not renderer_source.contains("Game") and not renderer_source.contains("Sfx") and not renderer_source.contains("Arena") and not renderer_source.contains("rand"), "renderer has no gameplay, audio or random side effects")
+		_check(renderer_script.has_method("visual_identity"), "renderer publishes authored silhouette metadata")
+		for expected_identity in [
+			{"kind": "drone", "silhouette": "sensor_dart", "motif": "forward_sensor", "telegraph": "tracking_arc"},
+			{"kind": "lancer", "silhouette": "execution_spear", "motif": "charge_lance", "telegraph": "forward_spear"},
+			{"kind": "spewer", "silhouette": "nozzle_pod", "motif": "burst_mouth", "telegraph": "scatter_cone"},
+			{"kind": "kernel", "silhouette": "process_core", "motif": "forward_core", "telegraph": "aim_axis"},
+			{"kind": "daemon", "silhouette": "claw_dart", "motif": "forked_tail", "telegraph": "close_range_fangs"},
+			{"kind": "rootlet", "silhouette": "shield_kernel", "motif": "barrier_core", "telegraph": "shield_arc"},
+		]:
+			var identity: Dictionary = renderer_script.call("visual_identity", expected_identity["kind"]) if renderer_script.has_method("visual_identity") else {}
+			_check(identity.get("silhouette", "") == expected_identity["silhouette"] and identity.get("motif", "") == expected_identity["motif"] and identity.get("telegraph", "") == expected_identity["telegraph"], "%s has a distinct authored identity contract" % expected_identity["kind"])
 	if illustration_script == null or glyph_script == null:
 		_finish()
 		return
