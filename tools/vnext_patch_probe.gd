@@ -29,18 +29,35 @@ func _ready() -> void:
 	surface.configure({"offers": offers, "active_ids": ["heavy"], "build": "HV1", "paused": true}, context)
 	var snapshot: Dictionary = surface.semantic_snapshot()
 	var selected_offer: Dictionary = snapshot.get("selected_offer", {})
+	var wide_layout: Dictionary = surface.layout_snapshot()
+	var wide_regions: Dictionary = wide_layout.get("regions", {})
+	for required_region in ["shell", "shell_meta", "header", "body", "footer", "signature_rail"]:
+		_check(wide_regions.has(required_region), "patch incident shell region %s" % required_region)
+	_check(wide_regions.get("cards", []).size() == 3, "patch shell exposes three card regions")
+	_check(wide_regions.get("evidence_band", Rect2()).size.y >= 42.0, "patch evidence has readable height")
+	var patch_semantic: Dictionary = snapshot
+	_check(patch_semantic.get("visual_system", "") == "reference_shell", "patch reference shell semantic")
+	_check(patch_semantic.get("route", "") == "KP://PATCH", "patch route semantic")
+	_check(patch_semantic.get("composition", {}).get("chrome", "") == "incident_console", "patch chrome semantic")
+	_check(patch_semantic.get("evidence", {}).has("build"), "patch evidence semantic")
 	_check(snapshot.get("offers", []).size() == 3, "patch preserves deterministic offer order")
 	_check(str(selected_offer.get("id", "")) == "splitshot", "patch selects first offer deterministically")
 	_check(str(selected_offer.get("effect", "")) != "" and str(selected_offer.get("cost_benefit", "")) != "", "patch exposes effect and cost-benefit")
 	_check(str(selected_offer.get("relation", "")) != "" and str(selected_offer.get("state", "")) == "conflict", "patch exposes real conflict state")
 	_check(str(selected_offer.get("build_impact", "")) != "" and str(snapshot.get("build", "")) == "HV1", "patch exposes current build impact")
 	_check(surface.get_node_or_null("ConfirmAction") is Button and surface.get_node_or_null("SkipAction") is Button and surface.get_node_or_null("CloseAction") is Button, "patch uses real action controls")
-	var wide_regions: Dictionary = surface.action_regions()
-	_check(bool(selected_offer.get("available", false)) and wide_regions.get("offer_0", {}).get("state", "") == "conflict", "tradeoff warning remains selectable under current gameplay rules")
-	_check(wide_regions.has("offer_0") and wide_regions.has("offer_1") and wide_regions.has("offer_2"), "desktop shows every offer independently")
-	_check(_regions_do_not_overlap(wide_regions, ["offer_0", "offer_1", "offer_2"]), "desktop offer cards do not overlap")
-	_check(surface.text_overflow_report().all(func(item): return bool(item.get("fits", false))), "patch text and action labels fit at scale")
-	for raw in wide_regions.values():
+	var wide_action_regions: Dictionary = surface.action_regions()
+	_check(bool(selected_offer.get("available", false)) and wide_action_regions.get("offer_0", {}).get("state", "") == "conflict", "tradeoff warning remains selectable under current gameplay rules")
+	_check(wide_action_regions.has("offer_0") and wide_action_regions.has("offer_1") and wide_action_regions.has("offer_2"), "desktop shows every offer independently")
+	_check(_regions_do_not_overlap(wide_action_regions, ["offer_0", "offer_1", "offer_2"]), "desktop offer cards do not overlap")
+	var wide_overflow: Array = surface.text_overflow_report()
+	_check(wide_overflow.all(func(item): return bool(item.get("fits", false))), "patch text and action labels fit at scale")
+	for item in wide_overflow:
+		if not item.get("fits", false):
+			print("PROBE_INFO patch_overflow ", item)
+	for raw in wide_action_regions.values():
+		if not context.safe_rect.encloses(raw["rect"]):
+			print("PROBE_INFO patch_rect ", raw["rect"], " safe=", context.safe_rect)
 		_check(context.safe_rect.encloses(raw["rect"]), "patch action remains inside safe area")
 	_check(surface.set_focus_id("offer_1") and surface.focus_id() == "offer_1", "desktop offer focus is addressable")
 	_check(surface.handle_input(_key(KEY_ENTER)), "offer focus selects without confirming")
@@ -80,10 +97,18 @@ func _ready() -> void:
 	narrow.size = Vector2(432, 720)
 	narrow.configure({"offers": offers, "active_ids": ["heavy"], "build": "HV1", "paused": true}, script.context_for_viewport(Vector2(432, 720), true, true, true, 1.15))
 	var narrow_regions: Dictionary = narrow.action_regions()
+	var narrow_visual_regions: Dictionary = narrow.layout_snapshot().get("regions", {})
+	_check(narrow_visual_regions.has("shell") and narrow_visual_regions.has("evidence_band"), "narrow patch keeps incident shell regions")
+	_check((narrow_visual_regions.get("evidence_band", Rect2()).size.y >= 42.0), "narrow patch evidence remains readable")
+	_check((narrow_visual_regions.get("detail", narrow_visual_regions.get("body", Rect2())) as Rect2).encloses(narrow_visual_regions.get("evidence_band", Rect2())), "narrow patch evidence stays inside card")
 	_check(narrow_regions.has("offer_0") and not narrow_regions.has("offer_1"), "narrow layout presents one offer at a time")
 	_check(narrow_regions.has("previous") and narrow_regions.has("next"), "narrow patch has deliberate navigation")
 	_check(_regions_do_not_overlap(narrow_regions, ["confirm", "skip", "previous", "next", "close"]), "narrow actions do not overlap")
-	_check(narrow.text_overflow_report().all(func(item): return bool(item.get("fits", false))), "narrow patch text fits at scale")
+	var narrow_overflow: Array = narrow.text_overflow_report()
+	_check(narrow_overflow.all(func(item): return bool(item.get("fits", false))), "narrow patch text fits at scale")
+	for item in narrow_overflow:
+		if not item.get("fits", false):
+			print("PROBE_INFO narrow_patch_overflow ", item)
 	var next_rect: Rect2 = narrow_regions["next"]["rect"]
 	_check(narrow.handle_input(_mouse(narrow.get_viewport().get_final_transform() * next_rect.get_center())) and narrow.semantic_snapshot().get("selected") == 1, "mouse navigation uses action geometry")
 	var previous_rect: Rect2 = narrow.action_regions()["previous"]["rect"]

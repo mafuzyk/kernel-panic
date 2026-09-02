@@ -22,6 +22,8 @@
   data-backed evidence blocks for the main vNext surfaces.
 - Added a Story mount-table surface with act tabs, a node index, stage dossier
   and a data-backed `STATE / ACT / NEXT` evidence block.
+- Added a reference-driven patch decision presentation with a selected-offer
+  register and deterministic wide/narrow capture fixtures.
 - Added a silent, crop-aware vNext surface capture utility and a focused chrome
   contract probe for wide and narrow viewports, including Story list/detail
   captures.
@@ -50,6 +52,12 @@
   dossier and explicit mount command.
 - Changed Story narrow layout to use an intentional list → dossier flow rather
   than compressing the desktop node map into a phone viewport.
+- Changed the patch offer to use the shared incident-console shell, with
+  `KP://PATCH` route metadata, explicit paused/offer status and consequence
+  information tied to the selected build.
+- Changed narrow patch navigation to keep one offer readable with deliberate
+  previous/next, install, skip and close targets instead of shrinking three
+  cards into a phone viewport.
 - Changed Program and Bestiary narrow footers to use an explicit three-slot
   layout for index/state/build telemetry.
 - Kept the legacy route as the default rollback path; no public default switch
@@ -78,6 +86,9 @@
 - Fixed Story long locked-state labels, a diagonal footer guide, clipped
   evidence rows and narrow collisions between dossier, node-list and mount
   actions.
+- Fixed patch title/close collision on narrow windows, an undersized close
+  target, card text entering the evidence register and level/impact overflow
+  in the narrow composition.
 
 ## Improved
 
@@ -95,6 +106,9 @@
 - Improved Story state comprehension by separating path labels from state
   markers on wide layouts while keeping a self-contained `NODE NN READY` form
   on narrow layouts.
+- Improved patch decision comprehension with visible selected-offer indexing,
+  state/build/next evidence, focus frames and an explicit distinction between
+  selectable conflicts and unconfirmable locked/unavailable offers.
 
 ## Performance
 
@@ -130,6 +144,8 @@
 - Input dispatch: 32 headless passes and 34 Xvfb/debug passes.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
+- Patch decision surface: 52 passes, 0 failures; real Arena adapter: 19 passes,
+  0 failures.
 - Bestiary: 128 passes.
 - Pause/terminal/game-over: 75 passes.
 - Accessibility: 98 passes.

@@ -5,6 +5,7 @@ const ProgramSurface = preload("res://src/ui/vnext/surfaces/program_surface.gd")
 const BestiarySurface = preload("res://src/ui/vnext/surfaces/bestiary_surface.gd")
 const AccessibilitySurface = preload("res://src/ui/vnext/surfaces/accessibility_surface.gd")
 const StorySurface = preload("res://src/ui/vnext/surfaces/story_surface.gd")
+const PatchSurface = preload("res://src/ui/vnext/surfaces/patch_surface.gd")
 const ContentCatalog = preload("res://src/data/content_catalog.gd")
 
 func _ready() -> void:
@@ -24,6 +25,7 @@ func _capture() -> void:
 		"bestiary": BestiarySurface,
 		"accessibility": AccessibilitySurface,
 		"story": StorySurface,
+		"patch": PatchSurface,
 	}.get(surface_id)
 	if script == null:
 		print("CAPTURE_FAIL unknown surface ", surface_id)
@@ -46,6 +48,8 @@ func _capture() -> void:
 			Game.story_cleared[Game.story_stage_id(previous)] = true
 		if act == "macos":
 			Game.story_cleared["temple_god"] = true
+	elif surface_id == "patch":
+		selected = int(OS.get_environment("KP_VNEXT_CAPTURE_SELECTED"))
 	var surface = script.new()
 	surface.size = viewport
 	add_child(surface)
@@ -53,6 +57,18 @@ func _capture() -> void:
 	var surface_snapshot := {"program": "kernel", "best": 0, "selected": "kernel", "settings_enabled": true}
 	if surface_id == "story":
 		surface_snapshot = {"selected": selected, "act": act}
+	elif surface_id == "patch":
+		surface_snapshot = {
+			"offers": [
+				{"id": "splitshot", "title": "SPLITSHOT", "description": "+1 ANGLED PROJECTILE, -10% FIRE RATE", "effect": "KILLS DROP +1 MOTE", "cost_benefit": "COST // NONE   BENEFIT // EXTRA MOTE", "relation": "NO DIRECT INTERACTION", "build_impact": "BEFORE // NO PATCHES   AFTER // SPLITSHOT", "level": 0, "max": 2},
+				{"id": "ring0", "title": "RING-0", "description": "REPRESS OVERCLOCK: DOUBLE WINDOW, LONG RECOVERY", "effect": "REPRESS OVERCLOCK", "cost_benefit": "COST // LONG RECOVERY   BENEFIT // DOUBLE WINDOW", "relation": "SYNERGY // KERNEL", "build_impact": "BEFORE // KERNEL   AFTER // RING-0", "level": 1, "max": 1},
+				{"id": "system_restore", "title": "SYSTEM RESTORE", "description": "PURGE ALL ORBS, HEAL 1, 2S SHIELD", "effect": "PURGE FIELD + HEAL", "cost_benefit": "COST // NONE   BENEFIT // SURVIVAL", "relation": "NO DIRECT INTERACTION", "build_impact": "BEFORE // NO PATCHES   AFTER // RESTORE", "level": 0, "max": 1},
+			],
+			"active_ids": ["heavy"],
+			"build": "KERNEL // CLEAN BOOT",
+			"paused": true,
+			"selected": selected,
+		}
 	surface.configure(surface_snapshot, script.context_for_viewport(viewport, touch, true, true, 1.0))
 	if surface_id == "story" and OS.get_environment("KP_VNEXT_CAPTURE_DETAIL") == "1" and viewport.x < 600.0:
 		surface.set_focus_id("stage_%d" % selected)

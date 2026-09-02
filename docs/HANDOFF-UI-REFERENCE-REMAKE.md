@@ -24,6 +24,8 @@ O escopo entregue nesta branch é um **vertical slice visual e responsivo**:
 - Bestiary com índice, estado de descoberta, comportamento, counterplay e
   ilustração code-drawn compartilhada;
 - settings/accessibility com composição de workstation e copy sem clipping;
+- patch offer como superfície de decisão de build, com cards de consequência
+  no desktop e navegação deliberada de uma oferta por vez em narrow;
 - pausa e terminal com correções de fit específicas para telas estreitas;
 - adaptação física de menu, patch, pausa, terminal e game-over a janelas
   estreitas, sem espremer uma composição desktop ilegível;
@@ -57,6 +59,7 @@ O nome `iamgem9.png` é mantido exatamente como está no diretório.
 | `imagem6.png` | pausa dramática, jogo ainda visível, contexto da run e poucas decisões | `pause_surface.gd` continua com contexto congelado, ação curta e estado do programa; título agora se ajusta à largura real |
 | `imagem8.png` | terminal diegético com stream, comandos, status, prompt e histórico | `terminal_surface.gd` preserva a workstation e evita colisão do título com `CLOSE [ESC]` em narrow |
 | `iamgem9.png` | mapa de story com rota, tabs de eras e briefing | `story_surface.gd` traduz a referência para shell persistente, tabs de ato, índice de nós, dossiê da fase e faixa de evidência baseada no estado real |
+| brief visual do patch offer | decisão de build com três cards, custo/benefício e comando de instalação | `patch_surface.gd` agora usa shell persistente, cards de consequência, registro da oferta selecionada e ação de instalação/skip com foco real |
 | `imagem4.png` e `imagem7.png` | cards de progresso e diagnóstico final | continuam cobertos pelas superfícies existentes e pela fundação vNext; não foram reescritos neste lote sem uma lacuna visual comprovada |
 
 ### O que mudou na leitura visual
@@ -662,8 +665,8 @@ glow, grid e números sem função não são considerados acabamento.
   metadados semânticos, as regiões de signature/evidence e o overflow em
   1366×768 e 432×720;
 - `tools/vnext_surface_capture.gd` fornece uma captura silenciosa e
-  reproduzível de Boot, Program, Bestiary e Accessibility, com recorte para
-  uma viewport estreita quando necessário.
+  reproduzível de Boot, Program, Bestiary, Accessibility, Story e Patch, com
+  recorte para uma viewport estreita quando necessário.
 
 ### Revisão da própria correção
 
@@ -696,7 +699,7 @@ organizada por evidência e relação entre blocos. Ainda não é uma declaraç�
 aprovação estética final: o cast completo, gameplay em movimento e a avaliação
 humana continuam necessários.
 
-## 7.3 Story — migração para o incidente operacional
+## 7.2 Story — migração para o incidente operacional
 
 ### Motivo da alteração
 
@@ -815,7 +818,7 @@ atual e aprovação estética humana. O risco principal restante é a tela parec
 demasiado limpa ou textual em movimento; a próxima validação precisa observar
 o fluxo real da campanha e não apenas uma captura estática.
 
-## 7.2 Auditoria documental — 2026-09-02
+## 7.3 Auditoria documental — 2026-09-02
 
 Foi conferida a árvore do plano-mestre e os documentos de execução deste
 checkpoint. O conjunto esperado está presente: `README.md`,
@@ -839,6 +842,109 @@ acessibilidade de plataforma, novos inimigos, gameplay, mobile/PC, performance
 e preparação de release. Este checkpoint documenta e implementa o segundo
 passe da direção visual vNext e, nesta atualização, a migração da Story para a
 mesma gramática de incidente operacional; o restante do plano continua aberto.
+
+## 7.4 Patch offer — decisão de build na gramática de incidente
+
+### Motivo da alteração
+
+A tela de patch já tinha uma boa regra funcional — mostrar custo, benefício,
+relação e impacto de build — mas ainda era uma superfície isolada. Na captura
+baseline, o título competia com o limite superior em narrow, não havia
+metadata de rota nem shell persistente, os comandos pareciam texto solto e a
+composição não comunicava claramente que o jogador estava diante de uma pausa
+de decisão. O visual também reservava espaço excessivo vazio nos cards, sem um
+registro explícito da oferta selecionada.
+
+O objetivo desta etapa foi aproximar o fluxo da referência de build decision
+sem copiar valores ou coordenadas: três ofertas legíveis em desktop, uma oferta
+por vez em narrow, consequência antes de confirmação, estado de conflito
+explícito e comandos reais para instalar, pular ou fechar.
+
+### Implementação
+
+- `src/ui/vnext/surfaces/patch_surface.gd` passou a usar
+  `VNextUIChrome.draw_shell()` com rota `KP://PATCH`, metadata de sistema,
+  rails, grade discreta e header com estado `PAUSED // OFFER NN/NN`;
+- o layout agora expõe `shell`, `shell_meta`, `header`, `body`, `cards`,
+  `evidence_band`, `footer` e `signature_rail`. Desktop mantém os cards em
+  paralelo; narrow conserva uma única oferta com `PREVIOUS`/`NEXT` e alvos
+  touch separados dos comandos finais;
+- cards passaram a ter registro de oferta, seleção visual por frame, estado
+  explícito e faixa `PATCH REGISTER` na oferta selecionada. Em desktop ela
+  mostra `STATE`, `BUILD` e `NEXT`; em narrow mostra `STATE` com nível e `NEXT`,
+  enquanto o impacto completo continua no corpo do card;
+- os comandos de instalação, skip e close continuam sendo `Button` reais e
+  agora têm frame code-drawn, foco visível e cores redundantes para estado
+  pronto/bloqueado. `CLOSE [ESC]` fica no header em desktop e vira `CLOSE` em
+  narrow para evitar colisão;
+- a tipografia narrow foi encurtada para `PATCH // DECISION` e
+  `READ THE COST BEFORE INSTALL`; o conteúdo do card reduz apenas informação
+  redundante de nível, preservando a consequência e mantendo o nível no
+  registro de estado;
+- `tools/vnext_surface_capture.gd` ganhou a rota de captura `patch` com três
+  ofertas determinísticas, estado de build e seleção configurável. A captura
+  não toca no estado persistido do jogador;
+- `tools/vnext_patch_probe.gd` ganhou contrato do shell, semântica da rota,
+  regiões da faixa de evidência, diagnóstico de overflow com medidas e
+  containment dos comandos.
+
+### Revisão crítica da própria etapa
+
+O probe foi ampliado antes do código e reproduziu 12 falhas: ausência das
+regiões de shell/evidência e da semântica `reference_shell`/`KP://PATCH`.
+Depois da primeira implementação, o próprio relatório encontrou um botão
+`CLOSE [ESC]` maior que sua área e conteúdo de card que entrava na faixa de
+evidência. Em narrow, o título ainda media duas linhas e os campos `RELATION`,
+`BUILD IMPACT` e `LEVEL` excediam a região reservada.
+
+Esses casos foram corrigidos com evidência adicional, não ignorados:
+
+- a largura do close foi ajustada para respeitar a largura mínima real do
+  `Button` e a safe area;
+- as alturas base e os espaçamentos dos campos foram recalibrados, com
+  `text_overflow_report()` incluindo altura medida, largura disponível,
+  limite de conteúdo e fundo da faixa;
+- o nível foi incorporado ao estado da faixa narrow e retirado do corpo apenas
+  nessa densidade, preservando a informação sem competir com a consequência;
+- três capturas raster foram revisadas: `/tmp/kernel-panic-ui-captures-patch/patch-after-wide.png`,
+  `patch-after-compact.png` e `patch-after-narrow.png`. A revisão visual não
+  encontrou clipping ou colisão óbvia nas três composições; o compacto continua
+  mais denso por necessidade e merece teste em dispositivo real.
+
+### Decisões e alternativas
+
+- **Faixa de registro na oferta selecionada:** foi escolhida para conectar a
+  decisão ao build atual sem repetir todos os dados em um quarto painel. Uma
+  faixa global foi descartada porque atravessaria o espaço entre cards e
+  pareceria pertencer a todas as ofertas ao mesmo tempo;
+- **Dois modos de densidade para a faixa:** três linhas cabem com segurança em
+  desktop; narrow usa duas linhas e inclui o nível no estado. Forçar três linhas
+  no telefone reduziria o corpo do card ou criaria texto microscópico;
+- **Cards em paralelo no compacto:** mantidos porque a captura 720×720 ainda
+  conserva leitura mensurável e a navegação lateral seria mais lenta para a
+  decisão; se a avaliação humana apontar leitura insuficiente, o próximo passe
+  deve promover o compacto para a composição narrow;
+- **Build derivado do snapshot:** a superfície só apresenta o build e os
+  impactos recebidos de `Arena/Game`; não calcula nem muta regras de patch. Isso
+  preserva a responsabilidade da Arena e evita divergência entre preview e
+  aplicação real;
+- **Rota opt-in:** a recomposição não altera o caminho legado nem o momento de
+  pausa/retomada. O probe real da Arena confirmou close, skip e confirm, mas a
+  promoção ao default continua dependente de revisão estética e mobile.
+
+### Evidência e limites
+
+Comprovado: probe visual/semântico com 0 falhas, três cards sem sobreposição,
+containment dos comandos, fit tipográfico em 1280×720 e 432×720, estados
+locked/conflict, foco de oferta sem confirmação, confirmação única,
+close/skip/retry, navegação mouse/touch, reflow narrow → desktop e isolamento
+profundo do snapshot. O probe real da Arena também passou com 18 verificações.
+
+Não comprovado: toque físico, teclado virtual, safe area de recorte, leitura
+com screen reader, alteração de locale durante a oferta e comportamento com
+mais de três ofertas simultâneas. As capturas usam conteúdo inglês sintético e
+não substituem a avaliação do texto PT-BR nem a verificação do fluxo real em
+uma run completa.
 
 ## 10. Próximos passos recomendados
 
