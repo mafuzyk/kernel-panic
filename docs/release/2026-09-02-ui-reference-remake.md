@@ -79,6 +79,9 @@
   remain visible in the event slot.
 - Changed legacy event-log rendering to measure and ellipsize each line inside
   the score register, with a stronger readable text alpha.
+- Changed legacy HUD status communication to expose readable integrity,
+  shield/overclock and dash states, including a cardinal damage-direction
+  marker, so color and alpha are no longer the only signal.
 - Kept the legacy route as the default rollback path; no public default switch
   was changed in this development checkpoint.
 
@@ -116,6 +119,8 @@
   and the large wave/boss announcement.
 - Fixed long legacy event-log and patch-tooltip copy escaping its measured
   width; the tooltip now fits title, detail and relation independently.
+- Fixed Rootlet's ready shield and shield meter presentation being represented
+  through the generic overclock/meter language in the legacy HUD.
 
 ## Improved
 
@@ -182,9 +187,12 @@
 - Legacy menu launch prompt: 9 passes, 0 failures.
 - H1 HUD hierarchy: 10 focused headless passes, 0 failures.
 - H2 HUD legibility: 8 focused headless passes, 0 failures.
-- H3 HUD scale matrix: 19 headless / 24 Xvfb passes, 0 failures; the effective
+- H3 HUD scale matrix: 24 headless / 29 Xvfb passes, 0 failures; the effective
   HUD canvas matched the stretched viewport in wide, ultrawide and portrait
   samples.
+- H4 HUD state signal probe: 12 focused headless passes, 0 failures; critical
+  health, dash cooldown, damage direction and Rootlet shield readiness were
+  checked through the live HUD state path.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,

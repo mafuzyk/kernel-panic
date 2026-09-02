@@ -15,6 +15,7 @@ var _max_hp := Balance.PLAYER_MAX_HP
 var _meter := 0.0
 var _oc_ready := false
 var _oc_active := false
+var _shield_ready := false
 var _dash_frac := 1.0
 var _dash_available := 1
 var _dash_max := 1
@@ -406,7 +407,11 @@ func _process(delta: float) -> void:
 	if player != null and is_instance_valid(player):
 		_hp = player.hp
 		_max_hp = player.max_hp
-		_meter = player.meter
+		var shield_mode := bool(player.prog.get("shield_mode", false))
+		_shield_ready = shield_mode and player.shield_ready
+		_meter = player.shield_meter if shield_mode else player.meter
+		if _shield_ready:
+			_meter = Balance.OC_METER_MAX
 		_oc_ready = player.oc_ready
 		_oc_active = player.overclock_active
 		_dash_available = player.available_dash_charges()
@@ -448,6 +453,47 @@ func _damage_direction_label() -> String:
 		return "NONE"
 	var labels := ["E", "SE", "S", "SW", "W", "NW", "N", "NE"]
 	return labels[posmod(int(round(direction.angle() / (PI / 4.0))), labels.size())]
+
+func _integrity_state_label() -> String:
+	if _hp <= 1:
+		return "CRITICAL"
+	if _hp * 2 <= maxi(_max_hp, 1):
+		return "LOW"
+	return "STABLE"
+
+func _integrity_status_text() -> String:
+	var text := "INTEGRITY // %s" % _integrity_state_label()
+	var direction := _damage_direction_label()
+	if direction != "NONE":
+		text += " // HIT FROM %s" % direction
+	return text
+
+func _ability_status_text() -> String:
+	var shield_mode := player != null and is_instance_valid(player) and bool(player.prog.get("shield_mode", false))
+	if shield_mode:
+		if _shield_ready:
+			return "SHIELD READY"
+		return "SHIELD CHARGING" if _meter > 0.0 else "SHIELD DOWN"
+	if _oc_active:
+		return "OVERCLOCK ACTIVE"
+	if _oc_ready:
+		return "OVERCLOCK READY"
+	return "OVERCLOCK CHARGING"
+
+func _dash_status_text() -> String:
+	return "DASH // READY" if _dash_frac >= 1.0 else "DASH // COOLDOWN"
+
+## Read-only state labels for accessibility and deterministic visual tests.
+## These strings supplement the color/pulse treatment; they do not drive play.
+func state_signal_snapshot() -> Dictionary:
+	return {
+		"integrity": _integrity_status_text(),
+		"integrity_state": _integrity_state_label(),
+		"damage_direction": _damage_direction_label(),
+		"ability": _ability_status_text(),
+		"dash": _dash_status_text(),
+		"meter_state": "READY" if _ability_status_text().contains("READY") else ("ACTIVE" if _oc_active else "CHARGING"),
+	}
 
 func _input(event: InputEvent) -> void:
 	# The HUD surface is scaled (window-px local space), so map event
@@ -556,7 +602,8 @@ func _draw_tactical_shell(f: Font) -> void:
 	if not touch_layout():
 		_draw_angular_panel(dash_rect, _era_accent, 0.045, true)
 	_draw_angular_panel(patch_rect, _era_accent, 0.045, true)
-	draw_string(f, integrity_rect.position + Vector2(16.0, 22.0), "INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, TacticalUIHelper.TEXT)
+	var integrity_text := TacticalUIHelper.ellipsis_fit(f, _integrity_status_text(), maxf(integrity_rect.size.x - 32.0, 1.0), 12)
+	draw_string(f, integrity_rect.position + Vector2(16.0, 22.0), integrity_text, HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, TacticalUIHelper.TEXT)
 	var cycle_label := "CYCLE %02d" % Game.wave
 	draw_string(_score_font, encounter_rect.position + Vector2(0.0, 30.0 if compact else 38.0), cycle_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 24 if compact else 32, TacticalUIHelper.TEXT)
 	var encounter_label := _boss_name if not _boss_name.is_empty() else "PROCESS PURGE"
@@ -607,14 +654,12 @@ func _oc_bar(f: Font) -> void:
 	var frac := clampf(_meter / Balance.OC_METER_MAX, 0.0, 1.0)
 	draw_rect(Rect2(r.position, Vector2(r.size.x * frac, r.size.y)), Color(col.r, col.g, col.b, 0.85))
 	draw_rect(r, Color(col.r, col.g, col.b, 0.5), false, 1.2)
-	var label := "SHIELD" if shield_mode else "OVERCLOCK"
+	var label := _ability_status_text()
 	var txt_col := col
 	if _oc_ready and not _oc_active and not shield_mode:
-		label += "  READY"
 		if not touch_layout():
 			label += " [E]"
-	if _oc_active:
-		label += " ACTIVE"
+	label = TacticalUIHelper.ellipsis_fit(f, label, maxf(r.size.x, 1.0), 11)
 	draw_string(f, Vector2(x, y + 24.0), label, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 11, Color(txt_col.r, txt_col.g, txt_col.b, 0.85))
 	if Game.patch_level("scrapdiet") > 0 and player != null and is_instance_valid(player):
 		var thr: int = player._scrap_threshold()
@@ -713,7 +758,7 @@ func _dash_pip(f: Font) -> void:
 		return
 	var col := Balance.COL_PLAYER if _dash_frac >= 1.0 else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.35)
 	var dash_rect: Rect2 = layout_snapshot()["dash"]
-	var dash_text := "DASH READY" if _dash_frac >= 1.0 else "DASH CHARGING"
+	var dash_text := _dash_status_text()
 	draw_string(f, dash_rect.position + Vector2(16.0, 28.0), dash_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 13, Color(col.r, col.g, col.b, 0.82))
 	var charge_text := ("x%d" % _dash_max) if _dash_max > 1 else ("[SHIFT]" if not touch_layout() else "x1")
 	draw_string(f, dash_rect.position + Vector2(16.0, 52.0), charge_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 11, Color(col.r, col.g, col.b, 0.68))

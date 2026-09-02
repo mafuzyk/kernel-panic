@@ -62,9 +62,10 @@ final. Um item de backlog = um commit; rodar
   reproduziu distorção: o HUD compensa o `canvas_items` stretch de forma
   uniforme e seu tamanho efetivo coincide com o viewport lógico em wide,
   ultrawide e portrait. Não foi aplicado um “fix” de escala sem evidência.
-- [ ] **H4 — Sinalização de estado.** HP baixo/dash/overclock dependem de cor ou
-  alpha (`hud.gd:534-535`, `hud.gd:650-658`, `hud.gd:550-553`). Adicionar
-  texto/glyph + considerar indicador direcional de dano.
+- [x] **H4 — Sinalização de estado.** HP baixo/dash/overclock dependiam de cor
+  ou alpha (`hud.gd`). O HUD legado agora expõe estados textuais de integridade,
+  escudo/overclock e dash, além de `HIT FROM <direção>` após dano; Rootlet usa
+  o mesmo canal sem depender de cor para comunicar `SHIELD READY`.
 - [ ] **H5 — Colisões de layout.** Toast x encounter (`hud.gd:188-193`); SCRAP
   bar/texto (`hud.gd:567-574`); pips HP > 10 (`hud.gd:528-530`); stats game-over
   <800px (`panel_kit.gd:284-290`); pause touch x banner (`touch_controls.gd:109-111`).

@@ -1378,7 +1378,7 @@ formatos do adapter. `git diff --check` também passou.
 
 O teste é semântico e não substitui uma captura humana em todos os tamanhos.
 Ele não prova que o texto traduzido para PT-BR caberá nas mesmas linhas; isso
-continua parte da etapa de localização e do passe H2/H5.
+continua parte da etapa de localização e do passe H5.
 
 ### Impacto
 
@@ -1435,65 +1435,7 @@ tamanho usados pelo HUD e confirmou o marcador `…` para event log e tooltip.
 Isso prova o contrato tipográfico para as larguras exercitadas, não a qualidade
 editorial do texto, leitura em movimento ou contraste percebido em todos os
 monitores. O probe não substitui grayscale/high-contrast nem uma captura em
-dispositivo móvel; H4/H5 ainda precisam revisar os módulos que podem disputar
-espaço com o event log e tooltip.
-
-### Impacto
-
-Não há alteração de gameplay, save, input ou balanceamento. A apresentação de
-mensagens longas muda de clipping implícito para reticências explícitas, e o
-texto secundário fica mais legível. `visible_event_lines()` sem argumentos
-continua retornando o conteúdo completo para consumidores de diagnóstico; a
-limitação só é aplicada quando o desenho fornece a largura real.
-
-## 7.8 H2 — legibilidade e limite do texto secundário do HUD
-
-### Problema confirmado
-
-O event log do HUD legado imprimia as últimas linhas com `MUTED` e largura
-fixa, sem medir o texto antes de desenhá-lo. A fonte podia ficar pouco
-contrastada e payloads longos podiam escapar do registro ou depender do
-clipping do renderer. O tooltip dos patches tinha o mesmo problema: título,
-descrição e relação eram desenhados diretamente, embora cada linha pudesse
-ser arbitrariamente longa.
-
-### Alteração
-
-- `Hud.visible_event_lines()` aceita uma largura e um tamanho de fonte
-  opcionais; quando fornecidos, aplica `TacticalUIHelper.ellipsis_fit()` à
-  linha completa, incluindo timestamp;
-- o event log passa a calcular `score_rect.size.x - 28` e desenhar com alpha
-  explícito `0.82`, em vez de depender do alpha mutado de `MUTED`;
-- `Hud.tooltip_text_snapshot()` produz cópias medidas para título, detalhe e
-  relação, cada uma com seu tamanho de fonte real;
-- `_draw_patch_tooltip()` usa esse snapshot e cores com alpha explícito entre
-  `0.86` e `0.92`;
-- `tools/hud_legibility_probe.gd` cobre entradas normais, payload longo,
-  marcador de reticências, largura medida e as três linhas do tooltip;
-- `tools/validate_input_dispatch.sh` executa o novo probe junto da validação
-  acumulada.
-
-### Decisão e alternativas
-
-Foi escolhido truncamento semântico no limite do painel. Quebrar o event log em
-duas linhas exigiria redesenhar sua altura e poderia colidir com o restante do
-HUD; reduzir globalmente a fonte prejudicaria a leitura de mensagens normais;
-deixar o renderer cortar esconderia a informação sem avisar o jogador. O
-snapshot do tooltip evita duplicar a regra de medição entre teste e desenho,
-mas não vira uma segunda fonte de conteúdo: ele só transforma os dados que já
-estão em `_tooltip_data`.
-
-### Evidência e limites
-
-`res://tools/hud_legibility_probe.tscn` terminou com 8 passes e zero falhas em
-headless silencioso. O probe mediu a largura renderizada com a mesma fonte e
-tamanho usados pelo HUD e confirmou o marcador `…` para event log e tooltip.
-`git diff --check` e a verificação de importação do editor passaram.
-
-Isso prova o contrato tipográfico para as larguras exercitadas, não a qualidade
-editorial do texto, leitura em movimento ou contraste percebido em todos os
-monitores. O probe não substitui grayscale/high-contrast nem uma captura em
-dispositivo móvel; H4/H5 ainda precisam revisar os módulos que podem disputar
+dispositivo móvel; H5 ainda precisa revisar os módulos que podem disputar
 espaço com o event log e tooltip.
 
 ### Impacto
@@ -1543,7 +1485,7 @@ canvas expandido antes de existir uma matriz de export real.
 
 ### Evidência e limites
 
-O probe terminou com 19 passes headless e 24 passes no Xvfb wide, zero falhas.
+O probe terminou com 24 passes headless e 29 passes no Xvfb wide, zero falhas.
 O validador agora executa as duas modalidades; o log Xvfb é
 `.godot/codex-review-lote-1/probe-h3-hud-scale-matrix-xvfb.log` quando a suíte
 é rodada no checkout. Isso comprova invariantes de transformação, não a
@@ -1557,6 +1499,68 @@ Nenhum arquivo de produção foi alterado por H3. O resultado importante é evit
 um regressão especulativa: a implementação atual permanece, agora com um
 contrato automatizado que impede uma alteração futura de tornar a transformação
 não uniforme ou desconectada do viewport.
+
+## 7.10 H4 — estados do HUD sem depender somente de cor
+
+### Problema confirmado
+
+No HUD legado, integridade baixa, dash em recarga e overclock pronto/ativo eram
+comunicados principalmente por cor, alpha e preenchimento de barra. Isso falha
+para daltonismo, grayscale, redução de efeitos e leitura rápida em telas
+pequenas. O caso Rootlet tinha um agravante: `Hud._process()` lia sempre
+`player.meter` e o texto da habilidade era genérico, então a prontidão do
+escudo não tinha uma representação textual equivalente à do overclock.
+
+### Alteração
+
+- `src/ui/hud.gd` agora separa o estado do escudo do estado de overclock ao
+  sincronizar o jogador; Rootlet usa `shield_meter`, e um escudo pronto é
+  representado como medidor cheio sem inventar um valor de gameplay;
+- a moldura de integridade expõe `INTEGRITY // STABLE`, `LOW` ou `CRITICAL`;
+  quando existe dano recente, acrescenta `HIT FROM E`, `SE`, `S` etc. usando a
+  direção real já calculada pelo HUD;
+- o instrumento de habilidade expõe `SHIELD READY`, `SHIELD CHARGING`,
+  `SHIELD DOWN`, `OVERCLOCK READY`, `OVERCLOCK ACTIVE` ou
+  `OVERCLOCK CHARGING`, mantendo cor e preenchimento como reforço visual;
+- o módulo de dash expõe `DASH // READY` ou `DASH // COOLDOWN`, sem depender do
+  alpha do pip;
+- `state_signal_snapshot()` fornece uma leitura somente de estado para testes e
+  futuras camadas de acessibilidade. Não é uma nova fonte de autoridade e não
+  altera o fluxo de combate;
+- o texto da habilidade passa por `TacticalUIHelper.ellipsis_fit()` dentro da
+  largura real do instrumento;
+- `tools/hud_state_signal_probe.gd/.tscn` verifica o HUD isolado, dano por uma
+  Arena real e a prontidão inicial do Rootlet; o validador acumulado executa o
+  probe silenciosamente.
+
+### Decisão e alternativas
+
+Foi mantida a linguagem code-drawn existente — cor, alpha, barra e pulso — e
+acrescentada uma camada textual curta. Um glyph isolado seria compacto, mas
+exigiria uma legenda e seria menos claro para estados compostos; somente subir
+contraste não resolve grayscale nem leitura sem cor; um widget separado de
+acessibilidade duplicaria a lógica do HUD. O texto foi escolhido como sinal
+redundante e os nomes foram mantidos curtos para não forçar uma nova coluna no
+combate. A direção cardinal é derivada do ponto de origem do dano, não de uma
+animação presumida.
+
+### Evidência e limites
+
+`res://tools/hud_state_signal_probe.tscn` terminou com 12 passes e zero falhas
+em headless silencioso. O mesmo passe também reexecutou o contrato do HUD vNext
+com `KP_VNEXT_HUD=1`: 77 passes, zero falhas. Isso comprova os estados e a
+integração de dados nos caminhos testados, mas não substitui revisão humana em
+grayscale, tamanho de texto aumentado, PT-BR ou Android real. O texto ainda é
+inglês até a etapa de localização.
+
+### Impacto
+
+Não há alteração de gameplay, balanceamento, save, input ou API de jogo. A
+mudança observável é uma comunicação redundante e mais explícita dos estados do
+HUD. Para Rootlet, a barra agora representa a carga do escudo em vez do meter
+de overclock. O custo é apenas algumas medições e strings no desenho; nenhum
+asset raster ou dependência externa foi adicionado. A compatibilidade de dados
+permanece intacta.
 
 ## 10. Próximos passos recomendados
 
