@@ -701,10 +701,20 @@ humana continuam necessários.
 Foi conferida a árvore do plano-mestre e os documentos de execução deste
 checkpoint. O conjunto esperado está presente: `README.md`,
 `00-MASTER-PLAN.md` até `13-RISK-DECISION-GOVERNANCE.md`, além de
-`docs/UI-REDESIGN-DIRECTION.md`, este handoff e a release note da revisão.
+`docs/UI-REDESIGN-DIRECTION.md`, este handoff, a release note, a revisão
+consolidada e o backlog de UI.
+
+Durante a auditoria, foi detectado que `docs/REVISAO-CONSOLIDADA-2026-08-31.md`
+e `docs/UI-REVIEW-BACKLOG.md` existiam apenas como arquivos locais não
+versionados no checkout original. Cópias históricas foram incorporadas nesta
+branch. O `AGENTS.md` continua sendo instrução local do ambiente e não foi
+promovido para documentação de produto.
 
 Essa auditoria confirma completude estrutural da documentação, não conclusão
-do plano de produto. O plano ainda contém trabalho futuro de refatoração total
+do plano de produto. O backlog agora distingue B1–B5 já resolvidos dos itens
+pendentes; suas descrições originais permanecem preservadas para rastreabilidade
+e não devem ser interpretadas como um diagnóstico atualizado sem reprodução.
+O plano ainda contém trabalho futuro de refatoração total
 da UI, cast completo code-drawn, história macOS, localização PT-BR,
 acessibilidade de plataforma, novos inimigos, gameplay, mobile/PC, performance
 e preparação de release. Este checkpoint documenta e implementa apenas o
