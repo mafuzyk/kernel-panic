@@ -642,6 +642,8 @@ func _show_story_save_failure(stage_id: String) -> void:
 	if _vnext_u4_mode:
 		_over_panel.visible = false
 		_show_vnext_u4_game_over(false)
+	else:
+		_panel_kit._focus_game_over_action()
 	var tw := create_tween()
 	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
 
@@ -1061,6 +1063,8 @@ func _show_game_over() -> void:
 	if _vnext_u4_mode:
 		_over_panel.visible = false
 		_show_vnext_u4_game_over(false)
+	else:
+		_panel_kit._focus_game_over_action()
 	var tw := create_tween()
 	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
 	Sfx.play("gameover", 0.9, 0.0)
@@ -1108,6 +1112,8 @@ func _show_story_victory(stage_id: String) -> void:
 	if _vnext_u4_mode:
 		_over_panel.visible = false
 		_show_vnext_u4_game_over(true)
+	else:
+		_panel_kit._focus_game_over_action()
 	var tw := create_tween()
 	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
 	Sfx.play("ready", 1.2, -2.0)
@@ -1340,6 +1346,7 @@ func _set_paused(v: bool) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if v:
 		_pause_stats.text = "%s // SCORE %07d   CYCLE %02d   COMBO x%d\nBUILD: %s" % [Game.program_def()["name"], Game.score, Game.wave, Game.mult, Game.build_string()]
+		_panel_kit._focus_pause_action()
 	_set_state_panel_active(v)
 	Sfx.play("ui", 1.0, -6.0)
 	if not v:

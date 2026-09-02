@@ -65,6 +65,7 @@ func _build_pause_panel() -> void:
 	)
 	a._pause_panel.add_child(music_row)
 	a._pause_volume_rows.append(music_row)
+	_wire_focus_order(a._pause_buttons)
 	_layout_pause_panel()
 
 func _place_pause_control(control: Control, rect: Rect2) -> void:
@@ -139,6 +140,7 @@ func _close_terminal() -> void:
 		a._terminal_panel.visible = false
 	if a._pause_panel != null and is_instance_valid(a._pause_panel) and a._state == "play" and a.get_tree().paused:
 		a._pause_panel.visible = true
+		_focus_control(a._pause_buttons[2] if a._pause_buttons.size() > 2 else null)
 
 func _make_volume_row(label_text: String, value: float, y: float, on_change: Callable) -> Control:
 	var row := HBoxContainer.new()
@@ -214,6 +216,7 @@ func _build_game_over_panel() -> void:
 	_position_game_over_button(a._over_menu, true)
 	a._over_menu.pressed.connect(Game.to_menu)
 	a._over_panel.add_child(a._over_menu)
+	_wire_focus_order([a._over_primary, a._over_menu])
 
 func _make_panel(kind: String = "pause") -> Control:
 	var p := Control.new()
@@ -244,6 +247,7 @@ func _make_panel(kind: String = "pause") -> Control:
 func _make_button(txt: String, y: float) -> Button:
 	var b := Button.new()
 	b.text = txt
+	b.focus_mode = Control.FOCUS_ALL
 	b.flat = false
 	b.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	b.add_theme_font_size_override("font_size", 18)
@@ -266,6 +270,13 @@ func _make_button(txt: String, y: float) -> Button:
 	hover.set_border_width_all(0)
 	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", hover)
+	var focus := normal.duplicate()
+	focus.bg_color = Color(accent.r, accent.g, accent.b, 0.14)
+	focus.border_color = Color(accent.r, accent.g, accent.b, 0.92)
+	focus.set_border_width_all(1)
+	focus.content_margin_left = 54.0
+	focus.content_margin_right = 18.0
+	b.add_theme_stylebox_override("focus", focus)
 	b.anchor_left = 0.5
 	b.anchor_right = 0.5
 	b.offset_left = -230.0
@@ -287,6 +298,45 @@ func _make_button(txt: String, y: float) -> Button:
 	b.add_child(icon)
 	icon.call("configure", icon_kind, accent)
 	return b
+
+func _wire_focus_order(controls: Array) -> void:
+	var focusable: Array[Control] = []
+	for raw_control in controls:
+		if raw_control is Control and is_instance_valid(raw_control) and raw_control.focus_mode != Control.FOCUS_NONE:
+			focusable.append(raw_control)
+	if focusable.is_empty():
+		return
+	for index in focusable.size():
+		var current := focusable[index]
+		var previous := focusable[wrapi(index - 1, 0, focusable.size())]
+		var next := focusable[wrapi(index + 1, 0, focusable.size())]
+		if current == previous and current == next:
+			continue
+		current.focus_neighbor_top = current.get_path_to(previous)
+		current.focus_neighbor_bottom = current.get_path_to(next)
+		current.focus_previous = current.get_path_to(previous)
+		current.focus_next = current.get_path_to(next)
+
+func _focus_control(control: Control) -> void:
+	if control == null or not is_instance_valid(control):
+		return
+	if control.is_inside_tree():
+		control.grab_focus()
+	else:
+		control.call_deferred("grab_focus")
+
+func _focus_pause_action(index := 0) -> void:
+	if a._pause_buttons.is_empty():
+		return
+	_focus_control(a._pause_buttons[clampi(index, 0, a._pause_buttons.size() - 1)])
+
+func _focus_game_over_action(index := 0) -> void:
+	if a._vnext_u4_mode:
+		return
+	var actions: Array = [a._over_primary, a._over_menu]
+	if actions.is_empty():
+		return
+	_focus_control(actions[clampi(index, 0, actions.size() - 1)])
 
 func _position_game_over_button(button: Button, right_side: bool) -> void:
 	var viewport: Vector2 = a.get_viewport_rect().size

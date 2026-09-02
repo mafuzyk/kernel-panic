@@ -1827,6 +1827,91 @@ um aparelho touch real e em escalas de texto altas. A semântica de wheel/drag
 continua existente no desktop, mas a ergonomia de cada painel ainda pertence à
 revisão manual de UX.
 
+## 7.14 N1/N5 — foco de teclado nos painéis legados
+
+### Problema confirmado
+
+Pause, terminal e game-over legados criavam `Button` e `LineEdit` funcionais,
+mas não estabeleciam um contrato explícito de foco. Ao abrir a pausa, o foco
+podia permanecer no gameplay ou em um controle anterior; o game-over também
+não entregava uma ação primária clara para quem usa apenas teclado. A aparência
+normal/hover dos botões não era uma indicação suficiente para foco de teclado,
+porque não havia um `StyleBox` dedicado e a ordem de navegação dependia da
+heurística espacial do Godot.
+
+O terminal já tinha uma semântica própria para `↑↓` (histórico), `TAB`
+(autocomplete), `ENTER` (execução) e `ESC` (fechar). Portanto, tratar setas ou
+TAB como uma navegação genérica teria quebrado uma funcionalidade existente.
+Esse conflito foi considerado antes de escolher a solução.
+
+### Decisão e alternativas
+
+Foi escolhido um contrato explícito e pequeno:
+
+- ações de pausa e game-over recebem foco real, `StyleBox` próprio e vizinhos
+  `top/bottom/next/previous` determinísticos;
+- abrir a pausa foca `RESUME`; abrir game-over foca `REBOOT`/a ação primária;
+- fechar o terminal restaura a pausa e devolve o foco a `OPEN TERMINAL`;
+- o prompt do terminal continua recebendo foco ao abrir;
+- `↑↓` no prompt continuam sendo histórico, `TAB` continua autocomplete e
+  `Shift+Tab` oferece uma saída de foco para os demais controles;
+- Enter continua ativando o controle nativo focado e ESC continua sendo a
+  volta/fechamento já documentada.
+
+Uma navegação baseada somente no posicionamento foi descartada porque a pausa
+tem botões, sliders e um aviso desenhado, e pequenas mudanças de layout
+podem alterar a heurística sem alterar a intenção. Um roteador global de
+teclado também foi descartado: ele duplicaria o trabalho dos `Button`/`LineEdit`
+e aumentaria o risco de ativação dupla. Não foi criado um componente novo de
+UI, pois o problema era de contrato de foco nos controles que já existiam.
+
+### Implementação
+
+- `src/arena/panel_kit.gd` agora dá foco explícito aos botões de estado, cria o
+  estilo de foco com contraste e borda do accent do painel, conecta a ordem
+  vertical e oferece helpers para focar ações de pausa/game-over;
+- `src/arena/arena.gd` chama os helpers no momento em que pausa, game-over,
+  vitória ou falha de checkpoint ficam visíveis;
+- `src/arena/panel_kit.gd` devolve o foco ao botão que abre o terminal quando
+  `ESC` fecha o diagnóstico e restaura a pausa;
+- `src/ui/terminal_panel.gd` dá foco real a prompt/run/close, instala o mesmo
+  tipo de navegação explícita e mantém `Shift+Tab` separado do autocomplete;
+- `tools/state_panel_navigation_probe.gd/.tscn` executa a rota real da Arena e
+  usa `Viewport.push_input` para verificar foco, setas, Enter e ESC;
+- `tools/validate_input_dispatch.sh` passou a rodar o probe N1 junto do
+  acumulado de regressões.
+
+### Evidência red → green
+
+O probe vermelho reproduziu 12 falhas: ausência de foco/estilo nos painéis,
+falta de foco inicial, impossibilidade de abrir o terminal pelo controle
+focado e retorno incorreto ao fechar, além da ausência de foco inicial e
+navegação no game-over. A primeira implementação também produziu um erro de
+script ao tentar calcular paths entre controles que ainda não estavam na
+árvore; o erro foi corrigido movendo a ligação de foco para depois da inserção
+do row no painel. Isso foi reexecutado, não apenas removido do log.
+
+O probe final terminou com `PROBE_DONE fails=0`, 16 passes e exit 0 em
+headless silencioso. A execução Xvfb também terminou com 16 passes, zero
+falhas e zero `SCRIPT ERROR` de runtime; os diagnósticos de teardown de
+recursos/ObjectDB/RIDs continuam sendo reportados separadamente, como nos
+outros probes.
+
+### Impacto, compatibilidade e limites
+
+O fluxo de mouse/touch dos botões não mudou, a ordem lógica das ações não
+mudou e não há alteração de save, balance ou gameplay. A alteração observável
+é a presença de um foco inicial e de uma moldura de foco consistente para
+teclado. O terminal conserva a semântica de histórico/autocomplete; somente
+`Shift+Tab` ganhou uma saída explícita para não sequestrar o TAB normal.
+
+O probe comprova dispatch em uma viewport Godot real e Xvfb, mas não substitui
+uma revisão com leitor de tela, teclado internacional, gamepad ou remapeamento.
+Esses itens continuam na frente de acessibilidade. A navegação dos sliders da
+pausa ainda deve ser avaliada manualmente quanto à ordem mais confortável,
+porque eles não são ações destrutivas e têm o comportamento próprio de
+controle de valor.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário

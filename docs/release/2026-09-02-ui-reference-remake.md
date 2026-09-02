@@ -86,6 +86,8 @@
   actions when two desktop columns would make the copy unusable.
 - Kept the legacy route as the default rollback path; no public default switch
   was changed in this development checkpoint.
+- Changed legacy pause, terminal and game-over controls to share an explicit
+  keyboard focus order while preserving their existing mouse/touch targets.
 
 ## Fixed
 
@@ -135,6 +137,9 @@
   only.
 - Fixed long legacy HUD event banners spending their first fraction of a
   multi-second lifetime fully invisible; the fade now starts from elapsed time.
+- Fixed legacy state panels opening without a visible focus target; pause and
+  game-over now focus their primary action, and terminal ESC restores the
+  action that opened it.
 
 ## Improved
 
@@ -166,6 +171,8 @@
   the modal closes.
 - Improved the HUD's runtime footprint by removing hidden labels and an unused
   patch callback that had no visible consumer.
+- Improved keyboard-only operation with visible focus chrome, deterministic
+  vertical navigation and a Shift+Tab route out of the legacy terminal prompt.
 
 ## Performance
 
@@ -220,6 +227,9 @@
 - H7 dead-widget/affordance probe: 28 focused headless passes, 0 failures;
   dead nodes, device-aware scroll hints and long-banner fade timing were
   checked.
+- N1 state-panel navigation probe: 16 focused headless passes and 16 Xvfb
+  passes, 0 failures; pause, terminal and game-over focus/activation paths were
+  checked with real viewport keyboard dispatch.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,

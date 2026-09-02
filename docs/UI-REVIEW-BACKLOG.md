@@ -81,9 +81,10 @@ final. Um item de backlog = um commit; rodar
 
 ## Fase 3 — navegação e consistência
 
-- [ ] **N1 — Foco de teclado no pause/game-over/terminal.** Definir stylebox de
-  foco em `panel_kit.gd:228-273`, `grab_focus` no primeiro botão ao abrir,
-  navegação ↑↓, ENTER confirma, ESC volta.
+- [x] **N1 — Foco de teclado no pause/game-over/terminal.** Os painéis legados
+  agora definem stylebox de foco, focam a primeira ação ao abrir, encadeiam
+  navegação vertical e devolvem o foco ao ponto correto quando o terminal
+  fecha. Enter e ESC continuam donos das ações/retorno.
 - [ ] **N2 — BACK no mesmo canto.** Bestiary/awards reancoram o back para
   baixo-esquerda (`menu.gd:419-427`); program/story usam topo-direita
   (`menu_chrome_kit.gd:484-491`). Padronizar.
@@ -92,7 +93,8 @@ final. Um item de backlog = um commit; rodar
   e na seleção.
 - [ ] **N4 — Fullscreen toggle** nas settings (desktop) — ausente em
   `menu_settings_kit.gd`.
-- [ ] **N5 — Autocomplete/history do terminal** (se B5 for "implementar").
+- [x] **N5 — Autocomplete/history do terminal.** B5 implementou ↑↓, TAB e
+  comando real; N1 completou a navegação entre prompt e ações do terminal.
 
 ## Fase 4 — performance e robustez
 

@@ -234,6 +234,7 @@ func _build() -> void:
 	row.add_child(prompt_frame)
 	var run := Button.new()
 	run.text = "RUN [ENTER]"
+	run.focus_mode = Control.FOCUS_ALL
 	run.flat = false
 	run.custom_minimum_size = Vector2(118.0 if compact else 150.0, 34.0)
 	run.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
@@ -241,9 +242,11 @@ func _build() -> void:
 	run.add_theme_color_override("font_color", Balance.COL_PLAYER)
 	run.add_theme_stylebox_override("normal", _outline_style(Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.72)))
 	run.add_theme_stylebox_override("hover", _outline_style(Balance.COL_PLAYER))
+	run.add_theme_stylebox_override("focus", _outline_style(Balance.COL_TEXT))
 	run.pressed.connect(_submit_input)
 	row.add_child(run)
 	box.add_child(row)
+	_wire_focus_order([_input, run, close])
 	var shortcuts := _label("↑↓ HISTORY        TAB AUTOCOMPLETE        ESC CLOSE", 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.68))
 	shortcuts.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	shortcuts.custom_minimum_size = Vector2(0.0, 18.0)
@@ -272,7 +275,12 @@ func _on_input_gui_input(event: InputEvent) -> void:
 			_history_next()
 		KEY_TAB:
 			_input.accept_event()
-			_autocomplete()
+			if event.shift_pressed:
+				var previous := _input.get_node_or_null(_input.focus_previous)
+				if previous is Control:
+					previous.grab_focus()
+			else:
+				_autocomplete()
 
 func _submit_input() -> void:
 	if _input == null or not is_instance_valid(_input):
@@ -320,6 +328,22 @@ func _autocomplete() -> void:
 		return
 	_input.text = completed
 	_input.caret_column = _input.text.length()
+
+func _wire_focus_order(controls: Array) -> void:
+	var focusable: Array[Control] = []
+	for raw_control in controls:
+		if raw_control is Control and is_instance_valid(raw_control) and raw_control.focus_mode != Control.FOCUS_NONE:
+			focusable.append(raw_control)
+	if focusable.is_empty():
+		return
+	for index in focusable.size():
+		var current := focusable[index]
+		var previous := focusable[wrapi(index - 1, 0, focusable.size())]
+		var next := focusable[wrapi(index + 1, 0, focusable.size())]
+		current.focus_neighbor_top = current.get_path_to(previous)
+		current.focus_neighbor_bottom = current.get_path_to(next)
+		current.focus_previous = current.get_path_to(previous)
+		current.focus_next = current.get_path_to(next)
 
 func _append_output(text: String) -> void:
 	if _output == null or not is_instance_valid(_output):
@@ -406,11 +430,14 @@ func _outline_style(color: Color) -> StyleBoxFlat:
 func _make_button(text: String, size: int, color: Color) -> Button:
 	var button := Button.new()
 	button.text = text
+	button.focus_mode = Control.FOCUS_ALL
 	button.flat = true
 	button.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	button.add_theme_font_size_override("font_size", size)
 	button.add_theme_color_override("font_color", color)
 	button.add_theme_color_override("font_hover_color", Balance.COL_PLAYER_HOT)
+	button.add_theme_color_override("font_focus_color", Balance.COL_TEXT)
+	button.add_theme_stylebox_override("focus", _outline_style(Balance.COL_TEXT))
 	return button
 
 func text_overflow_report() -> Array:
