@@ -6,6 +6,8 @@ extends RefCounted
 ## reference avoids a preload cycle. No behavior changes.
 
 var a
+var _boss_intro_reveal_tween: Tween
+var _boss_intro_exit_tween: Tween
 
 
 func _init(arena) -> void:
@@ -154,26 +156,37 @@ func _apply_story_theme(theme: Dictionary) -> void:
 		a._dust.color = Color(accent.r, accent.g, accent.b, 0.18)
 
 func _run_boss_intro() -> void:
+	_cancel_boss_intro_tweens()
 	var idx := int(Game.wave / float(Balance.BOSS_EVERY))
 	a._intro_label.text = RootBoss.title_for_index(idx) + " // KERNEL DAEMON"
 	a._intro_quote.text = '"' + RootBoss.quote_for_index(idx) + '"'
-	var tw: Tween = a.create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(a._intro_bars[0], "scale:y", 1.0, 0.4).from(0.001).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(a._intro_bars[1], "scale:y", 1.0, 0.4).from(0.001).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(a._intro_label, "modulate:a", 1.0, 0.5).set_delay(0.3)
-	tw.tween_property(a._intro_quote, "modulate:a", 1.0, 0.5).set_delay(0.45)
-	var tw2: Tween = a.create_tween()
-	tw2.tween_interval(2.0)
-	tw2.tween_property(a._intro_label, "modulate:a", 0.0, 0.4)
-	tw2.parallel().tween_property(a._intro_quote, "modulate:a", 0.0, 0.4)
-	tw2.tween_callback(func() -> void:
-		var tw3: Tween = a.create_tween()
-		tw3.set_parallel(true)
-		tw3.tween_property(a._intro_bars[0], "scale:y", 0.001, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-		tw3.tween_property(a._intro_bars[1], "scale:y", 0.001, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	)
+	_boss_intro_reveal_tween = a.create_tween()
+	_boss_intro_reveal_tween.set_parallel(true)
+	_boss_intro_reveal_tween.tween_property(a._intro_bars[0], "scale:y", 1.0, 0.4).from(0.001).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_boss_intro_reveal_tween.tween_property(a._intro_bars[1], "scale:y", 1.0, 0.4).from(0.001).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_boss_intro_reveal_tween.tween_property(a._intro_label, "modulate:a", 1.0, 0.5).set_delay(0.3)
+	_boss_intro_reveal_tween.tween_property(a._intro_quote, "modulate:a", 1.0, 0.5).set_delay(0.45)
+	_boss_intro_exit_tween = a.create_tween()
+	_boss_intro_exit_tween.tween_interval(2.0)
+	_boss_intro_exit_tween.tween_property(a._intro_label, "modulate:a", 0.0, 0.4)
+	_boss_intro_exit_tween.parallel().tween_property(a._intro_quote, "modulate:a", 0.0, 0.4)
+	_boss_intro_exit_tween.tween_callback(_collapse_boss_intro)
 	Fx.shake(0.25)
+
+func _cancel_boss_intro_tweens() -> void:
+	if _boss_intro_reveal_tween != null and _boss_intro_reveal_tween.is_valid():
+		_boss_intro_reveal_tween.kill()
+	if _boss_intro_exit_tween != null and _boss_intro_exit_tween.is_valid():
+		_boss_intro_exit_tween.kill()
+	_boss_intro_reveal_tween = null
+	_boss_intro_exit_tween = null
+
+func _collapse_boss_intro() -> void:
+	var tw3: Tween = a.create_tween()
+	_boss_intro_exit_tween = tw3
+	tw3.set_parallel(true)
+	tw3.tween_property(a._intro_bars[0], "scale:y", 0.001, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw3.tween_property(a._intro_bars[1], "scale:y", 0.001, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 
 func show_event_banner(txt: String) -> void:
 	a.hud.show_banner("CYCLE %02d // %s" % [Game.wave, txt], "", 1.8)

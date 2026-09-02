@@ -2323,6 +2323,119 @@ comprova redução de trabalho repetido e preservação de contratos de geometri
 mas não prova uma meta de FPS em hardware de produção; essa hipótese continua
 aberta para o passe de profiling em dispositivo-alvo.
 
+## 7.19 P3 — lifecycle de tweens em dicas e intro de boss
+
+### Auditoria e problema confirmado
+
+A revisão de animações encontrou dois pontos que escreviam repetidamente nos
+mesmos nós sem guardar o timeline anterior. `_show_tip()` zerava a opacidade e
+criava outra sequência sempre que uma wave terminava. Se duas conclusões
+chegassem antes de a dica anterior terminar — algo fácil de provocar em uma
+transição acelerada, em um probe ou em um modo de debug — dois tweens ficavam
+competindo por `modulate:a` do mesmo label.
+
+`IntroKit._run_boss_intro()` tinha o mesmo risco em uma forma mais complexa:
+criava um tween paralelo para revelar barras/texto e outro para aguardar,
+desaparecer e criar posteriormente um terceiro tween que recolhia as barras.
+Uma nova intro durante essa cadeia não cancelava nenhuma das três partes. O
+resultado podia ser texto desaparecendo cedo, barras reabrindo/recolhendo fora
+de ordem ou uma animação antiga alterando a apresentação do boss atual.
+
+O problema era de apresentação e lifecycle, não de simulação: nenhum inimigo,
+hitbox, dano, spawn ou regra de boss dependia do resultado do tween. Ainda
+assim, ele podia contradizer visualmente o estado real e era especialmente
+perigoso para um HUD que precisa comunicar eventos de forma confiável.
+
+### Decisão e alternativas
+
+Foi adotado ownership explícito por superfície: cada Arena mantém no máximo
+um timeline ativo para a dica; o IntroKit mantém referências canceláveis para
+revelação e saída/recolhimento da intro de boss. Antes de iniciar uma nova
+animação, os tweens válidos anteriores recebem `kill()` e as referências são
+limpas.
+
+A cadeia do boss preserva os tempos e a composição existentes, mas troca a
+lambda inline por `_collapse_boss_intro()`, um callback nomeado que registra o
+terceiro tween no mesmo slot cancelável. Assim, a parte atrasada também entra
+no contrato de cancelamento; ela não pode sobreviver invisivelmente à próxima
+intro.
+
+Foram consideradas estas alternativas:
+
+- deixar tweens antigos terminarem porque a intro normalmente ocorre uma vez
+  por boss; foi descartado porque debug, transições aceleradas e reentrada são
+  caminhos reais e o conflito é observável mesmo sem alteração de gameplay;
+- resetar somente propriedades (`alpha`/`scale`) sem matar tweens; foi
+  descartado porque o timeline antigo continuaria escrevendo depois do reset;
+- usar um único Tween monolítico para toda a intro; foi descartado neste lote
+  para não alterar sem necessidade a semântica temporal já existente; duas
+  fases continuam válidas, agora com ownership e cancelamento explícitos;
+- criar uma nova lambda capturando o tween atual; foi descartado porque um
+  callback nomeado não captura estado transitório e reduz o risco de callback
+  tardio/referência liberada.
+
+### Implementação
+
+- `src/arena/arena.gd` ganhou `_tip_tween`; `_show_tip()` cancela o timeline
+  válido antes de selecionar texto, resetar opacidade e criar a nova sequência;
+- `src/arena/intro_kit.gd` ganhou `_boss_intro_reveal_tween` e
+  `_boss_intro_exit_tween`, `_cancel_boss_intro_tweens()` e o callback nomeado
+  `_collapse_boss_intro()`;
+- a revelação, a espera/fade e o recolhimento continuam usando os tempos,
+  easing, barras e labels anteriores; a mudança é de ownership e lifecycle;
+- `tools/tween_lifecycle_probe.gd/.tscn` instancia uma Arena real, dispara
+  dica e intro de boss duas vezes e mede os tweens processados depois de um
+  frame, quando um tween morto já saiu da lista do SceneTree;
+- `tools/validate_input_dispatch.sh` passou a executar o probe P3 headless e
+  sob Xvfb, sempre com áudio dummy.
+
+### Evidência red → green
+
+O probe vermelho reproduziu duas falhas controladas no comportamento anterior:
+o segundo disparo da dica acrescentava outro timeline e o segundo disparo da
+intro acrescentava as timelines de revelação/saída. As assertions de criação
+continuaram verdes, mostrando que o teste exercitava os caminhos reais e não
+falhava por ausência da Arena.
+
+Com o cancelamento implementado, o probe terminou `PROBE_DONE fails=0`, com 6
+passes em headless e 6 passes em Xvfb. Ele confirmou que cada primeira chamada
+cria sua apresentação e que a segunda chamada substitui o timeline anterior.
+Os sinais foram medidos após um frame para não confundir um Tween recém-morto,
+mas ainda presente no snapshot imediato do SceneTree, com um tween realmente
+ativo.
+
+O acumulado posterior deve continuar sendo a gate de integração: ele inclui o
+DevHarness e todos os probes históricos. Os diagnósticos de teardown de
+ObjectDB, recursos e RIDs continuam separados e não são convertidos em
+sucesso do lifecycle só porque o probe termina com exit 0.
+
+### Impacto, compatibilidade e limites
+
+A mudança é interna à apresentação. Não altera duração declarada, texto,
+telemetria, dano, spawn, pausa, input, save ou balanceamento quando a animação
+é acionada uma única vez. Em reentrada, o comportamento muda de “duas
+animações conflitantes” para “a solicitação mais recente é a autoridade”, que
+é o contrato desejado.
+
+Não há breaking change intencional. A referência a `Tween` permanece privada
+à Arena/IntroKit e não cria API pública. O probe mede quantidade de timelines,
+não qualidade visual em todos os refresh rates, nem prova que todos os callers
+futuros respeitarão o ownership se criarem tweens diretamente nos mesmos nós.
+
+### Segunda análise e risco residual
+
+Foi revisado o caminho tardio do boss: o callback agora aponta para método
+nomeado, cria o recolhimento em `_boss_intro_exit_tween` e é cancelado pelo
+mesmo guard antes de nova intro. Foi revisado também o caso de um tween já
+concluído: `is_valid()` evita chamar `kill()` em um timeline que não está mais
+ativo, sem exigir limpeza por callback adicional.
+
+Ainda não há um probe de captura por frame que compare a curva completa em
+30/60/120 Hz, nem um teste de encerramento de Arena durante cada fase da intro.
+Esses são riscos de apresentação/lifecycle de baixa probabilidade após o
+ownership explícito, mas devem entrar na matriz de confiabilidade se o jogo
+adotar replay, fast-forward ou transições concorrentes.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário

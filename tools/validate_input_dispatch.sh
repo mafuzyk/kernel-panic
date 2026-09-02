@@ -158,6 +158,7 @@ run_headless_probe_with_env "KP_VNEXT_U6" "probe-vnext-state-surface" "VNext sha
 run_headless_probe "probe-macos-release-gate" "M5 macOS surface integration" "res://tools/macos_release_gate_probe.tscn"
 run_headless_probe "probe-accessibility-profile" "A11/A14 accessibility effects and handed touch" "res://tools/accessibility_profile_probe.tscn"
 run_headless_probe "probe-p1-layout-cache" "P1 layout cache and responsive relayout" "res://tools/layout_cache_probe.tscn"
+run_headless_probe "probe-p3-tween-lifecycle" "P3 tween lifecycle" "res://tools/tween_lifecycle_probe.tscn"
 run_headless_probe "probe-performance-stress" "P1 deterministic performance stress profile" "res://tools/performance_stress_probe.tscn"
 
 if command -v xvfb-run >/dev/null 2>&1; then
@@ -222,6 +223,10 @@ if command -v xvfb-run >/dev/null 2>&1; then
 	report_case "P1 layout cache xvfb" "$LOG_DIR/probe-p1-layout-cache-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "P1 layout cache xvfb" "$LOG_DIR/probe-p1-layout-cache-xvfb.log"
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/tween_lifecycle_probe.tscn > "$LOG_DIR/probe-p3-tween-lifecycle-xvfb.log" 2>&1
+	report_case "P3 tween lifecycle xvfb" "$LOG_DIR/probe-p3-tween-lifecycle-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "P3 tween lifecycle xvfb" "$LOG_DIR/probe-p3-tween-lifecycle-xvfb.log"
 	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/performance_stress_probe.tscn > "$LOG_DIR/probe-performance-stress-xvfb.log" 2>&1
 	report_case "P1 performance stress xvfb" "$LOG_DIR/probe-performance-stress-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'

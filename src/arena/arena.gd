@@ -618,6 +618,7 @@ const TIPS := [
 
 var _tip_label: Label
 var _tip_index := 0
+var _tip_tween: Tween
 
 func _on_wave_cleared(wave: int) -> void:
 	if Game.mode == "story":
@@ -682,13 +683,15 @@ func _show_tip() -> void:
 		tl.layer = 45
 		tl.add_child(_tip_label)
 		add_child(tl)
+	if _tip_tween != null and _tip_tween.is_valid():
+		_tip_tween.kill()
 	_tip_index = randi() % TIPS.size()
 	_tip_label.text = "TIP // " + TIPS[_tip_index]
 	_tip_label.modulate.a = 0.0
-	var tw := create_tween()
-	tw.tween_property(_tip_label, "modulate:a", 0.85, 0.4)
-	tw.tween_interval(2.2)
-	tw.tween_property(_tip_label, "modulate:a", 0.0, 0.6)
+	_tip_tween = create_tween()
+	_tip_tween.tween_property(_tip_label, "modulate:a", 0.85, 0.4)
+	_tip_tween.tween_interval(2.2)
+	_tip_tween.tween_property(_tip_label, "modulate:a", 0.0, 0.6)
 
 func _build_patch_ui() -> void:
 	_vnext_patch_mode = OS.get_environment("KP_VNEXT_PATCH") == "1"

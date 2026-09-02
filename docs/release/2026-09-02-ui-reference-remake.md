@@ -44,6 +44,8 @@
 - Added a repeatable visual verification path for the reference-remake
   surfaces; the focused probes report their pass counts in the verification
   summary below and zero failures.
+- Added a focused tween-lifecycle probe for repeated combat tips and boss
+  introductions, including headless and desktop-debug execution.
 
 ## Changed
 
@@ -106,6 +108,9 @@
   fullscreen is not a meaningful native action.
 - Changed responsive layout work from an unconditional per-frame pass to
   resize/parameter-driven updates for the HUD and Arena state panels.
+- Changed repeated tip and boss-intro triggers to own and replace their active
+  presentation timelines instead of allowing concurrent tweens to write the
+  same nodes.
 
 ## Fixed
 
@@ -167,6 +172,9 @@
   list viewport without an automatic scroll adjustment.
 - Fixed the Settings surface exposing a fullscreen toggle in touch/mobile
   contexts even though the platform predicate rejects that native action.
+- Fixed repeated wave tips and boss introductions competing over opacity and
+  intro-bar state; the previous animation is now cancelled before the next
+  one starts, including the delayed boss-intro collapse.
 
 ## Improved
 
@@ -209,6 +217,8 @@
 - Improved runtime UI efficiency by caching repeated HUD layout and patch-chip
   geometry requests while retaining invalidation for viewport, touch scale and
   patch-state changes.
+- Improved animation lifecycle safety by keeping one active tip timeline and a
+  cancellable boss-intro reveal/exit chain per Arena instance.
 
 ## Performance
 
@@ -283,6 +293,9 @@
 - P1 layout-cache probe: 15 focused headless passes and 15 Xvfb passes, 0
   failures; HUD layout/patch caches and Arena idle/changed-height relayout were
   checked.
+- P3 tween-lifecycle probe: 6 focused headless passes and 6 Xvfb passes, 0
+  failures; repeated tip and boss-intro triggers were checked for replacement
+  rather than accumulation.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,

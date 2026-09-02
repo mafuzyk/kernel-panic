@@ -108,7 +108,9 @@ final. Um item de backlog = um commit; rodar
 - [x] **P2 — Lambda leak.** A conexão do HUD com `Game.patch_picked` já era
   bound e foi removida junto com o widget morto que ela alimentava; a Arena
   continua sendo a autoridade que aplica patches.
-- [ ] **P3 — Tweens sobrepostos.** Tip label (`arena.gd:506-520`), boss intro
-  (`intro_kit.gd:154-173`). Matar tween anterior antes de criar novo.
+- [x] **P3 — Tweens sobrepostos.** Tip label e boss intro agora cancelam o
+  timeline anterior antes de escrever novamente nos mesmos nós; o fechamento
+  da intro também usa um callback nomeado, sem criar uma cadeia órfã ao
+  reacionar a apresentação.
 - [ ] **P4 — Boss bar fantasma.** "MINI-B" 0% com 1 fragmento (`hud.gd:681-701`),
   nome hardcoded (`hud.gd:323`).
