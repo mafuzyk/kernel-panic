@@ -696,6 +696,20 @@ organizada por evidência e relação entre blocos. Ainda não é uma declaraç�
 aprovação estética final: o cast completo, gameplay em movimento e a avaliação
 humana continuam necessários.
 
+## 7.2 Auditoria documental — 2026-09-02
+
+Foi conferida a árvore do plano-mestre e os documentos de execução deste
+checkpoint. O conjunto esperado está presente: `README.md`,
+`00-MASTER-PLAN.md` até `13-RISK-DECISION-GOVERNANCE.md`, além de
+`docs/UI-REDESIGN-DIRECTION.md`, este handoff e a release note da revisão.
+
+Essa auditoria confirma completude estrutural da documentação, não conclusão
+do plano de produto. O plano ainda contém trabalho futuro de refatoração total
+da UI, cast completo code-drawn, história macOS, localização PT-BR,
+acessibilidade de plataforma, novos inimigos, gameplay, mobile/PC, performance
+e preparação de release. Este checkpoint documenta e implementa apenas o
+segundo passe da direção visual vNext e seus instrumentos de validação.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário
