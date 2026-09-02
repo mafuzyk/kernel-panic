@@ -101,10 +101,10 @@ final. Um item de backlog = um commit; rodar
 
 ## Fase 4 — performance e robustez
 
-- [ ] **P1 — Cache de layout.** `layout_snapshot()` ~10x/frame
-  (`hud.gd:386-403...`), `_refresh_responsive_layout()` todo frame com pause
-  invisível (`arena.gd:1082` → `panel_kit.gd:79-99`), chip rects todo frame
-  (`hud.gd:577-595`). Cache no resize.
+- [x] **P1 — Cache de layout.** O HUD agora cacheia o layout por viewport,
+	touch e escala; o geometry cache dos chips invalida por viewport, touch,
+	escala e estado dos patches; a Arena só relayouta painéis quando o viewport
+	ou a altura solicitada mudam, em vez de reaplicar a geometria todo frame.
 - [x] **P2 — Lambda leak.** A conexão do HUD com `Game.patch_picked` já era
   bound e foi removida junto com o widget morto que ela alimentava; a Arena
   continua sendo a autoridade que aplica patches.

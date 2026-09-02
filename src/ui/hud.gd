@@ -52,6 +52,20 @@ var _banner_elapsed := 0.0
 var _aux_size := Vector2.ZERO
 var _vnext_hud_surface: Control
 var _vnext_hud_mode := false
+var _layout_cache: Dictionary = {}
+var _layout_cache_viewport := Vector2(-1.0, -1.0)
+var _layout_cache_touch := false
+var _layout_cache_touch_scale := -1.0
+var _layout_cache_valid := false
+var _layout_cache_builds := 0
+var _layout_cache_hits := 0
+var _patch_dock_cache: Dictionary = {}
+var _patch_dock_cache_viewport := Vector2(-1.0, -1.0)
+var _patch_dock_cache_touch := false
+var _patch_dock_cache_touch_scale := -1.0
+var _patch_dock_cache_signature := ""
+var _patch_dock_cache_valid := false
+var _patch_dock_cache_builds := 0
 const BANNER_FADE_IN_SECONDS := 0.22
 const BANNER_FADE_OUT_SECONDS := 0.32
 
@@ -200,7 +214,29 @@ func hud_bottom_y(gap: float) -> float:
 	return _layout_height() - _safe_bottom_margin() - gap
 
 func layout_snapshot(viewport: Vector2 = size) -> Dictionary:
-	return TacticalUIHelper.layout(viewport, touch_layout(), Sfx.touch_scale)
+	var touch := touch_layout()
+	var touch_scale := float(Sfx.touch_scale)
+	if _layout_cache_valid and viewport == _layout_cache_viewport and touch == _layout_cache_touch and is_equal_approx(touch_scale, _layout_cache_touch_scale):
+		_layout_cache_hits += 1
+		return _layout_cache
+	_layout_cache_viewport = viewport
+	_layout_cache_touch = touch
+	_layout_cache_touch_scale = touch_scale
+	_layout_cache = TacticalUIHelper.layout(viewport, touch, touch_scale)
+	_layout_cache_valid = true
+	_layout_cache_builds += 1
+	return _layout_cache
+
+func layout_cache_snapshot() -> Dictionary:
+	return {
+		"valid": _layout_cache_valid,
+		"builds": _layout_cache_builds,
+		"hits": _layout_cache_hits,
+		"viewport": _layout_cache_viewport,
+		"touch": _layout_cache_touch,
+		"touch_scale": _layout_cache_touch_scale,
+		"patch_builds": _patch_dock_cache_builds,
+	}
 
 func _banner_reserved_rect(viewport: Vector2 = size) -> Rect2:
 	var lay := layout_snapshot(viewport)
@@ -289,7 +325,7 @@ func boss_title_baseline() -> float:
 
 func boss_bar_rects(viewport: Vector2 = size, split: bool = _boss_split) -> Array[Rect2]:
 	var result: Array[Rect2] = []
-	var region: Rect2 = TacticalUIHelper.layout(viewport)["boss"]
+	var region: Rect2 = layout_snapshot(viewport)["boss"]
 	var row_gap := 3.0
 	var row_h := 7.0 if split else 10.0
 	var row_y := region.position.y + 31.0
@@ -726,24 +762,41 @@ func _update_patch_chip_rects() -> void:
 	_patch_chip_rects = patch_dock_rects(size)
 
 func patch_dock_rects(viewport: Vector2 = size) -> Dictionary:
+	var touch := touch_layout()
+	var touch_scale := float(Sfx.touch_scale)
+	var signature := _patch_dock_signature()
+	if _patch_dock_cache_valid and viewport == _patch_dock_cache_viewport and touch == _patch_dock_cache_touch and is_equal_approx(touch_scale, _patch_dock_cache_touch_scale) and signature == _patch_dock_cache_signature:
+		return _patch_dock_cache
 	var result: Dictionary = {}
-	if Game.patch_levels.is_empty():
-		return result
-	var panel: Rect2 = layout_snapshot(viewport)["patches"]
-	var ids: Array = Game.patch_levels.keys()
-	var compact := bool(layout_snapshot(viewport)["compact"])
-	var available := Rect2(panel.position + Vector2(12.0, 26.0), Vector2(maxf(panel.size.x - 24.0, 24.0), maxf(panel.size.y - 34.0, 12.0)))
-	var gap := 4.0
-	var max_columns := 5 if not compact else 4
-	var columns := mini(max_columns, maxi(ids.size(), 1))
-	var rows := ceili(float(ids.size()) / float(columns))
-	var chip_w := maxf((available.size.x - gap * float(columns - 1)) / float(columns), 8.0)
-	var chip_h := maxf((available.size.y - gap * float(rows - 1)) / float(rows), 8.0)
-	for index in ids.size():
-		var col := index % columns
-		var row := index / columns
-		result[ids[index]] = Rect2(available.position + Vector2(col * (chip_w + gap), row * (chip_h + gap)), Vector2(chip_w, chip_h))
-	return result
+	if not Game.patch_levels.is_empty():
+		var panel: Rect2 = layout_snapshot(viewport)["patches"]
+		var ids: Array = Game.patch_levels.keys()
+		var compact := bool(layout_snapshot(viewport)["compact"])
+		var available := Rect2(panel.position + Vector2(12.0, 26.0), Vector2(maxf(panel.size.x - 24.0, 24.0), maxf(panel.size.y - 34.0, 12.0)))
+		var gap := 4.0
+		var max_columns := 5 if not compact else 4
+		var columns := mini(max_columns, maxi(ids.size(), 1))
+		var rows := ceili(float(ids.size()) / float(columns))
+		var chip_w := maxf((available.size.x - gap * float(columns - 1)) / float(columns), 8.0)
+		var chip_h := maxf((available.size.y - gap * float(rows - 1)) / float(rows), 8.0)
+		for index in ids.size():
+			var col := index % columns
+			var row := index / columns
+			result[ids[index]] = Rect2(available.position + Vector2(col * (chip_w + gap), row * (chip_h + gap)), Vector2(chip_w, chip_h))
+	_patch_dock_cache_viewport = viewport
+	_patch_dock_cache_touch = touch
+	_patch_dock_cache_touch_scale = touch_scale
+	_patch_dock_cache_signature = signature
+	_patch_dock_cache = result
+	_patch_dock_cache_valid = true
+	_patch_dock_cache_builds += 1
+	return _patch_dock_cache
+
+func _patch_dock_signature() -> String:
+	var parts: Array[String] = []
+	for id in Game.patch_levels:
+		parts.append("%s=%d" % [str(id), int(Game.patch_levels[id])])
+	return "|".join(parts)
 
 func _draw_patch_tooltip(f: Font) -> void:
 	if not _tooltip_visible or _tooltip_data.is_empty() or not _patch_chip_rects.has(_tooltip_patch_id):

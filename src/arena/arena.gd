@@ -99,12 +99,17 @@ var _restart_triggered := false
 var _panel_kit
 var _intro_kit
 var _stage_kit
+var _responsive_layout_viewport := Vector2(-1.0, -1.0)
+var _responsive_layout_height := -1.0
+var _responsive_layout_valid := false
+var _responsive_layout_refreshes := 0
 const RESTART_HOLD_DURATION := 0.75
 
 func _ready() -> void:
 	add_to_group("arena")
 	if is_inside_tree():
 		get_window().size_changed.connect(_on_vnext_window_size_changed)
+		get_viewport().size_changed.connect(_on_responsive_viewport_size_changed)
 	_panel_kit = PanelKitScript.new(self)
 	_intro_kit = IntroKitScript.new(self)
 	_stage_kit = StageKitScript.new(self)
@@ -350,6 +355,16 @@ func _layout_patch_box() -> void:
 			card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 func _refresh_responsive_layout(viewport_height: float = -1.0) -> void:
+	if _panel_kit == null:
+		return
+	var viewport_size := get_viewport_rect().size
+	var effective_height := viewport_height if viewport_height > 0.0 else viewport_size.y
+	if _responsive_layout_valid and viewport_size == _responsive_layout_viewport and is_equal_approx(effective_height, _responsive_layout_height):
+		return
+	_responsive_layout_viewport = viewport_size
+	_responsive_layout_height = effective_height
+	_responsive_layout_valid = true
+	_responsive_layout_refreshes += 1
 	_panel_kit._layout_pause_panel()
 	_panel_kit._layout_game_over_panel()
 	for panel in [_pause_panel, _over_panel, _patch_panel]:
@@ -362,6 +377,17 @@ func _refresh_responsive_layout(viewport_height: float = -1.0) -> void:
 
 func _refresh_responsive_layout_for_height(viewport_height: float) -> void:
 	_refresh_responsive_layout(viewport_height)
+
+func _on_responsive_viewport_size_changed() -> void:
+	_refresh_responsive_layout()
+
+func responsive_layout_snapshot() -> Dictionary:
+	return {
+		"valid": _responsive_layout_valid,
+		"refreshes": _responsive_layout_refreshes,
+		"viewport": _responsive_layout_viewport,
+		"height": _responsive_layout_height,
+	}
 
 func panel_scale_for_height(viewport_height: float = -1.0) -> float:
 	return _panel_kit.panel_scale_for_height(viewport_height)
@@ -830,6 +856,7 @@ func _prepare_vnext_surface(surface: Control) -> void:
 		surface.reflow_for_viewport(viewport_size)
 
 func _on_vnext_window_size_changed() -> void:
+	_refresh_responsive_layout()
 	if _vnext_patch_surface != null and is_instance_valid(_vnext_patch_surface) and _patch_open:
 		_prepare_vnext_surface(_vnext_patch_surface)
 	if _vnext_u4_surface != null and is_instance_valid(_vnext_u4_surface) and _vnext_u4_surface.visible:
@@ -1506,7 +1533,6 @@ func _notification(what: int) -> void:
 			_set_paused(true)
 
 func _process(delta: float) -> void:
-	_refresh_responsive_layout()
 	if _story_intro_state != 0:
 		_intro_kit._tick_story_intro(delta)
 	if _intro_bars.size() > 1 and is_instance_valid(_intro_bars[1]):

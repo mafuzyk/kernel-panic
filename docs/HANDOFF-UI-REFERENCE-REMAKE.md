@@ -2187,6 +2187,142 @@ finais ainda precisam ser verificados manualmente. O risco é de classificação
 da plataforma, não de perda de save: `fullscreen` continua persistido e pode
 ser reativado quando o jogo volta a um ambiente desktop.
 
+## 7.18 P1 — cache de layout e relayout responsivo orientado por mudança
+
+### Auditoria e problema confirmado
+
+A revisão do HUD encontrou que `layout_snapshot()` chamava
+`TacticalUI.layout()` em cada consumidor, mesmo quando viewport, plataforma e
+escala de toque permaneciam iguais. No caminho legado, uma única atualização
+também podia pedir o layout de novo para banner, pips, barra de habilidade,
+patch dock, tooltip e boss bar. O cálculo é pequeno, mas o padrão multiplicava
+criação de Dictionaries e Rect2s dentro de `_process()`/`_draw()` e tornava a
+intenção de performance difícil de verificar.
+
+A Arena tinha um problema separado: `_process()` chamava
+`_refresh_responsive_layout()` em todo frame. O método reposicionava pause,
+game-over e patch controls, reaplicava tamanhos e percorria os filhos do patch
+box mesmo quando nenhum painel estava sendo redimensionado. Isso não mudou a
+simulação, mas consumia trabalho de UI durante combate e, pior, fazia o
+comportamento depender de um passe de layout invisível para continuar correto
+quando a janela mudava.
+
+### Decisão e alternativas
+
+O HUD passou a usar um cache de uma entrada para a combinação exata de
+viewport, estado touch e `Sfx.touch_scale`. O cache é deliberadamente pequeno:
+o runtime pede quase sempre a viewport atual, enquanto probes e helpers que
+consultam viewports arbitrárias simplesmente substituem a última entrada.
+Isso evita manter um Dictionary de layouts potencialmente ilimitado para
+testes ou janelas transitórias.
+
+O geometry cache de patch chips usa a mesma ideia, mas acrescenta uma
+assinatura baseada na iteração real de `Game.patch_levels` (id, nível e ordem).
+Assim, um patch novo, mudança de nível, mudança de viewport, touch ou escala
+invalida a geometria; uma mera repetição retorna o dicionário já calculado. A
+ordem não é classificada artificialmente, porque ela determina a posição
+visual dos chips e deve permanecer compatível com a ordem usada no desenho.
+
+A Arena passou a armazenar a última viewport e a altura efetiva aplicada. Os
+sinais `Viewport.size_changed` e `Window.size_changed` agora apenas acionam a
+verificação dessa chave; só há relayout quando a geometria efetiva realmente
+mudou. Isso também torna repetidos sinais do mesmo resize idempotentes. O
+`_process()` deixou de chamar o método incondicionalmente. A API interna de
+altura continua funcionando para os probes e para callers que precisam
+recalcular uma composição específica.
+
+Foram consideradas estas alternativas:
+
+- recalcular tudo somente uma vez no `_ready()`; foi descartado porque resize,
+  portrait e mudanças de cards exigem geometria nova;
+- manter todos os layouts já calculados em um cache por viewport; foi
+  descartado por permitir crescimento sem limite e porque o runtime não
+  precisa de histórico de janelas;
+- cachear somente por viewport; foi descartado porque touch e
+  `Sfx.touch_scale` alteram a largura e a composição do patch dock;
+- deixar o `_process()` da Arena intacto e apenas tornar o método mais barato;
+  foi descartado porque ainda faria um passe de layout por frame e esconderia
+  a verdadeira invalidação por resize;
+- invalidar chips apenas no sinal `patch_picked`; foi descartado como única
+  proteção porque carregamento/restauração de estado e testes podem substituir
+  `Game.patch_levels` diretamente; a assinatura também detecta esse caso.
+
+### Implementação
+
+- `src/ui/hud.gd` ganhou cache de layout base, telemetria interna de hits/builds
+  e cache de geometria dos chips;
+- `layout_snapshot()` agora reutiliza o resultado quando os quatro fatores que
+  mudam a geometria permanecem iguais;
+- `boss_bar_rects()` passou a consumir o mesmo layout cacheado em vez de chamar
+  `TacticalUI.layout()` diretamente;
+- `patch_dock_rects()` calcula uma vez por estado/viewport e conserva a ordem
+  dos patches;
+- `src/arena/arena.gd` ganhou chave de viewport/altura, verificação orientada
+  por resize, telemetria interna e conexão ao `Viewport.size_changed`;
+- o passe responsivo saiu de `_process()` e permanece acionado na construção,
+  na abertura/atualização de patch e em mudanças de janela;
+- `tools/layout_cache_probe.gd/.tscn` verifica HUD e Arena reais, repetição,
+  troca de viewport, troca de touch scale, troca de patch, idle e altura
+  responsiva;
+- `tools/validate_input_dispatch.sh` passou a executar o probe P1 headless e
+  em Xvfb.
+
+### Evidência red → green
+
+Antes da implementação, o probe terminou com exit 1 e 2 falhas controladas:
+HUD não expunha telemetria de cache e Arena não expunha telemetria de relayout.
+O processo não produziu `SCRIPT ERROR`; as falhas identificaram a ausência do
+contrato esperado.
+
+Depois da implementação, o probe terminou com `PROBE_DONE fails=0` e 15
+passes em headless e 15 passes em Xvfb. Ele comprovou que:
+
+- oito chamadas repetidas de layout não aumentam o número de builds;
+- hits são registrados e troca de viewport/touch scale gera exatamente um
+  novo build;
+- oito pedidos repetidos de patch geometry reutilizam o resultado e mudar o
+  nível de um patch gera novo cálculo;
+- sinais repetidos de viewport/janela com a mesma geometria não geram um
+  segundo relayout;
+- oito frames ociosos não aumentam o contador de relayout da Arena;
+- mudar a altura solicitada relayouta uma vez, repetir a mesma altura não
+  relayouta e uma altura nova invalida a composição.
+
+O acumulado com o patch terminou `VALIDATION OK`: DevHarness com 1454
+`AT_PASS`, zero `AT_FAIL` e `AUTOTEST_ALL_PASS`; P1 de layout com 15/15 em
+headless/Xvfb; e todos os demais probes verdes. Os únicos diagnósticos
+restantes são leaks de teardown já conhecidos e não-gating; não apareceram
+erros de script/runtime neste lote.
+
+### Impacto, compatibilidade e limites
+
+A mudança é interna à apresentação: não altera física, spawn, colisão,
+balance, input, save ou a geometria resultante para uma mesma combinação de
+parâmetros. O resultado visual do layout continua sendo produzido pela mesma
+função de tokens; apenas deixa de ser reconstruído desnecessariamente.
+
+Não há breaking change intencional. A telemetria de cache é observabilidade
+interna para regressão e pode ser removida ou ocultada antes de uma API pública.
+O uso de um cache de uma entrada significa que alternar deliberadamente entre
+duas viewports em cada frame não será otimizado — comportamento considerado
+fora do runtime normal e preferível a acumular layouts sem limite.
+
+### Segunda análise e risco residual
+
+Foi revisado se algum caller mutava o Dictionary retornado por
+`layout_snapshot()` ou o Dictionary de chips; a busca no projeto encontrou
+somente leitura. Foi revisado também se a ordem dos patches podia mudar sem
+alterar id/nível; a assinatura preserva a ordem para não reaproveitar posições
+incorretas. Os gatilhos de viewport e janela foram mantidos, mas ambos passam
+pela mesma chave antes de relayoutar, cobrindo a diferença observada entre
+canvas lógico e tamanho físico sem duplicar trabalho quando os dois sinais
+chegam juntos.
+
+Ainda não há medição de frame-time no Vega integrado ou Android real. O probe
+comprova redução de trabalho repetido e preservação de contratos de geometria,
+mas não prova uma meta de FPS em hardware de produção; essa hipótese continua
+aberta para o passe de profiling em dispositivo-alvo.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário

@@ -104,6 +104,8 @@
 - Changed the legacy Settings DISPLAY section so fullscreen is explicitly a
   desktop-only control; target FPS remains available on touch/mobile, where
   fullscreen is not a meaningful native action.
+- Changed responsive layout work from an unconditional per-frame pass to
+  resize/parameter-driven updates for the HUD and Arena state panels.
 
 ## Fixed
 
@@ -204,6 +206,9 @@
   dossier agree immediately, including on narrow layouts.
 - Improved display-settings honesty by deriving the desktop-only fullscreen
   visibility from the same platform predicate used by desktop keybind capture.
+- Improved runtime UI efficiency by caching repeated HUD layout and patch-chip
+  geometry requests while retaining invalidation for viewport, touch scale and
+  patch-state changes.
 
 ## Performance
 
@@ -214,6 +219,9 @@
   frame-time claims remain open.
 - The existing deterministic performance profile and accumulated stress probe
   continue to pass; hardware-specific frame-time claims remain open.
+- The new layout cache probe confirms repeated requests hit the cache and that
+  Arena responsive panels remain idle between geometry changes; this is not a
+  hardware-specific FPS guarantee.
 
 ## Compatibility
 
@@ -272,6 +280,9 @@
 - N4 display-settings surface probe: 9 focused headless passes, 11 Xvfb
   desktop passes and 9 Xvfb touch-scope passes, 0 failures; the real DISPLAY
   section, fullscreen wiring and forced-touch visibility were checked.
+- P1 layout-cache probe: 15 focused headless passes and 15 Xvfb passes, 0
+  failures; HUD layout/patch caches and Arena idle/changed-height relayout were
+  checked.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,
