@@ -33,6 +33,9 @@
 - Added a silent, crop-aware vNext surface capture utility and a focused chrome
   contract probe for wide and narrow viewports, including Story list/detail
   captures.
+- Added a focused legacy-overlay layout probe that checks the real Program,
+  Story, Bestiary and Awards routes and their shared return slot in headless
+  and desktop-debug validation.
 - Added a repeatable visual verification path for the reference-remake
   surfaces; the focused probes report their pass counts in the verification
   summary below and zero failures.
@@ -88,6 +91,9 @@
   was changed in this development checkpoint.
 - Changed legacy pause, terminal and game-over controls to share an explicit
   keyboard focus order while preserving their existing mouse/touch targets.
+- Changed the legacy Program, Story, Bestiary and Awards return action to use
+  one lower-left footer position, matching the reference navigation grammar
+  and remaining attached to the viewport during stretch/resize.
 
 ## Fixed
 
@@ -140,6 +146,10 @@
 - Fixed legacy state panels opening without a visible focus target; pause and
   game-over now focus their primary action, and terminal ESC restores the
   action that opened it.
+- Fixed the legacy menu overlays disagreeing about where BACK lived: Program
+  and Story used the upper-right while Bestiary and Awards used a separate
+  lower-left override. The shared chrome now owns the geometry and the
+  duplicate per-screen overrides are gone.
 
 ## Improved
 
@@ -173,6 +183,8 @@
   patch callback that had no visible consumer.
 - Improved keyboard-only operation with visible focus chrome, deterministic
   vertical navigation and a Shift+Tab route out of the legacy terminal prompt.
+- Improved legacy navigation consistency by making the return affordance occupy
+  the same physical corner on every selection/data overlay.
 
 ## Performance
 

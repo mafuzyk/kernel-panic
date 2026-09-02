@@ -518,14 +518,17 @@ func _style_overlay_back(back: Button) -> void:
 	back.add_theme_color_override("font_color", Balance.COL_PLAYER)
 	back.add_theme_color_override("font_hover_color", Balance.COL_TEXT)
 	back.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	back.anchor_left = 1.0
-	back.anchor_right = 1.0
-	back.anchor_top = 0.0
-	back.anchor_bottom = 0.0
-	back.offset_left = -190.0
-	back.offset_right = -36.0
-	back.offset_top = 58.0
-	back.offset_bottom = 100.0
+	# Every legacy overlay returns through the same lower-left footer slot. The
+	# anchors keep the slot tied to the viewport during stretch/resize rather
+	# than to a 1280x720-only coordinate.
+	back.anchor_left = 0.0
+	back.anchor_right = 0.0
+	back.anchor_top = 1.0
+	back.anchor_bottom = 1.0
+	back.offset_left = 28.0
+	back.offset_right = 190.0
+	back.offset_top = -72.0
+	back.offset_bottom = -30.0
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.0)
 	normal.border_color = Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.0)

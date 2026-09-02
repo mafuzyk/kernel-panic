@@ -607,15 +607,6 @@ func _open_bestiary() -> void:
 		_bestiary_panel.add_child(hint)
 		var back := Button.new()
 		_chrome_kit._style_overlay_back(back)
-		back.text = "BACK  [ESC]"
-		back.anchor_left = 0.0
-		back.anchor_right = 0.0
-		back.anchor_top = 1.0
-		back.anchor_bottom = 1.0
-		back.offset_left = 28.0
-		back.offset_right = 190.0
-		back.offset_top = -72.0
-		back.offset_bottom = -30.0
 		back.pressed.connect(_close_bestiary)
 		_bestiary_panel.add_child(back)
 		var layer := CanvasLayer.new()
@@ -639,15 +630,6 @@ func _open_achievements() -> void:
 		_ach_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 		var back := Button.new()
 		_chrome_kit._style_overlay_back(back)
-		back.text = "BACK  [ESC]"
-		back.anchor_left = 0.0
-		back.anchor_right = 0.0
-		back.anchor_top = 1.0
-		back.anchor_bottom = 1.0
-		back.offset_left = 28.0
-		back.offset_right = 190.0
-		back.offset_top = -72.0
-		back.offset_bottom = -30.0
 		back.pressed.connect(_close_achievements)
 		_ach_panel.add_child(back)
 		var layer := CanvasLayer.new()

@@ -85,9 +85,10 @@ final. Um item de backlog = um commit; rodar
   agora definem stylebox de foco, focam a primeira ação ao abrir, encadeiam
   navegação vertical e devolvem o foco ao ponto correto quando o terminal
   fecha. Enter e ESC continuam donos das ações/retorno.
-- [ ] **N2 — BACK no mesmo canto.** Bestiary/awards reancoram o back para
-  baixo-esquerda (`menu.gd:419-427`); program/story usam topo-direita
-  (`menu_chrome_kit.gd:484-491`). Padronizar.
+- [x] **N2 — BACK no mesmo canto.** Program, Story, Bestiary e Awards agora
+  usam o mesmo slot de rodapé inferior esquerdo, definido uma única vez em
+  `menu_chrome_kit.gd::_style_overlay_back()`. A geometria é ancorada ao
+  viewport e foi verificada em headless e Xvfb.
 - [ ] **N3 — Bestiary abre desincronizado.** Seleção default "root"
   (`bestiary_panel.gd:34`) fora da viewport da lista. Scroll-into-view no open
   e na seleção.

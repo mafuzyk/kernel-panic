@@ -129,6 +129,7 @@ run_headless_probe "probe-h5-hud-layout-collisions" "H5 HUD layout collision pro
 run_headless_probe "probe-h6-overlay-layers" "H6 overlay layer probe" "res://tools/overlay_layer_probe.tscn"
 run_headless_probe "probe-h7-dead-widgets" "H7 dead widgets and affordances probe" "res://tools/hud_dead_widgets_probe.tscn"
 run_headless_probe "probe-n1-state-panel-navigation" "N1 state-panel keyboard navigation probe" "res://tools/state_panel_navigation_probe.tscn"
+run_headless_probe "probe-n2-overlay-back-layout" "N2 overlay back layout probe" "res://tools/overlay_back_layout_probe.tscn"
 run_headless_probe "probe-r18-touch-multitouch" "R18 touch multitouch action probe" "res://tools/touch_multitouch_probe.tscn"
 run_headless_probe "probe-vnext-primitives" "VNext code-drawn primitive contract" "res://tools/vnext_primitives_probe.tscn"
 run_headless_probe "probe-vnext-entity-illustration" "VNext code-drawn entity illustration contract" "res://tools/vnext_entity_illustration_probe.tscn"

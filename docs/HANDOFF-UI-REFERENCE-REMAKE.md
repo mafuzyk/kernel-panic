@@ -1912,6 +1912,95 @@ pausa ainda deve ser avaliada manualmente quanto à ordem mais confortável,
 porque eles não são ações destrutivas e têm o comportamento próprio de
 controle de valor.
 
+## 7.15 N2 — posição única do retorno dos overlays legados
+
+### Problema confirmado
+
+As superfícies legadas de seleção e dados não ensinavam o mesmo mapa de
+navegação. Program e Story recebiam o estilo comum de `_style_overlay_back()`
+com geometria no topo-direito, enquanto Bestiary e Awards sobrescreviam a
+posição manualmente no rodapé inferior esquerdo dentro de `menu.gd`. O texto
+da ação era o mesmo, mas o jogador precisava reaprender onde voltar ao trocar
+de superfície. A divergência também deixava duas fontes de verdade para a
+mesma geometria e permitia drift em futuros ajustes de responsividade.
+
+### Decisão e alternativas
+
+Foi escolhido o rodapé inferior esquerdo como slot único. Essa decisão segue
+as referências de Program e Story em `media/Ideas`, onde o retorno fica no
+rodapé como uma ação de navegação persistente, e combina com o padrão já usado
+por Bestiary e Awards. A posição usa âncora inferior relativa ao viewport e
+offsets de margem, não coordenadas absolutas derivadas de uma janela 1280×720.
+
+Foram consideradas três opções:
+
+- manter o topo-direito, preservando Program/Story, mas isso contradizia a
+  leitura visual consolidada das referências e mantinha a inconsistência entre
+  telas;
+- manter overrides por tela, o que reproduzia a aparência atual, porém
+  conservaria duas fontes de geometria e o risco de uma tela divergir depois;
+- criar um componente visual novo para cada overlay, o que aumentaria a
+  superfície de manutenção sem resolver a decisão de navegação.
+
+A terceira opção foi descartada e a segunda foi removida: o kit de chrome já
+é o dono natural do contrato compartilhado. A evidência de viewport estreito
+também favorece âncoras inferiores, pois a ação continua presa à janela quando
+a altura muda.
+
+### Implementação
+
+- `src/ui/menu_chrome_kit.gd::_style_overlay_back()` agora posiciona todos os
+  retornos em `anchor_left/right = 0`, `anchor_top/bottom = 1`, com slot
+  `x = 28..190` e `y = viewport_bottom - 72..30`;
+- `src/ui/menu.gd` deixou de repetir os oito offsets equivalentes ao criar
+  Bestiary e Awards; esses painéis continuam definindo texto e callback, mas a
+  geometria vem de uma única função compartilhada;
+- `tools/overlay_back_layout_probe.gd/.tscn` instancia a cena real de Menu,
+  abre Program, Story, Bestiary e Awards pelo caminho de produção e mede cada
+  botão com `get_global_rect()`;
+- o probe compara também o retângulo das quatro instâncias com o primeiro
+  slot observado, para detectar drift entre telas, além de verificar lado
+  esquerdo e faixa inferior separadamente;
+- `tools/validate_input_dispatch.sh` passou a executar N2 no acumulado.
+
+### Revisão crítica do próprio teste
+
+A primeira versão do probe tentou trocar a cena corrente a partir do próprio
+runner. A transição removeu o runner da árvore antes de ele terminar a
+inspeção, fazendo `get_tree()` e `get_viewport()` ficarem inválidos. Esse não
+era um resultado sobre a UI. O probe foi corrigido para manter um boot runner
+persistente e instanciar o `menu.tscn` real como filho; o teste continua
+exercitando os métodos e painéis de produção, mas não destrói a infraestrutura
+que mede o resultado. A geometria foi então verificada em vez de apenas
+assumida.
+
+Antes do fix, com a geometria antiga e sem os overrides duplicados, a execução
+vermelha terminou com exit 1 e 8 falhas: os quatro retornos ficaram no
+topo-direito (`x = 1090`, `y = 58`) em uma viewport lógica de 1280×1280. Esse
+resultado reproduziu exatamente a divergência que o item deveria capturar.
+
+Depois do fix, o probe terminou com `PROBE_DONE fails=0`, 17 passes e exit 0
+em headless silencioso. A mesma execução sob Xvfb terminou com 17 passes, zero
+falhas e zero `SCRIPT ERROR`; em Xvfb a viewport medida foi 1280×720 e os
+retornos ficaram em `(28, 648)` com tamanho `162×42`. Headless deixou a altura
+expandida em 1280, e o mesmo offset inferior continuou correto. Os únicos
+diagnósticos restantes são recursos de teardown reportados pelo motor, não
+falhas de comportamento do probe.
+
+### Impacto, compatibilidade e limites
+
+A mudança é observável somente nas quatro telas legadas: o botão BACK aparece
+no rodapé inferior esquerdo em vez de permanecer no topo-direito em Program e
+Story. O callback, o texto, o ESC, o fluxo de seleção e os alvos mouse/touch
+não foram alterados. Nenhum save, estado de jogo, balanceamento ou superfície
+vNext foi modificado.
+
+O probe comprova a geometria relativa em headless e em uma janela desktop
+Xvfb, mas ainda não substitui avaliação visual em uma tela física, viewport
+ultrawide e dispositivo touch real. O foco de teclado desses retornos também
+continua pertencendo ao backlog de navegação de menu; N2 resolve posição, não
+um novo contrato de foco.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário
