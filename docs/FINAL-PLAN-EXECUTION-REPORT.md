@@ -1,4 +1,10 @@
-# KERNEL PANIC — Relatório final da execução do plano mestre
+# KERNEL PANIC — Relatório histórico da execução do plano mestre
+
+> Este arquivo é o relatório do checkpoint anterior em
+> `codex/plan-execution` (`96ac94c`). Ele continua preservado como histórico,
+> mas não descreve a ponta atual da execução. Para a branch vigente, o estado
+> consolidado e o veredito de release, consulte
+> [`FINAL-UI-REFERENCE-REMAKE-REPORT.md`](FINAL-UI-REFERENCE-REMAKE-REPORT.md).
 
 **Data do checkpoint:** 2026-09-02
 **Branch revisada:** `codex/plan-execution`

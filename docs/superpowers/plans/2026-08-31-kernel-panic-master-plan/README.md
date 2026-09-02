@@ -3,7 +3,18 @@
 Esta pasta contém o plano de evolução do jogo a partir do estado atual. Ela é
 intencionalmente dividida: o documento `00` explica produto, ordem e gates; os
 demais documentos detalham um domínio cada. O plano descreve trabalho futuro;
-esta criação e sua revisão não alteram o runtime.
+esta criação e sua revisão não alteram o runtime. O estado executado fica
+registrado nos handoffs e no relatório final do checkpoint atual.
+
+## Estado executado em 2026-09-02
+
+A branch `fuzzy/ui-reference-remake` (`28d2a48`) executou a fundação do remake
+visual, o slice reference-driven, os lotes de correção B/H/N/P e a validação
+acumulada. Ela ainda é pré-release: a vNext permanece opt-in, a avaliação
+visual humana, a tradução completa, os exports, os dispositivos reais, o
+teardown e o save recovery continuam gates abertos. Consulte
+[`FINAL-UI-REFERENCE-REMAKE-REPORT.md`](../../../FINAL-UI-REFERENCE-REMAKE-REPORT.md)
+antes de tratar qualquer item do plano como concluído para lançamento.
 
 ## Como ler
 

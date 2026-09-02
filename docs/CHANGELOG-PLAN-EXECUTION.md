@@ -1,12 +1,16 @@
-# KERNEL PANIC — unreleased development changelog
+# KERNEL PANIC — unreleased development changelog (consolidated)
 
-This changelog describes the work completed on `codex/plan-execution`. It is
-not an official release announcement. The legacy route remains the default,
-and several new surfaces are still behind development switches while visual,
-platform, balance, and device gates are completed.
+This changelog describes the work completed through the current
+`fuzzy/ui-reference-remake` checkpoint (`28d2a48`), including the inherited
+plan-execution baseline. It is not an official release announcement. The
+legacy route remains the default, and several new surfaces are still behind
+development switches while visual, platform, balance, and device gates are
+completed.
 
-For the technical audit, evidence ledger, decisions, risks and release
-verdict, see [the final execution report](FINAL-PLAN-EXECUTION-REPORT.md).
+For the current technical audit, evidence ledger, decisions, risks and release
+verdict, see [the current final execution report](FINAL-UI-REFERENCE-REMAKE-REPORT.md).
+For the older plan-only checkpoint, see the preserved
+[historical execution report](FINAL-PLAN-EXECUTION-REPORT.md).
 
 ## Added
 
@@ -31,6 +35,12 @@ verdict, see [the final execution report](FINAL-PLAN-EXECUTION-REPORT.md).
   real enemy descendants and real projectiles.
 - Added contribution, conduct, security, issue/PR, art-direction, and release
   governance documents.
+- Added a reference-driven incident-console shell, Story mount-table surface,
+  patch decision surface and perimeter combat HUD for the from-scratch vNext
+  route.
+- Added focused regression probes for physical window reflow, legacy overlay
+  navigation, Bestiary visibility, display-setting scope, layout cache,
+  presentation-tween lifecycle and live split-boss rows.
 
 ## Changed
 
@@ -48,6 +58,14 @@ verdict, see [the final execution report](FINAL-PLAN-EXECUTION-REPORT.md).
   square, and narrow logical viewports.
 - The validation entry point now includes Mac integration, accessibility,
   performance, and the accumulated gameplay probes.
+- Legacy and vNext state panels now use explicit keyboard focus order, a shared
+  lower-left return slot, and selection preservation in the Bestiary.
+- Fullscreen visibility is now derived from the desktop-only platform
+  predicate; target FPS remains available to touch/mobile contexts.
+- HUD and Arena responsive layout work is now invalidation-driven instead of
+  rebuilding unchanged geometry every frame.
+- Re-entered tips and boss intros replace their previous timelines, and split
+  boss bars are derived from live fragments and the actual boss variant.
 
 ## Fixed
 
@@ -63,6 +81,18 @@ verdict, see [the final execution report](FINAL-PLAN-EXECUTION-REPORT.md).
 - Fixed menu header anchors and restored the footer frame registry.
 - Fixed the first Mac catalog integration regression by keeping Permission Root
   counterplay copy within the existing bestiary text budget.
+- Fixed the legacy menu launch prompt and made destructive pause actions
+  deliberate instead of one-activation operations.
+- Fixed legacy HUD hierarchy, contrast, state redundancy, narrow collisions,
+  modal-effect layering, dead widgets and touch-only affordance leakage.
+- Fixed a repeated `CYCLE` announcement, overlong event/patch copy, an
+  invisible long-lived banner fade, and the legacy dash glyph reappearing over
+  the vNext HUD.
+- Fixed physical resize handling for menu/Arena overlays and several reference
+  surface collisions in narrow layouts.
+- Fixed Bestiary selection opening outside the visible list, fullscreen being
+  exposed on touch, duplicate presentation tweens and ghost rows in split boss
+  bars.
 
 ## Improved
 
@@ -76,13 +106,20 @@ verdict, see [the final execution report](FINAL-PLAN-EXECUTION-REPORT.md).
   playfield-first layouts.
 - Verification now requires completion markers, focused probes, full-suite
   evidence, and separate reporting of runtime errors versus teardown noise.
+- Improved the reference remake's visual grammar with a recurring system shell,
+  asymmetric index/dossier compositions, semantic rails, explicit primary
+  actions and a playfield-first HUD.
+- Improved layout efficiency with keyed HUD/Arena caches and retained
+  observability for cache hits, builds and relayouts.
+- Improved lifecycle safety by giving tip and boss-intro presentation an
+  explicit owner and cancellation path.
 
 ## Performance
 
 - The fixed stress fixture currently passes with 144 actors at approximately
-  16.813 ms p95, 16.985 ms p99, and 17.163 ms worst in headless mode.
-- The same fixture passes under Xvfb/Mesa llvmpipe at approximately 7.322 ms
-  p95, 7.842 ms p99, and 8.229 ms worst.
+  17.053 ms p95, 17.085 ms p99, and 17.136 ms worst in headless mode.
+- The same fixture passes under Xvfb/Mesa llvmpipe at approximately 9.386 ms
+  p95, 9.915 ms p99, and 10.413 ms worst.
 
 These values are repeatable regression baselines, not a guarantee for the
 integrated Vega GPU, Android devices, or long sessions.

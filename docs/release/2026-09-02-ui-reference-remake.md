@@ -312,7 +312,7 @@
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,
   0 failures.
-- Combat HUD Arena adapter: 75 passes, 0 failures.
+- Combat HUD Arena adapter: 76 passes, 0 failures.
 - Bestiary: 128 passes.
 - Pause/terminal/game-over: 75 passes.
 - Accessibility: 98 passes.

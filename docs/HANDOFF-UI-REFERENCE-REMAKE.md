@@ -3,10 +3,17 @@
 **Data:** 2026-09-02
 **Branch:** `fuzzy/ui-reference-remake`
 **Base:** `96ac94c` (`docs: close master plan execution checkpoint`)
+**Tip atual:** `28d2a48` (`fix(ui): remove split boss bar ghosts`)
 **Worktree de execução:** `/tmp/kernel-panic-ui-reference-remake`
 **Checkout original preservado:** `/home/mafu/Projetos/kernel-panic`
-**Estado:** checkpoint técnico publicado separadamente; sem merge em `main`
+**Estado:** slice visual/UI publicado; backlog B1–B7, H1–H7, N1–N4 e P1/P3/P4
+fechado nesta branch; sem merge em `main`
 **Áudio nas verificações:** sempre desabilitado com `--audio-driver Dummy`
+
+**Relatório definitivo deste checkpoint:**
+`docs/FINAL-UI-REFERENCE-REMAKE-REPORT.md`. Este handoff preserva o diário
+red/green detalhado por lote; o relatório definitivo consolida o estado atual,
+o changelog, as decisões e o release gate.
 
 ## 1. Resumo e limite deste lote
 
@@ -684,7 +691,7 @@ Todos os comandos foram executados com `--audio-driver Dummy`.
 | Menu route integration | exit 0, 22 passes, 0 fails |
 | Patch surface | exit 0, 67 passes, 0 fails |
 | Patch Arena adapter | exit 0, 19 passes, 0 fails |
-| Combat HUD adapter | exit 0, 75 passes, 0 fails |
+| Combat HUD adapter | exit 0, 76 passes, 0 fails |
 | Pause/terminal/game-over | exit 0, 75 passes, 0 fails |
 | Settings/accessibility | exit 0, 98 passes, 0 fails |
 | Shared state surface | exit 0, 145 passes, 0 fails |

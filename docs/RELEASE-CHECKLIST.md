@@ -2,6 +2,25 @@
 
 This checklist is for a real public release, not merely a green local test run. A release candidate must satisfy every required item or explicitly document why the maintainer accepted the risk.
 
+## Current development checkpoint (not release approval)
+
+The current branch `fuzzy/ui-reference-remake` is a published pre-release
+checkpoint at `28d2a48`. The local correctness gate is green, but this section
+must not be read as permission to tag or publish the game:
+
+| Gate | Current evidence | Status |
+| --- | --- | --- |
+| DevHarness and accumulated probes | `1454 AT_PASS`, `0 AT_FAIL`, `AUTOTEST_ALL_PASS`, `VALIDATION OK` | verified locally |
+| Runtime/script errors | zero gateable runtime errors in the accumulated run | verified locally |
+| Teardown ownership | resources/RIDs/ObjectDB diagnostics still present in some fixtures | open |
+| vNext migration | vNext remains opt-in; legacy remains default | open |
+| PT-BR coverage | catalog/service and selected surfaces exist; legacy player-facing copy remains | open |
+| Device/export validation | no release exports or Android device run in this environment | open |
+| Human visual/gameplay review | required for direction, telegraphs, balance and feel | open |
+
+The detailed evidence and release verdict are in
+[`FINAL-UI-REFERENCE-REMAKE-REPORT.md`](FINAL-UI-REFERENCE-REMAKE-REPORT.md).
+
 ## Build and repository hygiene
 
 - [ ] Version, release name, and build metadata are updated intentionally.
