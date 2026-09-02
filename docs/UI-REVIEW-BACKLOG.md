@@ -6,7 +6,7 @@
 > original — especialmente B1, H3 e o suposto leak de lambda em P2.
 > Os itens abaixo preservam o histórico; não são todos bugs confirmados.
 
-Estado versionado em `fuzzy/ui-reference-remake`: B1/B2/B3/B4/B5 foram
+Estado versionado em `fuzzy/ui-reference-remake`: B1/B2/B3/B4/B5/B6/B7 foram
 resolvidos e preservam seus handoffs. O vertical slice visual vNext já cobre
 Boot, Program, Story, Bestiary e Accessibility, mas a migração completa dos
 fluxos e os itens abaixo continuam pendentes ou precisam ser reavaliados contra
@@ -36,10 +36,10 @@ final. Um item de backlog = um commit; rodar
 - [x] **B5 — Terminal anuncia ↑↓/TAB.** `terminal_panel.gd:226` promete history
   e autocomplete que não existem. Implementar history (↑↓) + TAB autocomplete
   sobre os comandos do index, ou trocar o texto.
-- [ ] **B6 — Prompt do menu morto.** `menu.gd:199` + `menu.gd:636`:
+- [x] **B6 — Prompt do menu morto.** `menu.gd:199` + `menu.gd:636`:
   `_prompt` nunca fica visível. Mostrar o prompt "PRESS [ENTER] OR HIT >> PURGE"
   (piscar discreto) ou remover o label.
-- [ ] **B7 — Confirmações destrutivas.** Double-click em ABANDON encerra a run
+- [x] **B7 — Confirmações destrutivas.** Double-click em ABANDON encerra a run
   (`panel_kit.gd:55-58`, `arena.gd:1051-1055`); R no pause reinicia sem
   confirmar (`arena.gd:941-944`). Unificar: mesma janela/estado armado do
   reset high score, e ignorar cliques <0.5s como double-click acidental.

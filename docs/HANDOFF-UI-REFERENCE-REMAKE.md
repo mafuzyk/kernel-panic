@@ -332,8 +332,13 @@ Foram adicionados ou reforçados:
   `vnext_menu_probe.gd`, `vnext_accessibility_probe.gd` e
   `vnext_entity_illustration_probe.gd` — marcadores de shell, rota, semântica
   e identidades;
+- `tools/menu_prompt_probe.gd/.tscn` — regressão do prompt de inicialização da
+  rota legada, incluindo visibilidade, retângulo real, guard de ESC e overlays;
+- `tools/input_dispatch_probe.gd/.tscn` — ampliado para confirmação deliberada
+  por teclado, proteção contra echo/duplo input e o callback real do botão de
+  abandono;
 - `tools/validate_input_dispatch.sh` — inclui boot, selection, Bestiary,
-  integração de menu e os dois probes de resize físico.
+  integração de menu, prompt B6 e os dois probes de resize físico.
 
 ## 4. Bugs encontrados durante a própria revisão
 
@@ -669,9 +674,10 @@ Todos os comandos foram executados com `--audio-driver Dummy`.
 
 | Grupo | Resultado final |
 | --- | --- |
-| DevHarness `--autotest` | exit 0, `1453 AT_PASS`, `0 AT_FAIL`, `AUTOTEST_ALL_PASS` |
-| Input dispatch headless | exit 0, 32 passes, 0 fails |
-| Input dispatch Xvfb/debug | exit 0, 34 passes, 0 fails; debug desktop confirmado |
+| DevHarness `--autotest` | exit 0, `1454 AT_PASS`, `0 AT_FAIL`, `AUTOTEST_ALL_PASS` |
+| Input dispatch headless | exit 0, 38 passes, 0 fails |
+| Input dispatch Xvfb/debug | exit 0, 40 passes, 0 fails; debug desktop confirmado |
+| Legacy menu prompt B6 | exit 0, 9 passes, 0 fails |
 | Boot reference shell | exit 0, 102 passes, 0 fails |
 | Program + Story selection | exit 0, 225 passes, 0 fails |
 | Bestiary reference shell | exit 0, 128 passes, 0 fails |
@@ -1253,6 +1259,76 @@ Ainda não comprovado: touchscreen Android, safe area de câmera, orientação
 landscape em aparelho, fontes fallback, text scale 150–200% no micro-narrow,
 FPS em Vega integrado/Android e qualidade da leitura em movimento intenso.
 Teardown diagnostics continuam sendo reportados separadamente.
+
+## 7.6 Bugs de fluxo — prompt morto e confirmação destrutiva
+
+### B6 — prompt de inicialização do menu nunca aparecia
+
+**Antes:** `src/ui/menu.gd` criava `_prompt` e o `MenuChromeKit` calculava um
+retângulo válido para ele, mas `_process()` executava `_prompt.visible = false`
+em todos os frames. A informação essencial para descobrir que ENTER inicia a
+run ficava ausente na rota legada, embora a geometria existisse.
+
+**Fix:** o menu agora decide a visibilidade pelo estado real da rota: o prompt
+aparece no menu principal legado, some quando um overlay (settings, Program,
+Story, Bestiary ou Awards) está aberto e não aparece durante a transição de
+boot. O texto padrão foi centralizado para desktop e touch. Um pulso de baixa
+amplitude melhora a descoberta sem competir com `PURGE`; a posição continua
+sendo dona do `apply_menu_layout()`.
+
+**Evidência:** o probe red em
+`/tmp/kernel-panic-ui-b6-red.log` reproduziu 4 falhas (prompt idle, guard de
+ESC, restauração após expiração e retorno após overlay). O probe green em
+`/tmp/kernel-panic-ui-b6-green.log` terminou com `PROBE_DONE fails=0`, incluindo
+retângulo não vazio e todos os estados de overlay.
+
+**Impacto e risco:** somente a apresentação e a descoberta do comando mudam;
+nenhum input de boot ou estado de save foi alterado. A mensagem touch foi
+consolidada, mas texto e safe area em um aparelho real ainda precisam de
+revisão com fonte fallback.
+
+### B7 — ações destrutivas do pause aceitavam confirmação acidental
+
+**Antes:** o primeiro `R` durante a pausa reiniciava imediatamente a run. O
+primeiro `Q` armava abandono, porém um segundo acionamento sem intervalo podia
+ser interpretado como confirmação; o mesmo valia para dois sinais consecutivos
+do botão `ABANDON PROCESS`.
+
+**Fix:** restart e abandon agora compartilham um único estado interno de ação
+destrutiva: ação armada, janela de 2 segundos, timestamp monotônico e callback
+de expiração protegido por geração. O primeiro `R` apenas arma e mantém a
+árvore pausada; outro `R` confirma somente após 0,5 s. `Q` mantém a mesma
+semântica de armamento, e confirmações de abandon também ignoram uma segunda
+ativação dentro de 0,5 s. Echo/release de teclado não confirmam. A pausa
+legada e a superfície vNext mostram a instrução específica (`PRESS R AGAIN`
+ou `PRESS Q AGAIN`) e o restart da superfície vNext passou a usar a mesma
+regra.
+
+**Evidência:**
+
+- `/tmp/kernel-panic-ui-b7-red2.log` reproduziu as três falhas do novo contrato
+  de restart antes do fix;
+- `/tmp/kernel-panic-ui-b7-click3.log` terminou com 38 passes e
+  `PROBE_DONE fails=0`, cobrindo o botão, Q, echo Q, expiração, restart armado,
+  echo R, segunda ativação rápida e confirmação após o intervalo;
+- `/tmp/kernel-panic-ui-b7-suite-green.log` terminou com 1454 `AT_PASS`, sem
+  `AT_FAIL` e `AUTOTEST_ALL_PASS`; os diagnósticos finais foram somente de
+  teardown, separados pelo validador;
+- a superfície U4 continuou com 0 falhas em
+  `/tmp/kernel-panic-ui-b7-u4.log`.
+
+**Decisão e trade-off:** uma janela comum torna o comportamento previsível e
+evita duas implementações de confirmação divergentes. O intervalo também se
+aplica ao teclado porque a origem do `Button.pressed` não é confiavelmente
+distinguível no callback compartilhado; isso é deliberadamente mais seguro,
+mas torna uma confirmação digitada muito rápida inválida. O probe usa o sinal
+real do Button para testar o callback; o roteamento nativo de ponteiro em um
+display físico e gestos touch continuam sendo validação de plataforma.
+
+**Compatibilidade:** não há mudança de schema/save. Há uma mudança intencional
+de UX: reiniciar pela pausa deixou de ser uma ação de um toque e exige duas
+ativações deliberadas, igual ao abandono. O restart por `hold R` durante
+gameplay continua sendo um caminho separado de speedrun e não foi alterado.
 
 ## 10. Próximos passos recomendados
 

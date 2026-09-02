@@ -168,7 +168,9 @@
 ## Verification summary
 
 - DevHarness: `1453 AT_PASS`, `0 AT_FAIL`, `AUTOTEST_ALL_PASS`.
-- Input dispatch: 32 headless passes and 34 Xvfb/debug passes.
+- Input dispatch: 38 headless passes and 40 Xvfb/debug passes, 0 failures;
+  desktop debug was confirmed in the Xvfb run.
+- Legacy menu launch prompt: 9 passes, 0 failures.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,
