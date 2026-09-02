@@ -19,6 +19,10 @@ var _selected_id := "root"
 ## for _draw_detail and text_overflow_report).
 const DETAIL_METRICS := {"inset": 20.0, "header_y": 26.0, "name_y": 58.0, "threat_y": 82.0, "divider_y": 152.0, "behavior_y": 180.0, "desc_y": 204.0, "bugs_label_y": 278.0, "bugs_y": 302.0, "glyph_box_w": 156.0, "glyph_box_h": 120.0}
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and not _selected_id.is_empty():
+		call_deferred("ensure_selected_visible")
+
 func _detail_glyph_box(rail: Rect2) -> Rect2:
 	var w := minf(float(DETAIL_METRICS["glyph_box_w"]), maxf(rail.size.x - 2.0 * float(DETAIL_METRICS["inset"]), 0.0))
 	return Rect2(rail.position + Vector2(rail.size.x - w - float(DETAIL_METRICS["inset"]), 32.0), Vector2(w, float(DETAIL_METRICS["glyph_box_h"])))
@@ -51,11 +55,54 @@ func _ready() -> void:
 	add_child(chrome)
 	if _selected_id == "" and not ENTRIES.is_empty():
 		_selected_id = ENTRIES[0]["id"]
+	call_deferred("ensure_selected_visible")
+
+func _entry_index(id: String) -> int:
+	for i in ENTRIES.size():
+		if str(ENTRIES[i]["id"]) == id:
+			return i
+	return -1
+
+func _card_rect_for_index(index: int, metrics: Dictionary, content_scroll: float) -> Rect2:
+	var cols: int = metrics["cols"]
+	var gap: float = metrics["gap"]
+	var cw: float = metrics["card_w"]
+	var ch: float = metrics["card_h"]
+	var x0 := 28.0 if _is_wide() else (size.x - cw * float(cols) - gap * float(cols - 1)) * 0.5
+	var y0 := float(metrics["viewport_top"]) - content_scroll
+	var col := index % cols
+	var row := index / cols
+	return Rect2(Vector2(x0 + col * (cw + gap), y0 + row * (ch + gap)), Vector2(cw, ch))
+
+func _entry_card_rect(id: String, content_scroll: float = -1.0) -> Rect2:
+	var index := _entry_index(id)
+	if index < 0:
+		return Rect2()
+	if content_scroll < 0.0:
+		content_scroll = scroll_y
+	return _card_rect_for_index(index, _content_metrics(), content_scroll)
+
+func ensure_selected_visible() -> void:
+	if _selected_id.is_empty() or size.x <= 0.0 or size.y <= 0.0:
+		return
+	var metrics := _content_metrics()
+	var card_at_zero := _entry_card_rect(_selected_id, 0.0)
+	if card_at_zero.size == Vector2.ZERO:
+		return
+	var viewport_top: float = metrics["viewport_top"]
+	var viewport_bottom: float = metrics["viewport_bottom"]
+	var next_scroll := scroll_y
+	if card_at_zero.position.y - scroll_y < viewport_top:
+		next_scroll = card_at_zero.position.y - viewport_top
+	elif card_at_zero.end.y - scroll_y > viewport_bottom:
+		next_scroll = card_at_zero.end.y - viewport_bottom
+	_scroll_to(next_scroll)
 
 func select_entry(id: String) -> bool:
 	for entry in ENTRIES:
 		if str(entry["id"]) == id:
 			_selected_id = id
+			ensure_selected_visible()
 			queue_redraw()
 			return true
 	return false
@@ -169,12 +216,8 @@ func _draw() -> void:
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
 	var orbitron: Font = load("res://assets/fonts/Orbitron.ttf")
 	var metrics := _content_metrics()
-	var cols: int = metrics["cols"]
-	var gap: float = metrics["gap"]
 	var cw: float = metrics["card_w"]
 	var ch: float = metrics["card_h"]
-	var x0: float = 28.0 if _is_wide() else (size.x - cw * float(cols) - gap * float(cols - 1)) * 0.5
-	var y0: float = float(metrics["viewport_top"]) - scroll_y
 	var viewport_top: float = metrics["viewport_top"]
 	var viewport_bottom: float = metrics["viewport_bottom"]
 	_card_rects.clear()
@@ -184,10 +227,8 @@ func _draw() -> void:
 		draw_polyline(list_frame + PackedVector2Array([list_frame[0]]), Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.42), 1.0, true)
 	for i in ENTRIES.size():
 		var e: Dictionary = ENTRIES[i]
-		var col := i % cols
-		var row := i / cols
-		var origin := Vector2(x0 + col * (cw + gap), y0 + row * (ch + gap))
-		var rect := Rect2(origin, Vector2(cw, ch))
+		var rect := _card_rect_for_index(i, metrics, scroll_y)
+		var origin := rect.position
 		_card_rects[e["id"]] = rect
 		if origin.y < viewport_top or origin.y + ch > viewport_bottom:
 			continue

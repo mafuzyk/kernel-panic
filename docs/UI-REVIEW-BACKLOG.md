@@ -89,9 +89,9 @@ final. Um item de backlog = um commit; rodar
   usam o mesmo slot de rodapé inferior esquerdo, definido uma única vez em
   `menu_chrome_kit.gd::_style_overlay_back()`. A geometria é ancorada ao
   viewport e foi verificada em headless e Xvfb.
-- [ ] **N3 — Bestiary abre desincronizado.** Seleção default "root"
-  (`bestiary_panel.gd:34`) fora da viewport da lista. Scroll-into-view no open
-  e na seleção.
+- [x] **N3 — Bestiary abre desincronizado.** A seleção default `root` e toda
+  seleção posterior agora são levadas para a viewport da lista; o contrato é
+  reaplicado quando a superfície muda de tamanho.
 - [ ] **N4 — Fullscreen toggle** nas settings (desktop) — ausente em
   `menu_settings_kit.gd`.
 - [x] **N5 — Autocomplete/history do terminal.** B5 implementou ↑↓, TAB e

@@ -36,6 +36,8 @@
 - Added a focused legacy-overlay layout probe that checks the real Program,
   Story, Bestiary and Awards routes and their shared return slot in headless
   and desktop-debug validation.
+- Added a focused Bestiary visibility probe covering the default ROOT entry,
+  first/final selections, desktop 1280×720 and narrow 432×720 layouts.
 - Added a repeatable visual verification path for the reference-remake
   surfaces; the focused probes report their pass counts in the verification
   summary below and zero failures.
@@ -94,6 +96,8 @@
 - Changed the legacy Program, Story, Bestiary and Awards return action to use
   one lower-left footer position, matching the reference navigation grammar
   and remaining attached to the viewport during stretch/resize.
+- Changed the legacy Bestiary to keep its selected card inside the scroll
+  viewport when it opens, when selection changes and after a resize.
 
 ## Fixed
 
@@ -150,6 +154,9 @@
   and Story used the upper-right while Bestiary and Awards used a separate
   lower-left override. The shared chrome now owns the geometry and the
   duplicate per-screen overrides are gone.
+- Fixed the legacy Bestiary opening on the ROOT dossier while its selected
+  card was still below the visible list, and fixed late selections leaving the
+  list viewport without an automatic scroll adjustment.
 
 ## Improved
 
@@ -185,6 +192,8 @@
   vertical navigation and a Shift+Tab route out of the legacy terminal prompt.
 - Improved legacy navigation consistency by making the return affordance occupy
   the same physical corner on every selection/data overlay.
+- Improved Bestiary orientation by making the visible list and the selected
+  dossier agree immediately, including on narrow layouts.
 
 ## Performance
 
@@ -242,6 +251,12 @@
 - N1 state-panel navigation probe: 16 focused headless passes and 16 Xvfb
   passes, 0 failures; pause, terminal and game-over focus/activation paths were
   checked with real viewport keyboard dispatch.
+- N2 overlay back layout probe: 17 focused headless passes and 17 Xvfb passes,
+  0 failures; all four legacy overlays share the measured lower-left footer
+  slot.
+- N3 Bestiary scroll visibility probe: 28 focused headless passes and 28 Xvfb
+  passes, 0 failures; default, first and final selections were checked at
+  desktop and narrow sizes.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,

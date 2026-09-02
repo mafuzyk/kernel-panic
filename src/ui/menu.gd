@@ -615,6 +615,7 @@ func _open_bestiary() -> void:
 		add_child(layer)
 	_bestiary_panel.visible = true
 	_bestiary_panel.scroll_y = 0.0
+	_bestiary_panel.call_deferred("ensure_selected_visible")
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_bestiary() -> void:

@@ -2001,6 +2001,98 @@ ultrawide e dispositivo touch real. O foco de teclado desses retornos também
 continua pertencendo ao backlog de navegação de menu; N2 resolve posição, não
 um novo contrato de foco.
 
+## 7.16 N3 — Bestiary mantém a seleção visível
+
+### Problema confirmado
+
+O Bestiary legado iniciava `_selected_id` em `root`, que é uma entrada tardia
+do catálogo. O dossiê da direita mostrava ROOT.exe imediatamente, mas a lista
+começava em `drone` porque `scroll_y` era zerado em `_open_bestiary()`. Em uma
+viewport desktop 1280×720, a carta selecionada ficava em `y = 816`, abaixo do
+fim da lista em `y = 604`; em 432×720, o problema era ainda mais evidente,
+com a carta em uma linha distante do primeiro viewport. Selecionar uma carta
+por clique ou touch também só mudava o dossiê: não havia garantia de que a
+linha escolhida continuaria visível.
+
+Isso criava uma contradição de UX: o painel dizia “esta é a entrada atual”,
+mas o índice que deveria explicar onde ela estava não mostrava a entrada.
+Não era suficiente aumentar a área ou trocar o default, pois ambas as
+alternativas escondiam a necessidade de navegar pelo catálogo.
+
+### Decisão e alternativas
+
+Foi criado um contrato de `ensure_selected_visible()`: a carta selecionada
+fica dentro do intervalo vertical da viewport, usando o menor ajuste necessário
+para chegar ao limite superior ou inferior. O mesmo cálculo é usado no open,
+na seleção e em resize. A posição não é centralizada à força; se a carta já
+estiver visível, o scroll permanece como o jogador deixou.
+
+Foram consideradas estas alternativas:
+
+- mudar o default para a primeira carta, que eliminaria o caso de abertura,
+  mas perderia a decisão existente de abrir ROOT.exe no dossiê e não corrigiria
+  seleção de entradas tardias;
+- centralizar sempre a carta selecionada, que seria visualmente chamativo,
+  porém roubaria a posição manual do jogador em cada clique;
+- trocar o desenho por um `ScrollContainer`, que exigiria reescrever o
+  renderer code-drawn e não resolveria o contrato de seleção no dossiê;
+- ajustar apenas o menu, que cobriria o open mas deixaria `select_entry()` e
+  mudanças de viewport inconsistentes.
+
+A solução mínima preserva o catálogo, o default, a interação por wheel/drag e
+o renderer atual, e concentra a regra perto dos cálculos de geometria.
+
+### Implementação
+
+- `src/ui/bestiary_panel.gd` ganhou `_entry_index()`,
+  `_card_rect_for_index()` e `_entry_card_rect()` para compartilhar o cálculo
+  de coluna/linha com `_draw()`, evitando que o teste de visibilidade use uma
+  geometria diferente da carta desenhada;
+- `ensure_selected_visible()` calcula o intervalo real de conteúdo, chama o
+  mesmo `_scroll_to()` usado por wheel/touch e respeita o clamp de conteúdo;
+- `select_entry()` chama o contrato após aceitar um id válido;
+- `NOTIFICATION_RESIZED` e o ciclo `_ready()` agendam a sincronização para que
+  o contrato também sobreviva a layout inicial tardio e a resize;
+- `src/ui/menu.gd::_open_bestiary()` agenda a sincronização depois de zerar o
+  scroll de uma nova abertura, sem remover a possibilidade de preservar o
+  dossiê selecionado;
+- o helper `_card_rect_for_index()` passou a ser usado pelo desenho, deixando
+  a matemática de lista em uma única fonte;
+- `tools/bestiary_scroll_visibility_probe.gd/.tscn` instancia o Menu real,
+  força uma viewport desktop 1280×720, abre a rota, verifica ROOT, troca para
+  primeira e última entrada e repete a prova em 432×720;
+- `tools/validate_input_dispatch.sh` passou a executar o probe N3 no
+  acumulado.
+
+### Evidência red → green
+
+Com a implementação ausente, o probe terminou com exit 1 e 10 falhas: o
+contrato não existia, ROOT e a entrada final ficavam fora da viewport desktop
+e narrow, e o scroll permanecia em zero quando deveria acompanhar as
+seleções. O red foi executado contra o mesmo probe, com falhas controladas e
+sem aceitar erro de script como evidência.
+
+Depois da implementação, a execução headless terminou com `PROBE_DONE
+fails=0`, 28 passes e exit 0. O run Xvfb também terminou com 28 passes, zero
+falhas e zero `SCRIPT ERROR`; confirmou viewport real 1280×720. Exemplos
+observados: ROOT abre com `scroll=270`, a última entrada desktop termina no
+clamp `scroll=864`, ROOT no narrow usa `scroll=660` e a última carta narrow usa
+`scroll=1412`; em cada caso a carta medida ficou contida na viewport.
+
+### Impacto, compatibilidade e limites
+
+A mudança é observável no Bestiary legado: ao abrir ou selecionar uma entrada
+fora do recorte, a lista desliza o mínimo necessário para que a carta apareça.
+O catálogo, a entrada inicial ROOT.exe, o dossiê, o wheel, o drag, o touch, o
+save e o gameplay não mudaram. Não há breaking change de API pública; os
+helpers novos são internos ao painel, e `select_entry()` mantém o mesmo
+retorno para ids válidos/inválidos.
+
+O probe verifica cálculo e estado em duas dimensões de viewport, mas não mede
+ergonomia de uma lista com gesto em hardware touch nem se a velocidade de um
+scroll futuro ficará confortável. Esse risco é de UX, não de correção
+geométrica, e requer avaliação manual com uma tela e um dedo reais.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário
