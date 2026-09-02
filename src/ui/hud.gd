@@ -234,12 +234,15 @@ func touch_layout() -> bool:
 func event_log_visible(viewport: Vector2 = size) -> bool:
 	return not bool(layout_snapshot(viewport)["compact"])
 
-func visible_event_lines(limit: int = 4) -> Array[String]:
+func visible_event_lines(limit: int = 4, max_width: float = -1.0, font_size: int = 11) -> Array[String]:
 	var result: Array[String] = []
 	var start := maxi(Game.event_log.size() - maxi(limit, 1), 0)
 	for index in range(start, Game.event_log.size()):
 		var entry: Dictionary = Game.event_log[index]
-		result.append("[%05.1f] %s" % [float(entry.get("time", 0.0)), str(entry.get("text", ""))])
+		var line := "[%05.1f] %s" % [float(entry.get("time", 0.0)), str(entry.get("text", ""))]
+		if max_width > 0.0 and _mono != null:
+			line = TacticalUIHelper.ellipsis_fit(_mono, line, max_width, font_size)
+		result.append(line)
 	return result
 
 func dash_baseline() -> float:
@@ -565,9 +568,11 @@ func _draw_tactical_shell(f: Font) -> void:
 		_draw_angular_panel(event_rect, _era_accent, 0.025, true)
 		var event_y := event_rect.position.y + 18.0
 		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, _era_accent)
-		for line in visible_event_lines():
+		var event_text_width := maxf(score_rect.size.x - 28.0, 0.0)
+		var event_color := Color(TacticalUIHelper.MUTED.r, TacticalUIHelper.MUTED.g, TacticalUIHelper.MUTED.b, 0.82)
+		for line in visible_event_lines(4, event_text_width, 11):
 			event_y += 15.0
-			draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), line, HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 11, TacticalUIHelper.MUTED)
+			draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), line, HORIZONTAL_ALIGNMENT_LEFT, event_text_width, 11, event_color)
 
 func _hp_pips(f: Font) -> void:
 	var integrity_rect: Rect2 = layout_snapshot()["integrity"]
@@ -674,9 +679,21 @@ func _draw_patch_tooltip(f: Font) -> void:
 	var panel := Rect2(pos, Vector2(width, height))
 	draw_rect(panel, Color(0.01, 0.02, 0.05, 0.96))
 	draw_rect(panel, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.8), false, 1.5)
-	draw_string(f, pos + Vector2(10, 18), str(_tooltip_data.get("title", "PATCH")), HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 13, Balance.COL_TEXT)
-	draw_string(f, pos + Vector2(10, 36), "LEVEL %d // %s" % [int(_tooltip_data.get("level", 0)), str(_tooltip_data.get("description", ""))], HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 11, Balance.COL_TEXT)
-	draw_string(f, pos + Vector2(10, 57), str(_tooltip_data.get("relation", "NO DIRECT INTERACTION")), HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 10, Balance.COL_MOTE)
+	var copy := tooltip_text_snapshot(width)
+	draw_string(f, pos + Vector2(10, 18), str(copy.get("title", "PATCH")), HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 13, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.92))
+	draw_string(f, pos + Vector2(10, 36), str(copy.get("detail", "")), HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.88))
+	draw_string(f, pos + Vector2(10, 57), str(copy.get("relation", "NO DIRECT INTERACTION")), HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 10, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.86))
+
+func tooltip_text_snapshot(max_width: float = -1.0) -> Dictionary:
+	if _tooltip_data.is_empty() or _mono == null:
+		return {}
+	var width := minf(390.0, maxf(size.x - 24.0, 220.0)) if max_width <= 0.0 else maxf(max_width, 40.0)
+	var copy_width := maxf(width - 20.0, 1.0)
+	return {
+		"title": TacticalUIHelper.ellipsis_fit(_mono, str(_tooltip_data.get("title", "PATCH")), copy_width, 13),
+		"detail": TacticalUIHelper.ellipsis_fit(_mono, "LEVEL %d // %s" % [int(_tooltip_data.get("level", 0)), str(_tooltip_data.get("description", ""))], copy_width, 11),
+		"relation": TacticalUIHelper.ellipsis_fit(_mono, str(_tooltip_data.get("relation", "NO DIRECT INTERACTION")), copy_width, 10),
+	}
 
 func _mult_chip(f: Font) -> void:
 	if _mult <= 1:

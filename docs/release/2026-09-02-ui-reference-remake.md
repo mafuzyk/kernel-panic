@@ -77,6 +77,8 @@
 - Changed combat wave announcements so the continuous `CYCLE NN` register is
   not repeated as the large temporary banner; named wave and anomaly events
   remain visible in the event slot.
+- Changed legacy event-log rendering to measure and ellipsize each line inside
+  the score register, with a stronger readable text alpha.
 - Kept the legacy route as the default rollback path; no public default switch
   was changed in this development checkpoint.
 
@@ -112,6 +114,8 @@
   two-column narrow desktop.
 - Fixed the legacy combat HUD repeating `CYCLE NN` in both the encounter panel
   and the large wave/boss announcement.
+- Fixed long legacy event-log and patch-tooltip copy escaping its measured
+  width; the tooltip now fits title, detail and relation independently.
 
 ## Improved
 
@@ -177,6 +181,7 @@
   desktop debug was confirmed in the Xvfb run.
 - Legacy menu launch prompt: 9 passes, 0 failures.
 - H1 HUD hierarchy: 10 focused headless passes, 0 failures.
+- H2 HUD legibility: 8 focused headless passes, 0 failures.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,

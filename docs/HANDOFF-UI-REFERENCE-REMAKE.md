@@ -1388,6 +1388,64 @@ de onda/boss. Os banners de clear, Story e unlock continuam sendo eventos
 temporários. O caminho vNext mantém compatibilidade com chamadas antigas de
 `show_banner()`.
 
+## 7.8 H2 — legibilidade e limite do texto secundário do HUD
+
+### Problema confirmado
+
+O event log do HUD legado imprimia as últimas linhas com `MUTED` e largura
+fixa, sem medir o texto antes de desenhá-lo. A fonte podia ficar pouco
+contrastada e payloads longos podiam escapar do registro ou depender do
+clipping do renderer. O tooltip dos patches tinha o mesmo problema: título,
+descrição e relação eram desenhados diretamente, embora cada linha pudesse
+ser arbitrariamente longa.
+
+### Alteração
+
+- `Hud.visible_event_lines()` aceita uma largura e um tamanho de fonte
+  opcionais; quando fornecidos, aplica `TacticalUIHelper.ellipsis_fit()` à
+  linha completa, incluindo timestamp;
+- o event log passa a calcular `score_rect.size.x - 28` e desenhar com alpha
+  explícito `0.82`, em vez de depender do alpha mutado de `MUTED`;
+- `Hud.tooltip_text_snapshot()` produz cópias medidas para título, detalhe e
+  relação, cada uma com seu tamanho de fonte real;
+- `_draw_patch_tooltip()` usa esse snapshot e cores com alpha explícito entre
+  `0.86` e `0.92`;
+- `tools/hud_legibility_probe.gd` cobre entradas normais, payload longo,
+  marcador de reticências, largura medida e as três linhas do tooltip;
+- `tools/validate_input_dispatch.sh` executa o novo probe junto da validação
+  acumulada.
+
+### Decisão e alternativas
+
+Foi escolhido truncamento semântico no limite do painel. Quebrar o event log em
+duas linhas exigiria redesenhar sua altura e poderia colidir com o restante do
+HUD; reduzir globalmente a fonte prejudicaria a leitura de mensagens normais;
+deixar o renderer cortar esconderia a informação sem avisar o jogador. O
+snapshot do tooltip evita duplicar a regra de medição entre teste e desenho,
+mas não vira uma segunda fonte de conteúdo: ele só transforma os dados que já
+estão em `_tooltip_data`.
+
+### Evidência e limites
+
+`res://tools/hud_legibility_probe.tscn` terminou com 8 passes e zero falhas em
+headless silencioso. O probe mediu a largura renderizada com a mesma fonte e
+tamanho usados pelo HUD e confirmou o marcador `…` para event log e tooltip.
+`git diff --check` e a verificação de importação do editor passaram.
+
+Isso prova o contrato tipográfico para as larguras exercitadas, não a qualidade
+editorial do texto, leitura em movimento ou contraste percebido em todos os
+monitores. O probe não substitui grayscale/high-contrast nem uma captura em
+dispositivo móvel; H4/H5 ainda precisam revisar os módulos que podem disputar
+espaço com o event log e tooltip.
+
+### Impacto
+
+Não há alteração de gameplay, save, input ou balanceamento. A apresentação de
+mensagens longas muda de clipping implícito para reticências explícitas, e o
+texto secundário fica mais legível. `visible_event_lines()` sem argumentos
+continua retornando o conteúdo completo para consumidores de diagnóstico; a
+limitação só é aplicada quando o desenho fornece a largura real.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário

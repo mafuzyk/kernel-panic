@@ -52,9 +52,11 @@ final. Um item de backlog = um commit; rodar
   O HUD legado agora anuncia `WAVE INBOUND`/`ANOMALY INBOUND`, mantendo
   `CYCLE NN` como registro contínuo; o adaptador vNext só comprime a forma
   antiga que era exatamente um banner `CYCLE ...`.
-- [ ] **H2 — Contraste do event log/dicas.** Alpha 0.3–0.5 em fontes 9–12px
+- [x] **H2 — Contraste do event log/dicas.** Alpha 0.3–0.5 em fontes 9–12px
   (`hud.gd:521-523`, tooltip `hud.gd:630-632`). Subir para >=0.7 e usar
-  `TacticalUI.ellipsis_fit` (já existe, `tactical_ui.gd:128-134`).
+  `TacticalUI.ellipsis_fit` (já existe, `tactical_ui.gd:128-134`). O event
+  log agora usa alpha 0.82, as linhas e o tooltip são truncados pela largura
+  medida do painel, e o tooltip expõe as três linhas já ajustadas.
 - [ ] **H3 — Escala HUD vs painéis.** HUD em window px (`hud.gd:129-139`),
   painéis em design px — hierarquia inverte em 1080p+. Assumir design px no
   HUD também (deixar o stretch trabalhar).
