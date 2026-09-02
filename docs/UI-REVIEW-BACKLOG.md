@@ -57,9 +57,11 @@ final. Um item de backlog = um commit; rodar
   `TacticalUI.ellipsis_fit` (já existe, `tactical_ui.gd:128-134`). O event
   log agora usa alpha 0.82, as linhas e o tooltip são truncados pela largura
   medida do painel, e o tooltip expõe as três linhas já ajustadas.
-- [ ] **H3 — Escala HUD vs painéis.** HUD em window px (`hud.gd:129-139`),
-  painéis em design px — hierarquia inverte em 1080p+. Assumir design px no
-  HUD também (deixar o stretch trabalhar).
+- [x] **H3 — Escala HUD vs painéis.** HUD em window px (`hud.gd:129-139`),
+  painéis em design px — hierarquia inverte em 1080p+. A matriz real não
+  reproduziu distorção: o HUD compensa o `canvas_items` stretch de forma
+  uniforme e seu tamanho efetivo coincide com o viewport lógico em wide,
+  ultrawide e portrait. Não foi aplicado um “fix” de escala sem evidência.
 - [ ] **H4 — Sinalização de estado.** HP baixo/dash/overclock dependem de cor ou
   alpha (`hud.gd:534-535`, `hud.gd:650-658`, `hud.gd:550-553`). Adicionar
   texto/glyph + considerar indicador direcional de dano.

@@ -182,6 +182,9 @@
 - Legacy menu launch prompt: 9 passes, 0 failures.
 - H1 HUD hierarchy: 10 focused headless passes, 0 failures.
 - H2 HUD legibility: 8 focused headless passes, 0 failures.
+- H3 HUD scale matrix: 19 headless / 24 Xvfb passes, 0 failures; the effective
+  HUD canvas matched the stretched viewport in wide, ultrawide and portrait
+  samples.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,

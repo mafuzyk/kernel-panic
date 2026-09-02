@@ -1504,6 +1504,60 @@ texto secundário fica mais legível. `visible_event_lines()` sem argumentos
 continua retornando o conteúdo completo para consumidores de diagnóstico; a
 limitação só é aplicada quando o desenho fornece a largura real.
 
+## 7.9 H3 — auditoria da escala do HUD contra o stretch
+
+### Hipótese revisada
+
+O veredito inicial tratava a diferença entre o espaço local do HUD e o espaço
+dos painéis como um erro: o HUD parecia usar pixels da janela enquanto os
+overlays usavam o canvas lógico de `1280×720`. A revisão consolidada, porém,
+registrou que essa compensação podia ser intencional. Alterar a escala sem
+medir poderia quebrar justamente o caso mobile, onde `canvas_items` com
+`aspect=expand` cria uma viewport lógica alta.
+
+### Verificação
+
+`tools/hud_scale_matrix_probe.gd` passou a registrar, para `1280×720`,
+`1600×900`, `1920×1080`, `432×720` e `720×720`:
+
+- tamanho físico pedido e tamanho de janela observado;
+- tamanho local do `Hud`;
+- escala aplicada pelo compensador;
+- tamanho efetivo no canvas, calculado pelo `get_global_transform_with_canvas()`;
+- layout calculado para viewports de referência.
+
+Em Xvfb, os tamanhos wide/ultrawide foram compensados para o viewport lógico
+`1280×720`; portrait foi compensado para a viewport expandida `1280×2133`
+ou equivalente. A escala permaneceu uniforme e o tamanho efetivo coincidiu
+com a viewport em todas as amostras. O mesmo probe headless mantém a cobertura
+da matemática sem depender de uma janela física.
+
+### Decisão
+
+H3 foi encerrado como hipótese não reproduzida, não como um convite para
+remover `_apply_surface_transform()`. O código existente já faz a adaptação
+necessária para o stretch e o HUD vNext usa a mesma ideia explicitamente em
+`_fit_vnext_surface()`. A alternativa de converter tudo para design px foi
+descartada neste ponto porque perderia a distinção entre janela portrait e
+canvas expandido antes de existir uma matriz de export real.
+
+### Evidência e limites
+
+O probe terminou com 19 passes headless e 24 passes no Xvfb wide, zero falhas.
+O validador agora executa as duas modalidades; o log Xvfb é
+`.godot/codex-review-lote-1/probe-h3-hud-scale-matrix-xvfb.log` quando a suíte
+é rodada no checkout. Isso comprova invariantes de transformação, não a
+hierarquia estética percebida nem a legibilidade de cada módulo em um monitor
+4K ou aparelho Android. H5 continua responsável por verificar colisões depois
+da transformação, e export/safe area físicos ainda estão abertos.
+
+### Impacto
+
+Nenhum arquivo de produção foi alterado por H3. O resultado importante é evitar
+um regressão especulativa: a implementação atual permanece, agora com um
+contrato automatizado que impede uma alteração futura de tornar a transformação
+não uniforme ou desconectada do viewport.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário

@@ -123,6 +123,7 @@ run_headless_probe "probe-b5-terminal-history" "B5 terminal history probe" "res:
 run_headless_probe "probe-b6-menu-prompt" "B6 menu prompt probe" "res://tools/menu_prompt_probe.tscn"
 run_headless_probe "probe-h1-hud-hierarchy" "H1 HUD banner hierarchy probe" "res://tools/hud_hierarchy_probe.tscn"
 run_headless_probe "probe-h2-hud-legibility" "H2 HUD legibility probe" "res://tools/hud_legibility_probe.tscn"
+run_headless_probe "probe-h3-hud-scale-matrix" "H3 HUD scale matrix probe" "res://tools/hud_scale_matrix_probe.tscn"
 run_headless_probe "probe-r18-touch-multitouch" "R18 touch multitouch action probe" "res://tools/touch_multitouch_probe.tscn"
 run_headless_probe "probe-vnext-primitives" "VNext code-drawn primitive contract" "res://tools/vnext_primitives_probe.tscn"
 run_headless_probe "probe-vnext-entity-illustration" "VNext code-drawn entity illustration contract" "res://tools/vnext_entity_illustration_probe.tscn"
@@ -156,6 +157,10 @@ if command -v xvfb-run >/dev/null 2>&1; then
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker' \
 		'^PROBE_INFO debug_controls_enabled=true$:::debug_controls_enabled=true (desktop debug active)'
 	report_errors "input probe xvfb" "$LOG_DIR/probe-xvfb.log"
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a -s '-screen 0 1920x1080x24' godot --audio-driver Dummy --path . res://tools/hud_scale_matrix_probe.tscn > "$LOG_DIR/probe-h3-hud-scale-matrix-xvfb.log" 2>&1
+	report_case "H3 HUD scale matrix xvfb" "$LOG_DIR/probe-h3-hud-scale-matrix-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "H3 HUD scale matrix xvfb" "$LOG_DIR/probe-h3-hud-scale-matrix-xvfb.log"
 	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/g2_display_settings_probe.tscn > "$LOG_DIR/probe-g2-display-settings-xvfb.log" 2>&1
 	report_case "G2 display settings xvfb" "$LOG_DIR/probe-g2-display-settings-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
