@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-## Accumulated validation entry point (R01-R08/R18/B1-B5 and vNext slices).
+## Accumulated validation entry point (R01-R08/R18/B1-B6 and vNext slices).
 ##
 ## Runs the full DevHarness autotest, the accumulated headless gameplay probes,
 ## and the input-dispatch probe in headless and Xvfb desktop-debug modes.
@@ -120,6 +120,7 @@ run_headless_probe "probe-r08-oom" "R08 OOM loot probe" "res://tools/oom_loot_pr
 run_headless_probe "probe-b1-menu-overlay" "B1 menu overlay input probe" "res://tools/menu_overlay_input_probe.tscn"
 run_headless_probe "probe-b2-footer-actions" "B2 menu footer action probe" "res://tools/menu_footer_action_probe.tscn"
 run_headless_probe "probe-b5-terminal-history" "B5 terminal history probe" "res://tools/terminal_history_probe.tscn"
+run_headless_probe "probe-b6-menu-prompt" "B6 menu prompt probe" "res://tools/menu_prompt_probe.tscn"
 run_headless_probe "probe-r18-touch-multitouch" "R18 touch multitouch action probe" "res://tools/touch_multitouch_probe.tscn"
 run_headless_probe "probe-vnext-primitives" "VNext code-drawn primitive contract" "res://tools/vnext_primitives_probe.tscn"
 run_headless_probe "probe-vnext-entity-illustration" "VNext code-drawn entity illustration contract" "res://tools/vnext_entity_illustration_probe.tscn"

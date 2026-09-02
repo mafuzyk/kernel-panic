@@ -875,6 +875,17 @@ func _update_best() -> void:
 	var b := Game.best_for_mode()
 	_best_label.text = ("HIGH SCORE  %07d" % b) if b > 0 else "NO RECORD YET"
 
+func _default_launch_prompt() -> String:
+	return "HIT PURGE TO BEGIN" if DisplayServer.is_touchscreen_available() else "PRESS [ENTER] OR HIT >> PURGE"
+
+func _legacy_prompt_should_show() -> bool:
+	if _vnext_mode or _starting or _prompt == null or not is_instance_valid(_prompt):
+		return false
+	for overlay in [_settings_panel, _program_panel, _story_panel, _bestiary_panel, _ach_panel]:
+		if overlay != null and is_instance_valid(overlay) and overlay.visible:
+			return false
+	return true
+
 const KLOG_POOL := [
 	"daemon[666]: segfault at 0 ip 0xdeadbeef sp 0xffffd0 error 6",
 	"systemd[1]: purge.service entered RUNNING state",
@@ -893,7 +904,7 @@ func _process(delta: float) -> void:
 	if _esc_armed > 0.0:
 		_esc_armed -= delta
 		if _esc_armed <= 0.0 and not _starting:
-			_prompt.text = "PRESS [ENTER] OR HIT >> PURGE" if not DisplayServer.is_touchscreen_available() else "HIT PURGE TO BEGIN"
+			_prompt.text = _default_launch_prompt()
 			_prompt.add_theme_color_override("font_color", Balance.COL_PLAYER)
 	_klog_t -= delta
 	if _klog_t <= 0.0 and _klog != null:
@@ -904,7 +915,6 @@ func _process(delta: float) -> void:
 		keep.append("[ %10s ] %s" % [ts, KLOG_POOL[randi() % KLOG_POOL.size()]])
 		_klog.text = "\n".join(keep)
 	_glitch_t -= delta
-	_prompt.visible = false
 	if _glitch_t <= 0.0:
 		_glitch_t = randf_range(1.2, 3.4)
 		var burst := randf_range(0.06, 0.16)
@@ -920,6 +930,13 @@ func _process(delta: float) -> void:
 	_title_b.offset_right = off.x * 0.4 + 4.0
 	_title_r.visible = glitching
 	_title_b.visible = glitching
+	_prompt.visible = _legacy_prompt_should_show()
+	if _prompt.visible:
+		# This is a navigation instruction, not an alarm. Keep its pulse
+		# restrained so the PURGE action remains the visual priority.
+		_prompt.modulate.a = 0.78 + 0.22 * (0.5 + 0.5 * sin(_t * 3.2))
+	else:
+		_prompt.modulate.a = 0.0
 	for d in _drifters:
 		d["pos"] += d["vel"] * delta
 		d["rot"] += d["rot_spd"] * delta
