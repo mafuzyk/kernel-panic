@@ -4,6 +4,7 @@ extends Control
 const Context = preload("res://src/ui/vnext/ui_context.gd")
 const Layout = preload("res://src/ui/vnext/ui_layout.gd")
 const Tokens = preload("res://src/ui/vnext/ui_tokens.gd")
+const Chrome = preload("res://src/ui/vnext/ui_chrome.gd")
 const Illustration = preload("res://src/ui/vnext/entity_illustration.gd")
 const Orbitron: Font = preload("res://assets/fonts/Orbitron.ttf")
 const ShareTechMono: Font = preload("res://assets/fonts/ShareTechMono.ttf")
@@ -127,7 +128,8 @@ func _apply_layout() -> void:
 	list.size = Vector2(_layout["list"].size.x, maxf(0.0, _layout["list"].size.y - 38.0))
 	var row_h := minf(58.0, maxf(46.0, _layout["list"].size.y / maxf(Game.PROGRAM_DEFS.size(), 1)))
 	for button in list.get_children():
-		button.custom_minimum_size = Vector2(0, row_h)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size = Vector2(_layout["list"].size.x, row_h)
 		button.add_theme_font_size_override("font_size", int(round((15.0 if context.density == "wide" else 13.0) * float(context.text_scale))))
 	var launch: Button = _buttons["launch_program"]
 	launch.position = _layout["launch_program"].position
@@ -226,7 +228,8 @@ func semantic_snapshot() -> Dictionary:
 		"locked": not Game.unlocked_programs.has(_selected),
 		"focus": _focus,
 		"view": "detail" if not bool(_layout.get("narrow", false)) or _narrow_detail else "list",
-		"composition": {"shell": "persistent", "list": "process_index", "detail": "dossier", "illustration": "identity_glyph", "footer": "telemetry"},
+		"composition": {"shell": "persistent", "list": "process_index", "detail": "dossier", "illustration": "identity_glyph", "footer": "telemetry", "chrome": "incident_console", "density": "evidence_blocks"},
+		"evidence": {"access": "GRANTED" if Game.unlocked_programs.has(_selected) else "DENIED", "profile": selected_def.get("role", "")},
 	}
 
 func focus_id() -> String:
@@ -352,7 +355,8 @@ func _detail_entries(definition: Dictionary, scale: float) -> Array:
 		["identity", str(definition.get("name", "")), 22],
 		["role", "ROLE       " + str(definition.get("role", "")), 13],
 		["playstyle", "PLAYSTYLE  " + str(definition.get("summary", "")), 13],
-		["integrity", "INTEGRITY  " + str(definition.get("integrity", "")) + "    MOVE  " + str(definition.get("speed", "")), 13],
+		["integrity", "INTEGRITY  " + str(definition.get("integrity", "")), 13],
+		["move", "MOVE       " + str(definition.get("speed", "")), 13],
 		["risk", "FIRE       " + str(definition.get("fire", "")), 13],
 		["range", "RANGE      " + str(definition.get("range", "")), 13],
 		["loadout", "LOADOUT    " + str(definition.get("dash_shield", "")), 13],
@@ -367,9 +371,7 @@ func _draw() -> void:
 	if context == null or _layout.is_empty():
 		return
 	draw_rect(Rect2(Vector2.ZERO, size), Tokens.role_color("background"))
-	_draw_ambient_grid(_layout["shell"])
-	draw_polyline(Tokens.frame_points(_layout["shell"], 16.0), Tokens.role_color("structure"), 1.5, true)
-	_draw_shell_meta(_layout["shell_meta"])
+	Chrome.draw_shell(self, _layout["shell"], context.density, "KP://PROGRAMS", context.text_scale, context.high_contrast)
 	draw_string(Orbitron, _layout["header"].position, "PROGRAM // PROCESS TABLE", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(float(_layout["title_size"]) * context.text_scale)), Tokens.role_color("focus"))
 	draw_string(ShareTechMono, _layout["header"].position + Vector2(0, 28), "SELECT A PROCESS. READ ITS COST BEFORE BOOT.", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(14.0 * context.text_scale)), Tokens.role_color("muted"))
 	draw_line(_layout["header"].position + Vector2(0.0, _layout["header"].size.y - 8.0), _layout["header"].end - Vector2(0.0, 8.0), Color(Tokens.role_color("structure"), 0.32), 1.0, true)
@@ -386,39 +388,20 @@ func _draw() -> void:
 	if _buttons["list_view"].visible:
 		draw_polyline(Tokens.frame_points(_local_button_rect(_buttons["list_view"], false), 8.0), Tokens.role_color("focus"), 1.3, true)
 
-func _draw_ambient_grid(shell: Rect2) -> void:
-	var color := Tokens.role_color("structure")
-	var step := 48.0 if context.density == "wide" else 36.0
-	var x := shell.position.x + step
-	while x < shell.end.x:
-		draw_line(Vector2(x, shell.position.y + 42.0), Vector2(x, shell.end.y - 30.0), Color(color.r, color.g, color.b, 0.03), 1.0, true)
-		x += step
-	var y := shell.position.y + 42.0
-	while y < shell.end.y - 30.0:
-		draw_line(Vector2(shell.position.x + 18.0, y), Vector2(shell.end.x - 18.0, y), Color(color.r, color.g, color.b, 0.03), 1.0, true)
-		y += step
-
-func _draw_shell_meta(rect: Rect2) -> void:
-	var color := Tokens.role_color("structure")
-	var font_size := int(round(12.0 * context.text_scale))
-	if context.density == "narrow":
-		draw_string(ShareTechMono, rect.position, "■ ONLINE", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-		draw_string(ShareTechMono, rect.get_center() - Vector2(35.0, 0.0), "KP://PROGRAMS", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-		draw_string(ShareTechMono, rect.end - Vector2(42.0, 4.0), "GUEST", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-	else:
-		draw_string(ShareTechMono, rect.position, "■  SYSTEM ONLINE", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-		draw_string(ShareTechMono, rect.get_center() - Vector2(62.0, 0.0), "KP://PROGRAMS", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-		draw_string(ShareTechMono, rect.end - Vector2(108.0, 4.0), "USER: GUEST", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-	draw_line(rect.position + Vector2(146.0, -4.0), rect.position + Vector2(244.0, -4.0), Color(color.r, color.g, color.b, 0.5), 1.0, true)
-
 func _draw_footer() -> void:
 	var rect: Rect2 = _layout["footer"]
 	var color := Tokens.role_color("muted")
 	var accent := Tokens.role_color("structure")
 	draw_line(rect.position, rect.end, Color(accent.r, accent.g, accent.b, 0.42), 1.0, true)
-	draw_string(ShareTechMono, rect.position + Vector2(0.0, 17.0), "PROGRAM INDEX", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(11.0 * context.text_scale)), accent)
-	draw_string(ShareTechMono, rect.position + Vector2(132.0, 17.0), "STATE  %s" % ("READY" if Game.unlocked_programs.has(_selected) else "LOCKED"), HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(11.0 * context.text_scale)), color)
-	draw_string(ShareTechMono, rect.position + Vector2(rect.size.x - 178.0, 17.0), "BUILD 0.2.3", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(11.0 * context.text_scale)), color)
+	var font_size := int(round(11.0 * context.text_scale))
+	if context.density == "narrow":
+		draw_string(ShareTechMono, rect.position + Vector2(0.0, 17.0), "INDEX  %02d" % Game.PROGRAM_DEFS.size(), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, accent)
+		draw_string(ShareTechMono, Vector2(rect.get_center().x - 26.0, rect.position.y + 17.0), "READY" if Game.unlocked_programs.has(_selected) else "LOCKED", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+		draw_string(ShareTechMono, rect.end - Vector2(42.0, rect.size.y - 17.0), "0.2.3", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+	else:
+		draw_string(ShareTechMono, rect.position + Vector2(0.0, 17.0), "PROGRAM INDEX", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, accent)
+		draw_string(ShareTechMono, rect.position + Vector2(132.0, 17.0), "STATE  %s" % ("READY" if Game.unlocked_programs.has(_selected) else "LOCKED"), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+		draw_string(ShareTechMono, rect.position + Vector2(rect.size.x - 178.0, 17.0), "BUILD 0.2.3", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
 func _draw_program_list() -> void:
 	var rect: Rect2 = _layout["list"]
@@ -467,3 +450,8 @@ func _draw_program_dossier() -> void:
 		draw_multiline_string(entry_font, entry_rect.position + Vector2(0, float(entry["size"])), str(entry["text"]), HORIZONTAL_ALIGNMENT_LEFT, entry_rect.size.x, int(round(float(entry["size"]) * context.text_scale)), 6, entry_color)
 	var status := "READY TO MOUNT" if Game.unlocked_programs.has(_selected) else "LOCKED // CLEAR STORY NODES TO UNLOCK"
 	draw_string(ShareTechMono, rect.position + Vector2(18.0, rect.size.y - 18.0), status, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 36.0, int(round(10.0 * context.text_scale)), Tokens.role_color("ready") if Game.unlocked_programs.has(_selected) else Tokens.role_color("muted"))
+	var access_color := Tokens.role_color("ready") if Game.unlocked_programs.has(_selected) else Tokens.role_color("muted")
+	Chrome.draw_evidence_block(self, _layout.get("evidence_band", Rect2()), "MOUNT CHECK", [
+		{"label": "ACCESS", "value": "GRANTED" if Game.unlocked_programs.has(_selected) else "DENIED", "color": access_color},
+		{"label": "PROFILE", "value": str(selected_def.get("role", "")), "color": color},
+	], color, context.text_scale)

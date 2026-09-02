@@ -18,6 +18,7 @@ static func boot(viewport: Vector2, context: RefCounted) -> Dictionary:
 	var back: Rect2 = Rect2(footer.position + Vector2(0.0, footer.size.y + 8.0), Vector2(minf(150.0, footer.size.x), footer.size.y))
 	var settings_action := Rect2(Vector2.ZERO, Vector2.ZERO)
 	var bestiary_action := Rect2(Vector2.ZERO, Vector2.ZERO)
+	var signature_rail := Rect2(safe.position + Vector2(8.0, 52.0), Vector2(8.0, maxf(0.0, safe.size.y - 82.0)))
 	if density == "wide":
 		var column_gap := 44.0
 		var left_width := minf(520.0, safe.size.x * 0.43)
@@ -67,6 +68,8 @@ static func boot(viewport: Vector2, context: RefCounted) -> Dictionary:
 		"navigation": navigation,
 		"illustration": illustration,
 		"footer": footer,
+		"signature_rail": signature_rail,
+		"evidence_band": telemetry,
 		"settings_action": settings_action,
 		"bestiary_action": bestiary_action,
 		"boot": boot,
@@ -91,6 +94,8 @@ static func selection(viewport: Vector2, context: RefCounted) -> Dictionary:
 	var detail: Rect2
 	var detail_illustration: Rect2
 	var detail_text: Rect2
+	var evidence_band := Rect2()
+	var signature_rail := Rect2(safe.position + Vector2(8.0, 52.0), Vector2(8.0, maxf(0.0, safe.size.y - 82.0)))
 	if density == "wide":
 		var content_y := header.end.y + 18.0
 		var content_h := maxf(120.0, footer.position.y - content_y - 14.0)
@@ -99,7 +104,8 @@ static func selection(viewport: Vector2, context: RefCounted) -> Dictionary:
 		var detail_x := list.end.x + 22.0
 		detail = Rect2(Vector2(detail_x, content_y), Vector2(maxf(0.0, safe.end.x - detail_x - pad), content_h))
 		detail_illustration = Rect2(detail.position + Vector2(18.0, 66.0), Vector2(minf(202.0, detail.size.x * 0.31), minf(202.0, detail.size.y - 128.0)))
-		detail_text = Rect2(Vector2(detail_illustration.end.x + 24.0, detail.position.y + 20.0), Vector2(maxf(0.0, detail.end.x - detail_illustration.end.x - 42.0), detail.size.y - 32.0))
+		evidence_band = Rect2(detail.position + Vector2(18.0, detail.size.y - 112.0), Vector2(maxf(0.0, detail.size.x - 36.0), 82.0))
+		detail_text = Rect2(Vector2(detail_illustration.end.x + 24.0, detail.position.y + 40.0), Vector2(maxf(0.0, detail.end.x - detail_illustration.end.x - 42.0), maxf(0.0, detail.size.y - 162.0)))
 	elif density == "compact":
 		var content_y := header.end.y + 14.0
 		var content_h := maxf(120.0, footer.position.y - content_y - 14.0)
@@ -108,7 +114,8 @@ static func selection(viewport: Vector2, context: RefCounted) -> Dictionary:
 		var detail_x := list.end.x + 16.0
 		detail = Rect2(Vector2(detail_x, content_y), Vector2(maxf(0.0, safe.end.x - detail_x - pad), content_h))
 		detail_illustration = Rect2(detail.position + Vector2(12.0, 52.0), Vector2(minf(126.0, detail.size.x * 0.44), minf(126.0, detail.size.y - 108.0)))
-		detail_text = Rect2(Vector2(detail_illustration.end.x + 14.0, detail.position.y + 16.0), Vector2(maxf(0.0, detail.end.x - detail_illustration.end.x - 26.0), detail.size.y - 26.0))
+		evidence_band = Rect2(detail.position + Vector2(12.0, detail.size.y - 106.0), Vector2(maxf(0.0, detail.size.x - 24.0), 82.0))
+		detail_text = Rect2(Vector2(detail_illustration.end.x + 14.0, detail.position.y + 40.0), Vector2(maxf(0.0, detail.end.x - detail_illustration.end.x - 26.0), maxf(0.0, detail.size.y - 136.0)))
 	else:
 		var content_y := header.end.y + 12.0
 		var content_h := maxf(160.0, footer.position.y - content_y - 12.0)
@@ -124,6 +131,8 @@ static func selection(viewport: Vector2, context: RefCounted) -> Dictionary:
 		"detail": detail,
 		"detail_illustration": detail_illustration,
 		"detail_text": detail_text,
+		"signature_rail": signature_rail,
+		"evidence_band": evidence_band,
 		"footer": footer,
 		"launch_program": launch,
 		"back": back,

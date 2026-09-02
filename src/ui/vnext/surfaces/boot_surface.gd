@@ -4,6 +4,7 @@ extends Control
 const Context = preload("res://src/ui/vnext/ui_context.gd")
 const Layout = preload("res://src/ui/vnext/ui_layout.gd")
 const Tokens = preload("res://src/ui/vnext/ui_tokens.gd")
+const Chrome = preload("res://src/ui/vnext/ui_chrome.gd")
 const Illustration = preload("res://src/ui/vnext/entity_illustration.gd")
 const Navigation = preload("res://src/ui/vnext/ui_navigation.gd")
 const Orbitron: Font = preload("res://assets/fonts/Orbitron.ttf")
@@ -90,7 +91,7 @@ func text_overflow_report() -> Array:
 		{"id": "story", "text": "STORY", "rect": _layout["story"], "font": ShareTechMono, "font_size": 14.0, "padding": 20.0},
 		{"id": "bestiary", "text": "BESTIARY", "rect": _layout["bestiary_action"], "font": ShareTechMono, "font_size": 13.0, "padding": 12.0},
 		{"id": "back", "text": "< BACK", "rect": _layout["back"], "font": ShareTechMono, "font_size": 16.0, "padding": 20.0},
-		{"id": "footer", "text": "BEST RUN    SCORE    RANK    TIME", "rect": _layout["footer"], "font": ShareTechMono, "font_size": 11.0, "padding": 8.0},
+		{"id": "footer", "text": "BEST 000000   SCORE 000000   00:00:00" if context.density == "narrow" else "BEST RUN    SCORE    RANK    TIME", "rect": _layout["footer"], "font": ShareTechMono, "font_size": 11.0, "padding": 8.0},
 	]
 	if _layout.has("settings"):
 		entries.append({"id": "settings", "text": "SETTINGS", "rect": _layout["settings"], "font": ShareTechMono, "font_size": 16.0, "padding": 20.0})
@@ -110,7 +111,7 @@ func semantic_snapshot() -> Dictionary:
 		"title": "KERNEL PANIC",
 		"primary_action": "BOOT / RUN PROCESS",
 		"markers": {"ready": "READY", "locked": "LOCKED", "selected": "FOCUS"},
-		"composition": {"shell": "persistent", "identity": "left", "navigation": "command_rail", "footer": "telemetry"},
+		"composition": {"shell": "persistent", "identity": "left", "navigation": "command_rail", "footer": "telemetry", "chrome": "incident_console", "density": "evidence_blocks"},
 		"focus": _focus,
 		"navigation": _navigation.snapshot() if _navigation != null else {},
 	}
@@ -276,11 +277,8 @@ func _draw() -> void:
 	var shell: Rect2 = _layout["shell"]
 	var text_scale := float(context.text_scale)
 	draw_rect(Rect2(Vector2.ZERO, size), Tokens.role_color("background"))
-	_draw_ambient_grid(shell)
-	draw_polyline(Tokens.frame_points(shell, 16.0), Tokens.role_color("structure"), 1.5, true)
-	_draw_shell_meta(_layout["shell_meta"], text_scale)
+	Chrome.draw_shell(self, shell, context.density, "KP://MAIN_MENU", text_scale, context.high_contrast)
 	_draw_section_frame(_layout["identity"], Tokens.role_color("structure"), 0.42)
-	_draw_section_frame(_layout["telemetry"], Tokens.role_color("structure"), 0.26)
 	_draw_section_frame(_layout["navigation"], Tokens.role_color("structure"), 0.42)
 	_draw_footer(_layout["footer"], text_scale)
 	var title_rect: Rect2 = _layout["title"]
@@ -309,30 +307,6 @@ func _draw() -> void:
 	if _layout.has("settings"):
 		draw_polyline(Tokens.frame_points(_layout["settings"], 10.0), settings_color, 2.0 if _focus == "settings" else 1.0, true)
 
-func _draw_ambient_grid(shell: Rect2) -> void:
-	var grid_color := Tokens.role_color("structure")
-	var step := 48.0 if context.density == "wide" else 36.0
-	var x := shell.position.x + step
-	while x < shell.end.x:
-		draw_line(Vector2(x, shell.position.y + 46.0), Vector2(x, shell.end.y - 28.0), Color(grid_color.r, grid_color.g, grid_color.b, 0.035), 1.0, true)
-		x += step
-	var y := shell.position.y + 46.0
-	while y < shell.end.y - 28.0:
-		draw_line(Vector2(shell.position.x + 22.0, y), Vector2(shell.end.x - 22.0, y), Color(grid_color.r, grid_color.g, grid_color.b, 0.035), 1.0, true)
-		y += step
-
-func _draw_shell_meta(rect: Rect2, text_scale: float) -> void:
-	var color := Tokens.role_color("structure")
-	if context.density == "narrow":
-		draw_string(ShareTechMono, rect.position, "■ ONLINE", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(12.0 * text_scale)), color)
-		draw_string(ShareTechMono, rect.get_center() - Vector2(32.0 * text_scale, -0.0), "KP://MENU", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(12.0 * text_scale)), color)
-		draw_string(ShareTechMono, rect.end - Vector2(48.0 * text_scale, -4.0), "GUEST", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(12.0 * text_scale)), color)
-	else:
-		draw_string(ShareTechMono, rect.position, "■  SYSTEM ONLINE", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(12.0 * text_scale)), color)
-		draw_string(ShareTechMono, rect.get_center() - Vector2(64.0 * text_scale, -0.0), "KP://MAIN_MENU", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(12.0 * text_scale)), color)
-		draw_string(ShareTechMono, rect.end - Vector2(108.0 * text_scale, -4.0), "USER: GUEST", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(12.0 * text_scale)), color)
-	draw_line(Vector2(rect.position.x + 146.0, rect.position.y - 4.0), Vector2(rect.position.x + 244.0, rect.position.y - 4.0), Color(color.r, color.g, color.b, 0.5), 1.0, true)
-
 func _draw_section_frame(rect: Rect2, color: Color, alpha: float) -> void:
 	var points := Tokens.frame_points(rect, minf(12.0, rect.size.y * 0.2))
 	draw_polyline(points + PackedVector2Array([points[0]]), Color(color.r, color.g, color.b, alpha), 1.0, true)
@@ -341,9 +315,13 @@ func _draw_section_frame(rect: Rect2, color: Color, alpha: float) -> void:
 func _draw_telemetry(rect: Rect2, text_scale: float) -> void:
 	var color := Tokens.role_color("structure")
 	var muted := Tokens.role_color("muted")
-	draw_string(ShareTechMono, rect.position + Vector2(18.0, 28.0), "PROCESS TELEMETRY", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(12.0 * text_scale)), color)
-	draw_string(ShareTechMono, rect.position + Vector2(18.0, 56.0), "PROGRAM  %s" % str(snapshot.get("program", "kernel")).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(15.0 * text_scale)), color)
-	draw_string(ShareTechMono, rect.position + Vector2(18.0, 78.0), "BEST     %07d" % int(snapshot.get("best", 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(13.0 * text_scale)), muted)
+	var rows := [
+		{"label": "PROGRAM", "value": str(snapshot.get("program", "kernel")).to_upper(), "color": color},
+		{"label": "BEST", "value": "%07d" % int(snapshot.get("best", 0)), "color": muted},
+	]
+	if context.density == "narrow":
+		rows = [{"label": "PROGRAM", "value": str(snapshot.get("program", "kernel")).to_upper(), "color": color}]
+	Chrome.draw_evidence_block(self, rect, "PROCESS TELEMETRY", rows, color, text_scale)
 	var matrix_origin := rect.position + Vector2(rect.size.x * 0.62, 26.0)
 	for row in 4:
 		for column in 8:
@@ -378,8 +356,14 @@ func _draw_navigation_icons(text_scale: float) -> void:
 func _draw_footer(rect: Rect2, text_scale: float) -> void:
 	var color := Tokens.role_color("structure")
 	draw_line(rect.position, Vector2(rect.end.x, rect.position.y), Color(color.r, color.g, color.b, 0.52), 1.0, true)
-	draw_string(ShareTechMono, rect.position + Vector2(0.0, 20.0), "BEST RUN  000000    SCORE  %07d    RANK  --" % int(snapshot.get("best", 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(11.0 * text_scale)), color)
-	draw_string(ShareTechMono, rect.end - Vector2(196.0, 4.0), "TIME  00:00:00   CORE ONLINE", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(11.0 * text_scale)), color)
+	var font_size := int(round(11.0 * text_scale))
+	if context.density == "narrow":
+		draw_string(ShareTechMono, rect.position + Vector2(0.0, 20.0), "BEST  %06d" % int(snapshot.get("best", 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+		draw_string(ShareTechMono, rect.position + Vector2(102.0, 20.0), "SCORE  %06d" % int(snapshot.get("best", 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+		draw_string(ShareTechMono, rect.end - Vector2(78.0, rect.size.y - 20.0), "00:00:00", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+	else:
+		draw_string(ShareTechMono, rect.position + Vector2(0.0, 20.0), "BEST RUN  000000    SCORE  %07d    RANK  --" % int(snapshot.get("best", 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+		draw_string(ShareTechMono, rect.end - Vector2(196.0, 4.0), "TIME  00:00:00   CORE ONLINE", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
 func _settings_rect() -> Rect2:
 	if _layout.has("settings_action"):

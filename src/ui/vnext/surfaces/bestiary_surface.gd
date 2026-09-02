@@ -4,6 +4,7 @@ extends Control
 const Context = preload("res://src/ui/vnext/ui_context.gd")
 const Layout = preload("res://src/ui/vnext/ui_layout.gd")
 const Tokens = preload("res://src/ui/vnext/ui_tokens.gd")
+const Chrome = preload("res://src/ui/vnext/ui_chrome.gd")
 const Illustration = preload("res://src/ui/vnext/entity_illustration.gd")
 const ContentCatalog = preload("res://src/data/content_catalog.gd")
 const Balance = preload("res://src/autoload/balance.gd")
@@ -223,7 +224,8 @@ func semantic_snapshot() -> Dictionary:
 		"counterplay": entry.get("desc", ""),
 		"focus": _focus,
 		"view": "detail" if not bool(_layout.get("narrow", false)) or _narrow_detail else "list",
-		"composition": {"shell": "persistent", "list": "field_index", "detail": "behavior_dossier", "illustration": "enemy_identity", "footer": "telemetry"},
+		"composition": {"shell": "persistent", "list": "field_index", "detail": "behavior_dossier", "illustration": "enemy_identity", "footer": "telemetry", "chrome": "incident_console", "density": "evidence_blocks"},
+		"evidence": {"threat": int(entry.get("threat", 0)), "class": str(entry.get("threat_class", "standard")).to_upper(), "logged": Game.bestiary_seen(_selected)},
 	}
 
 func focus_id() -> String:
@@ -337,9 +339,7 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Tokens.role_color("background"))
 	var shell: Rect2 = _layout["shell"]
 	var structure := Tokens.role_color("structure")
-	_draw_ambient_grid(shell)
-	draw_polyline(Tokens.frame_points(shell, 16.0), structure, 1.5, true)
-	_draw_shell_meta(_layout["shell_meta"])
+	Chrome.draw_shell(self, shell, context.density, "KP://BESTIARY", context.text_scale, context.high_contrast)
 	draw_string(Orbitron, _layout["header"].position, "BESTIARY // FIELD DATA", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(float(_layout["title_size"]) * context.text_scale)), Tokens.role_color("focus"))
 	draw_string(ShareTechMono, _layout["header"].position + Vector2(0.0, 27.0), "SELECT A PROCESS. READ ITS BEHAVIOR AND COUNTERPLAY.", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(13.0 * context.text_scale)), Tokens.role_color("muted"))
 	draw_line(_layout["header"].position + Vector2(0.0, _layout["header"].size.y - 8.0), _layout["header"].end - Vector2(0.0, 8.0), Color(structure.r, structure.g, structure.b, 0.32), 1.0, true)
@@ -353,39 +353,20 @@ func _draw() -> void:
 	if _buttons["list_view"].visible:
 		draw_polyline(Tokens.frame_points(Rect2(_buttons["list_view"].position, _buttons["list_view"].size), 8.0), Tokens.role_color("focus"), 1.3, true)
 
-func _draw_ambient_grid(shell: Rect2) -> void:
-	var color := Tokens.role_color("structure")
-	var step := 48.0 if context.density == "wide" else 36.0
-	var x := shell.position.x + step
-	while x < shell.end.x:
-		draw_line(Vector2(x, shell.position.y + 42.0), Vector2(x, shell.end.y - 30.0), Color(color.r, color.g, color.b, 0.03), 1.0, true)
-		x += step
-	var y := shell.position.y + 42.0
-	while y < shell.end.y - 30.0:
-		draw_line(Vector2(shell.position.x + 18.0, y), Vector2(shell.end.x - 18.0, y), Color(color.r, color.g, color.b, 0.03), 1.0, true)
-		y += step
-
-func _draw_shell_meta(rect: Rect2) -> void:
-	var color := Tokens.role_color("structure")
-	var font_size := int(round(12.0 * context.text_scale))
-	if context.density == "narrow":
-		draw_string(ShareTechMono, rect.position, "■ ONLINE", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-		draw_string(ShareTechMono, rect.get_center() - Vector2(40.0, 0.0), "KP://BESTIARY", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-		draw_string(ShareTechMono, rect.end - Vector2(42.0, 4.0), "GUEST", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-	else:
-		draw_string(ShareTechMono, rect.position, "■  SYSTEM ONLINE", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-		draw_string(ShareTechMono, rect.get_center() - Vector2(64.0, 0.0), "KP://BESTIARY", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-		draw_string(ShareTechMono, rect.end - Vector2(108.0, 4.0), "USER: GUEST", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-	draw_line(rect.position + Vector2(146.0, -4.0), rect.position + Vector2(244.0, -4.0), Color(color.r, color.g, color.b, 0.5), 1.0, true)
-
 func _draw_footer() -> void:
 	var rect: Rect2 = _layout["footer"]
 	var color := Tokens.role_color("muted")
 	var accent := Tokens.role_color("structure")
 	draw_line(rect.position, rect.end, Color(accent.r, accent.g, accent.b, 0.42), 1.0, true)
-	draw_string(ShareTechMono, rect.position + Vector2(0.0, 17.0), "FIELD ENTRIES  %02d" % _entries.size(), HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(11.0 * context.text_scale)), accent)
-	draw_string(ShareTechMono, rect.position + Vector2(142.0, 17.0), "LOGGED  %02d" % Game.bestiary.size(), HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(11.0 * context.text_scale)), color)
-	draw_string(ShareTechMono, rect.position + Vector2(rect.size.x - 178.0, 17.0), "BUILD 0.2.3", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(11.0 * context.text_scale)), color)
+	var font_size := int(round(11.0 * context.text_scale))
+	if context.density == "narrow":
+		draw_string(ShareTechMono, rect.position + Vector2(0.0, 17.0), "ENTRIES  %02d" % _entries.size(), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, accent)
+		draw_string(ShareTechMono, Vector2(rect.get_center().x - 28.0, rect.position.y + 17.0), "LOGGED  %02d" % Game.bestiary.size(), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+		draw_string(ShareTechMono, rect.end - Vector2(42.0, rect.size.y - 17.0), "0.2.3", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+	else:
+		draw_string(ShareTechMono, rect.position + Vector2(0.0, 17.0), "FIELD ENTRIES  %02d" % _entries.size(), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, accent)
+		draw_string(ShareTechMono, rect.position + Vector2(142.0, 17.0), "LOGGED  %02d" % Game.bestiary.size(), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+		draw_string(ShareTechMono, rect.position + Vector2(rect.size.x - 178.0, 17.0), "BUILD 0.2.3", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
 func _draw_list() -> void:
 	var rect: Rect2 = _layout["list"]
@@ -454,3 +435,7 @@ func _draw_dossier() -> void:
 	draw_string(ShareTechMono, text_rect.position + Vector2(0.0, 184.0), "COUNTERPLAY // BUG REPORT", HORIZONTAL_ALIGNMENT_LEFT, text_rect.size.x, int(round(11.0 * context.text_scale)), color)
 	var bugs := "> " + (str(entry.get("bugs", "")) if seen else "LOCKED // COMPLETE A SIGHTING TO ACCESS NOTES")
 	draw_multiline_string(ShareTechMono, text_rect.position + Vector2(0.0, 206.0), bugs, HORIZONTAL_ALIGNMENT_LEFT, text_rect.size.x, int(round(12.0 * context.text_scale)), 6, Color(structure.r, structure.g, structure.b, 0.72 if seen else 0.36))
+	Chrome.draw_evidence_block(self, _layout.get("evidence_band", Rect2()), "THREAT REGISTER", [
+		{"label": "CLASS", "value": str(entry.get("threat_class", "standard")).to_upper(), "color": color},
+		{"label": "LOAD", "value": ("%d POINTS" % int(entry.get("threat", 0))) if seen else "UNRESOLVED", "color": color},
+	], color, context.text_scale)

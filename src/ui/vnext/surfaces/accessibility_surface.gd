@@ -3,6 +3,7 @@ extends Control
 
 const Context = preload("res://src/ui/vnext/ui_context.gd")
 const Tokens = preload("res://src/ui/vnext/ui_tokens.gd")
+const Chrome = preload("res://src/ui/vnext/ui_chrome.gd")
 const Navigation = preload("res://src/ui/vnext/ui_navigation.gd")
 const Orbitron: Font = preload("res://assets/fonts/Orbitron.ttf")
 const ShareTechMono: Font = preload("res://assets/fonts/ShareTechMono.ttf")
@@ -76,7 +77,7 @@ func semantic_snapshot() -> Dictionary:
 		"reset_confirmed": _reset_completed,
 		"reset_armed": _reset_confirmed,
 		"unsupported_note": _unsupported_text(),
-		"composition": {"shell": "persistent", "header": "workstation", "content": "live_controls", "footer": "navigation"},
+		"composition": {"shell": "persistent", "header": "workstation", "content": "live_controls", "footer": "navigation", "chrome": "incident_console", "density": "evidence_blocks"},
 		"navigation": _navigation.snapshot() if _navigation != null else {},
 	}
 
@@ -158,8 +159,8 @@ func _layout_for_context() -> Dictionary:
 	var shell_meta := Rect2(x, y, width, 24.0)
 	var title := Rect2(x, y + 32.0, width, 42.0)
 	var explanation := Rect2(x, y + 76.0, width, 20.0)
-	var status := Rect2(x, y + 100.0, width, 16.0)
-	var unsupported := Rect2(x, y + 120.0, width, 14.0)
+	var status := Rect2(x, y + 100.0, width, 20.0)
+	var unsupported := Rect2(x, y + 120.0, width, 16.0)
 	var button_y := y + 138.0
 	var actions := {}
 	var ids := _focus_ids()
@@ -169,6 +170,8 @@ func _layout_for_context() -> Dictionary:
 		"shell": safe,
 		"shell_meta": shell_meta,
 		"header": Rect2(x, y + 32.0, width, 104.0),
+		"signature_rail": Rect2(safe.position + Vector2(8.0, 52.0), Vector2(8.0, maxf(0.0, safe.size.y - 82.0))),
+		"evidence_band": status,
 		"title": title,
 		"explanation": explanation,
 		"status": status,
@@ -347,12 +350,8 @@ func _draw() -> void:
 		return
 	var text_scale := float(context.text_scale)
 	draw_rect(Rect2(Vector2.ZERO, size), Tokens.role_color("background"))
-	draw_polyline(Tokens.frame_points(_layout["shell"], 16.0), Tokens.role_color("structure"), 1.5, true)
-	var shell_meta: Rect2 = _layout["shell_meta"]
+	Chrome.draw_shell(self, _layout["shell"], context.density, "KP://SETTINGS/ACCESSIBILITY", text_scale, context.high_contrast)
 	var shell_color := Tokens.role_color("structure")
-	var shell_meta_text := "ONLINE    KP://SETTINGS    GUEST" if context.density == "narrow" else "■  SYSTEM ONLINE    KP://SETTINGS/ACCESSIBILITY    USER: GUEST"
-	draw_string(ShareTechMono, shell_meta.position, shell_meta_text, HORIZONTAL_ALIGNMENT_LEFT, shell_meta.size.x, int(round(12.0 * text_scale)), shell_color)
-	draw_line(shell_meta.position + Vector2(146.0, -4.0), shell_meta.position + Vector2(244.0, -4.0), Color(shell_color.r, shell_color.g, shell_color.b, 0.5), 1.0, true)
 	draw_string(Orbitron, _layout["title"].position + Vector2(0, 28), "ACCESSIBILITY", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(28.0 * text_scale)), Tokens.role_color("focus"))
 	draw_string(ShareTechMono, _layout["explanation"].position + Vector2(0, 16), _explanation_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(14.0 * text_scale)), Tokens.role_color("muted"))
 	draw_string(ShareTechMono, _layout["status"].position + Vector2(0, 15), _status, HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(12.0 * text_scale)), Tokens.role_color("muted"))
