@@ -573,8 +573,10 @@ integrado.
   fontes, texturas e alguns `Area2D`/CanvasItem. Eles não são `SCRIPT ERROR`
   durante o runtime, mas continuam bloqueador de limpeza de release até serem
   categorizados e decididos;
-- a duplicação de helpers de shell entre Program e Bestiary é dívida técnica
-  deliberada deste slice;
+- superfícies legadas e algumas superfícies vNext de estado ainda possuem
+  helpers locais; o shell compartilhado cobre Boot, Program, Bestiary e
+  Accessibility neste passe, mas a migração total precisa de critérios para não
+  centralizar diferenças reais;
 - valores e slogans como `0.2.3` continuam copy de produto sujeita a revisão.
 
 ### Risco e validação recomendada
@@ -602,6 +604,97 @@ O que falta para um release candidate real é maior que “mais um screenshot”
 promover a rota somente após aprovação das telas, completar o cast e a
 localização, validar hardware/export/mobile, fechar os diagnostics de teardown,
 revisar acessibilidade de plataforma e realizar playtest/balance final.
+
+## 7.1 Segunda revisão visual — direção única de incidente operacional
+
+Depois da primeira implementação vNext, foi feita uma comparação crítica lado a
+lado com as referências de `media/Ideas` (`imagem1`, `imagem2`, `imagem3` e
+`imagem10`), com a primeira composição de `media/menu.png` e com as capturas da
+UI anterior. A conclusão não foi “faltam efeitos”: o shell estava correto, mas
+as telas ainda podiam parecer wireframes de terminal, com densidade visual sem
+uma gramática operacional suficientemente compartilhada.
+
+### Achados confirmados
+
+- Boot tinha identidade, telemetria e comando, mas ainda deixava um campo
+  central amplo sem um trilho visual que o conectasse ao estado do processo;
+- Program tinha a separação índice/dossiê, mas o dossiê não usava toda a área
+  inferior para dados verificáveis;
+- Bestiary tinha a mesma lacuna no dossiê, especialmente no estado logged, e a
+  lista estreita mantinha marcadores de estado apertados demais;
+- Accessibility era funcional, porém visualmente uma lista isolada, sem a
+  mesma sensação de estação de diagnóstico das referências;
+- o rodapé de Program e Bestiary ainda era desenhado com posições de desktop em
+  narrow, e os botões do índice de Program não expandiam até a largura da
+  coluna real;
+- os shells locais repetiam parte da lógica de grid, metadata e moldura, o que
+  permitia drift entre telas.
+
+### Decisão consolidada
+
+A direção agora é denominada **incident console**: KERNEL PANIC é uma
+workstation hostil acompanhando um processo vivo. Cada tela deve tornar legíveis
+rota, estado, objeto inspecionado e próxima ação. Densidade só é válida quando
+vem de identidade, estado, navegação ou comparação sustentada por dados reais;
+glow, grid e números sem função não são considerados acabamento.
+
+### Alterações deste segundo passe
+
+- `src/ui/vnext/ui_chrome.gd` centraliza o shell code-drawn, grid, rails de
+  calibração e blocos de evidência. A camada não inventa métricas: recebe fatos
+  da superfície e só define sua apresentação comum;
+- Boot passou a usar o shell compartilhado e o telemetry panel passou a ser um
+  bloco de evidência com dados de programa e recorde;
+- Program passou a usar shell compartilhado, um bloco `MOUNT CHECK` baseado no
+  estado de desbloqueio e no perfil real do programa, e sizing horizontal
+  explícito para os botões do índice;
+- Bestiary passou a usar shell compartilhado e um bloco `THREAT REGISTER`
+  baseado na classe, ameaça e estado logged da entrada selecionada;
+- Accessibility passou a usar o mesmo shell e ganhou bounds tipográficos
+  suficientes para status e aviso de suporte, eliminando um overflow de altura
+  que a captura visual mascarava;
+- o bloco compacto de evidência foi ampliado depois de uma captura raster
+  revelar que sua segunda linha (`PROFILE`/`LOAD`) ficava fora do retângulo
+  útil; agora os dois fatos continuam visíveis sem encostar no rodapé;
+- os rodapés narrow de Program e Bestiary agora distribuem índice/estado/build
+  em três pontos distintos, em vez de reutilizar offsets de wide;
+- `tools/vnext_incident_chrome_probe.gd` verifica a API compartilhada, os
+  metadados semânticos, as regiões de signature/evidence e o overflow em
+  1366×768 e 432×720;
+- `tools/vnext_surface_capture.gd` fornece uma captura silenciosa e
+  reproduzível de Boot, Program, Bestiary e Accessibility, com recorte para
+  uma viewport estreita quando necessário.
+
+### Revisão da própria correção
+
+Durante o passe houve três falhas introduzidas e corrigidas antes do green
+final: a primeira versão do shell usava `shell.end` como se fosse o retângulo de
+metadata e colocou rota/usuário no eixo vertical errado; a segunda manteve os
+botões de Program com a largura mínima do texto; a terceira deixou apenas a
+primeira linha do bloco de evidência compacto visível. As três foram
+reproduzidas por captura Xvfb, corrigidas e recapturadas. O probe semântico
+sozinho não teria detectado as falhas de composição, por isso a captura
+continua sendo uma exigência separada.
+
+Capturas finais desta revisão ficam fora do Git em
+`/tmp/kernel-panic-ui-captures-vnext-20260902/`:
+
+- `boot-reference.png`;
+- `program-reference.png`;
+- `bestiary-reference.png`;
+- `accessibility-reference.png`;
+- `boot-narrow-v2.png`, `program-narrow-final.png`,
+  `bestiary-narrow-final.png` e `accessibility-narrow-final.png`;
+- `boot-compact.png`, `program-compact-final-v3.png` e
+  `bestiary-compact-final-v2.png` para a verificação intermediária de uma
+  coluna;
+- as imagens são evidência local efêmera: o utilitário de captura e o probe são
+  versionados, mas os PNGs não entram no Git.
+
+O resultado está mais próximo das referências porque a densidade agora é
+organizada por evidência e relação entre blocos. Ainda não é uma declaração de
+aprovação estética final: o cast completo, gameplay em movimento e a avaliação
+humana continuam necessários.
 
 ## 10. Próximos passos recomendados
 

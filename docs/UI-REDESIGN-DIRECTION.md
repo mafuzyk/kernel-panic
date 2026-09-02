@@ -367,3 +367,67 @@ acessibilidade, PC/mobile, performance, open source e release está dividido
 em [um plano-mestre com micro-documentos](superpowers/plans/2026-08-31-kernel-panic-master-plan/README.md).
 Este arquivo define a direção visual; o plano define como transformá-la em
 software verificável sem reabrir ou polir indefinidamente a UI legada.
+
+## Revisão visual posterior — 2026-09-02
+
+A primeira composição vNext foi comparada lado a lado com `media/Ideas/imagem1.png`,
+`imagem2.png`, `imagem3.png` e `imagem10.png`, além de `media/menu.png` e das
+capturas da UI anterior. A conclusão é deliberadamente crítica: a estrutura
+vNext já deixou de ser uma migração direta da UI antiga, mas ainda pode parecer
+um wireframe de terminal. Moldura, grid, ciano e título não constituem uma
+identidade por si só.
+
+### Lacunas comprovadas na comparação
+
+- o menu vNext tem shell e comando, mas deixa um volume grande de espaço sem
+  informação operacional equivalente à densidade das referências;
+- Program e Bestiary têm a divisão índice/dossiê correta, porém a área de
+  análise ainda não tem o mesmo ritmo de cartões, métricas e linhas de leitura
+  das referências;
+- Accessibility está funcional e sem clipping, mas visualmente é uma lista
+  vertical isolada, não uma estação de configuração com contexto de sistema;
+- a gramática de shell existe em cada superfície, mas parte dela ainda está
+  duplicada localmente, o que permite pequenas diferenças de espaçamento,
+  rodapé e hierarquia entre telas;
+- os cinco silhouettes code-drawn reforçados ganharam identidade, mas o
+  acabamento deve continuar sendo julgado como arte em gameplay, não apenas
+  como um contrato semântico do dossiê.
+
+### Decisão de direção consolidada
+
+O próximo passe não será “adicionar neon” nem preencher vazio com ruído. A UI
+seguirá uma direção única de **incidente operacional**: KERNEL PANIC é uma
+workstation hostil acompanhando um processo vivo. Toda tela deverá responder,
+visualmente e sem depender da cor, a quatro perguntas: qual é a rota, qual é o
+estado do sistema, qual objeto está sendo inspecionado e qual é a próxima ação.
+
+Essa direção combina a assimetria e o dossiê das referências com o peso heroico,
+o contraste de estado e a densidade de telemetria da primeira versão de
+`media/menu.png`. Os elementos recorrentes serão:
+
+1. shell e rota persistentes;
+2. trilho de telemetria/calibração nas bordas, com uso moderado;
+3. blocos de dados reais ou explicitamente diagnósticos, nunca texto aleatório;
+4. conectores e marcadores que expliquem relação ou foco;
+5. um motivo code-drawn grande o bastante para funcionar como identidade,
+   não como ícone decorativo;
+6. uma ação dominante e um caminho de retorno inequívoco.
+
+### Regra contra falsa densidade
+
+Antes de adicionar qualquer detalhe, o implementador deve classificá-lo como
+identidade, estado, navegação, comparação ou atmosfera. Identidade, estado,
+navegação e comparação precisam de uma fonte de dados ou contrato verificável.
+Atmosfera só entra depois que as quatro primeiras categorias estiverem legíveis
+em uma captura limpa. Linhas, grids, glows e números sem função não contam como
+acabamento e devem ser removidos.
+
+### Critério para o próximo passe
+
+Uma captura wide de Boot, Program, Bestiary e Accessibility precisa mostrar a
+mesma família visual sem parecer a mesma tela repetida. A versão narrow deve
+preservar a leitura operacional em uma coluna, sem resolver densidade com
+microtexto. O passe só será considerado tecnicamente concluído quando houver
+um probe de chrome/semântica, overflow por fonte real, captura limpa e
+comparação contra as referências; a aprovação estética final continua sendo
+humana e não será inferida dos testes.

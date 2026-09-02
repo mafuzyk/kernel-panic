@@ -55,13 +55,16 @@ ROOTLET recharge, TempleOS GOD spawning, story restart, OOM loot ownership,
 terminal behavior, multitouch and lifecycle-safe HUD signals. Those fixes are
 not to be lost during the remake.
 
-The latest recorded aggregate validation for this branch is 1414 harness passes
+The latest recorded aggregate validation for this branch is 1453 harness passes
 with zero assertion failures, 32 input-probe passes headless, 34 input-probe
 passes under Xvfb with desktop debug controls enabled, and passing R04–R08,
-B1/B2/B5, R18 and vNext entity/primitive probes. Runtime `ERROR` output was
-zero in that validation; teardown resource/RID diagnostics remain a separately
-tracked investigation. Future changes must record their own current baseline
-instead of assuming these numbers remain unchanged.
+B1/B2/B5, R18 and vNext entity/primitive probes. The second incident-console
+visual pass also adds a focused probe with 48 passes and zero failures across
+Boot, Program, Bestiary and Accessibility at wide and narrow logical viewports.
+Runtime `ERROR` output was zero in that validation; teardown resource/RID
+diagnostics remain a separately tracked investigation. Future changes must
+record their own current baseline instead of assuming these numbers remain
+unchanged.
 
 The first release cycle under this plan does **not** attempt to:
 

@@ -18,6 +18,13 @@
   physical responsive probes.
 - Added authored code-drawn structure for Drone, Lancer, Spewer, Daemon and
   Rootlet silhouettes, including directional and mechanical identity cues.
+- Added a shared `incident console` chrome layer with calibration rails and
+  data-backed evidence blocks for the main vNext surfaces.
+- Added a silent, crop-aware vNext surface capture utility and a focused chrome
+  contract probe for wide and narrow viewports.
+- Added a repeatable visual verification path for the four reference-remake
+  surfaces; the focused probe reports 48 passes and zero failures across wide
+  and narrow logical viewports.
 
 ## Changed
 
@@ -33,6 +40,10 @@
   available width so Back, Bestiary and Settings remain usable.
 - Changed the presentation baseline for the accepted E2 code-drawn enemy batch
   to match the intentionally upgraded silhouettes.
+- Changed Boot, Program, Bestiary and Accessibility to share the same shell
+  grammar while retaining surface-specific composition and facts.
+- Changed Program and Bestiary narrow footers to use an explicit three-slot
+  layout for index/state/build telemetry.
 - Kept the legacy route as the default rollback path; no public default switch
   was changed in this development checkpoint.
 
@@ -46,6 +57,14 @@
 - Fixed the accumulated validator treating a relative `XDG_DATA_HOME` as a
   valid isolated save location, which could produce false touch and lock-on
   failures from shared user state.
+- Fixed shared-shell metadata being positioned from the shell bottom instead of
+  the header baseline during the visual review.
+- Fixed Program index buttons retaining text-width sizing instead of occupying
+  the actual list column.
+- Fixed Accessibility status and unsupported-feature bounds being shorter than
+  their measured font height.
+- Fixed compact Program/Bestiary evidence panels hiding their second
+  data-backed row because the panel height was sized for a single line.
 
 ## Improved
 
