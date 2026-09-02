@@ -13,6 +13,7 @@ const StageKitScript = preload("res://src/arena/stage_kit.gd")
 const VNextPauseScript = preload("res://src/ui/vnext/surfaces/pause_surface.gd")
 const VNextTerminalScript = preload("res://src/ui/vnext/surfaces/terminal_surface.gd")
 const VNextGameOverScript = preload("res://src/ui/vnext/surfaces/game_over_surface.gd")
+const VNextTokens = preload("res://src/ui/vnext/ui_tokens.gd")
 
 var player: Player
 var cam: CameraRig
@@ -97,6 +98,8 @@ const RESTART_HOLD_DURATION := 0.75
 
 func _ready() -> void:
 	add_to_group("arena")
+	if is_inside_tree():
+		get_window().size_changed.connect(_on_vnext_window_size_changed)
 	_panel_kit = PanelKitScript.new(self)
 	_intro_kit = IntroKitScript.new(self)
 	_stage_kit = StageKitScript.new(self)
@@ -734,9 +737,9 @@ func _try_show_patch() -> void:
 		var patch_snapshot: Array = []
 		for definition in _patch_offers:
 			patch_snapshot.append(_snapshot_patch_offer(definition))
-		var viewport_size := get_viewport_rect().size
+		var viewport_size := _vnext_layout_viewport()
 		var touch_input := DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
-		_vnext_patch_surface.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_fit_vnext_surface(_vnext_patch_surface, viewport_size)
 		_vnext_patch_surface.configure({
 			"offers": patch_snapshot,
 			"active_ids": Game.patch_levels.keys(),
@@ -789,6 +792,39 @@ func vnext_patch_surface() -> Control:
 func vnext_patch_visible() -> bool:
 	return _patch_open and _vnext_patch_surface != null and is_instance_valid(_vnext_patch_surface) and _vnext_patch_surface.visible
 
+func _vnext_layout_viewport() -> Vector2:
+	var window_size := Vector2(get_window().size)
+	if window_size.x < 320.0 or window_size.y < 240.0:
+		var viewport_size := get_viewport_rect().size
+		return viewport_size if viewport_size.x >= 320.0 and viewport_size.y >= 240.0 else VNextTokens.BASE_VIEWPORT
+	return window_size
+
+func _fit_vnext_surface(surface: Control, layout_viewport: Vector2) -> void:
+	if surface == null or layout_viewport.x < 1.0 or layout_viewport.y < 1.0:
+		return
+	var logical_size := get_viewport_rect().size
+	var fit_scale := minf(logical_size.x / layout_viewport.x, logical_size.y / layout_viewport.y)
+	if fit_scale <= 0.0:
+		fit_scale = 1.0
+	surface.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	surface.position = Vector2.ZERO
+	surface.size = layout_viewport
+	surface.scale = Vector2.ONE * fit_scale
+
+func _prepare_vnext_surface(surface: Control) -> void:
+	if surface == null or not is_instance_valid(surface):
+		return
+	var viewport_size := _vnext_layout_viewport()
+	_fit_vnext_surface(surface, viewport_size)
+	if surface.has_method("reflow_for_viewport"):
+		surface.reflow_for_viewport(viewport_size)
+
+func _on_vnext_window_size_changed() -> void:
+	if _vnext_patch_surface != null and is_instance_valid(_vnext_patch_surface) and _patch_open:
+		_prepare_vnext_surface(_vnext_patch_surface)
+	if _vnext_u4_surface != null and is_instance_valid(_vnext_u4_surface) and _vnext_u4_surface.visible:
+		_prepare_vnext_surface(_vnext_u4_surface)
+
 func vnext_u4_enabled() -> bool:
 	return _vnext_u4_mode
 
@@ -803,7 +839,7 @@ func _build_vnext_u4() -> void:
 	if not _vnext_u4_mode:
 		return
 	_vnext_u4_surface = VNextPauseScript.new()
-	_vnext_u4_surface.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fit_vnext_surface(_vnext_u4_surface, _vnext_layout_viewport())
 	_vnext_u4_surface.visible = false
 	_vnext_u4_surface.action_requested.connect(_on_vnext_u4_action)
 	var layer := CanvasLayer.new()
@@ -818,6 +854,7 @@ func _show_vnext_u4_pause() -> void:
 		return
 	if not _vnext_u4_surface.has_method("show_pause"):
 		_mount_vnext_u4_surface(VNextPauseScript)
+	_prepare_vnext_surface(_vnext_u4_surface)
 	_vnext_u4_view = "pause"
 	var pause_snapshot := {}
 	if player != null and is_instance_valid(player):
@@ -828,6 +865,7 @@ func _show_vnext_u4_terminal() -> void:
 	if not _vnext_u4_mode:
 		return
 	_mount_vnext_u4_surface(VNextTerminalScript)
+	_prepare_vnext_surface(_vnext_u4_surface)
 	_vnext_u4_surface.show_terminal({"event_stream": "EVENT STREAM // %s\nRUN FROZEN // DIAGNOSTIC INPUT READY" % Game.dmesg_lines(8).slice(-1), "visible": true})
 	_vnext_u4_view = "terminal"
 
@@ -835,6 +873,7 @@ func _show_vnext_u4_game_over(victory: bool) -> void:
 	if not _vnext_u4_mode:
 		return
 	_mount_vnext_u4_surface(VNextGameOverScript)
+	_prepare_vnext_surface(_vnext_u4_surface)
 	_vnext_u4_surface.show_game_over({"variant": "victory" if victory else "death", "title": "STAGE CLEARED" if victory else "PROCESS TERMINATED", "diagnosis": "VICTORY DIAGNOSIS // ROUTE COMPLETE" if victory else "DIAGNOSIS // PROCESS TERMINATED", "stats": _over_core_stats.text + "\n" + _over_run_stats.text, "death_heatmap": Game.death_heatmap_snapshot() if not victory else {}, "primary_available": true, "primary_label": ("NEXT STAGE [ENTER]" if _story_next_stage >= 0 else "RETURN TO MENU [ENTER]") if victory else "RETRY RUN [ENTER]", "menu_label": "STORY SELECT [ESC]" if victory else "ABANDON PROCESS [ESC]"})
 	_vnext_u4_view = "game_over"
 
@@ -843,7 +882,7 @@ func _mount_vnext_u4_surface(surface_script: Script) -> void:
 		_vnext_u4_surface.visible = false
 		_vnext_u4_surface.queue_free()
 	_vnext_u4_surface = surface_script.new()
-	_vnext_u4_surface.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fit_vnext_surface(_vnext_u4_surface, _vnext_layout_viewport())
 	_vnext_u4_surface.action_requested.connect(_on_vnext_u4_action)
 	if _vnext_u4_layer != null and is_instance_valid(_vnext_u4_layer):
 		_vnext_u4_layer.add_child(_vnext_u4_surface)

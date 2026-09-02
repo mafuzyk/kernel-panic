@@ -44,6 +44,14 @@ func _ready() -> void:
 			if bool(surface_overflow.get("has_overflow", true)):
 				print("PROBE_OVERFLOW ", surface_script.resource_path, " ", viewport, " ", surface_overflow)
 			_check(not bool(surface_overflow.get("has_overflow", true)), "%s text fits at %s" % [surface_script.resource_path, viewport])
+			if surface_script == pause_script and viewport == Vector2(432, 720):
+				var title_field: Dictionary = surface_overflow.get("fields", {}).get("title", {})
+				_check(int(title_field.get("font_size", 0)) >= 14, "pause title uses a readable fitted font on narrow view")
+				_check(float(title_field.get("measured_width", 9999.0)) <= float(title_field.get("available_width", 0.0)), "pause title fits with its actual display font on narrow view")
+			if surface_script == terminal_script and viewport == Vector2(432, 720):
+				var terminal_title: Dictionary = surface_overflow.get("fields", {}).get("title", {})
+				_check(int(terminal_title.get("font_size", 0)) >= 14, "terminal title stays readable beside narrow close action")
+				_check(float(terminal_title.get("measured_width", 9999.0)) <= float(terminal_title.get("available_width", 0.0)), "terminal title fits beside narrow close action")
 		surface.queue_free()
 	await get_tree().process_frame
 	var arena_script: Script = load("res://src/arena/arena.gd")

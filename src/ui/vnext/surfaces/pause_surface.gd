@@ -17,6 +17,8 @@ var _buttons: Dictionary = {}
 var _focus_id := "resume"
 var _dispatching := false
 
+const PAUSE_TITLE := "PAUSED // FROZEN RUN"
+
 func _program_snapshot() -> Dictionary:
 	var value = snapshot.get("program_snapshot", {})
 	return value if value is Dictionary else {}
@@ -91,7 +93,7 @@ func action_regions() -> Dictionary:
 func text_overflow_report() -> Dictionary:
 	var fields := {}
 	var values := {
-		"title": {"text": "PAUSED // FROZEN RUN", "size": 27},
+		"title": {"text": PAUSE_TITLE, "size": _title_font_size()},
 		"context": {"text": _display_context(), "size": 15},
 		"confirmation": {"text": str(snapshot.get("confirmation", "STATE MARKER // PAUSED / FROZEN")), "size": 13},
 		"resume": {"text": "RESUME", "size": 15},
@@ -102,8 +104,10 @@ func text_overflow_report() -> Dictionary:
 	for id in values:
 		var text := str(values[id]["text"])
 		var rect: Rect2 = _layout.get("regions", {}).get(id, Rect2())
-		var measured := ShareTechMono.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(values[id]["size"]))
-		fields[id] = {"text": text, "fits": measured.x <= maxf(rect.size.x - 20.0, 0.0), "measured_width": measured.x, "available_width": maxf(rect.size.x - 20.0, 0.0)}
+		var font: Font = Orbitron if id == "title" else ShareTechMono
+		var font_size := int(values[id]["size"])
+		var measured := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+		fields[id] = {"text": text, "font_size": font_size, "fits": measured.x <= maxf(rect.size.x - 20.0, 0.0), "measured_width": measured.x, "available_width": maxf(rect.size.x - 20.0, 0.0)}
 	var overflow := false
 	for field in fields.values():
 		overflow = overflow or not bool(field["fits"])
@@ -150,7 +154,7 @@ func _refresh() -> void:
 	_layout = {"safe": safe, "regions": regions, "narrow": narrow}
 	var program_snapshot := _program_snapshot()
 	var nested: Dictionary = program_snapshot.get("nested", {})
-	_semantic = {"paused": true, "frozen": true, "focus": _focus_id, "abandon_armed": bool(snapshot.get("abandon_armed", false)), "disabled_actions": [], "program_id": str(nested.get("program_id", Game.program)), "program_kind": str(program_snapshot.get("kind", "kernel")), "ability_state": _ability_state()}
+	_semantic = {"paused": true, "frozen": true, "focus": _focus_id, "title_font_size": _title_font_size(), "abandon_armed": bool(snapshot.get("abandon_armed", false)), "disabled_actions": [], "program_id": str(nested.get("program_id", Game.program)), "program_kind": str(program_snapshot.get("kind", "kernel")), "ability_state": _ability_state()}
 	for id in _buttons:
 		var button: Button = _buttons[id]
 		button.position = regions[id].position
@@ -178,6 +182,19 @@ func _move_focus(delta: int) -> void:
 	_focus_id = ids[wrapi(ids.find(_focus_id) + delta, 0, ids.size())]
 	(_buttons[_focus_id] as Button).grab_focus()
 
+func _title_font_size() -> int:
+	if _layout.is_empty():
+		return 27
+	var title_rect: Rect2 = _layout.get("regions", {}).get("title", Rect2())
+	var max_size := 27.0
+	if context != null:
+		max_size = 27.0 if context.density == "wide" else 23.0 if context.density == "compact" else 20.0
+		max_size *= context.text_scale
+	var font_size := maxi(14, int(floor(max_size)))
+	while font_size > 14 and Orbitron.get_string_size(PAUSE_TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > maxf(title_rect.size.x - 20.0, 1.0):
+		font_size -= 1
+	return font_size
+
 func _dispatch(id: String) -> bool:
 	if _dispatching or not _buttons.has(id):
 		return false
@@ -197,6 +214,6 @@ func _draw() -> void:
 	var points := TacticalUI.angular_points(panel, 16.0)
 	draw_colored_polygon(points, Color(0.01, 0.02, 0.06, 0.96))
 	draw_polyline(points + PackedVector2Array([points[0]]), Tokens.role_color("structure"), 1.5, true)
-	draw_string(Orbitron, _layout["regions"]["title"].position + Vector2(0, 30), "PAUSED // FROZEN RUN", HORIZONTAL_ALIGNMENT_LEFT, -1, 27, Tokens.role_color("text"))
+	draw_string(Orbitron, _layout["regions"]["title"].position + Vector2(0, 30), PAUSE_TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, _title_font_size(), Tokens.role_color("text"))
 	draw_string(ShareTechMono, _layout["regions"]["context"].position, _display_context(), HORIZONTAL_ALIGNMENT_LEFT, _layout["regions"]["context"].size.x, 15, Tokens.role_color("player"))
 	draw_string(ShareTechMono, _layout["regions"]["confirmation"].position, str(snapshot.get("confirmation", "STATE MARKER // PAUSED / FROZEN")), HORIZONTAL_ALIGNMENT_LEFT, _layout["regions"]["confirmation"].size.x, 13, Tokens.role_color("danger") if bool(snapshot.get("abandon_armed", false)) else Tokens.role_color("text"))

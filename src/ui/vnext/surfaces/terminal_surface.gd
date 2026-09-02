@@ -74,6 +74,21 @@ func semantic_snapshot() -> Dictionary: return _semantic.duplicate(true)
 func action_regions() -> Dictionary: return _layout.get("regions", {}).duplicate(true)
 func history_snapshot() -> Array[String]: return _history.duplicate()
 
+func _display_title() -> String:
+	var full_title := str(snapshot.get("title", "DIAGNOSTIC WORKSTATION // TTY0"))
+	return "DIAGNOSTIC // TTY0" if context != null and context.density == "narrow" and full_title == "DIAGNOSTIC WORKSTATION // TTY0" else full_title
+
+func _title_font_size() -> int:
+	if _layout.is_empty():
+		return 22
+	var title_rect: Rect2 = _layout.get("regions", {}).get("title", Rect2())
+	var max_size := 22.0 if context == null or context.density == "wide" else 19.0
+	max_size *= context.text_scale if context != null else 1.0
+	var font_size := maxi(14, int(floor(max_size)))
+	while font_size > 14 and Orbitron.get_string_size(_display_title(), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > maxf(title_rect.size.x - 16.0, 1.0):
+		font_size -= 1
+	return font_size
+
 func apply_command_result(command: String, result: String) -> void:
 	snapshot["event_stream"] = "$ " + command + "\n" + result
 	_refresh()
@@ -87,7 +102,7 @@ func _focus_prompt() -> void:
 func text_overflow_report() -> Dictionary:
 	var fields := {}
 	var values := {
-		"title": {"text": str(snapshot.get("title", "DIAGNOSTIC WORKSTATION // TTY0")), "size": 18 if context != null and context.density == "narrow" else 22},
+		"title": {"text": _display_title(), "size": _title_font_size()},
 		"event_stream": {"text": str(snapshot.get("event_stream", "EVENT STREAM // RUN FROZEN\nREADY FOR DIAGNOSTICS")), "size": 14},
 		"command_index": {"text": "COMMAND INDEX\nhelp\ntop\ndmesg\nman <enemy>\nsudo heal\nrm -rf /", "size": 13},
 		"status": {"text": "SYSTEM STATUS\nTTY0 / PAUSED\nINPUT // READY\nPROMPT // ACTIVE", "size": 12},
@@ -97,17 +112,19 @@ func text_overflow_report() -> Dictionary:
 	for id in values:
 		var value := str(values[id]["text"])
 		var rect: Rect2 = _layout.get("regions", {}).get(id, Rect2())
-		var measured := _multiline_size(value, int(values[id]["size"]))
-		fields[id] = {"text": value, "fits": measured.x <= maxf(rect.size.x - 16.0, 0.0), "measured_width": measured.x, "available_width": maxf(rect.size.x - 16.0, 0.0)}
+		var font: Font = Orbitron if id == "title" else ShareTechMono
+		var font_size := int(values[id]["size"])
+		var measured := _multiline_size(value, font_size, font)
+		fields[id] = {"text": value, "font_size": font_size, "fits": measured.x <= maxf(rect.size.x - 16.0, 0.0), "measured_width": measured.x, "available_width": maxf(rect.size.x - 16.0, 0.0)}
 	var overflow := false
 	for field in fields.values(): overflow = overflow or not bool(field["fits"])
 	return {"has_overflow": overflow, "has_unmeasured_fields": false, "fields": fields}
 
-func _multiline_size(value: String, font_size: int) -> Vector2:
+func _multiline_size(value: String, font_size: int, font: Font = ShareTechMono) -> Vector2:
 	var widest := 0.0
 	var height := 0.0
 	for line in value.split("\n"):
-		var measured := ShareTechMono.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+		var measured := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 		widest = maxf(widest, measured.x)
 		height += measured.y
 	return Vector2(widest, height)
@@ -177,7 +194,8 @@ func _refresh() -> void:
 	var panel := Rect2(safe.position + Vector2(12, 12), safe.size - Vector2(24, 24))
 	var body := Rect2(panel.position + Vector2(16, 76), Vector2(maxf(panel.size.x - 32, 1), maxf(panel.size.y - 164, 1)))
 	var prompt := Rect2(panel.position + Vector2(16, panel.size.y - 76), Vector2(maxf(panel.size.x - 32, 1), 42))
-	var regions := {"safe":safe, "panel":panel, "title":Rect2(panel.position + Vector2(16, 18), Vector2(panel.size.x - 32, 40)), "event_stream":Rect2(body.position, Vector2(maxf(body.size.x - side - 12, 1), body.size.y)), "command_index":Rect2(Vector2(body.end.x - side, body.position.y), Vector2(side, body.size.y * 0.62)), "status":Rect2(Vector2(body.end.x - side, body.position.y + body.size.y * 0.64), Vector2(side, body.size.y * 0.36)), "prompt":prompt, "hint":Rect2(panel.position + Vector2(16, panel.size.y - 28), Vector2(panel.size.x - 32, 20))}
+	var title_width := panel.size.x - 32.0 - (118.0 if narrow else 0.0)
+	var regions := {"safe":safe, "panel":panel, "title":Rect2(panel.position + Vector2(16, 18), Vector2(maxf(title_width, 1.0), 40)), "event_stream":Rect2(body.position, Vector2(maxf(body.size.x - side - 12, 1), body.size.y)), "command_index":Rect2(Vector2(body.end.x - side, body.position.y), Vector2(side, body.size.y * 0.62)), "status":Rect2(Vector2(body.end.x - side, body.position.y + body.size.y * 0.64), Vector2(side, body.size.y * 0.36)), "prompt":prompt, "hint":Rect2(panel.position + Vector2(16, panel.size.y - 28), Vector2(panel.size.x - 32, 20))}
 	if narrow:
 		var event_h := body.size.y * 0.48
 		var command_y := body.position.y + event_h + 12.0
@@ -186,7 +204,7 @@ func _refresh() -> void:
 		regions["command_index"] = Rect2(Vector2(body.position.x, command_y), Vector2(body.size.x, command_h))
 		regions["status"] = Rect2(Vector2(body.position.x, command_y + command_h + 12.0), Vector2(body.size.x, maxf(body.end.y - (command_y + command_h + 12.0), 1.0)))
 	_layout = {"safe":safe, "regions":regions, "narrow":narrow}
-	_semantic = {"paused":true, "terminal_ready":true, "focus":"prompt", "history_size":_history.size(), "status":"READY"}
+	_semantic = {"paused":true, "terminal_ready":true, "focus":"prompt", "title":_display_title(), "title_font_size":_title_font_size(), "history_size":_history.size(), "status":"READY"}
 	_input.position = prompt.position; _input.size = Vector2(prompt.size.x - 130, prompt.size.y); _input.visible = visible
 	_run.position = Vector2(prompt.end.x - 120, prompt.position.y); _run.size = Vector2(120, prompt.size.y); _run.visible = visible
 	_close.position = Vector2(panel.end.x - 118, panel.position.y + 16); _close.size = Vector2(106, 36); _close.visible = visible
@@ -197,8 +215,7 @@ func _draw() -> void:
 	var panel: Rect2 = _layout["regions"]["panel"]
 	var points := TacticalUI.angular_points(panel, 14.0)
 	draw_colored_polygon(points, Color(0.005, 0.012, 0.03, 0.98)); draw_polyline(points + PackedVector2Array([points[0]]), Tokens.role_color("player"), 1.4, true)
-	var title_size := 18 if context != null and context.density == "narrow" else 22
-	draw_string(Orbitron, _layout["regions"]["title"].position + Vector2(0, 28), "DIAGNOSTIC WORKSTATION // TTY0", HORIZONTAL_ALIGNMENT_LEFT, -1, title_size, Tokens.role_color("text"))
+	draw_string(Orbitron, _layout["regions"]["title"].position + Vector2(0, 28), _display_title(), HORIZONTAL_ALIGNMENT_LEFT, -1, _title_font_size(), Tokens.role_color("text"))
 	draw_string(ShareTechMono, _layout["regions"]["event_stream"].position + Vector2(0, 22), str(snapshot.get("event_stream", "EVENT STREAM // RUN FROZEN\nREADY FOR DIAGNOSTICS")), HORIZONTAL_ALIGNMENT_LEFT, _layout["regions"]["event_stream"].size.x, 14, Tokens.role_color("player"))
 	draw_string(ShareTechMono, _layout["regions"]["command_index"].position + Vector2(0, 20), "COMMAND INDEX\nhelp\ntop\ndmesg\nman <enemy>\nsudo heal\nrm -rf /", HORIZONTAL_ALIGNMENT_LEFT, _layout["regions"]["command_index"].size.x, 13, Tokens.role_color("text"))
 	draw_string(ShareTechMono, _layout["regions"]["status"].position + Vector2(0, 20), "SYSTEM STATUS\nTTY0 / PAUSED\nINPUT // READY\nPROMPT // ACTIVE", HORIZONTAL_ALIGNMENT_LEFT, _layout["regions"]["status"].size.x, 12, Tokens.role_color("text"))

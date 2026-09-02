@@ -20,6 +20,10 @@ LOG_DIR="${KP_VALIDATION_LOGS:-.godot/codex-review-lote-1}"
 XDG="$LOG_DIR/xdg"
 VALIDATION_TIMEOUT_SECONDS="${KP_VALIDATION_TIMEOUT_SECONDS:-120}"
 VALIDATION_KILL_GRACE_SECONDS="${KP_VALIDATION_KILL_GRACE_SECONDS:-5}"
+if [[ "$LOG_DIR" != /* ]]; then
+	LOG_DIR="$PWD/$LOG_DIR"
+	XDG="$LOG_DIR/xdg"
+fi
 mkdir -p "$XDG"
 
 overall=0
@@ -129,6 +133,10 @@ run_headless_probe "probe-g2-ring0" "G2 Ring-0 double overclock" "res://tools/g2
 run_headless_probe "probe-g2-display-settings" "G2 display settings contract" "res://tools/g2_display_settings_probe.tscn"
 run_headless_probe "probe-g3-weekly-practice" "G3 Weekly and Practice contract" "res://tools/g3_weekly_practice_probe.tscn"
 run_headless_probe "probe-g4-boss-desperation" "G4 boss desperation contract" "res://tools/g4_boss_desperation_probe.tscn"
+run_headless_probe "probe-vnext-boot" "VNext reference-shell boot surface" "res://tools/vnext_boot_probe.tscn"
+run_headless_probe "probe-vnext-selection" "VNext reference-shell program and story selection" "res://tools/vnext_selection_probe.tscn"
+run_headless_probe "probe-vnext-bestiary" "VNext reference-shell bestiary surface" "res://tools/vnext_bestiary_probe.tscn"
+run_headless_probe_with_env "KP_VNEXT_BOOT" "probe-vnext-menu-routes" "VNext menu route integration" "res://tools/vnext_menu_probe.tscn"
 run_headless_probe "probe-vnext-patch-surface" "VNext patch decision surface" "res://tools/vnext_patch_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_PATCH" "probe-vnext-patch-arena" "VNext patch Arena adapter" "res://tools/vnext_patch_arena_probe.tscn"
 run_headless_probe_with_env "KP_VNEXT_HUD" "probe-vnext-combat-hud" "VNext combat HUD Arena adapter" "res://tools/vnext_combat_hud_probe.tscn"
@@ -161,6 +169,14 @@ if command -v xvfb-run >/dev/null 2>&1; then
 	report_case "VNext state surfaces xvfb" "$LOG_DIR/probe-vnext-state-surfaces-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "VNext state surfaces xvfb" "$LOG_DIR/probe-vnext-state-surfaces-xvfb.log"
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env KP_VNEXT_BOOT=1 XDG_DATA_HOME="$XDG" xvfb-run -a -s '-screen 0 640x800x24' godot --audio-driver Dummy --path . res://tools/vnext_window_layout_probe.tscn > "$LOG_DIR/probe-vnext-window-layout-xvfb.log" 2>&1
+	report_case "VNext physical window layout xvfb" "$LOG_DIR/probe-vnext-window-layout-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "VNext physical window layout xvfb" "$LOG_DIR/probe-vnext-window-layout-xvfb.log"
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env KP_VNEXT_U4=1 KP_VNEXT_PATCH=1 XDG_DATA_HOME="$XDG" xvfb-run -a -s '-screen 0 640x800x24' godot --audio-driver Dummy --path . res://tools/vnext_arena_window_layout_probe.tscn > "$LOG_DIR/probe-vnext-arena-window-layout-xvfb.log" 2>&1
+	report_case "VNext Arena physical overlays xvfb" "$LOG_DIR/probe-vnext-arena-window-layout-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "VNext Arena physical overlays xvfb" "$LOG_DIR/probe-vnext-arena-window-layout-xvfb.log"
 	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env KP_VNEXT_SETTINGS=1 XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/vnext_accessibility_probe.tscn > "$LOG_DIR/probe-vnext-accessibility-xvfb.log" 2>&1
 	report_case "VNext accessibility xvfb" "$LOG_DIR/probe-vnext-accessibility-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
