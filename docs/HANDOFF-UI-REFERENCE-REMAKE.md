@@ -56,7 +56,7 @@ O nome `iamgem9.png` é mantido exatamente como está no diretório.
 | `imagem5.png` | HUD encosta nas bordas e libera o centro para combate | o HUD existente foi preservado como fonte de estado e validado junto dos overlays; o adapter da Arena agora também usa fit físico coerente |
 | `imagem6.png` | pausa dramática, jogo ainda visível, contexto da run e poucas decisões | `pause_surface.gd` continua com contexto congelado, ação curta e estado do programa; título agora se ajusta à largura real |
 | `imagem8.png` | terminal diegético com stream, comandos, status, prompt e histórico | `terminal_surface.gd` preserva a workstation e evita colisão do título com `CLOSE [ESC]` em narrow |
-| `iamgem9.png` | mapa de story com rota, tabs de eras e briefing | a superfície story já existente foi preservada por estar visualmente próxima da referência e continua coberta pelo probe de seleção |
+| `iamgem9.png` | mapa de story com rota, tabs de eras e briefing | `story_surface.gd` traduz a referência para shell persistente, tabs de ato, índice de nós, dossiê da fase e faixa de evidência baseada no estado real |
 | `imagem4.png` e `imagem7.png` | cards de progresso e diagnóstico final | continuam cobertos pelas superfícies existentes e pela fundação vNext; não foram reescritos neste lote sem uma lacuna visual comprovada |
 
 ### O que mudou na leitura visual
@@ -696,6 +696,125 @@ organizada por evidência e relação entre blocos. Ainda não é uma declaraç�
 aprovação estética final: o cast completo, gameplay em movimento e a avaliação
 humana continuam necessários.
 
+## 7.3 Story — migração para o incidente operacional
+
+### Motivo da alteração
+
+A revisão comparativa foi ampliada para todas as imagens disponíveis em
+`media/Ideas`, incluindo `iamgem9.png`. O veredito anterior estava incorreto ao
+tratar Story como uma exceção já suficientemente próxima da referência. A
+superfície tinha conteúdo funcional, mas ainda não compartilhava de forma
+verificável o shell, o índice de estado e a faixa de próxima ação usados nas
+outras telas. Isso mantinha justamente a sensação de telas não terminadas e
+visualmente desconectadas que motivou o remake.
+
+Antes desta etapa, Story apresentava uma composição mais próxima de um painel
+de seleção vertical. Depois, a tela é uma **mount table**: o shell identifica a
+rota `KP://STORY`, os atos são tabs navegáveis, os nós visíveis formam um índice
+à esquerda e o nó selecionado abre um dossiê à direita. A próxima ação é
+repetida como comando explícito e como evidência `STATE / ACT / NEXT`, sem
+inventar dados fora dos contratos de `Game`.
+
+### Implementação
+
+- `src/ui/vnext/surfaces/story_surface.gd` foi recomposto, sem migrar a
+  hierarquia da Story legada. O layout calcula `safe_rect`, header, tabs,
+  índice, dossiê, faixa de evidência, rail de assinatura e ações a partir da
+  densidade do viewport;
+- os tabs `UNIX`, `WINDOWS`, `TEMPLEOS` e `MACOS` são `Button` reais, com foco,
+  mouse e touch, e selecionam o ato usando os dados de desbloqueio existentes;
+- o índice usa os caminhos reais das fases em desktop, estado visual explícito
+  (`READY`, `LOCKED`, `CLEARED`) e tooltip com a explicação completa. Em narrow,
+  o texto curto `NODE NN` evita depender de tooltip ou de uma coluna que não
+  existe;
+- o dossiê expõe título, path, briefing, regra, recompensa, status e melhor
+  pontuação; a faixa inferior usa `Chrome.draw_evidence_block` para mostrar o
+  próximo comando, ato e estado do nó;
+- a composição narrow vira de fato uma navegação lista → briefing. A lista,
+  a ficha, a ação `MOUNT` e o retorno ocupam estados e áreas separados; a
+  superfície não espreme um mapa desktop dentro de 432 px;
+- `tools/vnext_selection_probe.gd` ganhou contrato de shell/evidência, reserva
+  de espaço entre dossiê e evidência, seleção de todos os quatro atos e
+  verificação de fit dos dossiês reais;
+- `tools/vnext_surface_capture.gd` ganhou captura Story com ato, nó selecionado
+  e abertura da ficha narrow. O estado de captura é somente memória de teste e
+  não altera o save do jogador.
+
+### Revisão crítica da própria etapa
+
+O primeiro probe negativo foi executado antes da implementação: ele produziu
+27 falhas ao exigir as regiões e semântica do shell que ainda não existiam.
+Isso confirmou que o teste estava verificando uma mudança real, e não apenas
+repetindo o comportamento anterior.
+
+As capturas Xvfb então revelaram problemas que o contrato semântico não poderia
+provar sozinho. Foram corrigidos antes do green final:
+
+- a lista começava no mesmo eixo do título e sobrepunha o cabeçalho `NODE
+  INDEX`;
+- os estados longos dos nós vazavam para fora da coluna e os botões usavam
+  apenas a largura mínima do texto;
+- o traço do rodapé foi inicialmente desenhado de uma origem até `Rect2.end`,
+  formando uma diagonal não intencional;
+- a faixa de evidência era baixa demais para três linhas legíveis;
+- em narrow, `WAVES`, o rodapé e a ação `NODE LIST` competiam pelo mesmo espaço;
+- o cálculo das linhas do `VBoxContainer` ignorava as separações de 6 px e
+  deixava o sexto nó abaixo do frame.
+
+Cada correção foi feita no layout/draw do mesmo surface, sem alterar regras de
+story, desbloqueio, save ou lançamento. A última captura confirma que o sexto
+nó fica dentro do frame e que as variantes list/detail, Windows compacto e
+macOS narrow não têm colisão visual óbvia.
+
+### Decisões e alternativas
+
+- **Ação persistente no desktop, ação separada no narrow:** manter `MOUNT`
+  junto do dossiê dá leitura imediata na referência larga; transformá-la em
+  estado separado no mobile preserva legibilidade e reduz erro de toque. Uma
+  coluna única fixa foi descartada porque diminuiria título, briefing e
+  comando simultaneamente;
+- **Estado em coluna separada no índice largo:** usar o path como label e
+  desenhar o estado à direita permite comparar os nós sem truncar a explicação.
+  Repetir o estado no mesmo texto foi mantido apenas no narrow, onde não há
+  largura para uma segunda coluna;
+- **Ato derivado do catálogo real:** os tabs usam `Game.story_stage_def()` e
+  `Game.story_act_unlocked()` em vez de uma matriz visual duplicada. Uma lista
+  hardcoded foi descartada porque poderia exibir um nó inexistente ou
+  contradizer desbloqueios;
+- **Faixa comum de evidência:** reutilizar `ui_chrome.gd` mantém a gramática
+  visual entre Boot, Program, Bestiary, Accessibility e Story, mas os valores
+  continuam fornecidos pela superfície. Um bloco Story desenhado isoladamente
+  foi descartado para não criar mais uma variação de shell;
+- **Não alterar o default:** a rota continua opt-in. A captura prova a
+  composição e o contrato, mas não prova aprovação estética humana, desempenho
+  em Android nem a integração de todos os fluxos legados.
+
+### Evidência e limites
+
+Capturas finais, fora do Git:
+
+- `/tmp/kernel-panic-ui-captures-story/story-base-final.png` — 1280×720;
+- `/tmp/kernel-panic-ui-captures-story/story-compact-final.png` — 720×720,
+  Windows;
+- `/tmp/kernel-panic-ui-captures-story/story-narrow-list-final.png` —
+  432×720, lista de nós;
+- `/tmp/kernel-panic-ui-captures-story/story-narrow-detail-final.png` —
+  432×720, dossiê macOS;
+- `/tmp/kernel-panic-ui-captures-story/story-macos-wide.png` — 1280×720,
+  dossiê macOS em desktop.
+
+Comprovado nesta etapa: carregamento do script, regiões do shell, ações dentro
+da safe area, fit tipográfico nos três tamanhos, tabs por teclado/mouse/touch,
+separação entre selecionar e montar, bloqueio de nós não liberados, transição
+lista → detalhe em narrow e seleção/configuração de todos os atos.
+
+Ainda não comprovado: touch real em aparelho, teclado virtual, safe areas com
+recorte de câmera, leitura por screen reader, alteração de locale durante a
+transição, scroll de uma campanha com quantidade de nós maior que o catálogo
+atual e aprovação estética humana. O risco principal restante é a tela parecer
+demasiado limpa ou textual em movimento; a próxima validação precisa observar
+o fluxo real da campanha e não apenas uma captura estática.
+
 ## 7.2 Auditoria documental — 2026-09-02
 
 Foi conferida a árvore do plano-mestre e os documentos de execução deste
@@ -717,8 +836,9 @@ e não devem ser interpretadas como um diagnóstico atualizado sem reprodução.
 O plano ainda contém trabalho futuro de refatoração total
 da UI, cast completo code-drawn, história macOS, localização PT-BR,
 acessibilidade de plataforma, novos inimigos, gameplay, mobile/PC, performance
-e preparação de release. Este checkpoint documenta e implementa apenas o
-segundo passe da direção visual vNext e seus instrumentos de validação.
+e preparação de release. Este checkpoint documenta e implementa o segundo
+passe da direção visual vNext e, nesta atualização, a migração da Story para a
+mesma gramática de incidente operacional; o restante do plano continua aberto.
 
 ## 10. Próximos passos recomendados
 
@@ -731,11 +851,17 @@ segundo passe da direção visual vNext e seus instrumentos de validação.
 - testar se o narrow é legível e confortável, não apenas “sem clipping”;
 - decidir se a rota vNext pode substituir a legada por grupo de telas ou se
   precisa de mais um passe visual.
+- verificar se o fluxo `act → node → dossier → mount` explica a progressão sem
+  exigir que o jogador conheça a estrutura interna da campanha;
+- comparar a leitura de `READY`, `LOCKED` e `CLEARED` em grayscale e com
+  redução de efeitos.
 
 ### Para implementação posterior
 
 - ampliar o passe de arte code-drawn para todo o cast, com estados de ataque,
   hit, elite, telegraph e grayscale;
+- aplicar o mesmo critério de captura e revisão ao patch offer e ao combat HUD,
+  que ainda precisam de uma composição final consistente com o shell;
 - fechar a migração das telas restantes e só depois remover os switches;
 - completar PT-BR de todos os textos player-facing;
 - validar touch, safe area, export e performance em Android real;

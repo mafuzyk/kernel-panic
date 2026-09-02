@@ -4,6 +4,7 @@ const BootSurface = preload("res://src/ui/vnext/surfaces/boot_surface.gd")
 const ProgramSurface = preload("res://src/ui/vnext/surfaces/program_surface.gd")
 const BestiarySurface = preload("res://src/ui/vnext/surfaces/bestiary_surface.gd")
 const AccessibilitySurface = preload("res://src/ui/vnext/surfaces/accessibility_surface.gd")
+const StorySurface = preload("res://src/ui/vnext/surfaces/story_surface.gd")
 const ContentCatalog = preload("res://src/data/content_catalog.gd")
 
 func _ready() -> void:
@@ -22,6 +23,7 @@ func _capture() -> void:
 		"program": ProgramSurface,
 		"bestiary": BestiarySurface,
 		"accessibility": AccessibilitySurface,
+		"story": StorySurface,
 	}.get(surface_id)
 	if script == null:
 		print("CAPTURE_FAIL unknown surface ", surface_id)
@@ -33,11 +35,32 @@ func _capture() -> void:
 		Game.bestiary = {}
 		for index in 8:
 			Game.bestiary[ContentCatalog.BESTIARY_ENTRIES[index]["id"]] = true
+	var selected := 0
+	var act := "unix"
+	if surface_id == "story":
+		act = OS.get_environment("KP_VNEXT_CAPTURE_ACT").to_lower()
+		if act.is_empty():
+			act = "unix"
+		selected = int(OS.get_environment("KP_VNEXT_CAPTURE_SELECTED"))
+		for previous in selected:
+			Game.story_cleared[Game.story_stage_id(previous)] = true
+		if act == "macos":
+			Game.story_cleared["temple_god"] = true
 	var surface = script.new()
 	surface.size = viewport
 	add_child(surface)
 	var touch := OS.get_environment("KP_VNEXT_CAPTURE_TOUCH") == "1"
-	surface.configure({"program": "kernel", "best": 0, "selected": "kernel", "settings_enabled": true}, script.context_for_viewport(viewport, touch, true, true, 1.0))
+	var surface_snapshot := {"program": "kernel", "best": 0, "selected": "kernel", "settings_enabled": true}
+	if surface_id == "story":
+		surface_snapshot = {"selected": selected, "act": act}
+	surface.configure(surface_snapshot, script.context_for_viewport(viewport, touch, true, true, 1.0))
+	if surface_id == "story" and OS.get_environment("KP_VNEXT_CAPTURE_DETAIL") == "1" and viewport.x < 600.0:
+		surface.set_focus_id("stage_%d" % selected)
+		var open_event := InputEventKey.new()
+		open_event.keycode = KEY_ENTER
+		open_event.physical_keycode = KEY_ENTER
+		open_event.pressed = true
+		surface.handle_input(open_event)
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var image := get_viewport().get_texture().get_image()

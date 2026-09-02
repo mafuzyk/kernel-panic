@@ -20,11 +20,14 @@
   Rootlet silhouettes, including directional and mechanical identity cues.
 - Added a shared `incident console` chrome layer with calibration rails and
   data-backed evidence blocks for the main vNext surfaces.
+- Added a Story mount-table surface with act tabs, a node index, stage dossier
+  and a data-backed `STATE / ACT / NEXT` evidence block.
 - Added a silent, crop-aware vNext surface capture utility and a focused chrome
-  contract probe for wide and narrow viewports.
-- Added a repeatable visual verification path for the four reference-remake
-  surfaces; the focused probe reports 48 passes and zero failures across wide
-  and narrow logical viewports.
+  contract probe for wide and narrow viewports, including Story list/detail
+  captures.
+- Added a repeatable visual verification path for the reference-remake
+  surfaces; the focused probes report their pass counts in the verification
+  summary below and zero failures.
 
 ## Changed
 
@@ -42,6 +45,11 @@
   to match the intentionally upgraded silhouettes.
 - Changed Boot, Program, Bestiary and Accessibility to share the same shell
   grammar while retaining surface-specific composition and facts.
+- Changed Story from the remaining selection-panel exception into the same
+  incident-console grammar: route metadata, act navigation, node state, stage
+  dossier and explicit mount command.
+- Changed Story narrow layout to use an intentional list → dossier flow rather
+  than compressing the desktop node map into a phone viewport.
 - Changed Program and Bestiary narrow footers to use an explicit three-slot
   layout for index/state/build telemetry.
 - Kept the legacy route as the default rollback path; no public default switch
@@ -65,6 +73,11 @@
   their measured font height.
 - Fixed compact Program/Bestiary evidence panels hiding their second
   data-backed row because the panel height was sized for a single line.
+- Fixed Story node rows overflowing their list frame because the container
+  spacing was omitted from the row-height calculation.
+- Fixed Story long locked-state labels, a diagonal footer guide, clipped
+  evidence rows and narrow collisions between dossier, node-list and mount
+  actions.
 
 ## Improved
 
@@ -79,6 +92,9 @@
   claw, shield and facing metadata.
 - Improved regression evidence by making overflow reports use the font actually
   drawn for headings and by adding real physical-resize probes.
+- Improved Story state comprehension by separating path labels from state
+  markers on wide layouts while keeping a self-contained `NODE NN READY` form
+  on narrow layouts.
 
 ## Performance
 
@@ -113,7 +129,7 @@
 - DevHarness: `1453 AT_PASS`, `0 AT_FAIL`, `AUTOTEST_ALL_PASS`.
 - Input dispatch: 32 headless passes and 34 Xvfb/debug passes.
 - Reference-shell boot: 102 passes.
-- Program/Story selection: 168 passes.
+- Program/Story selection: 225 passes, 0 failures.
 - Bestiary: 128 passes.
 - Pause/terminal/game-over: 75 passes.
 - Accessibility: 98 passes.

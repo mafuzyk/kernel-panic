@@ -5,6 +5,13 @@ ideia de polir indefinidamente o menu e os painéis atuais. A próxima UI deve
 ser desenhada do zero, em uma família nova de superfícies, usando o jogo atual
 como fonte de estado e regras — não como molde visual obrigatório.
 
+Estado de execução em 2026-09-02: o vertical slice vNext já aplica esta
+direção a Boot, Program, Story, Bestiary e Accessibility. Story foi incluída
+posteriormente na mesma gramática `incident console` depois de uma revisão que
+detectou que a primeira composição ainda era uma exceção visual. Isso é uma
+prova de direção e não a aprovação da UI final nem o encerramento das etapas de
+mobile, localização, acessibilidade de plataforma e performance.
+
 ## Tese
 
 KERNEL PANIC deve parecer uma máquina hostil que foi desenhada por um técnico,

@@ -112,6 +112,17 @@ func _probe_story(script: Script) -> void:
 		surface.configure({"selected": 0}, script.context_for_viewport(viewport, viewport.x < 800.0, true, true, 1.15))
 		var layout: Dictionary = surface.layout_snapshot()
 		var regions: Dictionary = surface.action_regions()
+		var visual_regions: Dictionary = layout.get("regions", {})
+		for required_region in ["shell", "shell_meta", "header", "list", "detail", "footer", "signature_rail", "evidence_band"]:
+			_check(visual_regions.has(required_region), "story incident shell region %s %s" % [required_region, viewport])
+		_check((visual_regions["evidence_band"] as Rect2).size.y >= 64.0, "story evidence has readable height %s" % viewport)
+		_check((visual_regions["detail"] as Rect2).encloses(visual_regions["evidence_band"] as Rect2), "story evidence stays inside dossier %s" % viewport)
+		_check(not (visual_regions["detail_content"] as Rect2).intersects(visual_regions["evidence_band"] as Rect2), "story dossier content reserves evidence %s" % viewport)
+		var story_semantic: Dictionary = surface.semantic_snapshot()
+		_check(story_semantic.get("visual_system", "") == "reference_shell", "story reference shell semantic %s" % viewport)
+		_check(story_semantic.get("route", "") == "KP://STORY", "story route semantic %s" % viewport)
+		_check(story_semantic.get("composition", {}).get("chrome", "") == "incident_console", "story chrome semantic %s" % viewport)
+		_check(story_semantic.get("evidence", {}).has("node"), "story evidence semantic %s" % viewport)
 		_check(regions.has("back") and (regions.has("launch_story") or str(layout.get("density", "")) == "narrow"), "story actions %s" % viewport)
 		_check(regions.has("stage_0") and regions.has("stage_1"), "story stage map %s" % viewport)
 		for region_id in regions:
@@ -178,6 +189,12 @@ func _probe_story(script: Script) -> void:
 	var mac_rect: Rect2 = surface.action_regions()["act_macos"]["rect"]
 	_check(surface.handle_input(_mouse(_window_point(mac_rect.get_center()))), "story mouse selects macOS act through shared geometry")
 	_check(surface.semantic_snapshot().get("act") == "macos", "story macOS tab updates state")
+	for act_spec in [{"act": "unix", "selected": 0}, {"act": "windows", "selected": 6}, {"act": "templeos", "selected": 9}, {"act": "macos", "selected": 11}]:
+		surface.configure(act_spec, script.context_for_viewport(Vector2(1366, 768), false, true, true, 1.15))
+		var act_semantic: Dictionary = surface.semantic_snapshot()
+		_check(act_semantic.get("act", "") == act_spec["act"], "story config selects act %s" % act_spec["act"])
+		_check(int(act_semantic.get("selected", -1)) == int(act_spec["selected"]), "story config selects node %s" % act_spec["act"])
+		_check(surface.text_overflow_report().all(func(item): return bool(item.get("fits", false))), "story %s dossier text fits" % act_spec["act"])
 	surface.queue_free()
 
 func _key(code: int, pressed := true) -> InputEventKey:

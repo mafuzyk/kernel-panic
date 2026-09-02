@@ -6,7 +6,13 @@
 > original — especialmente B1, H3 e o suposto leak de lambda em P2.
 > Os itens abaixo preservam o histórico; não são todos bugs confirmados.
 
-Estado versionado em `fuzzy/ui-reference-remake`: B1/B2/B3/B4/B5 foram resolvidos e preservam seus handoffs; os demais itens continuam pendentes ou precisam ser reavaliados contra a UI vNext. Um item de backlog = um commit; rodar
+Estado versionado em `fuzzy/ui-reference-remake`: B1/B2/B3/B4/B5 foram
+resolvidos e preservam seus handoffs. O vertical slice visual vNext já cobre
+Boot, Program, Story, Bestiary e Accessibility, mas a migração completa dos
+fluxos e os itens abaixo continuam pendentes ou precisam ser reavaliados contra
+a UI vNext. A Story foi migrada para a gramática `incident console` em um passe
+separado; isso não fecha o restante de U2 nem constitui aprovação estética
+final. Um item de backlog = um commit; rodar
 `godot --headless -- --autotest` antes de cada commit.
 
 ## Fase 1 — bugs de fluxo (comportamento errado)
