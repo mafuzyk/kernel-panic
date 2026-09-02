@@ -5,6 +5,9 @@ not an official release announcement. The legacy route remains the default,
 and several new surfaces are still behind development switches while visual,
 platform, balance, and device gates are completed.
 
+For the technical audit, evidence ledger, decisions, risks and release
+verdict, see [the final execution report](FINAL-PLAN-EXECUTION-REPORT.md).
+
 ## Added
 
 - Added a from-scratch vNext UI foundation for boot, program selection, story
@@ -77,9 +80,9 @@ platform, balance, and device gates are completed.
 ## Performance
 
 - The fixed stress fixture currently passes with 144 actors at approximately
-  16.959 ms p95, 17.093 ms p99, and 17.311 ms worst in headless mode.
-- The same fixture passes under Xvfb/Mesa llvmpipe at approximately 9.011 ms
-  p95, 9.604 ms p99, and 10.443 ms worst.
+  16.813 ms p95, 16.985 ms p99, and 17.163 ms worst in headless mode.
+- The same fixture passes under Xvfb/Mesa llvmpipe at approximately 7.322 ms
+  p95, 7.842 ms p99, and 8.229 ms worst.
 
 These values are repeatable regression baselines, not a guarantee for the
 integrated Vega GPU, Android devices, or long sessions.

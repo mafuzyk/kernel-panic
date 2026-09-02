@@ -88,11 +88,11 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 | W0 | Baseline/import/ledger | Completed (with open teardown risk) | Green suite marker plus classified diagnostics; import prerequisite recorded. |
 | A | A1, A2, A3, A4, A5 | A1–A5 completed (reviewed) | Inventory, ownership map, A2 kit/delegate/landmine revalidation, snapshot contracts, static catalog, and save compatibility probes. A1 docs: `62b0b87` plus `76f6a0f`; A2 docs: `bd51f4c` plus `ead9d28`; A3 feature/docs: `9092163`/`c1a9b3d`/`9c5c112` plus review `0fb5d50`/`7c55b82`; A4: `b106be8`/`105d3bb`/`3ead8f0` plus `b3418aa`/`0d4cd51`; A5: `6122183`/`714ee58`/`1840e2b` plus nested-payload correction. |
 | U | U1, U2, U2b, U3, U4, U5, U6 | U1–U6 completed (opt-in, reviewed) | U1–U6 now cover boot, selection, patch choice, combat HUD, pause/terminal/game-over, accessibility settings and shared recoverable state primitives; final migration, locale, visual approval, physical mobile, Android/export and teardown gates remain open. |
-| E | E1, E2, E3, E4, E5 | E1, E2 batch 1, E3 and E4 completed; E2 remainder/E5 pending | E4 adds the isolated ZOMBIE_PROCESS teach wave, temporary projectile obstacle, reward/pathing hooks, code-drawn identity and real-path probe; visual approval, physical mobile, dense-wave performance and remaining cast work remain. |
-| G | G1 and G2A completed; G2B–G7 pending | G1 explicit run context/mode contract and G2A Page Cache accepted after focused review | Deterministic gameplay probes and balance/readability validation; G3 must build on the G1 context without treating reserved Practice as shipped. |
+| E | E1, E2, E3, E4, E5 | E1, E2 batch 1, E3, E4 and E5 quality foundation completed; remaining E2 cast/finish passes and sprite gate pending | E4 adds the isolated ZOMBIE_PROCESS teach wave, temporary projectile obstacle, reward/pathing hooks, code-drawn identity and real-path probe; visual approval, physical mobile, dense-wave performance and remaining cast work remain. |
+| G | G1, G2A–G2C, G3–G7 | Gameplay foundations and focused probes completed; human balance/playtest and later tuning remain | Deterministic gameplay probes and balance/readability validation are green; Practice, Weekly, boss pressure, new encounters and audio still require human feel approval before release. |
 | M | M1–M5 completed | M1–M5 implemented and reviewed | Story data/flow, history content, Mac mechanic, climax, rewards, bestiary/surface integration and responsive gate; human visual/performance/mobile/export gates remain. |
 | L | L1–L4 | L1/L2 story slice plus accessibility-surface migration completed; L3/L4 pending | Locale boundary, catalog parity, PT-BR macOS/HUD/settings copy and accessibility labels are covered; legacy UI inventory, full migration, editorial pass and release coverage remain. |
-| Accessibility | A11–A14 partially completed; A12/A13/A15 pending | A11/A14 live motion/flash/handedness profile implemented and reviewed | Settings persistence, reduced effects, handedness and dedicated surface covered; native assistive tech, full text scaling/high contrast, remapping/controller and final migration remain. |
+| Accessibility | A11/A14 completed; A12/A13/A15 pending | A11/A14 live motion/flash/handedness profile implemented and reviewed | Settings persistence, reduced effects, handedness and dedicated surface covered; native assistive tech, full text scaling/high contrast, remapping/controller and final migration remain. |
 | X | X1–X5 | Pending | PC/mobile viewport, insets, touch, lifecycle, input and performance evidence. |
 | P | P1 completed; P2–P5 pending | P1 fixed-seed profile and real-actor stress gate implemented/reviewed | Headless/Xvfb p50/p95/p99/worst/memory/entity evidence; physical mobile, long-run soak, lifecycle and teardown work remain. |
 | RPO | RPO1–RPO4 | Repository/release scaffolding completed; recovery, provenance and rollback pending | Contribution/conduct/security guidance, templates, baseline CI, art-direction contract and release checklist added; save recovery, diagnostics cleanup, reproducible exports, provenance and rollback remain. |
@@ -998,7 +998,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
   test-driven integration correction, not hidden as a baseline failure.
 - Focused M5 headless/Xvfb gates pass with `PROBE_DONE fails=0`; layout and
   story regressions pass. Full suite after the correction:
-  `/tmp/full-after-m5-copy-fix.log`, exit 0, 1455 `AT_PASS`, 0 `AT_FAIL`,
+  `/tmp/full-after-m5-copy-fix.log`, exit 0, 1453 `AT_PASS`, 0 `AT_FAIL`,
   `AUTOTEST_ALL_PASS`.
 - Detailed report: `report-M5-macos-surface-integration.md`; handoff:
   `docs/HANDOFF-M5-MACOS-SURFACE-INTEGRATION.md`.
@@ -1015,7 +1015,7 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
   touch movement/action regions mirror without changing action meaning.
 - Green evidence: effect profile 9/0 headless/Xvfb; vNext settings route 78/0
   in the accumulated validator; PT-BR surface checks 32/0. The integrated
-  full suite is 1455/0 with `AUTOTEST_ALL_PASS`.
+  full suite is 1453/0 with `AUTOTEST_ALL_PASS`.
 - Remaining: legacy settings reachability, complete particle/flash audit,
   native screen-reader/text-scale/high-contrast feasibility, controller
   remapping and physical device review.
@@ -1040,8 +1040,12 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - Added `PerformanceProfile` with p50/p95/p99/worst frame metrics, peak
   entities and memory, plus a fixed-seed probe with 48 real enemies and 96
   real bullets. The fixture does not enter a user run or write saves.
-- Headless green: p95 16.959 ms, p99 17.093 ms, worst 17.311 ms, 144 actors.
-  Xvfb/llvmpipe green: p95 9.011 ms, p99 9.604 ms, worst 10.443 ms.
+- Headless green: p95 16.813 ms, p99 16.985 ms, worst 17.163 ms, 144 actors.
+  Xvfb/llvmpipe green: p95 7.322 ms, p99 7.842 ms, worst 8.229 ms.
+- Rechecked on 2026-09-02 after worktree recovery: the same fixture passed
+  again with `PROBE_DONE fails=0`; current logs are under
+  `/tmp/kernel-panic-final-validation-resumed-2/`. Timings are measurement
+  samples, not a promise of fixed frame time across hosts.
 - Remaining: Vega and Android measurements, long-run soak, lifecycle teardown
   and allocation profiling.
 
@@ -1059,8 +1063,9 @@ The plan was scanned for shared files, contracts, lifecycle ownership, and order
 - The final accumulated validator includes M5, A11/A14 and P1 focused gates.
   Its first attempt exposed a stale E2 GlyphLib hash guard after accepted later
   glyph batches; `c5832fd` refreshed the test baseline and the focused E2 probe
-  then passed 80/0. The guard change is documented as test maintenance.
+  then passed with zero failures. The guard change is documented as test
+  maintenance.
 - The clean integrated DevHarness result after these corrections is
-  `/tmp/full-after-m5-copy-fix.log`: 1455 passes, zero assertion failures and
+  `/tmp/full-after-m5-copy-fix.log`: 1453 passes, zero assertion failures and
   the required completion marker. Known teardown diagnostics remain open and
   are reported separately by the validator.

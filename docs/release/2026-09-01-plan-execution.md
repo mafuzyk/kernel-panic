@@ -1129,9 +1129,9 @@ and HUD messaging still need playtest approval.
 
 ### Evidence
 
-- Headless: stress p95 16.959 ms, p99 17.093 ms, worst 17.311 ms, 144
+- Headless: stress p95 16.813 ms, p99 16.985 ms, worst 17.163 ms, 144
   actors, zero failures.
-- Xvfb/Mesa llvmpipe: stress p95 9.011 ms, p99 9.604 ms, worst 10.443 ms,
+- Xvfb/Mesa llvmpipe: stress p95 7.322 ms, p99 7.842 ms, worst 8.229 ms,
   144 actors, zero failures.
 
 ### Known Issues
@@ -1162,7 +1162,7 @@ and HUD messaging still need playtest approval.
   overflow assertions because the new Permission Root description exceeded the
   existing surface's text budget at narrow and square sizes.
 - The copy was shortened while preserving its rule and counterplay. A fresh
-  full run then passed with 1455 `AT_PASS`, 0 `AT_FAIL`, and
+  full run then passed with 1453 `AT_PASS`, 0 `AT_FAIL`, and
   `AUTOTEST_ALL_PASS`. The correction and its evidence are recorded in the
   technical M5 report and handoff.
 - The accumulated validator then exposed a stale E2 GlyphLib byte-hash guard:

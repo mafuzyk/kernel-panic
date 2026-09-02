@@ -34,7 +34,7 @@
 ```
 
 All runs used the Dummy audio driver. The integrated full suite is green after
-the M5 text-budget correction: `/tmp/full-after-m5-copy-fix.log`, exit 0, 1455
+the M5 text-budget correction: `/tmp/full-after-m5-copy-fix.log`, exit 0, 1453
 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`. PT-BR accessibility labels are
 covered by `/tmp/l10n-green.log` and `/tmp/l10n-xvfb.log`, both with exit 0 and
 `PROBE_DONE fails=0`.

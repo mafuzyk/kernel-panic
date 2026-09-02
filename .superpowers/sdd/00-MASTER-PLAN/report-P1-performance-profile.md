@@ -65,8 +65,8 @@ runtime was not changed for either correction.
 `/tmp/p1-headless.log` exited 0 with `PROBE_DONE fails=0`:
 
 ```text
-baseline p95 16.692 ms; stress p95 16.959 ms
-stress p99 17.093 ms; worst 17.311 ms; peak entities 144
+baseline p95 16.696 ms; stress p95 16.813 ms
+stress p99 16.985 ms; worst 17.163 ms; peak entities 144
 ```
 
 ### Xvfb
@@ -74,8 +74,8 @@ stress p99 17.093 ms; worst 17.311 ms; peak entities 144
 `/tmp/p1-xvfb.log` exited 0 with `PROBE_DONE fails=0` under Mesa llvmpipe:
 
 ```text
-baseline p95 2.199 ms; stress p95 9.011 ms
-stress p99 9.604 ms; worst 10.443 ms; peak entities 144
+baseline p95 1.039 ms; stress p95 7.322 ms
+stress p99 7.842 ms; worst 8.229 ms; peak entities 144
 ```
 
 ## Second-pass self-review

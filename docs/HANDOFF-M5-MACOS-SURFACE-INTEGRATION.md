@@ -41,7 +41,7 @@
 
 All game invocations used the Dummy audio driver. The integrated full suite is
 green after the text-budget correction: `/tmp/full-after-m5-copy-fix.log`, exit
-0, 1455 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`. Remaining release checks
+0, 1453 `AT_PASS`, 0 `AT_FAIL`, `AUTOTEST_ALL_PASS`. Remaining release checks
 are still required.
 
 ## Review limits
