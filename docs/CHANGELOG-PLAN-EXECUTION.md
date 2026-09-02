@@ -117,9 +117,9 @@ For the older plan-only checkpoint, see the preserved
 ## Performance
 
 - The fixed stress fixture currently passes with 144 actors at approximately
-  17.053 ms p95, 17.085 ms p99, and 17.136 ms worst in headless mode.
-- The same fixture passes under Xvfb/Mesa llvmpipe at approximately 9.386 ms
-  p95, 9.915 ms p99, and 10.413 ms worst.
+  16.949 ms p95, 17.279 ms p99, and 17.379 ms worst in headless mode.
+- The same fixture passes under Xvfb/Mesa llvmpipe at approximately 9.406 ms
+  p95, 9.727 ms p99, and 10.101 ms worst.
 
 These values are repeatable regression baselines, not a guarantee for the
 integrated Vega GPU, Android devices, or long sessions.

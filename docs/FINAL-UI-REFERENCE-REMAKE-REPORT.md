@@ -366,13 +366,13 @@ regressão de ESC existia; um headless verde sozinho não bastaria.
 ### Performance
 
 O stress usa seed fixa, 120 frames, 48 inimigos reais e 96 projéteis reais,
-com pico de 144 atores. A execução final registrada em
-`/tmp/kernel-panic-final-checkpoint-20260902/` mediu:
+com pico de 144 atores. A execução pós-publicação registrada em
+`/tmp/kernel-panic-final-checkpoint-20260902-post/` mediu:
 
 | Perfil | p50 | p95 | p99 | pior frame | pico |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| headless | 16,649 ms | 17,053 ms | 17,085 ms | 17,136 ms | 144 |
-| Xvfb/llvmpipe | 5,375 ms | 9,386 ms | 9,915 ms | 10,413 ms | 144 |
+| headless | 16,673 ms | 16,949 ms | 17,279 ms | 17,379 ms | 144 |
+| Xvfb/llvmpipe | 5,410 ms | 9,406 ms | 9,727 ms | 10,101 ms | 144 |
 
 Isso é baseline de regressão, não promessa de 60 FPS na Vega integrada,
 Android ou uma sessão longa.
