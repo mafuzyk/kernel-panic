@@ -70,9 +70,10 @@ final. Um item de backlog = um commit; rodar
   respeita a largura segura; SCRAP usa uma largura medida e texto truncável;
   pips de integridade densos cabem no painel; game-over estreito empilha stats
   e ações; e o alvo de pausa touch foi medido contra o banner sem colisão.
-- [ ] **H6 — Camadas.** Vinheta de low-HP (layer 80, `arena_overlay.gd:10`) sobre
-  game-over/pause (layer 60); watermark sobre painéis. Reordenar layers ou
-  atenuar quando painel de estado ativo.
+- [x] **H6 — Camadas.** Vinheta de low-HP (layer 80, `arena_overlay.gd:10`) sobre
+  game-over/pause (layer 60); watermark sobre painéis. A Arena agora marca
+  explicitamente estados modais e oculta o retângulo de efeitos de tela e o
+  watermark enquanto pausa, terminal, patch, game-over ou vitória estão ativos.
 - [ ] **H7 — Widgets mortos.** `_score_label`/`_best_label` (`hud.gd:60-67`),
   `_over_stats` (`panel_kit.gd:182-184`), "SWIPE TO SCROLL" em desktop
   (bestiary/story/program), banner alpha com dead-zone (`hud.gd:352-357`).

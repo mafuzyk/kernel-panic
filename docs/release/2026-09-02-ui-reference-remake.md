@@ -125,6 +125,11 @@
   through the generic overclock/meter language in the legacy HUD.
 - Fixed legacy HUD auxiliary copy, dense integrity pips, scrap telemetry and
   narrow game-over controls exceeding their available layout regions.
+- Fixed the low-health/CRT overlay remaining above pause, terminal, patch and
+  game-over surfaces, which could distort the very panel needed to read the
+  next action.
+- Fixed the Windows activation watermark remaining visible over modal state
+  panels; it now follows the same explicit gameplay/modal visibility contract.
 
 ## Improved
 
@@ -151,6 +156,9 @@
 - Improved micro-narrow HUD legibility by reserving the center explicitly and
   shortening labels only after the 432×720 program-identity contract showed
   that regular narrow could retain full names.
+- Improved modal readability by making overlay suppression state-driven rather
+  than dependent on CanvasLayer ordering alone; gameplay effects restore when
+  the modal closes.
 
 ## Performance
 
@@ -199,6 +207,9 @@
   checked through the live HUD state path.
 - H5 HUD layout collision probe: 69 focused headless passes, 0 failures across
   320×568, 432×720, 600×600, 800×600 and 1280×720 layouts.
+- H6 overlay/layer probe: 25 focused headless passes, 0 failures; direct
+  overlay state, pause, terminal, game-over and Windows watermark transitions
+  were checked through the real Arena path.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,

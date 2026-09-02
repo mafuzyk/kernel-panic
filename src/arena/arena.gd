@@ -61,6 +61,7 @@ var _vnext_patch_surface: Control
 var _vnext_patch_mode := false
 var _patch_offers: Array = []
 var _patch_open := false
+var _state_panel_active := false
 var _patch_pending := 0
 var _boss_fragments_pending := 0
 var _boss_phase_clear_done := false
@@ -627,6 +628,7 @@ func _on_story_cleared(stage_id: String) -> void:
 	_show_story_victory(stage_id)
 
 func _show_story_save_failure(stage_id: String) -> void:
+	_set_state_panel_active(true)
 	_story_victory = false
 	_story_next_stage = -1
 	_over_title.text = "STORY SAVE FAILED"
@@ -739,6 +741,7 @@ func _try_show_patch() -> void:
 		_patch_open = false
 		return
 	get_tree().paused = true
+	_set_state_panel_active(true)
 	if _vnext_patch_mode:
 		var patch_snapshot: Array = []
 		for definition in _patch_offers:
@@ -945,6 +948,7 @@ func _close_vnext_patch() -> void:
 	if _vnext_patch_surface != null and is_instance_valid(_vnext_patch_surface):
 		_vnext_patch_surface.visible = false
 	get_tree().paused = false
+	_set_state_panel_active(false)
 	call_deferred("_try_show_patch")
 
 func _apply_patch_effects(id: String) -> void:
@@ -970,6 +974,7 @@ func _pick_patch(idx: int) -> void:
 	_patch_open = false
 	_patch_panel.visible = false
 	get_tree().paused = false
+	_set_state_panel_active(false)
 	Fx.flash(Balance.COL_MOTE if def["rare"] else Balance.COL_PLAYER, 0.15, 0.35)
 	Fx.ring(player.global_position, Balance.COL_PLAYER_HOT, 8.0, 90.0, 0.4, 3.0)
 	Fx.text(player.global_position + Vector2(0, -34), def["title"], Balance.COL_MOTE, 16)
@@ -1009,6 +1014,7 @@ func _on_player_died() -> void:
 
 func _show_game_over() -> void:
 	_clear_abandon_confirmation()
+	_set_state_panel_active(true)
 	_story_victory = false
 	_story_next_stage = -1
 	_over_title.text = "PROCESS TERMINATED"
@@ -1077,6 +1083,7 @@ func _handle_over_primary() -> void:
 		_restart_current_run()
 
 func _show_story_victory(stage_id: String) -> void:
+	_set_state_panel_active(true)
 	var index := Game.story_stage_index
 	_story_next_stage = index + 1 if index + 1 < Game.story_stage_count() and Game.story_stage_unlocked(index + 1) else -1
 	_story_victory = true
@@ -1334,6 +1341,7 @@ func _set_paused(v: bool) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if v:
 		_pause_stats.text = "%s // SCORE %07d   CYCLE %02d   COMBO x%d\nBUILD: %s" % [Game.program_def()["name"], Game.score, Game.wave, Game.mult, Game.build_string()]
+	_set_state_panel_active(v)
 	Sfx.play("ui", 1.0, -6.0)
 	if not v:
 		_try_show_patch()
@@ -1475,6 +1483,17 @@ func _clear_abandon_confirmation() -> void:
 	# state is now shared by restart and abandon confirmations.
 	_clear_pause_confirmation()
 
+func _set_state_panel_active(active: bool) -> void:
+	_state_panel_active = active
+	if overlay != null and is_instance_valid(overlay) and overlay.has_method("set_state_panel_active"):
+		overlay.set_state_panel_active(active)
+	_update_windows_watermark_visibility()
+
+func _update_windows_watermark_visibility() -> void:
+	if _windows_watermark == null or not is_instance_valid(_windows_watermark):
+		return
+	_windows_watermark.visible = not _state_panel_active and fmod(float(Game.stats.get("time", 0.0)), 2.6) < 2.0
+
 func _notification(what: int) -> void:
 	if is_inside_tree() and _state == "play" and not get_tree().paused:
 		if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
@@ -1491,7 +1510,7 @@ func _process(delta: float) -> void:
 		if _abandon_t <= 0.0:
 			_clear_pause_confirmation()
 	if _windows_watermark != null and is_instance_valid(_windows_watermark):
-		_windows_watermark.visible = fmod(float(Game.stats.get("time", 0.0)), 2.6) < 2.0
+		_update_windows_watermark_visibility()
 	if _temple_mode or (Game.mode != "story" and Game.temple_rainbow_unlocked):
 		var rainbow := Color.from_hsv(fmod(float(Game.stats.get("time", 0.0)) * 0.08, 1.0), 0.78, 1.0)
 		_era_color = rainbow

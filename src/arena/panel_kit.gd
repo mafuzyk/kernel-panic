@@ -130,6 +130,7 @@ func _open_terminal() -> void:
 		return
 	a._pause_panel.visible = false
 	a._terminal_panel.call("open_terminal")
+	a._set_state_panel_active(true)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Sfx.play("ui", 1.1, -6.0)
 

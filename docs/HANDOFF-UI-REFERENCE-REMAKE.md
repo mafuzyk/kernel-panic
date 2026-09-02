@@ -1643,6 +1643,90 @@ formam uma coluna. Achievements e SCRAP passam a truncar de modo explícito em
 vez de depender do clipping do renderer. O custo de desenho é marginal; não há
 asset novo, dependência externa ou breaking change de dados.
 
+## 7.12 H6 — camadas de efeito e estados modais
+
+### Problema confirmado
+
+`ArenaOverlay` vive na `CanvasLayer` 80, acima dos painéis legados de pausa e
+game-over (layer 60), do terminal (66) e do patch (65). Portanto, mesmo quando
+um modal estava legível em termos de geometria, a vinheta de low-HP, a
+aberração cromática e o pulso de dano ainda eram compostos por cima dele. O
+mesmo problema aparecia no watermark de Windows, criado na layer 76: o texto
+intermitente continuava aparecendo sobre pausa, terminal e game-over. A ordem
+numérica das layers não era uma política de estado; qualquer novo painel abaixo
+da layer 80 herdaria a mesma colisão.
+
+### Decisão
+
+Foi escolhido um contrato explícito de estado modal, em vez de apenas mover
+layers. `Arena` mantém `_state_panel_active` e notifica o `ArenaOverlay` quando
+pausa, terminal, patch, game-over, vitória de história ou falha de salvamento
+passam a ocupar a leitura principal. O overlay conserva sua layer para não
+alterar a composição de gameplay, mas esconde o seu `ColorRect` de tela durante
+o modal. A Arena também centraliza a visibilidade do watermark: ele só pode
+aparecer durante gameplay e no intervalo temporal original.
+
+Alternativas consideradas:
+
+- mover o overlay para uma layer abaixo de todos os painéis; descartado porque
+  criaria novas regras implícitas para reticle, debug, CRT e superfícies vNext,
+  além de remover efeitos de gameplay por acidente;
+- zerar apenas `aberr`, `hurt` e `low_hp`; descartado porque o shader ainda
+  aplicaria scanlines/vignette e continuaria sendo uma composição visual sobre
+  o texto do modal;
+- testar somente a layer numérica; descartado porque isso não provaria a
+  visibilidade real do watermark nem a transição de terminal/patch;
+- ocultar o overlay permanentemente quando a Arena inicia; descartado porque
+  remove o feedback de dano e low-HP do combate normal.
+
+A escolha de esconder o retângulo inteiro é deliberada: a prioridade de um
+modal é leitura e ação inequívoca, e os efeitos visuais não carregam estado
+necessário enquanto o jogo está congelado. Ao retomar, a mesma chamada restaura
+o retângulo e a regra temporal do watermark.
+
+### Implementação
+
+- `src/arena/arena_overlay.gd` agora mantém referência ao retângulo do shader,
+  expõe `set_state_panel_active()`, `state_panel_active()` e
+  `visual_effect_visible()`, e alterna somente a camada visual efetiva; a
+  lógica de pulsos e seus parâmetros não foi reescrita;
+- `src/arena/arena.gd` adiciona `_state_panel_active`, o sincronizador
+  `_set_state_panel_active()` e `_update_windows_watermark_visibility()`. As
+  transições de patch, pausa, game-over, vitória e falha de save passam pelo
+  sincronizador;
+- `src/arena/panel_kit.gd` marca o terminal como modal ao abrir. Fechar o
+  terminal enquanto a pausa permanece ativa não libera o overlay antes da hora;
+  somente retomar a run faz a transição para gameplay;
+- `tools/overlay_layer_probe.gd/.tscn` cobre o contrato unitário e a integração
+  com duas Arenas reais: pausa/terminal/resume, game-over e o estágio Windows
+  com watermark.
+
+### Evidência red → green
+
+Antes do fix, o probe já conseguia carregar o overlay e a Arena, mas falhava em
+8 checks: não existia contrato de estado, a pausa não marcava a modalidade, o
+terminal e game-over não a propagavam, e o watermark não tinha supressão. O
+processo terminou com `PROBE_DONE fails=8`. Depois do fix,
+`res://tools/overlay_layer_probe.tscn` terminou com 25 passes, zero falhas e
+exit 0 em headless silencioso. Foram comprovados: camada 80 preservada,
+retângulo visível fora do modal, retângulo oculto durante pause/terminal/
+game-over, restauração no resume, watermark oculto durante modal e restaurado
+no gameplay.
+
+### Impacto, limites e risco residual
+
+Não há mudança em gameplay, física, balanceamento, save, input ou ordem de
+desenho durante a run. Há uma mudança visual intencional: a tela deixa de sofrer
+efeitos CRT/low-HP enquanto um painel modal está aberto. A camada de CRT
+específica do estágio continua independente; este item trata o overlay de
+feedback global e o watermark.
+
+O teste automatizado não substitui uma captura visual em export Android, uma
+janela com notch ou uma sequência de morte real no dispositivo. O estado
+modal é atualizado por todas as transições conhecidas no código atual, mas
+qualquer novo painel futuro precisa chamar `_set_state_panel_active(true)` ou
+ser incluído na política; o probe existe para tornar essa omissão detectável.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário
