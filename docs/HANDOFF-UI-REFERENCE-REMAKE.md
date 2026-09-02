@@ -2093,6 +2093,100 @@ ergonomia de uma lista com gesto em hardware touch nem se a velocidade de um
 scroll futuro ficará confortável. Esse risco é de UX, não de correção
 geométrica, e requer avaliação manual com uma tela e um dedo reais.
 
+## 7.17 N4 — fullscreen explicitamente desktop-only nas settings
+
+### Auditoria e problema confirmado
+
+A seção DISPLAY das Settings já tinha sido criada no lote G2C: o serviço
+`Sfx` persiste `fullscreen` e `target_fps` em `[display]`, lê o fallback
+histórico `feel.target_fps` e aplica o modo de janela por meio de
+`DisplayServer`. A existência da API e a persistência já tinham cobertura no
+probe `g2_display_settings_probe`.
+
+A auditoria da superfície real encontrou, porém, uma divergência de contrato:
+o `CheckButton` FULLSCREEN era criado e ficava visível sempre que DISPLAY
+estava ativa. Isso incluía touchscreen/mobile e o caminho de teste
+`KP_FORCE_TOUCH=1`, embora o próprio jogo já tratasse fullscreen e captura de
+teclas como ações desktop-only. O controle prometia uma ação que não deveria
+ser apresentada nesse contexto.
+
+### Decisão e alternativas
+
+Foi mantida a capacidade existente de fullscreen no desktop e foi adicionado
+um único predicado de plataforma em `Menu`, `_desktop_display_enabled()`, que
+reúne `Balance.is_desktop_display()`, disponibilidade de touchscreen e o
+override determinístico `KP_FORCE_TOUCH`. `_desktop_keybinds_enabled()` agora
+reutiliza esse predicado, evitando que Settings e captura de teclas evoluam
+com regras divergentes.
+
+O controle real recebe a meta `desktop_only`. O filtro comum de visibilidade
+aplica essa meta somente quando a seção está ativa; em touchscreen/mobile o
+fullscreen desaparece, mas target FPS, idioma e as demais opções DISPLAY
+continuam disponíveis.
+
+Foram consideradas estas alternativas:
+
+- deixar o botão visível e apenas fazer `Sfx.set_fullscreen()` ignorar a ação;
+  foi descartado porque preserva uma affordance enganosa;
+- remover fullscreen do projeto inteiro e manter somente target FPS; foi
+  descartado porque fullscreen é uma ação válida e já persistida no desktop;
+- detectar apenas `DisplayServer.is_touchscreen_available()`; foi descartado
+  porque a plataforma de teste e alguns ambientes híbridos podem não expor
+  touchscreen de forma suficiente, e o projeto já possui o predicado de
+  display/override usado para keybinds;
+- duplicar a condição em cada controle; foi descartado por criar dois pontos
+  de verdade para o mesmo escopo.
+
+### Implementação e impacto
+
+- `src/ui/menu.gd` ganhou `_desktop_display_enabled()`; o helper de keybinds
+  delega a ele sem alterar o resultado desktop existente;
+- `src/ui/menu_settings_kit.gd` nomeia o controle, marca-o como
+  `desktop_only` e aplica o filtro no ciclo de seção;
+- `tools/display_settings_surface_probe.gd/.tscn` instancia Menu e Settings
+  reais, abre DISPLAY, verifica o controle, a visibilidade por plataforma, o
+  estado persistido e o wiring de fullscreen no desktop;
+- `tools/validate_input_dispatch.sh` executa o probe em headless, Xvfb
+  desktop e Xvfb com `KP_FORCE_TOUCH=1`.
+
+Não houve alteração de save path, schema, valores de FPS, input de gameplay,
+modo de janela legado ou comportamento do target FPS. Não há breaking change
+intencional. A mudança observável é a remoção do toggle FULLSCREEN em
+touchscreen/mobile, onde ele não representava uma ação suportada; isso reduz
+uma opção visível, mas mantém a ação no desktop.
+
+### Evidência red → green
+
+Com a superfície anterior, o probe foi executado em Xvfb com
+`KP_FORCE_TOUCH=1`: terminou com exit 1 e 2 falhas controladas — o controle não
+declarava escopo `desktop_only` e continuava visível no caminho touch. Não
+houve `SCRIPT ERROR`; a falha veio das assertions do requisito.
+
+Com o patch restaurado, o probe terminou com exit 0 e `PROBE_DONE fails=0`:
+
+- headless: 9 passes, fullscreen ausente no contexto não-desktop e target FPS
+  preservado;
+- Xvfb desktop: 11 passes, fullscreen visível e o wiring aplicando
+  `WINDOW_MODE_FULLSCREEN`;
+- Xvfb com `KP_FORCE_TOUCH=1`: 9 passes, fullscreen oculto e target FPS
+  preservado.
+
+O probe não tenta simular um clique físico do sistema operacional; o caminho
+de entrada de Button é dependente da transformação/dispatch da janela e já é
+testado nos probes de superfície vNext. Aqui o teste comprova a superfície
+legada real, o escopo, o estado e o callback de fullscreen; a API/persistência
+independentes continuam cobertas por G2C. Todos os runs foram silenciosos,
+com `--audio-driver Dummy`; os diagnósticos de teardown do motor continuam
+não-gating e foram separados dos erros de runtime.
+
+### Incerteza restante
+
+O predicado ainda é uma aproximação de plataforma baseada nas APIs disponíveis
+no projeto; Android real, um conversível desktop com touchscreen e exports
+finais ainda precisam ser verificados manualmente. O risco é de classificação
+da plataforma, não de perda de save: `fullscreen` continua persistido e pode
+ser reativado quando o jogo volta a um ambiente desktop.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário

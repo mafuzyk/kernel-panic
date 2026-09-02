@@ -38,6 +38,9 @@
   and desktop-debug validation.
 - Added a focused Bestiary visibility probe covering the default ROOT entry,
   first/final selections, desktop 1280×720 and narrow 432×720 layouts.
+- Added a focused display-settings surface probe covering the real legacy
+  Settings route, desktop fullscreen wiring and the touch/mobile scope of the
+  display controls.
 - Added a repeatable visual verification path for the reference-remake
   surfaces; the focused probes report their pass counts in the verification
   summary below and zero failures.
@@ -98,6 +101,9 @@
   and remaining attached to the viewport during stretch/resize.
 - Changed the legacy Bestiary to keep its selected card inside the scroll
   viewport when it opens, when selection changes and after a resize.
+- Changed the legacy Settings DISPLAY section so fullscreen is explicitly a
+  desktop-only control; target FPS remains available on touch/mobile, where
+  fullscreen is not a meaningful native action.
 
 ## Fixed
 
@@ -157,6 +163,8 @@
 - Fixed the legacy Bestiary opening on the ROOT dossier while its selected
   card was still below the visible list, and fixed late selections leaving the
   list viewport without an automatic scroll adjustment.
+- Fixed the Settings surface exposing a fullscreen toggle in touch/mobile
+  contexts even though the platform predicate rejects that native action.
 
 ## Improved
 
@@ -194,6 +202,8 @@
   the same physical corner on every selection/data overlay.
 - Improved Bestiary orientation by making the visible list and the selected
   dossier agree immediately, including on narrow layouts.
+- Improved display-settings honesty by deriving the desktop-only fullscreen
+  visibility from the same platform predicate used by desktop keybind capture.
 
 ## Performance
 
@@ -209,6 +219,8 @@
 
 - Existing save path, save schema, gameplay input and legacy UI route remain
   compatible.
+- The existing `[display]` persistence and legacy `[feel] target_fps` fallback
+  remain unchanged; N4 only filters the fullscreen control by platform.
 - No new online service, account, telemetry endpoint or asset dependency was
   introduced.
 - Validation was run with audio disabled so tests and captures do not interrupt
@@ -257,6 +269,9 @@
 - N3 Bestiary scroll visibility probe: 28 focused headless passes and 28 Xvfb
   passes, 0 failures; default, first and final selections were checked at
   desktop and narrow sizes.
+- N4 display-settings surface probe: 9 focused headless passes, 11 Xvfb
+  desktop passes and 9 Xvfb touch-scope passes, 0 failures; the real DISPLAY
+  section, fullscreen wiring and forced-touch visibility were checked.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,

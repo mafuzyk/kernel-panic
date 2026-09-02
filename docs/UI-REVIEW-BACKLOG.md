@@ -92,8 +92,10 @@ final. Um item de backlog = um commit; rodar
 - [x] **N3 — Bestiary abre desincronizado.** A seleção default `root` e toda
   seleção posterior agora são levadas para a viewport da lista; o contrato é
   reaplicado quando a superfície muda de tamanho.
-- [ ] **N4 — Fullscreen toggle** nas settings (desktop) — ausente em
-  `menu_settings_kit.gd`.
+- [x] **N4 — Fullscreen toggle** nas settings (desktop). A seção DISPLAY já
+	possui fullscreen e target FPS persistidos; o fullscreen é explicitamente
+	desktop-only e some em touchscreen/mobile, enquanto o target FPS continua
+	disponível para os dois ambientes.
 - [x] **N5 — Autocomplete/history do terminal.** B5 implementou ↑↓, TAB e
   comando real; N1 completou a navegação entre prompt e ações do terminal.
 

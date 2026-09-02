@@ -228,11 +228,13 @@ func _build_settings() -> void:
 	assign_section(display_label, "DISPLAY")
 	box.add_child(display_label)
 	var fullscreen := CheckButton.new()
+	fullscreen.name = "Fullscreen"
 	fullscreen.text = "FULLSCREEN"
 	fullscreen.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	fullscreen.add_theme_font_size_override("font_size", 17)
 	fullscreen.add_theme_color_override("font_color", Balance.COL_TEXT)
 	fullscreen.button_pressed = Sfx.fullscreen
+	fullscreen.set_meta("desktop_only", true)
 	fullscreen.toggled.connect(func(on: bool) -> void:
 		Sfx.set_fullscreen(on)
 	)
@@ -793,6 +795,8 @@ func _apply_section_visibility() -> void:
 			if control == null or not is_instance_valid(control):
 				continue
 			control.visible = active
+			if active and control.has_meta("desktop_only") and not m._desktop_display_enabled():
+				control.visible = false
 			if active and control.has_meta("touch_only") and not _touch_only_controls_ok():
 				control.visible = false
 	if m._keybind_box != null and is_instance_valid(m._keybind_box):

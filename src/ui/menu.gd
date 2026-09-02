@@ -123,8 +123,11 @@ func _refresh_story_mount_action(_index: int = -1) -> void:
 		_story_mount_button.text = "MOUNT %s  [ENTER]" % str(Game.story_stage_def(selected).get("path", "/boot"))
 		_story_mount_button.add_theme_color_override("font_color", _story_panel.card_accent(selected))
 
-func _desktop_keybinds_enabled() -> bool:
+func _desktop_display_enabled() -> bool:
 	return Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
+
+func _desktop_keybinds_enabled() -> bool:
+	return _desktop_display_enabled()
 
 func keybind_capture_visible() -> bool:
 	return _keybind_box != null and _keybind_box.visible

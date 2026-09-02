@@ -131,6 +131,7 @@ run_headless_probe "probe-h7-dead-widgets" "H7 dead widgets and affordances prob
 run_headless_probe "probe-n1-state-panel-navigation" "N1 state-panel keyboard navigation probe" "res://tools/state_panel_navigation_probe.tscn"
 run_headless_probe "probe-n2-overlay-back-layout" "N2 overlay back layout probe" "res://tools/overlay_back_layout_probe.tscn"
 run_headless_probe "probe-n3-bestiary-scroll-visibility" "N3 Bestiary scroll visibility probe" "res://tools/bestiary_scroll_visibility_probe.tscn"
+run_headless_probe "probe-n4-display-settings-surface" "N4 display settings surface probe" "res://tools/display_settings_surface_probe.tscn"
 run_headless_probe "probe-r18-touch-multitouch" "R18 touch multitouch action probe" "res://tools/touch_multitouch_probe.tscn"
 run_headless_probe "probe-vnext-primitives" "VNext code-drawn primitive contract" "res://tools/vnext_primitives_probe.tscn"
 run_headless_probe "probe-vnext-entity-illustration" "VNext code-drawn entity illustration contract" "res://tools/vnext_entity_illustration_probe.tscn"
@@ -172,6 +173,14 @@ if command -v xvfb-run >/dev/null 2>&1; then
 	report_case "G2 display settings xvfb" "$LOG_DIR/probe-g2-display-settings-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "G2 display settings xvfb" "$LOG_DIR/probe-g2-display-settings-xvfb.log"
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/display_settings_surface_probe.tscn > "$LOG_DIR/probe-n4-display-settings-xvfb.log" 2>&1
+	report_case "N4 display settings surface xvfb" "$LOG_DIR/probe-n4-display-settings-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "N4 display settings surface xvfb" "$LOG_DIR/probe-n4-display-settings-xvfb.log"
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env KP_FORCE_TOUCH=1 XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/display_settings_surface_probe.tscn > "$LOG_DIR/probe-n4-display-settings-touch-xvfb.log" 2>&1
+	report_case "N4 display settings touch scope xvfb" "$LOG_DIR/probe-n4-display-settings-touch-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "N4 display settings touch scope xvfb" "$LOG_DIR/probe-n4-display-settings-touch-xvfb.log"
 	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/g3_weekly_practice_probe.tscn > "$LOG_DIR/probe-g3-weekly-practice-xvfb.log" 2>&1
 	report_case "G3 Weekly and Practice xvfb" "$LOG_DIR/probe-g3-weekly-practice-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
