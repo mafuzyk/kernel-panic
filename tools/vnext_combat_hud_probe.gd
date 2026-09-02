@@ -24,8 +24,9 @@ func _ready() -> void:
 	var state := {
 		"hp": 1, "max_hp": 12, "meter": 0.0, "meter_max": 100.0,
 		"dash_frac": 0.0, "dash_available": 0, "dash_max": 1,
-		"wave": 7, "cycle": "CYCLE 07", "score": 1234, "combo": 3,
+		"wave": 7, "cycle": "CYCLE 07", "score": 1234, "combo": 3, "combo_frac": 0.72,
 		"time": "TIME 01:23.4", "run": "SEED 42", "event": "A".repeat(180),
+		"patches": ["FR3", "R0", "SR1", "PG2"],
 		"boss_name": "ROOT.exe // FORKED", "boss_frac": 0.42, "boss_split": true,
 		"boss_fragments": [{"slot": 0, "fraction": 0.42}, {"slot": 1, "fraction": 0.31}],
 		"boss_phase": "PHASE 2 // SPLIT", "damage_direction": "NORTH-EAST",
@@ -56,9 +57,15 @@ func _ready() -> void:
 	surface.call("configure", state, context)
 	_check(str(surface.call("semantic_snapshot").get("dash_state", "")) == "COOLDOWN", "cooldown dash has semantic marker")
 	var layout: Dictionary = surface.call("layout_snapshot")
+	var semantic_snapshot: Dictionary = surface.call("semantic_snapshot")
+	_check(layout.has("frame") and layout.has("telemetry"), "reference frame and telemetry regions exist")
+	_check(layout.has("combo") and (layout["combo"] as Rect2).size.y >= 70.0, "combo has a dedicated top-center region")
+	_check(str(semantic_snapshot.get("combo_label", "")) == "COMBO x3", "combo exposes a readable semantic label")
+	_check(int(semantic_snapshot.get("patch_count", -1)) == 4, "patch dock exposes each active patch")
 	_check(_reserved_center(layout, Vector2(1280, 720)), "desktop reserves playfield center")
 	_check(_boss_clear_of_player(layout, Vector2.ZERO), "desktop boss bar avoids player")
 	_check(_panels_do_not_overlap(layout), "desktop hud panels do not overlap")
+	_check(_regions_inside_safe(layout), "desktop hud regions stay inside the safe frame")
 	var boss_bars: Array = surface.call("boss_bars_snapshot")
 	_check(boss_bars.size() == 2 and float(boss_bars[0].get("fraction", -1.0)) > 0.0 and float(boss_bars[1].get("fraction", -1.0)) > 0.0, "split boss exposes both live bar fractions")
 	var action_regions: Dictionary = surface.call("action_regions")
@@ -71,14 +78,31 @@ func _ready() -> void:
 	surface.call("configure", state, context)
 	overflow = surface.call("text_overflow_report")
 	_check(bool(overflow.get("has_overflow", false)), "long event text is reported")
-	for viewport in [Vector2(432, 720), Vector2(1280, 720), Vector2(1920, 720)]:
+	_check(bool(overflow.get("fields", {}).get("event", {}).get("rendered_fits", false)), "long event text is ellipsized in the render path")
+	for viewport in [Vector2(320, 568), Vector2(390, 844), Vector2(432, 720), Vector2(600, 600), Vector2(1280, 720), Vector2(1920, 720)]:
 		var resized_context: RefCounted = context_script.from_viewport(viewport, true)
 		surface.call("configure", state, resized_context)
 		layout = surface.call("layout_snapshot")
 		action_regions = surface.call("action_regions")
 		_check(_reserved_center(layout, viewport), "viewport %s reserves center" % viewport)
 		_check(_panels_do_not_overlap(layout), "viewport %s keeps hud panels separate" % viewport)
+		_check(_regions_inside_safe(layout), "viewport %s keeps hud regions inside the safe frame" % viewport)
 		_check((action_regions["dash"] as Rect2).size.x >= 96.0 and (action_regions["dash"] as Rect2).size.y >= 64.0, "viewport %s keeps touch-safe dash" % viewport)
+	var scaled_context: RefCounted = context_script.from_viewport(Vector2(1280, 720), false, false, false, 1.15)
+	state["event"] = "WAVE STARTED"
+	surface.call("configure", state, scaled_context)
+	overflow = surface.call("text_overflow_report")
+	_check(not bool(overflow.get("has_overflow", true)), "reference HUD remains readable at 115 percent text scale")
+	var scaled_narrow_context: RefCounted = context_script.from_viewport(Vector2(432, 720), true, false, false, 1.15)
+	surface.call("configure", state, scaled_narrow_context)
+	overflow = surface.call("text_overflow_report")
+	_check(not bool(overflow.get("has_overflow", true)), "narrow HUD remains readable at 115 percent text scale")
+	var micro_context: RefCounted = context_script.from_viewport(Vector2(320, 568), true, false, false, 1.0)
+	surface.call("configure", state, micro_context)
+	var micro_layout: Dictionary = surface.call("layout_snapshot")
+	_check(bool(micro_layout.get("micro", false)), "micro narrow HUD opts into the stacked composition")
+	overflow = surface.call("text_overflow_report")
+	_check(not bool(overflow.get("has_overflow", true)), "micro narrow HUD keeps its rendered copy inside its panels")
 	var before: Rect2 = (surface.call("layout_snapshot")["integrity"] as Rect2)
 	surface.call("reflow_for_viewport", Vector2(900, 720))
 	var after: Rect2 = (surface.call("layout_snapshot")["integrity"] as Rect2)
@@ -97,6 +121,13 @@ func _ready() -> void:
 	var arena_player: Node = arena.get("player")
 	var arena_hud: Node = arena.call("vnext_hud_surface")
 	var arena_hud_adapter: Node = arena.get("hud")
+	var legacy_dash: Control = arena_hud_adapter.get("_dash_icon")
+	_check(legacy_dash == null or not legacy_dash.visible, "vnext hud hides the legacy dash icon")
+	arena_hud_adapter.set("_mult", 5)
+	arena_hud_adapter.set("_combo_frac", 0.5)
+	arena_hud.call("sync_from_hud", arena_hud_adapter)
+	var live_combo: Dictionary = arena_hud.call("semantic_snapshot")
+	_check(str(live_combo.get("combo_label", "")) == "COMBO x5" and is_equal_approx(float(live_combo.get("combo_fraction", 0.0)), 0.5), "real HUD syncs combo state into the reference header")
 	arena_hud_adapter.call("show_banner", "CYCLE 02", "PURGE THE DAEMONS", 2.0)
 	arena_hud.call("sync_from_hud", arena_hud_adapter)
 	var event_report: Dictionary = arena_hud.call("text_overflow_report")
@@ -120,7 +151,7 @@ func _boss_clear_of_player(layout: Dictionary, player_position: Vector2) -> bool
 	return boss.size == Vector2.ZERO or not boss.grow(8.0).has_point(player_position)
 
 func _panels_do_not_overlap(layout: Dictionary) -> bool:
-	var rects: Array[Rect2] = [layout.get("integrity", Rect2()), layout.get("event", Rect2()), layout.get("patches", Rect2()), layout.get("dash", Rect2()), layout.get("score", Rect2())]
+	var rects: Array[Rect2] = [layout.get("integrity", Rect2()), layout.get("event", Rect2()), layout.get("patches", Rect2()), layout.get("dash", Rect2()), layout.get("score", Rect2()), layout.get("combo", Rect2())]
 	if bool(layout.get("boss_active", true)):
 		rects.append(layout.get("boss", Rect2()))
 	for i in rects.size():
@@ -129,6 +160,16 @@ func _panels_do_not_overlap(layout: Dictionary) -> bool:
 		for j in range(i + 1, rects.size()):
 			if rects[i].intersects(rects[j], true):
 				return false
+	return true
+
+func _regions_inside_safe(layout: Dictionary) -> bool:
+	var safe: Rect2 = layout.get("safe", Rect2())
+	for id in ["integrity", "event", "patches", "dash", "score", "combo", "boss"]:
+		var rect: Rect2 = layout.get(id, Rect2())
+		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+			continue
+		if not safe.encloses(rect):
+			return false
 	return true
 
 func _finish() -> void:

@@ -6,6 +6,8 @@ const BestiarySurface = preload("res://src/ui/vnext/surfaces/bestiary_surface.gd
 const AccessibilitySurface = preload("res://src/ui/vnext/surfaces/accessibility_surface.gd")
 const StorySurface = preload("res://src/ui/vnext/surfaces/story_surface.gd")
 const PatchSurface = preload("res://src/ui/vnext/surfaces/patch_surface.gd")
+const CombatHudSurface = preload("res://src/ui/vnext/surfaces/combat_hud_surface.gd")
+const Context = preload("res://src/ui/vnext/ui_context.gd")
 const ContentCatalog = preload("res://src/data/content_catalog.gd")
 
 func _ready() -> void:
@@ -26,6 +28,7 @@ func _capture() -> void:
 		"accessibility": AccessibilitySurface,
 		"story": StorySurface,
 		"patch": PatchSurface,
+		"combat_hud": CombatHudSurface,
 	}.get(surface_id)
 	if script == null:
 		print("CAPTURE_FAIL unknown surface ", surface_id)
@@ -50,6 +53,8 @@ func _capture() -> void:
 			Game.story_cleared["temple_god"] = true
 	elif surface_id == "patch":
 		selected = int(OS.get_environment("KP_VNEXT_CAPTURE_SELECTED"))
+	elif surface_id == "combat_hud":
+		Game.patch_levels = {"splitshot": 1, "ring0": 1, "system_restore": 1, "pagecache": 2}
 	var surface = script.new()
 	surface.size = viewport
 	add_child(surface)
@@ -69,7 +74,34 @@ func _capture() -> void:
 			"paused": true,
 			"selected": selected,
 		}
-	surface.configure(surface_snapshot, script.context_for_viewport(viewport, touch, true, true, 1.0))
+	elif surface_id == "combat_hud":
+		surface_snapshot = {
+			"hp": 10,
+			"max_hp": 12,
+			"meter": 78.0,
+			"meter_max": 100.0,
+			"dash_frac": 1.0,
+			"dash_available": 1,
+			"dash_max": 1,
+			"wave": 7,
+			"cycle": "CYCLE 07",
+			"score": 54230,
+			"combo": 12,
+			"combo_frac": 0.72,
+			"time": "TIME 02:13.4",
+			"run": "SEED 3317210945781775166",
+			"event": "ELITE: TRACE MINER",
+			"patches": ["SP1", "R01", "SR1", "PC2"],
+			"boss_name": "ELITE: TRACE MINER",
+			"boss_frac": 0.72,
+			"boss_split": false,
+			"boss_phase": "PHASE 1",
+			"damage_direction": "NORTH-EAST",
+			"program_id": "kernel",
+			"program_kind": "kernel",
+			"ability_state": "OVERCLOCK READY",
+		}
+	surface.configure(surface_snapshot, script.context_for_viewport(viewport, touch, true, true, 1.0) if surface_id != "combat_hud" else Context.from_viewport(viewport, touch, true, true, 1.0))
 	if surface_id == "story" and OS.get_environment("KP_VNEXT_CAPTURE_DETAIL") == "1" and viewport.x < 600.0:
 		surface.set_focus_id("stage_%d" % selected)
 		var open_event := InputEventKey.new()

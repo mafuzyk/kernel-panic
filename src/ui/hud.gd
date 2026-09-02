@@ -422,7 +422,7 @@ func _process(delta: float) -> void:
 	if _dash_icon != null and is_instance_valid(_dash_icon):
 		var dash_rect: Rect2 = layout_snapshot()["dash"]
 		_dash_icon.position = dash_rect.end - Vector2(64.0, 60.0)
-		_dash_icon.visible = Balance.is_desktop_display() and not touch_layout()
+		_dash_icon.visible = not _vnext_hud_mode and Balance.is_desktop_display() and not touch_layout()
 		var dash_col := Balance.COL_PLAYER if _dash_frac >= 1.0 else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.35)
 		_dash_icon.call("configure", "dash", dash_col)
 	_prune_boss_fragments()
