@@ -46,6 +46,8 @@
   summary below and zero failures.
 - Added a focused tween-lifecycle probe for repeated combat tips and boss
   introductions, including headless and desktop-debug execution.
+- Added a focused boss-bar identity probe covering split variants, live
+  fragment rows and the one-fragment state.
 
 ## Changed
 
@@ -111,6 +113,8 @@
 - Changed repeated tip and boss-intro triggers to own and replace their active
   presentation timelines instead of allowing concurrent tweens to write the
   same nodes.
+- Changed split boss presentation to derive its fork title from the spawned
+  boss variant and to compact the visible rows around live fragments.
 
 ## Fixed
 
@@ -175,6 +179,8 @@
 - Fixed repeated wave tips and boss introductions competing over opacity and
   intro-bar state; the previous animation is now cancelled before the next
   one starts, including the delayed boss-intro collapse.
+- Fixed the split boss HUD drawing a `MINI-B` row at 0% when only one fragment
+  remained, and fixed forked variants being mislabeled as `ROOT.exe`.
 
 ## Improved
 
@@ -219,6 +225,9 @@
   patch-state changes.
 - Improved animation lifecycle safety by keeping one active tip timeline and a
   cancellable boss-intro reveal/exit chain per Arena instance.
+- Improved boss readability by preserving fragment A/B identity while showing
+  only live health bars and by retaining the actual boss family in the fork
+  title.
 
 ## Performance
 
@@ -296,6 +305,9 @@
 - P3 tween-lifecycle probe: 6 focused headless passes and 6 Xvfb passes, 0
   failures; repeated tip and boss-intro triggers were checked for replacement
   rather than accumulation.
+- P4 boss-bar identity probe: 10 focused headless passes and 10 Xvfb passes, 0
+  failures; variant title inheritance, two-fragment rows and one-fragment
+  ghost suppression were checked.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,

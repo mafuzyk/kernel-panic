@@ -112,5 +112,6 @@ final. Um item de backlog = um commit; rodar
   timeline anterior antes de escrever novamente nos mesmos nós; o fechamento
   da intro também usa um callback nomeado, sem criar uma cadeia órfã ao
   reacionar a apresentação.
-- [ ] **P4 — Boss bar fantasma.** "MINI-B" 0% com 1 fragmento (`hud.gd:681-701`),
-  nome hardcoded (`hud.gd:323`).
+- [x] **P4 — Boss bar fantasma.** O HUD agora deriva o título do fork do boss
+  real, lista somente fragmentos vivos e compacta as linhas desenhadas; um
+  único fragmento não cria mais uma segunda barra em 0%.

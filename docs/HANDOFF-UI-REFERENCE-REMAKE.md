@@ -2436,6 +2436,111 @@ Esses são riscos de apresentação/lifecycle de baixa probabilidade após o
 ownership explícito, mas devem entrar na matriz de confiabilidade se o jogo
 adotar replay, fast-forward ou transições concorrentes.
 
+## 7.20 P4 — identidade e linhas vivas da boss bar dividida
+
+### Auditoria e problema confirmado
+
+Quando um `RootBoss` se divide, a HUD guarda os fragmentos vivos e mantém
+`_boss_split` enquanto pelo menos um deles existe. A rotina de desenho, porém,
+iterava sempre por dois slots e fabricava uma linha para cada slot. Se o
+fragmento A ou B morresse primeiro, o slot ausente ainda recebia painel, label e
+20 segmentos vazios calculados com fração `0.0`; na prática aparecia uma segunda
+barra fantasma.
+
+O mesmo caminho sobrescrevia o nome com `ROOT.exe // FORKED`, mesmo quando o
+boss que gerou o fork era `SEGFAULT`, `BLUE SCREEN` ou outra variante de
+`RootBoss`. O título era informação de gameplay e não apenas decoração: uma
+variante errada reduz a leitura da ameaça e contradiz o boss que o jogador
+acabou de enfrentar.
+
+### Decisão e alternativas
+
+Foi separado o conceito de capacidade visual do conceito de entidades ativas.
+`boss_bar_rects(viewport, true)` continua fornecendo duas posições possíveis,
+preservando a geometria existente e os contratos de layout; o desenho agora
+consome somente `boss_split_rows_snapshot()`, que retorna um registro por
+fragmento vivo. As linhas são compactadas para as primeiras posições visuais,
+mas cada registro conserva `mini_slot` e o label `MINI-A`/`MINI-B`, portanto um
+fragmento B sobrevivente não perde sua identidade.
+
+O título do fork passa a derivar do boss rastreado. Há fallback para o título
+do primeiro fragmento quando o boss original já foi liberado e, por último,
+para `ROOT.exe` quando nenhum título útil está disponível. Isso mantém a HUD
+robusta sem inventar texto para uma variante desconhecida.
+
+Foram consideradas estas alternativas:
+
+- manter duas linhas e apenas esconder a fração 0; foi descartado porque ainda
+  deixaria label, moldura ou espaço visual reservado para uma entidade morta;
+- manter a linha no slot original, deixando um buraco quando só B vive; foi
+  descartado porque comunica layout incompleto e desperdiça área numa HUD
+  compacta;
+- renomear todo fragmento para `MINI-1`/`MINI-2`; foi descartado porque remove
+  a identidade A/B já usada pelo spawn e pelos diagnósticos;
+- usar sempre `ROOT.exe` para manter um texto conhecido; foi descartado porque
+  mascara variantes reais e o boss já expõe `boss_title` como fonte de verdade;
+- alterar `boss_bar_rects()` para retornar quantidade variável; foi descartado
+  para não quebrar callers e probes que usam a geometria máxima como contrato;
+  a variabilidade pertence ao snapshot de entidades, não ao layout possível.
+
+### Implementação
+
+- `src/ui/hud.gd::set_boss_fragments()` agora constrói o título a partir do boss
+  atual, com fallback seguro derivado do fragmento;
+- `src/ui/hud.gd::boss_split_rows_snapshot()` poda referências inválidas e
+  retorna somente fragmentos vivos, com slot, label e fração de vida;
+- `_boss_split_bar()` usa esse snapshot, compacta os registros nas linhas
+  disponíveis e não desenha uma linha quando não existe fragmento correspondente;
+- `tools/boss_bar_identity_probe.gd/.tscn` exercita uma variante `SEGFAULT`,
+  dois fragmentos, a morte do fragmento A e o caso isolado do fragmento B;
+- `tools/validate_input_dispatch.sh` passou a executar o probe P4 headless e
+  sob Xvfb, sempre com áudio dummy.
+
+### Evidência red → green
+
+O probe vermelho terminou com exit 1 e duas falhas controladas: a HUD não
+possuía o contrato de dados das linhas vivas e o título continuava sendo o
+hardcode `ROOT.exe // FORKED`. A inspeção do código anterior também confirmou
+o caminho do ghost: `for slot in 2` desenhava os dois rows e calculava `0.0`
+quando não encontrava o fragmento daquele slot.
+
+Depois da implementação, o probe terminou `PROBE_DONE fails=0`, com 10 passes
+em headless e 10 passes em Xvfb. Ele comprovou que dois fragmentos geram duas
+linhas, que cada linha conserva o slot A/B, que um único fragmento gera uma
+única linha com vida positiva e que um B isolado continua identificado como
+`MINI-B` sem criar uma linha fantasma. O mesmo caminho de snapshot é consumido
+pela rotina `_draw`, evitando que o teste valide uma regra paralela à que o
+jogador vê.
+
+### Impacto, compatibilidade e limites
+
+A mudança é de apresentação e diagnóstico. Não altera HP, divisão, spawn,
+recompensa, ordem de morte, colisão, boss AI, save ou balanceamento. A
+geometria máxima de duas linhas e o contrato `boss_bar_rects()` permanecem
+compatíveis; a única alteração visível é remover entidade ausente e corrigir o
+nome do fork.
+
+Não há breaking change intencional. `boss_split_rows_snapshot()` é uma API de
+observabilidade/apresentação local, não um contrato público de gameplay. O
+probe usa nós `RootBoss` reais, mas ainda não captura uma imagem e faz OCR/pixel
+assertion da barra em todas as escalas; a prova atual é de dados e integração
+com `_draw`, não de aprovação estética final.
+
+### Segunda análise e risco residual
+
+Foi revisado o momento de vida do boss original: no caminho real, o título é
+copiado enquanto `hud.boss` ainda existe; se a referência já não for válida,
+o primeiro fragmento fornece o fallback. Foi revisado também o caminho de
+remoção: a Arena apaga o fragmento morto, o HUD poda referências inválidas e o
+snapshot não fabrica fração para slot ausente. A compactação deliberadamente
+não muda o `mini_slot`, apenas o índice visual, evitando trocar A por B.
+
+O risco restante é exclusivamente de apresentação: títulos de variantes muito
+longos ainda dependem dos limites de texto do HUD legado, e a disposição
+compactada merece revisão humana em portrait/micro-narrow. A implementação não
+afirma que a barra está esteticamente final; afirma somente que não há ghost
+row lógico no estado testado.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário

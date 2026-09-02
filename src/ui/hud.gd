@@ -423,7 +423,14 @@ func set_boss_fragments(minis: Array) -> void:
 	)
 	_boss_split = _boss_fragments.size() > 0
 	if _boss_split:
-		_boss_name = "ROOT.exe // FORKED"
+		var fork_title := "ROOT.exe"
+		if boss != null and is_instance_valid(boss) and not boss.boss_title.is_empty():
+			fork_title = boss.boss_title
+		elif not _boss_fragments.is_empty():
+			var fragment_title := _boss_fragments[0].boss_title.trim_prefix("MINI-")
+			if not fragment_title.is_empty():
+				fork_title = fragment_title
+		_boss_name = fork_title + " // FORKED"
 
 func clear_boss_encounter() -> void:
 	boss = null
@@ -445,6 +452,21 @@ func _prune_boss_fragments() -> void:
 			valid_fragments.append(fragment)
 	_boss_fragments = valid_fragments
 	_boss_split = _boss_fragments.size() > 0
+
+func boss_split_rows_snapshot() -> Array[Dictionary]:
+	_prune_boss_fragments()
+	var result: Array[Dictionary] = []
+	for fragment in _boss_fragments:
+		if not is_instance_valid(fragment):
+			continue
+		var slot := clampi(int(fragment.get_meta("mini_slot", 0)), 0, 1)
+		var max_hp := maxf(float(fragment.max_hp), 1.0)
+		result.append({
+			"slot": slot,
+			"label": "MINI-A" if slot == 0 else "MINI-B",
+			"fraction": clampf(float(fragment.hp) / max_hp, 0.0, 1.0),
+		})
+	return result
 
 func _process(delta: float) -> void:
 	if size != _aux_size:
@@ -872,22 +894,18 @@ func _boss_bar(f: Font) -> void:
 func _boss_split_bar(f: Font) -> void:
 	var region: Rect2 = layout_snapshot()["boss"]
 	var rows := boss_bar_rects(size, true)
+	var live_rows := boss_split_rows_snapshot()
+	if live_rows.is_empty():
+		return
 	var col := Balance.COL_DANGER
 	_draw_angular_panel(region, col, 0.045)
-	for slot in 2:
-		var row: Rect2 = rows[slot]
-		var label := "MINI-A" if slot == 0 else "MINI-B"
+	for display_index in mini(live_rows.size(), rows.size()):
+		var row: Rect2 = rows[display_index]
+		var row_data: Dictionary = live_rows[display_index]
+		var label := str(row_data.get("label", "MINI"))
 		draw_string(f, Vector2(region.position.x, row.position.y + row.size.y), label, HORIZONTAL_ALIGNMENT_LEFT, 58.0, 10, Color(col.r, col.g, col.b, 0.9))
 		draw_rect(row, Color(col.r, col.g, col.b, 0.12))
-		var fragment: RootBoss = null
-		for candidate in _boss_fragments:
-			if is_instance_valid(candidate) and clampi(int(candidate.get_meta("mini_slot", 0)), 0, 1) == slot:
-				fragment = candidate
-				break
-		var frac := 0.0
-		if fragment != null:
-			var max_hp := maxf(float(fragment.max_hp), 1.0)
-			frac = clampf(float(fragment.hp) / max_hp, 0.0, 1.0)
+		var frac := float(row_data.get("fraction", 0.0))
 		var filled := clampi(int(ceilf(frac * 20.0)), 0, 20)
 		for i in 20:
 			var seg := Rect2(row.position.x + i * (row.size.x / 20.0) + 1.0, row.position.y, row.size.x / 20.0 - 2.0, row.size.y)
