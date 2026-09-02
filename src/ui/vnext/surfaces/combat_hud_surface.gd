@@ -65,10 +65,10 @@ func sync_from_hud(source: Node, damage_direction: String = "NONE") -> void:
 	if float(source.get("_banner_t")) > 0.0:
 		var banner_text := str(source.get("_banner_text"))
 		var banner_sub := str(source.get("_banner_sub"))
-		# Cycle is a continuous status in the patch dock. Keep the temporary
-		# event slot for its explanation so the same cycle label is not shouted
-		# twice in two strong locations.
-		if banner_text.begins_with("CYCLE ") or banner_text.contains("WAVE "):
+		# Cycle is a continuous status in the patch dock. Only discard a banner
+		# that is itself the old cycle label; named events such as WAVE INBOUND
+		# and story announcements still belong in the temporary event slot.
+		if banner_text.begins_with("CYCLE "):
 			event_text = banner_sub if not banner_sub.is_empty() else banner_text
 		else:
 			event_text = banner_text

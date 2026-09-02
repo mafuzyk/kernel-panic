@@ -1330,6 +1330,64 @@ de UX: reiniciar pela pausa deixou de ser uma ação de um toque e exige duas
 ativações deliberadas, igual ao abandono. O restart por `hold R` durante
 gameplay continua sendo um caminho separado de speedrun e não foi alterado.
 
+## 7.7 H1 — hierarquia do anúncio de ciclo no HUD legado
+
+### Problema confirmado
+
+O HUD legado desenhava `CYCLE NN` como estado contínuo no encounter panel e o
+`Arena._on_wave_started()` enviava a mesma informação de novo no banner grande
+(`CYCLE NN` ou `CYCLE NN // ANOMALY`). Em uma tela de combate com pouco texto,
+essa repetição fazia o anúncio parecer mais importante do que o evento e
+ocupava duas âncoras fortes para uma única informação.
+
+### Alteração
+
+- `src/arena/arena.gd` agora usa `WAVE INBOUND` + `PURGE THE DAEMONS` para uma
+  onda normal e `ANOMALY INBOUND` + `ROOT DAEMON INBOUND` para um boss;
+- `CYCLE NN` continua sendo calculado e desenhado no encounter panel, então o
+  jogador não perde a leitura do ciclo atual;
+- o título do boss continua sendo um evento nomeado, não foi substituído por
+  um rótulo genérico;
+- `src/ui/vnext/surfaces/combat_hud_surface.gd` deixou de tratar qualquer texto
+  contendo `WAVE ` como um ciclo descartável. Ele só remove a forma legada
+  quando o banner começa exatamente com `CYCLE `; anúncios nomeados e Story
+  permanecem no registro temporário;
+- `tools/hud_hierarchy_probe.gd` cobre o Arena real no modo legado e verifica
+  onda normal, onda de boss, subtítulos, estado do ciclo e ausência de
+  duplicação;
+- `tools/vnext_combat_hud_probe.gd` cobre também a diferença entre um banner
+  legado `CYCLE 02` e um evento nomeado `WAVE INBOUND` no adapter.
+
+### Decisão e alternativas
+
+A decisão foi remover somente a informação contínua do banner, preservando um
+nome curto para o evento. Trocar o banner por silêncio reduziria a duplicação,
+mas perderia feedback de início de onda; mover `CYCLE` para fora do HUD
+eliminaria a âncora contínua usada para orientar o jogador; e manter a forma
+antiga deixaria a falha de hierarquia intacta. O adapter vNext conserva uma
+regra de compatibilidade para banners antigos, mas não faz uma heurística ampla
+com a palavra `WAVE`, porque isso apagava eventos legítimos de Story e de onda.
+
+### Evidência e limites
+
+`res://tools/hud_hierarchy_probe.tscn` terminou com 10 passes e zero falhas em
+headless silencioso. O probe criou uma Arena real, confirmou o HUD legado,
+acionou onda normal e boss pelo método de produção e inspecionou os textos
+resultantes. O probe vNext terminou com zero falhas após validar os dois
+formatos do adapter. `git diff --check` também passou.
+
+O teste é semântico e não substitui uma captura humana em todos os tamanhos.
+Ele não prova que o texto traduzido para PT-BR caberá nas mesmas linhas; isso
+continua parte da etapa de localização e do passe H2/H5.
+
+### Impacto
+
+Não há alteração de gameplay, save, balanceamento, input, API pública ou
+compatibilidade de dados. A mudança observável é o texto do anúncio de início
+de onda/boss. Os banners de clear, Story e unlock continuam sendo eventos
+temporários. O caminho vNext mantém compatibilidade com chamadas antigas de
+`show_banner()`.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário

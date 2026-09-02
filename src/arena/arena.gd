@@ -542,11 +542,11 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 	Game.log_event("CYCLE %02d START" % wave)
 	if is_boss:
 		Game.log_event("ANOMALY INBOUND // %s" % RootBoss.title_for_index(int(Game.wave / float(Balance.BOSS_EVERY))))
-		hud.show_banner("CYCLE %02d // ANOMALY" % wave, "ROOT DAEMON INBOUND", 2.2)
+		hud.show_banner("ANOMALY INBOUND", "ROOT DAEMON INBOUND", 2.2)
 		Sfx.play("boss", 1.0, 0.0)
 		_intro_kit._run_boss_intro()
 	else:
-		hud.show_banner("CYCLE %02d" % wave, "PURGE THE DAEMONS", 1.8)
+		hud.show_banner("WAVE INBOUND", "PURGE THE DAEMONS", 1.8)
 		Sfx.play("wave", 1.0 + wave * 0.01, -6.0)
 	if wave >= 5 and not Game.unlocked_programs.has("daemon"):
 		Game.unlock_program("daemon")

@@ -74,6 +74,9 @@
 - Changed micro-narrow, and narrow layouts at 110%+ text scale, to use compact
   ability forms such as `OC RDY` and `SH RDY`; regular narrow at default scale
   keeps full program-specific state names.
+- Changed combat wave announcements so the continuous `CYCLE NN` register is
+  not repeated as the large temporary banner; named wave and anomaly events
+  remain visible in the event slot.
 - Kept the legacy route as the default rollback path; no public default switch
   was changed in this development checkpoint.
 
@@ -107,6 +110,8 @@
   combat HUD.
 - Fixed a 320×568 HUD collision caused by treating every portrait window as a
   two-column narrow desktop.
+- Fixed the legacy combat HUD repeating `CYCLE NN` in both the encounter panel
+  and the large wave/boss announcement.
 
 ## Improved
 
@@ -171,6 +176,7 @@
 - Input dispatch: 38 headless passes and 40 Xvfb/debug passes, 0 failures;
   desktop debug was confirmed in the Xvfb run.
 - Legacy menu launch prompt: 9 passes, 0 failures.
+- H1 HUD hierarchy: 10 focused headless passes, 0 failures.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,

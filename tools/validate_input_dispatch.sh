@@ -121,6 +121,7 @@ run_headless_probe "probe-b1-menu-overlay" "B1 menu overlay input probe" "res://
 run_headless_probe "probe-b2-footer-actions" "B2 menu footer action probe" "res://tools/menu_footer_action_probe.tscn"
 run_headless_probe "probe-b5-terminal-history" "B5 terminal history probe" "res://tools/terminal_history_probe.tscn"
 run_headless_probe "probe-b6-menu-prompt" "B6 menu prompt probe" "res://tools/menu_prompt_probe.tscn"
+run_headless_probe "probe-h1-hud-hierarchy" "H1 HUD banner hierarchy probe" "res://tools/hud_hierarchy_probe.tscn"
 run_headless_probe "probe-r18-touch-multitouch" "R18 touch multitouch action probe" "res://tools/touch_multitouch_probe.tscn"
 run_headless_probe "probe-vnext-primitives" "VNext code-drawn primitive contract" "res://tools/vnext_primitives_probe.tscn"
 run_headless_probe "probe-vnext-entity-illustration" "VNext code-drawn entity illustration contract" "res://tools/vnext_entity_illustration_probe.tscn"

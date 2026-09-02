@@ -46,9 +46,12 @@ final. Um item de backlog = um commit; rodar
 
 ## Fase 2 — hierarquia e legibilidade do HUD
 
-- [ ] **H1 — Banner duplicado.** "CYCLE NN" aparece no encounter panel do HUD e
+- [x] **H1 — Banner duplicado.** "CYCLE NN" aparece no encounter panel do HUD e
   de novo no banner grande (`arena.gd:448/451`). Colapsar: banner grande só
   para eventos (wave start/boss/story), encounter panel para o estado contínuo.
+  O HUD legado agora anuncia `WAVE INBOUND`/`ANOMALY INBOUND`, mantendo
+  `CYCLE NN` como registro contínuo; o adaptador vNext só comprime a forma
+  antiga que era exatamente um banner `CYCLE ...`.
 - [ ] **H2 — Contraste do event log/dicas.** Alpha 0.3–0.5 em fontes 9–12px
   (`hud.gd:521-523`, tooltip `hud.gd:630-632`). Subir para >=0.7 e usar
   `TacticalUI.ellipsis_fit` (já existe, `tactical_ui.gd:128-134`).

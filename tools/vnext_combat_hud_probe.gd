@@ -132,6 +132,10 @@ func _ready() -> void:
 	arena_hud.call("sync_from_hud", arena_hud_adapter)
 	var event_report: Dictionary = arena_hud.call("text_overflow_report")
 	_check(str(event_report.get("fields", {}).get("event", {}).get("text", "")) == "PURGE THE DAEMONS", "cycle banner keeps cycle in continuous dock and event copy temporary")
+	arena_hud_adapter.call("show_banner", "WAVE INBOUND", "PURGE THE DAEMONS", 2.0)
+	arena_hud.call("sync_from_hud", arena_hud_adapter)
+	event_report = arena_hud.call("text_overflow_report")
+	_check(str(event_report.get("fields", {}).get("event", {}).get("text", "")) == "WAVE INBOUND // PURGE THE DAEMONS", "named wave event remains visible in the temporary event slot")
 	arena_player.call("take_damage", Vector2(-100.0, 0.0), "PROBE DAMAGE")
 	await get_tree().process_frame
 	await get_tree().process_frame
