@@ -48,6 +48,8 @@
   introductions, including headless and desktop-debug execution.
 - Added a focused boss-bar identity probe covering split variants, live
   fragment rows and the one-fragment state.
+- Added a focused legacy combat-HUD resize probe covering same-aspect maximize,
+  wide desktop reflow and the physical/logical surface transform.
 
 ## Changed
 
@@ -115,6 +117,8 @@
   same nodes.
 - Changed split boss presentation to derive its fork title from the spawned
   boss variant and to compact the visible rows around live fragments.
+- Changed the legacy combat HUD to rebuild its physical-window surface after
+  maximize/resize, while retaining a uniform fit into the logical canvas.
 
 ## Fixed
 
@@ -181,6 +185,9 @@
   one starts, including the delayed boss-intro collapse.
 - Fixed the split boss HUD drawing a `MINI-B` row at 0% when only one fragment
   remained, and fixed forked variants being mislabeled as `ROOT.exe`.
+- Fixed the legacy combat HUD remaining clustered around the old 1280-wide
+  composition after a wide desktop window was opened or resized; score and
+  patch registers now follow the real right safe edge.
 
 ## Improved
 
@@ -228,6 +235,9 @@
 - Improved boss readability by preserving fragment A/B identity while showing
   only live health bars and by retaining the actual boss family in the fork
   title.
+- Improved resize resilience with a physical-window signal plus a cheap size
+  signature fallback, so a compositor that skips a logical viewport notification
+  cannot leave the HUD using stale geometry.
 
 ## Performance
 
@@ -273,9 +283,12 @@
 - Legacy menu launch prompt: 9 passes, 0 failures.
 - H1 HUD hierarchy: 10 focused headless passes, 0 failures.
 - H2 HUD legibility: 8 focused headless passes, 0 failures.
-- H3 HUD scale matrix: 24 headless / 29 Xvfb passes, 0 failures; the effective
+- H3 HUD scale matrix: 29 headless / 34 Xvfb passes, 0 failures; the effective
   HUD canvas matched the stretched viewport in wide, ultrawide and portrait
   samples.
+- H8 legacy HUD physical-window reflow: 4 headless / 14 Xvfb passes, 0
+  failures; same-aspect `1600×900` and wide `1776×975` cases followed the
+  physical window and kept a uniform logical fit.
 - H4 HUD state signal probe: 12 focused headless passes, 0 failures; critical
   health, dash cooldown, damage direction and Rootlet shield readiness were
   checked through the live HUD state path.

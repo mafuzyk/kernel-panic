@@ -3,13 +3,13 @@
 **Data:** 2026-09-02
 **Branch:** `fuzzy/ui-reference-remake`
 **Base do checkpoint:** `96ac94c` (`docs: close master plan execution checkpoint`)
-**Ponta revisada:** `28d2a48` (`fix(ui): remove split boss bar ghosts`)
+**Ponta de código revisada:** `63c04a8` (`fix(ui): reflow legacy HUD after physical resize`)
 **Worktree:** `/tmp/kernel-panic-ui-reference-remake`
 **Checkout original preservado:** `/home/mafu/Projetos/kernel-panic`
 **Status Git:** branch publicada em `origin/fuzzy/ui-reference-remake`, sem
 merge em `main` e sem force-push
-**Escopo do delta:** 32 commits, 88 arquivos, 8.455 linhas adicionadas e
-542 removidas em relação à base do checkpoint
+**Escopo do delta de código até a ponta revisada:** 35 commits, 95 arquivos,
+9.200 linhas adicionadas e 562 removidas em relação à base do checkpoint
 **Áudio nas verificações:** sempre `--audio-driver Dummy`
 
 ## 1. Veredito executivo
@@ -153,6 +153,8 @@ Como a vNext ainda é opt-in, o HUD legado também recebeu um passe crítico:
 - hint `SWIPE TO SCROLL` limitado a touch;
 - fade de banner corrigido para não começar totalmente invisível em durações
   longas;
+- reflow físico do HUD legado corrigido para que score, encounter, evento,
+  dash e patch dock acompanhem a largura real depois de maximize/resize;
 - dash glyph legado impedido de reaparecer sobre o HUD vNext;
 - foco inicial e navegação por teclado adicionados a pause, terminal e
   game-over;
@@ -218,14 +220,15 @@ commits desses itens.
 | P1 | relayout/cache repetidos | chave de layout, cache e callbacks idempotentes |
 | P3 | dicas/intros acumulavam tweens | ownership, `kill()` e callback nomeado |
 | P4 | linha 0% fantasma e fork sempre ROOT | rows de fragmentos vivos e título derivado do boss |
+| H8 | HUD legado permanecia na largura lógica antiga após resize físico | evento da janela, assinatura de tamanho e probe de reflow físico |
 
 ## 5. Código, commits e documentação
 
 O diff exato pode ser auditado com:
 
 ```sh
-git diff --name-status 96ac94c..28d2a48
-git diff --stat 96ac94c..28d2a48
+git diff --name-status 96ac94c..63c04a8
+git diff --stat 96ac94c..63c04a8
 ```
 
 As áreas de produção alteradas incluem:
@@ -245,7 +248,7 @@ As áreas de produção alteradas incluem:
 - `tools/validate_input_dispatch.sh`: agregação, timeout, save isolado,
   áudio dummy, completion markers e separação de erros;
 - probes focados de resize, escala, legibilidade, estados, overlays, foco,
-  cache, tweens e boss bars.
+  cache, tweens, boss bars e reflow físico do HUD legado.
 
 Commits da branch atual, em ordem:
 
@@ -282,6 +285,9 @@ b63c968 docs: correct h7 validation count
 7ee2bbf perf(ui): cache repeated layout work
 35077b8 fix(ui): cancel overlapping presentation tweens
 28d2a48 fix(ui): remove split boss bar ghosts
+51c06e3 docs: finalize UI reference remake checkpoint
+28130f8 docs: align performance evidence with final run
+63c04a8 fix(ui): reflow legacy HUD after physical resize
 ```
 
 O delta herdado do plano mestre continua no ancestral `96ac94c` e inclui
@@ -297,11 +303,12 @@ Comando executado:
 
 ```sh
 KP_VALIDATION_TIMEOUT_SECONDS=120 \
-KP_VALIDATION_LOGS=/tmp/kernel-panic-p4-validation-final \
+KP_VALIDATION_LOGS=/tmp/kernel-panic-h8-validation-20260902 \
 tools/validate_input_dispatch.sh
 ```
 
-Resultado registrado em `/tmp/kernel-panic-p4-validation-final.log`:
+Resultado registrado em `/tmp/kernel-panic-h8-validation-20260902/suite-headless.log`
+e nos logs de cada probe dentro do mesmo diretório:
 
 ```text
 VALIDATION OK (teardown diagnostics above remain non-gating)
@@ -319,8 +326,8 @@ teardown ficaram visíveis no log e são listados abaixo; não foram silenciados
 | --- | ---: | ---: |
 | input / R04 / R05 / R06 / R07 / R08 | 38 / 7 / 28 / 7 / 4 / 7 | 0 |
 | B1 / B2 / B5 / B6 | 10 / 8 / 11 / 9 | 0 |
-| H1 / H2 / H3 / H4 | 10 / 8 / 24 / 12 | 0 |
-| H5 / H6 / H7 | 69 / 25 / 28 | 0 |
+| H1 / H2 / H3 / H4 | 10 / 8 / 29 / 12 | 0 |
+| H5 / H6 / H7 / H8 | 69 / 25 / 28 / 4 | 0 |
 | N1 / N2 / N3 / N4 | 16 / 17 / 28 / 9 | 0 |
 | R18 / primitives / entity illustration | 6 / 18 / 143 | 0 |
 | E2 / E3 / E4 / E5 | 77 / 35 / 20 / 18 | 0 |
@@ -337,7 +344,8 @@ teardown ficaram visíveis no log e são listados abaixo; não foram silenciados
 | Grupo | Passes | Falhas |
 | --- | ---: | ---: |
 | input desktop/debug | 40 | 0 |
-| H3 HUD scale | 29 | 0 |
+| H3 HUD scale | 34 | 0 |
+| H8 legacy HUD physical-window reflow | 14 | 0 |
 | G2 display | 12 | 0 |
 | N4 display desktop / touch | 11 / 9 | 0 |
 | G3 / G4 | 44 / 52 | 0 |
@@ -360,6 +368,10 @@ regressão de ESC existia; um headless verde sozinho não bastaria.
   ambiente, incluindo o collapse atrasado cancelável.
 - **P4:** red reproduziu a linha fantasma e título hardcoded; green 10/10 em
   cada ambiente, com fragmentos vivos, identidade A/B e título da variante.
+- **H8:** a contraprova sem atualização de resize deixou o HUD em `1280×720`
+  após janelas `1600×900`/`1776×975` e falhou 5 checks; green terminou com
+  4 passes headless e 14 passes Xvfb, incluindo o fallback de assinatura e
+  score/patch dock nas bordas físicas.
 
 ## 7. Performance, teardown e compatibilidade
 

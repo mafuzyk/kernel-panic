@@ -3,10 +3,10 @@
 **Data:** 2026-09-02
 **Branch:** `fuzzy/ui-reference-remake`
 **Base:** `96ac94c` (`docs: close master plan execution checkpoint`)
-**Tip atual:** `28d2a48` (`fix(ui): remove split boss bar ghosts`)
+**Tip de código atual:** `63c04a8` (`fix(ui): reflow legacy HUD after physical resize`)
 **Worktree de execução:** `/tmp/kernel-panic-ui-reference-remake`
 **Checkout original preservado:** `/home/mafu/Projetos/kernel-panic`
-**Estado:** slice visual/UI publicado; backlog B1–B7, H1–H7, N1–N4 e P1/P3/P4
+**Estado:** slice visual/UI publicado; backlog B1–B7, H1–H8, N1–N4 e P1/P3/P4
 fechado nesta branch; sem merge em `main`
 **Áudio nas verificações:** sempre desabilitado com `--audio-driver Dummy`
 
@@ -699,6 +699,8 @@ Todos os comandos foram executados com `--audio-driver Dummy`.
 | E2 legacy enemy presentation | exit 0, 77 passes, 0 fails |
 | Physical menu resize Xvfb | exit 0, 8 passes, 0 fails |
 | Physical Arena overlays Xvfb | exit 0, 12 passes, 0 fails |
+| Legacy HUD physical-window reflow headless | exit 0, 4 passes, 0 fails |
+| Legacy HUD physical-window reflow Xvfb | exit 0, 14 passes, 0 fails |
 
 O validador acumulado final terminou com:
 
@@ -743,6 +745,14 @@ godot --audio-driver Dummy --path . \
 res://tools/vnext_arena_window_layout_probe.tscn
 ```
 
+Rodar a regressão do HUD legado em uma janela física wide:
+
+```sh
+xvfb-run -a -s '-screen 0 1920x1080x24' \
+godot --audio-driver Dummy --path . \
+res://tools/legacy_hud_adaptive_probe.tscn
+```
+
 ### Capturas visuais inspecionadas
 
 As capturas são evidência local temporária em `/tmp` e não entram no commit:
@@ -757,6 +767,7 @@ As capturas são evidência local temporária em `/tmp` e não entram no commit:
 - HUD reference narrow: `/tmp/kernel-panic-ui-captures-hud-final/hud-reference-pass-432x720.png`;
 - HUD reference micro-narrow: `/tmp/kernel-panic-ui-captures-hud-final/hud-reference-pass-micro-logical-v3.png`;
 - HUD Arena real after duplicate-dash fix: `/tmp/kernel-panic-ui-captures-hud/hud-runtime-vnext-v2.png`;
+- HUD legado wide após H8: `/tmp/kernel-panic-h8-legacy-hud.png`;
 - pause wide: `/tmp/kernel-panic-ui-captures.6lgyl3/pause-wide.png`;
 - pause narrow após correção: `/tmp/kernel-panic-ui-captures.bJIWwN/pause-narrow-v2.png`;
 - terminal narrow após correção: `/tmp/kernel-panic-ui-captures.o01WTq/terminal-narrow-v2.png`.
@@ -1492,7 +1503,10 @@ canvas expandido antes de existir uma matriz de export real.
 
 ### Evidência e limites
 
-O probe terminou com 24 passes headless e 29 passes no Xvfb wide, zero falhas.
+O probe original terminou com 24 passes headless e 29 passes no Xvfb wide, zero
+falhas. Depois de H8, as assertions de tamanho local foram incorporadas e a
+versão atual termina com 29 passes headless e 34 passes no Xvfb wide, zero
+falhas.
 O validador agora executa as duas modalidades; o log Xvfb é
 `.godot/codex-review-lote-1/probe-h3-hud-scale-matrix-xvfb.log` quando a suíte
 é rodada no checkout. Isso comprova invariantes de transformação, não a
@@ -2547,6 +2561,145 @@ longos ainda dependem dos limites de texto do HUD legado, e a disposição
 compactada merece revisão humana em portrait/micro-narrow. A implementação não
 afirma que a barra está esteticamente final; afirma somente que não há ghost
 row lógico no estado testado.
+
+## 7.21 H8 — HUD legado acompanha resize físico mesmo quando o aspect ratio não muda
+
+### Sintoma observado
+
+A captura enviada durante a revisão mostrava uma janela física de aproximadamente
+`1776×975`: a moldura da Arena, o grid e o playfield ocupavam a tela inteira,
+mas os módulos do HUD terminavam por volta de `1280px`. O resultado era um
+grande vazio à direita, com `SCORE`, `CYCLE` e o registro de evento ainda
+posicionados como se a janela tivesse a largura-base. Isso não era uma
+diferença estética aceitável entre desktop e ultrawide; era uma composição
+parcialmente adaptada, porque dois sistemas estavam usando larguras diferentes.
+
+O conteúdo da captura foi identificado como o HUD legado, não como a rota
+vNext: os textos `INTEGRITY`, `PROGRAM // DAEMON`, `DASH ACTIVE`, `CYCLE` e
+`SCORE` são desenhados por `src/ui/hud.gd`. Isso foi importante para não tentar
+corrigir a tela errada ou atribuir o problema ao shell novo.
+
+### Causa confirmada
+
+O HUD é filho de uma `CanvasLayer` e tem duas responsabilidades de coordenada:
+
+1. `TacticalUI.layout()` precisa receber a área física disponível para colocar
+   os registros nas bordas reais da janela;
+2. o projeto usa `canvas_items` com `aspect=expand`, portanto o resultado ainda
+   precisa ser encaixado no viewport lógico sem distorcer fontes e painéis.
+
+`_apply_surface_transform()` já continha a matemática correta para essa
+segunda etapa: tamanho local igual ao tamanho físico, seguido de uma escala
+uniforme `viewport.x / window.x`, fazendo a superfície efetiva coincidir com o
+canvas lógico. O defeito era a dependência de uma notificação de resize para
+reaplicar essa transformação. Se a janela fosse maximizada, restaurada ou
+redimensionada antes/depois de a viewport lógica mudar — especialmente no caso
+de `1600×900`, em que o aspect ratio permanece próximo de `16:9` — o `Hud`
+poderia continuar com `size=1280×720`. A arena de fundo continuava preenchendo a
+janela, então a divergência ficava imediatamente visível.
+
+A contraprova foi executada no checkout isolado: com a atualização de resize
+desligada, o probe registrou `hud_size=(1280,720)` depois de solicitar
+`1600×900` e `1776×975`, falhando em cinco assertions (`red-nosignal-2`).
+Assim, a hipótese não ficou baseada somente na aparência da captura.
+
+### Decisão técnica
+
+Foi mantida a arquitetura de superfície física + fit lógico, com duas camadas
+de proteção:
+
+- `get_window().size_changed` é o caminho rápido e expressa a fonte correta
+  da dimensão física consumida pelo layout;
+- `_surface_transform_needs_refresh()` compara a assinatura da janela e da
+  viewport uma vez por frame e reaplica a transformação se uma mudança não
+  tiver produzido a notificação esperada. A comparação é barata e não executa
+  relayout em frames estáveis. Em headless, a assinatura ignora a dimensão
+  física sintética para não transformar testes lógicos em uma falsa simulação
+  de display.
+
+Somente uma conexão de resize é feita. Durante a investigação, conectar
+simultaneamente `get_viewport().size_changed` e `get_window().size_changed`
+produziu a mensagem de conexão duplicada do Godot neste root; a janela ficou
+como fonte explícita, e a assinatura cobre o caso em que o gerenciador de
+janela não entrega o evento no momento esperado.
+
+Foi testada e descartada uma alternativa aparentemente simples: usar
+`scale=1.0` e deixar o stretch cuidar da ampliação. A captura resultante
+expandiu a superfície lógica sobre a janela e cortou os registros da direita;
+ela passava uma assertion simplificada, mas falhava visualmente. O scale
+uniforme inverso foi preservado porque é o que mantém tamanho tipográfico,
+safe area e layout físico coerentes ao mesmo tempo.
+
+### Implementação
+
+- `src/ui/hud.gd` agora escuta o `Window.size_changed`, guarda as assinaturas
+  física/lógica aplicadas e verifica mudanças não notificadas no início do
+  processamento do HUD. A ordem da transformação ficou explícita: primeiro
+  recebe o tamanho físico, depois calcula o fit uniforme e então atualiza os
+  anchors auxiliares. Nenhuma regra de dano, score, spawn, input, save ou
+  balanceamento foi tocada.
+- `tools/legacy_hud_adaptive_probe.gd/.tscn` é um teste de regressão pelo
+  caminho real `Arena → CanvasLayer → Hud`. Ele solicita primeiro `1600×900`
+  (mesmo aspect ratio do design) e depois `1776×975`, registra janela,
+  viewport, tamanho local, escala efetiva, score e patch dock, e verifica que
+  os registros chegam às bordas físicas.
+- `tools/hud_scale_matrix_probe.gd` passou a verificar também o tamanho local
+  antes do fit, sem perder a assertion de escala uniforme e de coincidência
+  entre superfície efetiva e viewport lógica.
+- `tools/validate_input_dispatch.sh` executa H8 headless e em Xvfb com áudio
+  dummy, exigindo `PROBE_DONE fails=0` e reportando os diagnósticos de teardown
+  separadamente dos erros de runtime.
+
+### Evidência red → green
+
+O cenário vermelho sem callback de resize terminou com exit 1 e `fails=5`:
+depois de `1600×900` e `1776×975`, o HUD permanecia em `1280×720`, o score e o
+patch dock continuavam na composição antiga e a superfície não acompanhava a
+janela física. O log usado foi
+`/tmp/kernel-panic-h8-red-nosignal-2.log`; essa alteração foi temporária e
+nunca foi deixada na branch.
+
+Com o evento físico e o fallback de assinatura, o mesmo probe terminou:
+
+- headless: 4 passes, zero falhas; a matemática lógica continua verificável
+  sem fingir que existe uma tela física;
+- Xvfb `1920×1080`: 14 passes, zero falhas; em `1600×900`, o HUD passou a
+  `size=(1600,900)`, `scale=(0.8,0.8)` e score/patches ancorados à largura
+  `1600`; em `1776×975`, passou a `size=(1776,975)`, `scale≈0.738` e os dois
+  registros chegaram à borda `1776`;
+- fallback isolado: com a conexão de sinal temporariamente substituída por
+  `pass`, os mesmos 14 checks continuaram verdes, comprovando que a assinatura
+  por frame não é código morto.
+
+O H3 scale matrix também terminou com 29 passes headless e 34 em Xvfb, zero
+falhas, incluindo a nova verificação de tamanho local. Uma captura visual
+silenciosa do Arena real em `1776×975` foi salva em
+`/tmp/kernel-panic-h8-legacy-hud.png` e inspecionada: os módulos de integridade,
+encounter, score/evento, dash e patch dock ocupam os dois lados da moldura,
+sem o vazio à direita reproduzido na captura do usuário.
+
+### Segunda análise, impacto e limites
+
+Foi revisado o risco de corrigir somente a aparência: o probe mede a janela
+física e a transformação efetiva, mas também exige que `layout_snapshot(size)`
+use a largura atual para score e patches. Foi revisado o risco de uma escala
+não uniforme: os eixos X/Y são sempre iguais, inclusive no portrait. Foi
+revisado o risco de performance: a comparação acontece por frame, mas o
+relayout só acontece quando a assinatura muda; o cache de layout continua
+evitando reconstrução repetida em frames estáveis.
+
+O impacto é de apresentação e responsividade. Não há breaking change de save,
+API de gameplay, input ou balance. A correção só está publicada em
+`fuzzy/ui-reference-remake`; o checkout original em
+`/home/mafu/Projetos/kernel-panic` não foi modificado nem mergeado. Se a
+captura veio de uma execução antiga pelo app do Godot, ela pode continuar
+mostrando o comportamento anterior até que a branch correta seja executada.
+
+O que permanece não comprovado: safe areas de notch, DPI/fracionamento de
+escala de cada compositor, rotação real de Android, interação touch física e
+legibilidade humana durante combate prolongado. H8 prova reflow geométrico da
+superfície legada em janelas físicas representativas; não transforma isso em
+aprovação visual final nem em prova de export para todos os dispositivos.
 
 ## 10. Próximos passos recomendados
 

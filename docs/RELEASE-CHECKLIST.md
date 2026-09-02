@@ -5,12 +5,13 @@ This checklist is for a real public release, not merely a green local test run. 
 ## Current development checkpoint (not release approval)
 
 The current branch `fuzzy/ui-reference-remake` is a published pre-release
-checkpoint at `28d2a48`. The local correctness gate is green, but this section
+checkpoint at `63c04a8`. The local correctness gate is green, but this section
 must not be read as permission to tag or publish the game:
 
 | Gate | Current evidence | Status |
 | --- | --- | --- |
 | DevHarness and accumulated probes | `1454 AT_PASS`, `0 AT_FAIL`, `AUTOTEST_ALL_PASS`, `VALIDATION OK` | verified locally |
+| Legacy HUD physical-window reflow | H8: 4 headless / 14 Xvfb passes, 0 failures at `1600×900` and `1776×975` | verified locally |
 | Runtime/script errors | zero gateable runtime errors in the accumulated run | verified locally |
 | Teardown ownership | resources/RIDs/ObjectDB diagnostics still present in some fixtures | open |
 | vNext migration | vNext remains opt-in; legacy remains default | open |
@@ -47,7 +48,7 @@ The detailed evidence and release verdict are in
 
 ## UI, accessibility, and device validation
 
-- [ ] Main menu, settings, story, bestiary, pause, HUD, and game-over are reviewed at narrow, base, and wide aspect ratios.
+- [ ] Main menu, settings, story, bestiary, pause, HUD, and game-over are reviewed at narrow, base, and wide aspect ratios, including a maximize/restore cycle while the legacy HUD is active.
 - [ ] Touch controls are usable with both hand preferences and do not block critical playfield information.
 - [ ] Reduced motion, reduced flashes, color assistance, and available text/contrast options are verified in a live run.
 - [ ] Focus order, visible focus, controller navigation, activation feedback, and back behavior are verified.

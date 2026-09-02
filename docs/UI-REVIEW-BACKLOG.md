@@ -78,6 +78,12 @@ final. Um item de backlog = um commit; rodar
   oculto foram removidos do HUD; `_over_stats` também não é mais criado. A
   dica `SWIPE TO SCROLL` só aparece com entrada touch, e o fade do banner não
   tem mais a dead-zone para durações acima de dois segundos.
+- [x] **H8 — Reflow físico após maximize/resize.** A matemática de H3 continuava
+  correta, mas o HUD legado podia permanecer com `size=1280×720` quando a janela
+  física passava para `1600×900` ou `1776×975`, deixando score/evento/patches
+  agrupados à esquerda. `Hud` agora escuta a janela física e verifica uma
+  assinatura de tamanho como fallback; o probe `legacy_hud_adaptive_probe` cobre
+  o caso mesmo-aspect, wide, a escala uniforme e as bordas reais dos registros.
 
 ## Fase 3 — navegação e consistência
 
