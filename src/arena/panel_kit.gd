@@ -193,9 +193,6 @@ func _build_game_over_panel() -> void:
 	a._over_sub = _make_label("", 14, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
 	_center_panel_control(a._over_sub, 186.0, 26.0)
 	a._over_panel.add_child(a._over_sub)
-	a._over_stats = _make_label("", 17, Balance.COL_TEXT)
-	a._over_stats.visible = false
-	a._over_panel.add_child(a._over_stats)
 	a._over_core_stats = _make_label("", 13, Balance.COL_TEXT)
 	a._over_core_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_position_game_over_stat(a._over_core_stats, false)

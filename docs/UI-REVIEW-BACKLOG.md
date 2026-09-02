@@ -74,9 +74,10 @@ final. Um item de backlog = um commit; rodar
   game-over/pause (layer 60); watermark sobre painéis. A Arena agora marca
   explicitamente estados modais e oculta o retângulo de efeitos de tela e o
   watermark enquanto pausa, terminal, patch, game-over ou vitória estão ativos.
-- [ ] **H7 — Widgets mortos.** `_score_label`/`_best_label` (`hud.gd:60-67`),
-  `_over_stats` (`panel_kit.gd:182-184`), "SWIPE TO SCROLL" em desktop
-  (bestiary/story/program), banner alpha com dead-zone (`hud.gd:352-357`).
+- [x] **H7 — Widgets mortos.** `_score_label`/`_best_label` e o build label
+  oculto foram removidos do HUD; `_over_stats` também não é mais criado. A
+  dica `SWIPE TO SCROLL` só aparece com entrada touch, e o fade do banner não
+  tem mais a dead-zone para durações acima de dois segundos.
 
 ## Fase 3 — navegação e consistência
 
@@ -99,8 +100,9 @@ final. Um item de backlog = um commit; rodar
   (`hud.gd:386-403...`), `_refresh_responsive_layout()` todo frame com pause
   invisível (`arena.gd:1082` → `panel_kit.gd:79-99`), chip rects todo frame
   (`hud.gd:577-595`). Cache no resize.
-- [ ] **P2 — Lambda leak.** `Game.patch_picked.connect(func...)`
-  (`hud.gd:119-121`) — trocar por método bound.
+- [x] **P2 — Lambda leak.** A conexão do HUD com `Game.patch_picked` já era
+  bound e foi removida junto com o widget morto que ela alimentava; a Arena
+  continua sendo a autoridade que aplica patches.
 - [ ] **P3 — Tweens sobrepostos.** Tip label (`arena.gd:506-520`), boss intro
   (`intro_kit.gd:154-173`). Matar tween anterior antes de criar novo.
 - [ ] **P4 — Boss bar fantasma.** "MINI-B" 0% com 1 fragmento (`hud.gd:681-701`),

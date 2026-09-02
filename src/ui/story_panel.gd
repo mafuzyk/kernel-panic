@@ -59,6 +59,9 @@ func selected_stage_index() -> int:
 func _is_wide() -> bool:
 	return size.x >= 1080.0
 
+func scroll_hint_visible() -> bool:
+	return DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
+
 func _visible_stage_indices() -> Array:
 	var result: Array = []
 	for index in Game.story_stage_count():
@@ -353,7 +356,8 @@ func _draw() -> void:
 		var thumb_y: float = track.position.y + (track.size.y - thumb_h) * (scroll_y / max_scroll)
 		draw_rect(track, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.12))
 		draw_rect(Rect2(track.position.x, thumb_y, track.size.x, thumb_h), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.75))
-		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
+		if scroll_hint_visible():
+			draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
 	if _is_wide():
 		var mount := mount_action_rect()
 		var mount_points := TacticalUIHelper.angular_points(mount, 9.0)

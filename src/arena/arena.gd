@@ -32,7 +32,6 @@ var _state := "play"
 var _pause_panel: Control
 var _pause_stats: Label
 var _over_panel: Control
-var _over_stats: Label
 var _over_core_stats: Label
 var _over_run_stats: Label
 var _over_title: Label

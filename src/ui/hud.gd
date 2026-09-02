@@ -30,12 +30,9 @@ var _boss_fragments: Array[RootBoss] = []
 var _boss_split := false
 var _score_font: Font
 var _mono: Font
-var _score_label: Label
-var _best_label: Label
 var _banner: Label
 var _banner_sub_l: Label
 var _score_pop := 0.0
-var _build_label: Label
 var _run_info_label: Label
 var _achievement_label: Label
 var _achievement_t := 0.0
@@ -51,9 +48,12 @@ var _dash_icon: Control
 var _era_accent: Color = TacticalUIHelper.CYAN
 var _surface_scale := 1.0
 var _banner_base_y := 120.0
+var _banner_elapsed := 0.0
 var _aux_size := Vector2.ZERO
 var _vnext_hud_surface: Control
 var _vnext_hud_mode := false
+const BANNER_FADE_IN_SECONDS := 0.22
+const BANNER_FADE_OUT_SECONDS := 0.32
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -68,14 +68,6 @@ func _ready() -> void:
 		get_viewport().size_changed.connect(_apply_surface_transform)
 	_score_font = load("res://assets/fonts/Orbitron.ttf")
 	_mono = load("res://assets/fonts/ShareTechMono.ttf")
-	_score_label = _mk_label(30, Balance.COL_TEXT, Vector2(0, 14))
-	_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_score_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_score_label.visible = false
-	_best_label = _mk_label(13, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55), Vector2(0, 52))
-	_best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_best_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_best_label.visible = false
 	_banner = _mk_label(40, Balance.COL_TEXT, Vector2(0, 120))
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner.modulate.a = 0.0
@@ -84,18 +76,6 @@ func _ready() -> void:
 	_banner_sub_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner_sub_l.modulate.a = 0.0
 	_banner_sub_l.visible = not _vnext_hud_mode
-	_build_label = _mk_label(12, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5), Vector2(14, 690))
-	_build_label.anchor_left = 0.0
-	_build_label.anchor_right = 0.6
-	_build_label.anchor_top = 1.0
-	_build_label.anchor_bottom = 1.0
-	_build_label.offset_left = 14.0
-	_build_label.offset_right = 0.0
-	_build_label.offset_top = -30.0
-	_build_label.offset_bottom = -6.0
-	_build_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_build_label.text = Game.build_string()
-	_build_label.visible = false
 	_run_info_label = Label.new()
 	_run_info_label.anchor_left = 1.0
 	_run_info_label.anchor_right = 1.0
@@ -132,7 +112,6 @@ func _ready() -> void:
 	Game.score_changed.connect(_on_score)
 	Game.combo_changed.connect(_on_combo)
 	Game.achievement_unlocked.connect(_on_achievement_unlocked)
-	Game.patch_picked.connect(_on_patch_picked)
 	_refresh_aux_anchors()
 	_on_score(Game.score, Game.mult)
 	if _vnext_hud_surface != null:
@@ -191,9 +170,7 @@ func _refresh_aux_anchors() -> void:
 	var integrity: Rect2 = lay["integrity"]
 	var encounter: Rect2 = lay["encounter"]
 	var score: Rect2 = lay["score"]
-	var dash: Rect2 = lay["dash"]
 	var side := _safe_side_margin()
-	var vert := _safe_top_margin()
 	var collision := collision_layout_snapshot(size, _max_hp)
 	var banner: Rect2 = collision["banner"]
 	var achievement: Rect2 = collision["achievement"]
@@ -216,14 +193,6 @@ func _refresh_aux_anchors() -> void:
 		_run_info_label.offset_left = -side - 308.0
 		_run_info_label.offset_top = stack_end + 8.0
 		_run_info_label.offset_bottom = stack_end + 30.0
-	if _build_label != null and is_instance_valid(_build_label):
-		_build_label.anchor_left = 0.0
-		_build_label.anchor_right = 0.0
-		_build_label.offset_left = side
-		_build_label.offset_right = side + 420.0
-		_build_label.offset_top = -(vert + dash.size.y + 22.0)
-		_build_label.offset_bottom = -(vert + dash.size.y + 6.0)
-
 func hud_top_y(gap: float) -> float:
 	return _safe_top_margin() + gap
 
@@ -338,13 +307,7 @@ func _on_score(score: int, mult: int) -> void:
 		_score_pop = 1.0
 	_score = score
 	_mult = mult
-	_score_label.text = "%07d" % score
-	_best_label.text = ("WEEK " + Game.week_id() + "  BEST %07d" % Game.best_for_mode()) if Game.mode == "weekly" else ("BEST %07d" % Game.best_for_mode())
 	queue_redraw()
-
-func _on_patch_picked(_id: String) -> void:
-	if _build_label != null and is_instance_valid(_build_label):
-		_build_label.text = Game.build_string()
 
 func _on_combo(mult: int, frac: float) -> void:
 	_mult = mult
@@ -388,12 +351,15 @@ func _refresh_achievement_text(max_width: float) -> void:
 func show_banner(text: String, sub: String, dur := 2.0) -> void:
 	_banner_text = text
 	_banner_sub = sub
-	_banner_t = dur
+	_banner_t = maxf(dur, 0.0)
+	_banner_elapsed = 0.0
 	var hide_main := _banner_compact()
 	if _banner != null and is_instance_valid(_banner):
 		_banner.text = "" if hide_main else text
+		_banner.modulate.a = 0.0
 	if _banner_sub_l != null and is_instance_valid(_banner_sub_l):
 		_banner_sub_l.text = sub
+		_banner_sub_l.modulate.a = 0.0
 
 func _banner_compact() -> bool:
 	return bool(layout_snapshot()["compact"]) and not _banner_sub.is_empty()
@@ -458,13 +424,13 @@ func _process(delta: float) -> void:
 			_show_patch_tooltip(_tooltip_patch_id)
 	if _banner_t > 0.0:
 		_banner_t -= delta
-		var k := _banner_t
-		var a_in := clampf((2.0 - k) * 6.0, 0.0, 1.0) if k > 1.7 else 1.0
-		var a_out := clampf(k * 2.5, 0.0, 1.0)
+		_banner_elapsed += delta
+		var a_in := clampf(_banner_elapsed / BANNER_FADE_IN_SECONDS, 0.0, 1.0)
+		var a_out := clampf(_banner_t / BANNER_FADE_OUT_SECONDS, 0.0, 1.0)
 		_banner.modulate.a = minf(a_in, a_out)
 		_banner_sub_l.modulate.a = _banner.modulate.a * 0.8
 		if _banner_compact():
-			_banner_sub_l.offset_top = 186 + (1.0 - minf(a_in, 1.0)) * -14.0
+			_banner_sub_l.offset_top = _banner_base_y + (1.0 - minf(a_in, 1.0)) * -14.0
 			_banner_sub_l.offset_bottom = _banner_sub_l.offset_top + 22
 		else:
 			_banner.offset_top = _banner_base_y + (1.0 - minf(a_in, 1.0)) * -14.0
@@ -489,10 +455,6 @@ func _process(delta: float) -> void:
 			_dash_frac = 1.0
 		else:
 			_dash_frac = clampf(1.0 - player.dash_cd / player.dash_cooldown_duration(), 0.0, 1.0)
-	if _build_label != null and Game.patch_level("vampic") > 0:
-		var on_cd := Game.vampic_cd > 0.0
-		var blink := 0.35 + 0.3 * absf(sin(Time.get_ticks_msec() / 180.0))
-		_build_label.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, blink if on_cd else 0.5))
 	if _run_info_label != null and is_instance_valid(_run_info_label):
 		var compact := bool(layout_snapshot()["compact"])
 		_run_info_label.text = run_info_text() if Sfx.show_run_info and Game.state == Game.State.PLAYING and not compact else ""

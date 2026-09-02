@@ -286,7 +286,7 @@ func _touch_hud_layout_test() -> void:
 	h._check(hud_src.contains("if not touch_layout():") and hud_src.contains("label += \" [E]\""), "overclock ready keeps its label without the [E] keyboard hint on touch")
 	h._check(hud_src.contains("\"[SHIFT]\" if not touch_layout()"), "dash charge text gates the [SHIFT] keyboard hint on touch")
 	h._check(hud_src.contains("_banner.text = \"\" if hide_main else text"), "compact wave banner omits the duplicated cycle line")
-	h._check(hud_src.contains("_banner_sub_l.offset_top = 186"), "compact wave banner repositions below the encounter panel")
+	h._check(hud_src.contains("_banner_sub_l.offset_top = _banner_base_y"), "compact wave banner repositions below the encounter panel")
 	var tc_script: Script = load("res://src/ui/touch_controls.gd")
 	var tc = tc_script.new() if tc_script != null else null
 	h._check(tc != null and tc.has_method("_dash_btn") and tc.has_method("_oc_btn"), "touch controls expose button rects for layout probes")

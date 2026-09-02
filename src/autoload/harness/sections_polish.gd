@@ -207,7 +207,7 @@ func _leak_guard_test() -> void:
 	print("AT_STEP leak_guard")
 	var game_src := str(load("res://src/autoload/game.gd").source_code)
 	var hud_src := str(load("res://src/ui/hud.gd").source_code)
-	h._check(hud_src.contains("func _on_patch_picked") and hud_src.contains("Game.patch_picked.connect(_on_patch_picked)") and not hud_src.contains("Game.patch_picked.connect(func"), "HUD patch signal uses a lifecycle-safe bound method")
+	h._check(not hud_src.contains("Game.patch_picked.connect") and not hud_src.contains("func _on_patch_picked"), "HUD does not retain an unused patch signal connection")
 	h._check(game_src.contains("TacticalIcon.clear_raster_cache()"), "teardown clears the tactical icon raster cache")
 	h._check(game_src.contains("PatchCard.clear_raster_cache()"), "teardown clears the patch card raster cache")
 	h._check(game_src.contains("EntitySprite.clear_sprite_cache()"), "teardown clears the sprite trial cache")

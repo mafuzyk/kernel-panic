@@ -44,6 +44,9 @@ func _columns() -> int:
 		return 2
 	return 1
 
+func scroll_hint_visible() -> bool:
+	return DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
+
 func _content_metrics() -> Dictionary:
 	var cols := _columns()
 	var gap := 22.0 if size.x >= 1080.0 else 18.0
@@ -206,7 +209,8 @@ func _draw() -> void:
 		var thumb_y: float = track.position.y + (track.size.y - thumb_h) * (scroll_y / max_scroll)
 		draw_rect(track, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.12))
 		draw_rect(Rect2(track.position.x, thumb_y, track.size.x, thumb_h), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.75))
-		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
+		if scroll_hint_visible():
+			draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
 	var footer: Rect2 = TacticalUIHelper.shell_sections(size)["footer"]
 	var legend := Rect2(footer.position, Vector2(maxf(size.x * 0.66, 360.0), footer.size.y - 4.0))
 	var legend_points := TacticalUIHelper.angular_points(legend, 8.0)

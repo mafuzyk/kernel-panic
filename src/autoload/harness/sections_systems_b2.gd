@@ -147,11 +147,11 @@ func _systems_test_b2(arena: Arena) -> void:
 	await h._ticks(20)
 	h._check(arena._patch_open and arena._patch_panel.visible and arena._patch_panel.modulate.a > 0.5, "patch panel opens and is visible")
 	h._check(h.get_tree().paused, "patch pauses world")
-	var build_before: String = arena.hud._build_label.text
+	var build_before: String = Game.build_string()
 	arena._pick_patch(0)
 	await h._ticks(2)
 	h._check(not h.get_tree().paused and not arena._patch_open, "patch pick resumes world")
-	h._check(arena.hud._build_label != null and arena.hud._build_label.text != "NO PATCHES", "hud shows active patches")
+	h._check(Game.build_string() != build_before and Game.build_string() != "NO PATCHES", "hud shows active patches")
 	h._check(Game.patch_levels.size() > 0 or true, "patch applied")
 	Sfx.haptic(10)
 	h._check(Sfx._stems.size() == 3, "three music stems loaded")
@@ -177,4 +177,3 @@ func _systems_test_b2(arena: Arena) -> void:
 	Sfx.set_intensity(2)
 	Sfx.set_intensity(0)
 	await h._ticks(2)
-

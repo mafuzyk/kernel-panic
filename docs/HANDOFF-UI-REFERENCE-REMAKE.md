@@ -1727,6 +1727,106 @@ modal é atualizado por todas as transições conhecidas no código atual, mas
 qualquer novo painel futuro precisa chamar `_set_state_panel_active(true)` ou
 ser incluído na política; o probe existe para tornar essa omissão detectável.
 
+## 7.13 H7 — remoção de widgets mortos e affordances honestas
+
+### Problemas confirmados
+
+O HUD legado ainda construía três labels por meio de `_mk_label()` que nunca
+participavam da composição visível: `_score_label`, `_best_label` e
+`_build_label`. Eles eram adicionados à árvore, imediatamente escondidos e
+mantidos por callbacks/atualizações que não alimentavam nenhum desenho. O
+`_over_stats` do game-over tinha o mesmo padrão: era criado, escondido e nunca
+usado, enquanto os stats reais eram `_over_core_stats` e `_over_run_stats`.
+
+A mesma investigação encontrou dois problemas de contrato visual. As telas
+legadas de Program, Bestiary e Story sempre desenhavam `SWIPE TO SCROLL` quando
+havia conteúdo além da viewport, inclusive em desktop; desktop tem wheel e
+drag, mas não uma interface touch garantida. No HUD, o fade-in calculava a
+opacidade a partir do tempo restante e tinha um intervalo morto para banners
+com duração maior que dois segundos: enquanto o restante ia, por exemplo, de
+`2.2` a `2.0`, a expressão `(2.0 - k) * 6` ficava clampada em zero.
+
+### Decisões e alternativas
+
+Os labels sem consumidor foram removidos, junto com o callback do sinal
+`Game.patch_picked` que só atualizava o build label. A Arena continua conectada
+ao mesmo sinal para aplicar o efeito de gameplay; nenhuma regra de patch foi
+removida. Manter os labels “por compatibilidade” seria apenas preservar
+alocação, callbacks e pontos de falha sem um caminho de renderização. Reutilizar
+o build label como um novo widget foi descartado porque isso mudaria o layout
+do HUD fora do escopo de H7 e duplicaria informação que já vive no patch dock.
+
+O stats label invisível foi removido do kit, não substituído por um alias. Os
+dois labels efetivamente desenhados continuam com os mesmos nomes e contratos,
+portanto o game-over mantém a sua API de posicionamento e a composição
+responsiva de H5.
+
+Para scroll, a UI agora expõe `scroll_hint_visible()`, baseada em
+`DisplayServer.is_touchscreen_available()` ou em `KP_FORCE_TOUCH` para testes e
+emulação. A dica continua disponível em um dispositivo touch quando existe
+scroll, mas deixa de afirmar uma modalidade inexistente no desktop. Esconder a
+dica em todas as plataformas foi considerado, mas perderia orientação útil em
+telefone; trocar por uma frase desktop foi considerado, mas adicionaria cópia
+permanente a uma área que já tem wheel/drag e exigiria localização adicional.
+
+Para o banner, foi escolhido um relógio explícito de tempo decorrido com fades
+curtos e constantes. A opacidade é `min(fade_in(elapsed), fade_out(remaining))`;
+isso preserva a saída suave, remove o dead-zone de durações longas e funciona
+também quando uma mensagem substitui outra. Inferir o fade-in a partir do
+tempo restante foi mantido como alternativa somente enquanto as durações eram
+fixadas em dois segundos; a matriz de banners já usa 2.2–2.4 segundos, então a
+hipótese deixou de ser válida.
+
+### Implementação
+
+- `src/ui/hud.gd` deixou de declarar/criar/atualizar `_score_label`,
+  `_best_label` e `_build_label`; o callback morto de `Game.patch_picked` foi
+  removido. `_banner_elapsed`, `BANNER_FADE_IN_SECONDS` e
+  `BANNER_FADE_OUT_SECONDS` tornam o fade determinístico, resetam a opacidade
+  quando uma mensagem nova chega e mantêm o posicionamento compacto relativo
+  a `_banner_base_y`;
+- `src/arena/arena.gd` e `src/arena/panel_kit.gd` não carregam mais o
+  `_over_stats` invisível;
+- `src/ui/bestiary_panel.gd`, `src/ui/program_panel.gd` e
+  `src/ui/story_panel.gd` só desenham a orientação de swipe quando a entrada
+  touch está disponível;
+- `src/autoload/harness/sections_systems_b2.gd` passou a verificar o build
+  real por `Game.build_string()`, em vez de depender de um label escondido;
+  `sections_polish.gd` passou a garantir que não existe callback morto do HUD;
+- `tools/hud_dead_widgets_probe.gd/.tscn` cobre remoção por contrato de fonte,
+  visibilidade da dica em desktop/touch e evolução de opacidade do banner.
+
+### Evidência red → green
+
+O probe inicial terminou com falhas nos cinco consumidores mortos, nos três
+contratos de scroll e na API de banner, além de interromper ao chamar a função
+que ainda não existia. Depois da implementação, o mesmo probe terminou com
+`PROBE_DONE fails=0`, 28 passes e exit 0 em headless silencioso. Ele comprova
+que os labels não são mais declarados, que o game-over não cria o stats morto,
+que a dica fica desligada sem touch e ligada com `KP_FORCE_TOUCH`, e que um
+banner de três segundos começa com alpha positivo, chega a alpha cheio e
+termina em zero.
+
+Durante a segunda verificação da suíte, uma asserção de harness ainda acessava
+`arena.hud._build_label`; isso confirmou que o teste também dependia do widget
+descartado. A gate foi corrigida para comparar `Game.build_string()` antes e
+depois do patch. A verificação de teardown também foi atualizada para validar
+a ausência da conexão não utilizada, não a presença de um callback sem
+consumidor.
+
+### Impacto e limites
+
+O jogador vê a mesma pontuação, build, stats e patch dock por meio dos canais
+ativos; não há mudança de balanceamento, aplicação de patch, input de scroll ou
+save. A mudança observável é a honestidade da orientação de scroll e um fade de
+banner que aparece imediatamente. A remoção reduz nós/labels e uma conexão de
+sinal por HUD, mas não é uma medição de frame-time por hardware.
+
+O probe usa a emulação `KP_FORCE_TOUCH`; ainda falta validar a apresentação em
+um aparelho touch real e em escalas de texto altas. A semântica de wheel/drag
+continua existente no desktop, mas a ergonomia de cada painel ainda pertence à
+revisão manual de UX.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário

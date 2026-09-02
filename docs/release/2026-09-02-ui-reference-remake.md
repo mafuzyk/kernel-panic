@@ -130,6 +130,11 @@
   next action.
 - Fixed the Windows activation watermark remaining visible over modal state
   panels; it now follows the same explicit gameplay/modal visibility contract.
+- Fixed the legacy selection screens showing `SWIPE TO SCROLL` on desktop even
+  though the available input is wheel/drag; the swipe affordance is now touch
+  only.
+- Fixed long legacy HUD event banners spending their first fraction of a
+  multi-second lifetime fully invisible; the fade now starts from elapsed time.
 
 ## Improved
 
@@ -159,6 +164,8 @@
 - Improved modal readability by making overlay suppression state-driven rather
   than dependent on CanvasLayer ordering alone; gameplay effects restore when
   the modal closes.
+- Improved the HUD's runtime footprint by removing hidden labels and an unused
+  patch callback that had no visible consumer.
 
 ## Performance
 
@@ -210,6 +217,9 @@
 - H6 overlay/layer probe: 25 focused headless passes, 0 failures; direct
   overlay state, pause, terminal, game-over and Windows watermark transitions
   were checked through the real Arena path.
+- H7 dead-widget/affordance probe: 28 focused headless passes, 0 failures;
+  dead nodes, device-aware scroll hints and long-banner fade timing were
+  checked.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,
