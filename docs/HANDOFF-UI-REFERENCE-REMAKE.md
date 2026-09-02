@@ -26,6 +26,9 @@ O escopo entregue nesta branch é um **vertical slice visual e responsivo**:
 - settings/accessibility com composição de workstation e copy sem clipping;
 - patch offer como superfície de decisão de build, com cards de consequência
   no desktop e navegação deliberada de uma oferta por vez em narrow;
+- combat HUD como superfície code-drawn orientada pela `imagem5.png`, com
+  informação no perímetro, combo/telemetria, dock de patches, boss register e
+  composição micro-narrow empilhada;
 - pausa e terminal com correções de fit específicas para telas estreitas;
 - adaptação física de menu, patch, pausa, terminal e game-over a janelas
   estreitas, sem espremer uma composição desktop ilegível;
@@ -55,7 +58,7 @@ O nome `iamgem9.png` é mantido exatamente como está no diretório.
 | `imagem10.png` | lista de programas à esquerda, ficha detalhada à direita, ação de execução sempre visível | `program_surface.gd` agora usa process index, dossier, identity glyph, linhas de role/playstyle/risk/loadout e ação `BOOT` persistente |
 | `imagem2.png` | Bestiary como ferramenta de leitura de ameaça, não como uma grade de ícones | `bestiary_surface.gd` usa field index, logged/locked, enemy identity, behavior, counterplay e o mesmo renderer das entidades |
 | `imagem3.png` | settings com organização de workstation e opções explícitas | `accessibility_surface.gd` recebeu shell metadata, cabeçalho, status, 10 controles, reset e footer dentro da safe area |
-| `imagem5.png` | HUD encosta nas bordas e libera o centro para combate | o HUD existente foi preservado como fonte de estado e validado junto dos overlays; o adapter da Arena agora também usa fit físico coerente |
+| `imagem5.png` | HUD encosta nas bordas e libera o centro para combate | `combat_hud_surface.gd` recompõe o HUD em torno do perímetro com integrity, combo, evento, patch dock, boss register, ability, score e rails; `Hud` continua como adapter de estado |
 | `imagem6.png` | pausa dramática, jogo ainda visível, contexto da run e poucas decisões | `pause_surface.gd` continua com contexto congelado, ação curta e estado do programa; título agora se ajusta à largura real |
 | `imagem8.png` | terminal diegético com stream, comandos, status, prompt e histórico | `terminal_surface.gd` preserva a workstation e evita colisão do título com `CLOSE [ESC]` em narrow |
 | `iamgem9.png` | mapa de story com rota, tabs de eras e briefing | `story_surface.gd` traduz a referência para shell persistente, tabs de ato, índice de nós, dossiê da fase e faixa de evidência baseada no estado real |
@@ -84,6 +87,11 @@ Depois, os screens principais compartilham uma gramática editorial:
   triângulo genérico apenas com outra cor;
 - simplificação consciente em narrow: uma coluna ou fluxo lista → detalhe,
   com a ação primária e o retorno ainda visíveis.
+
+No HUD, essa gramática agora também aparece durante a run. A arena fica livre no
+centro; a informação contínua mora nas bordas; o evento temporário ocupa um
+bloco próprio; combo e boss ganham instrumentos visíveis; e o estado de
+habilidade não depende só de um ícone flutuante ou de uma mudança de cor.
 
 O resultado deliberadamente não copia cada pixel das imagens. Ele copia o que
 define a personalidade delas: máquina operacional, diagnóstico, assimetria,
@@ -219,7 +227,60 @@ ritmo de terminal e informação distribuída no perímetro.
   preservados;
 - não houve alteração no executor de comandos nem no ownership do `rm -rf /`.
 
-### 3.7 Arte code-drawn
+### 3.7 Combat HUD
+
+#### `src/ui/vnext/surfaces/combat_hud_surface.gd`
+
+- foi recomposto como uma superfície code-drawn orientada pela referência
+  `imagem5.png`, sem transformar a HUD legada em um molde visual obrigatório;
+- o perímetro agora contém moldura/rails de calibração, integrity com HP,
+  pips, direção do último dano e meter segmentado, combo com fração de cadeia,
+  evento temporário, patch dock, ability/dash, score/time/run e boss register;
+- cada bloco é alimentado pelo snapshot do `Hud` ou pela fixture de captura;
+  combo, patches, boss fragments e damage direction têm representação semântica
+  verificável além do desenho;
+- o boss foi movido para um registro superior, reduzindo o topo do retângulo
+  reservado de gameplay em vez de ocupar o rodapé e competir com os controles;
+- a composição usa três densidades: wide, compact/narrow e micro-narrow. Em
+  `320×568`, integrity e patch dock empilham, evento/combo/boss seguem abaixo e
+  ability/score continuam lado a lado no rodapé com cópia curta e área de ação
+  touch-safe;
+- todos os textos desenhados passam por `TacticalUI.ellipsis_fit`; o relatório
+  de overflow mede a mesma fonte e o mesmo texto efetivamente usado na
+  renderização, incluindo formas abreviadas apenas quando micro-narrow ou
+  quando a escala de texto exige;
+- o surface mantém `MOUSE_FILTER_IGNORE` e só encaminha o hit region explícito
+  do dash, deixando o movimento multi-touch sob responsabilidade dos controles
+  da Arena;
+- o estado do `Hud` continua sendo o adapter de gameplay: não foram alterados
+  spawn, física, dano, pontuação, balance ou ownership de input da simulação.
+
+#### `src/ui/hud.gd`
+
+- `_dash_icon` legado agora permanece oculto enquanto `KP_VNEXT_HUD=1`; antes,
+  `_process()` tornava o ícone visível novamente a cada frame, produzindo um
+  segundo indicador de dash por cima da HUD nova;
+- combo fraction é sincronizada no snapshot vNext e a cópia de ciclo fica no
+  patch dock quando o banner contínuo está ativo, evitando duplicar `CYCLE NN`
+  no bloco de evento temporário;
+- o adapter continua responsável por fornecer HP, meter, dash, score, programa,
+  boss fragments e damage direction; a superfície não toma decisões de regra.
+
+#### Probes e captura do HUD
+
+- `tools/vnext_combat_hud_probe.gd/.tscn` cobre HP 1–12, estados de meter e
+  dash, combo, patches, boss split, fit de evento longo, safe area, não
+  sobreposição, reflow, text scale 115%, micro-narrow `320×568`, input e o
+  caminho real de `Arena → Hud → CombatHudSurface`;
+- `tools/vnext_surface_capture.gd` ganhou fixture silenciosa de `combat_hud`
+  com evento, patches, combo, boss e run seed longos, para revisão raster em
+  wide, narrow e micro-narrow;
+- o probe E3 continua verificando que a habilidade visual permanece específica
+  do programa; abreviações (`OC RDY`, `SH RDY`) são usadas no micro-narrow ou
+  quando uma escala de texto de pelo menos 110% exige a redução, preservando os
+  nomes completos no narrow regular padrão.
+
+### 3.8 Arte code-drawn
 
 #### `src/ui/vnext/core/entity_renderer.gd`
 
@@ -255,7 +316,7 @@ baseline anterior e corretamente ficou vermelho depois que os silhouettes
 aprovados foram modificados. O novo valor registra o baseline intencional desta
 branch e o probe continua verificando as demais branches e o desenho real.
 
-### 3.8 Probes e validador
+### 3.9 Probes e validador
 
 Foram adicionados ou reforçados:
 
@@ -358,6 +419,88 @@ uma vez. Ela foi alterada para verificar `patch_context.density == "narrow"`.
 O probe final passou com 12 checks. Esta ocorrência fica documentada para não
 ser confundida com bug de produto.
 
+### Bug UI-REF-06 — indicador de dash legado reaparecia sobre o HUD vNext
+
+**Antes:** a nova superfície desenhava o módulo de ability/dash, mas
+`src/ui/hud.gd` continuava marcando `_dash_icon.visible = true` a cada frame
+quando a janela era desktop. O resultado era um segundo glyph flutuante sobre
+o canto inferior da composição nova.
+
+**Evidência:** a captura real da Arena
+`/tmp/kernel-panic-ui-captures-hud/hud-runtime-vnext.png` mostrou o indicador
+legado duplicado; a captura posterior
+`/tmp/kernel-panic-ui-captures-hud/hud-runtime-vnext-v2.png` foi feita depois
+da correção e não mostra o glyph extra. O probe real também verifica
+`_dash_icon.visible == false` sob `KP_VNEXT_HUD=1`.
+
+**Causa:** o estado de visibilidade era aplicado dentro de `_process()` sem
+considerar o modo vNext; a configuração inicial feita em `_ready()` não era
+suficiente para um nó reativado por frame.
+
+**Fix:** a visibilidade agora é `not _vnext_hud_mode` além das condições
+existentes de plataforma e layout. O adapter continua atualizando o estado,
+mas só a superfície escolhida desenha o indicador.
+
+**Impacto:** nenhuma mudança em dash, input, cooldown, touch ou balance; apenas
+remove duplicação visual no modo opt-in.
+
+### Bug UI-REF-07 — painéis laterais colidiam na menor largura testada
+
+**Antes:** a primeira matriz do HUD aplicava dois painéis de aproximadamente
+160 px lado a lado em um safe rect de 272 px (`320×568`). Os retângulos de
+integrity e patch dock se sobrepunham, apesar de 432×720 já estar correto.
+
+**Evidência:** a primeira execução da matriz de viewports do
+`vnext_combat_hud_probe` falhou somente em
+`viewport (320.0, 568.0) keeps hud panels separate`; as viewports 390, 432,
+600, 1280 e 1920 passaram. A captura final
+`/tmp/kernel-panic-ui-captures-hud-final/hud-reference-pass-micro-logical-v2.png`
+mostra os dois painéis empilhados e o centro de jogo preservado.
+
+**Causa:** o breakpoint `narrow` resolvia “telefone” como uma versão reduzida
+do desktop, mas não havia um segundo breakpoint para quando duas colunas já
+não cabiam no safe rect.
+
+**Fix:** foi criado o modo `micro-narrow` para safe width inferior a 340 px:
+integrity e patch dock ocupam a largura total em linhas consecutivas, os
+blocos superiores têm alturas próprias, a ability e o score usam dois cartões
+inferiores menores e o retângulo reservado da arena passa a usar a largura
+inteira disponível. Cópia curta e glyph lateral evitam esmagar o conteúdo dos
+patches.
+
+**Impacto:** a HUD ainda é visualmente a mesma família; apenas muda a
+composição em telas extremamente estreitas. O espaço central fica menor, mas
+continua explicitamente reservado e mensurado. O aparelho real, safe area de
+recorte e orientação landscape ainda não foram comprovados.
+
+### Bug UI-REF-08 — abreviação agressiva quebrou o contrato de identidade do programa
+
+**Antes:** o primeiro passe da compactação usou `SH RDY`/`OC RDY` em toda a
+densidade narrow. O probe E3 já verificava que a HUD deveria desenhar
+`SHIELD READY` para o Rootlet e passou a falhar, embora a semântica interna
+continuasse correta.
+
+**Evidência:** a execução acumulada
+`/tmp/kernel-panic-ui-validation-hud-final/probe-e3-program-identity.log`
+registrou `PROBE_FAIL combat HUD draws program-specific ability state` e fez o
+validador terminar em `VALIDATION FAILED`. Depois do ajuste, a execução direta
+de E3 em `/tmp/kernel-panic-ui-validation-e3-after-hud.log` terminou com 35
+passes e `PROBE_DONE fails=0`.
+
+**Causa:** o corte visual foi aplicado a `narrow` sem demonstrar que 432 px
+exigia abreviação. Isso trocou uma informação de domínio legível por uma
+economia de espaço prematura.
+
+**Fix:** as abreviações são usadas em `micro-narrow` e também quando a escala
+de texto chega a 110% em narrow regular; 432×720 em escala padrão mantém
+`SHIELD READY`/`OC READY`, enquanto 320×568 usa formas curtas quando a
+geometria exige. A semântica pública continua publicando o nome completo.
+
+**Lição e risco:** um texto que cabe numericamente não deve ser reduzido sem
+considerar contratos de acessibilidade, identidade e testes existentes. Ainda
+é necessário revisar as abreviações em PT-BR e com text scale 150–200% em um
+dispositivo real.
+
 ## 5. Decisões técnicas e alternativas
 
 ### 5.1 Shell compartilhado por linguagem, não por herança obrigatória
@@ -433,6 +576,62 @@ passe artístico final de todo o cast.
 proíbe tratar teste funcional como aprovação de produto. O rollback continua
 sendo remover o switch, sem reverter a main nem perder o runtime legado.
 
+### 5.6 HUD como adapter de estado, não como segunda implementação de gameplay
+
+**Decisão:** `Hud` continua sendo a ponte que lê o estado real da Arena e
+`VNextCombatHudSurface` fica responsável por composição, desenho, semântica e
+hit regions. A superfície recebe snapshot e não modifica HP, score, cooldown,
+spawn, física ou regras de patch.
+
+**Alternativas consideradas:** reescrever o HUD e a coleta de estado ao mesmo
+tempo; desenhar a nova superfície diretamente sobre campos de `Arena`; ou
+manter o desenho legado e apenas aplicar o shell novo por cima.
+
+**Motivo da escolha:** separar fonte de estado e apresentação permite substituir
+a UI sem criar uma segunda autoridade de gameplay. O probe real confirma que o
+combo, programa, escudo, dano e boss fragments chegam pelo caminho
+`Arena → Hud → surface`; a captura real confirma que a simulação continua
+visível atrás da camada.
+
+**Trade-off:** ainda existe um adapter temporário no `Hud`, e parte do código
+de layout legado continua sendo executada. Isso evita uma migração arriscada
+durante o vertical slice, mas mantém uma etapa futura de limpeza/performance.
+
+### 5.7 Breakpoint micro-narrow orientado por geometria disponível
+
+**Decisão:** não reduzir todos os componentes indefinidamente. Quando o safe
+rect fica abaixo de 340 px de largura, a HUD muda para uma composição
+empilhada, com painéis superiores de largura total e cartões inferiores
+compactos.
+
+**Alternativa:** conservar duas colunas sempre; reduzir fontes, margens e
+glyphs até caber; ou esconder o patch dock/boss sem sinalizar a perda.
+
+**Motivo da escolha:** a primeira matriz demonstrou que duas colunas já se
+sobrepunham em 320×568. Empilhar preserva a informação crítica, dá uma região
+de toque mensurável e mantém a arena central explicitamente reservada. Esconder
+informação seria uma regressão de estado; microtexto seria uma falha de
+acessibilidade.
+
+**Trade-off:** a área vertical livre fica menor em portrait extremo. Por isso
+o probe mede também `reserved_playfield`, e a composição não se apresenta como
+equivalente à densidade desktop.
+
+### 5.8 Abreviações só quando a geometria exige
+
+**Decisão:** `OC RDY`, `SH RDY` e equivalentes ficam restritos a
+`micro-narrow` ou a narrow com escala de texto igual/superior a 110%; em
+narrow regular na escala padrão, `OC READY` e `SHIELD READY` permanecem
+visíveis.
+
+**Alternativa:** abreviar todo narrow, ou manter sempre a cópia completa e
+aceitar clipping em 320 px.
+
+**Motivo:** o teste E3 mostrou que abreviar 432 px quebrava um contrato de
+identidade do programa sem necessidade. O layout micro tem largura real menor
+e usa abreviações controladas; a semântica pública continua com o estado
+completo para acessibilidade e automação.
+
 ## 6. Compatibilidade, performance e impacto
 
 ### Compatibilidade
@@ -474,12 +673,12 @@ Todos os comandos foram executados com `--audio-driver Dummy`.
 | Input dispatch headless | exit 0, 32 passes, 0 fails |
 | Input dispatch Xvfb/debug | exit 0, 34 passes, 0 fails; debug desktop confirmado |
 | Boot reference shell | exit 0, 102 passes, 0 fails |
-| Program + Story selection | exit 0, 168 passes, 0 fails |
+| Program + Story selection | exit 0, 225 passes, 0 fails |
 | Bestiary reference shell | exit 0, 128 passes, 0 fails |
 | Menu route integration | exit 0, 22 passes, 0 fails |
-| Patch surface | exit 0, 52 passes, 0 fails |
+| Patch surface | exit 0, 67 passes, 0 fails |
 | Patch Arena adapter | exit 0, 19 passes, 0 fails |
-| Combat HUD adapter | exit 0, 48 passes, 0 fails |
+| Combat HUD adapter | exit 0, 75 passes, 0 fails |
 | Pause/terminal/game-over | exit 0, 75 passes, 0 fails |
 | Settings/accessibility | exit 0, 98 passes, 0 fails |
 | Shared state surface | exit 0, 145 passes, 0 fails |
@@ -540,7 +739,11 @@ As capturas são evidência local temporária em `/tmp` e não entram no commit:
 - Program wide após correção de footer: `/tmp/kernel-panic-ui-captures.2Pup2i/program-wide-v4.png`;
 - Bestiary wide: `/tmp/kernel-panic-ui-captures.FEb0ee/bestiary-wide-v2.png`;
 - settings wide: `/tmp/kernel-panic-ui-captures.NpGOX4/settings-wide-v2.png`;
-- HUD wide: `/tmp/kernel-panic-ui-captures.XrrC6t/hud-wide.png`;
+- HUD wide baseline: `/tmp/kernel-panic-ui-captures.XrrC6t/hud-wide.png`;
+- HUD reference wide: `/tmp/kernel-panic-ui-captures-hud-final/hud-reference-pass-1280x720.png`;
+- HUD reference narrow: `/tmp/kernel-panic-ui-captures-hud-final/hud-reference-pass-432x720.png`;
+- HUD reference micro-narrow: `/tmp/kernel-panic-ui-captures-hud-final/hud-reference-pass-micro-logical-v3.png`;
+- HUD Arena real after duplicate-dash fix: `/tmp/kernel-panic-ui-captures-hud/hud-runtime-vnext-v2.png`;
 - pause wide: `/tmp/kernel-panic-ui-captures.6lgyl3/pause-wide.png`;
 - pause narrow após correção: `/tmp/kernel-panic-ui-captures.bJIWwN/pause-narrow-v2.png`;
 - terminal narrow após correção: `/tmp/kernel-panic-ui-captures.o01WTq/terminal-narrow-v2.png`.
@@ -556,6 +759,8 @@ integrado.
 
 - a nova composição está integrada e navegável sob switches opt-in;
 - menu, programas, Bestiary e accessibility têm shell e semântica de referência;
+- o combat HUD vNext traduz a referência de perímetro e mantém o centro
+  reservado, com cobertura específica em wide, narrow e micro-narrow;
 - resize real de 432×720 alimenta menu e overlays Arena;
 - pause e terminal não cortam os títulos testados em narrow;
 - probes focados e suíte acumulada passam sem erros de runtime gating;
@@ -580,6 +785,9 @@ integrado.
   helpers locais; o shell compartilhado cobre Boot, Program, Bestiary e
   Accessibility neste passe, mas a migração total precisa de critérios para não
   centralizar diferenças reais;
+- o combat HUD ainda convive com o adapter do `Hud` legado; a fonte de estado é
+  compartilhada, mas a remoção completa da apresentação antiga só deve ocorrer
+  depois de validar todos os fluxos de pause, game-over, touch e export;
 - valores e slogans como `0.2.3` continuam copy de produto sujeita a revisão.
 
 ### Risco e validação recomendada
@@ -946,6 +1154,106 @@ mais de três ofertas simultâneas. As capturas usam conteúdo inglês sintétic
 não substituem a avaliação do texto PT-BR nem a verificação do fluxo real em
 uma run completa.
 
+## 7.5 Combat HUD — tradução da referência de combate para a arena real
+
+### Motivo da alteração
+
+A primeira versão da superfície de combate já tinha um contrato funcional,
+mas a captura mostrava o problema que motivou a revisão: o espaço estava quase
+vazio, a leitura do combo não tinha instrumento próprio, patches não tinham um
+dock visual, e a ameaça não tinha um registro no mesmo idioma operacional das
+referências. Além disso, o HUD legado continuava desenhando um indicador de
+dash por cima da superfície opt-in.
+
+O objetivo deste passe foi aproximar o HUD da densidade intencional de
+`imagem5.png` sem copiar a imagem como fundo. O centro segue limpo para player,
+inimigos, projéteis e pickups; a informação contínua se distribui no
+perímetro; e eventos recentes ganham um bloco próprio.
+
+### Implementação
+
+- `src/ui/vnext/surfaces/combat_hud_surface.gd` agora desenha a moldura
+  angular, rails de calibração, ticks laterais e telemetria inferior;
+- o bloco de integrity exibe HP numérico, até 12 pips, direção do último dano,
+  programa e meter segmentado com estado `EMPTY`, `CHARGING` ou `FULL`;
+- o combo recebeu bloco dedicado, `COMBO xN`, estado de cadeia e barra de
+  progresso segmentada alimentada pela fração real de `_combo_frac`;
+- o evento temporário fica separado do `CYCLE NN` contínuo, que é mantido no
+  patch dock para não duplicar a mesma informação em dois lugares fortes;
+- o patch dock mostra ciclo, `PATCH DOCK`, até quatro chips com glyphs próprios e
+  status online; os chips são derivados do snapshot/`Game.patch_levels`;
+- ability/dash ganhou chevrons code-drawn, estado textual, hint de input e
+  carga segmentada. O indicador legado é ocultado durante o modo vNext para não
+  duplicar a mesma ação;
+- score mostra pontuação, tempo e seed/run; o boss register fica acima da
+  arena, com título, fase e uma ou várias barras de vida para split boss;
+- o layout passou a calcular um `reserved_playfield` real, evitando que o
+  registro de boss ou os cartões inferiores consumam o centro reservado;
+- narrow regular mantém labels completos quando 432×720 comporta a cópia;
+  micro-narrow usa abreviações controladas e empilha os painéis em 320×568;
+  escalas de texto acima de 110% também podem usar essas abreviações quando
+  necessário para preservar o fit;
+- `src/ui/hud.gd` sincroniza combo fraction/footer e não reativa o
+  `_dash_icon` legado quando `KP_VNEXT_HUD=1`;
+- o probe e a fixture de captura foram atualizados para testar a cadeia real,
+  não apenas o desenho isolado.
+
+### Revisão crítica da própria etapa
+
+O primeiro teste da matriz ampliada reproduziu uma colisão real em 320×568.
+Não foi mascarada removendo o viewport da matriz: foi criado um breakpoint
+micro-narrow e os painéis foram empilhados. A primeira compactação textual
+também quebrou o contrato E3 ao trocar `SHIELD READY` por `SH RDY` em 432 px;
+o validador acumulado ficou vermelho, a causa foi isolada e a abreviação foi
+restringida ao micro-narrow ou a escalas de texto em que a cópia completa não
+cabia.
+
+Outra revisão feita por captura Xvfb revelou o problema de coordenadas da
+fixture: executar uma janela física de 320 px fazia o próprio stretch do
+projeto reduzir a composição lógica. A captura final foi refeita com uma
+janela de renderização suficiente e recorte lógico de 320×568, separando a
+validação de composição da validação do stretch físico. Isso evita concluir
+erroneamente que uma captura reduzida é um problema do layout quando é a
+fixture que está aplicando duas escalas.
+
+### Decisões e alternativas
+
+- **Perímetro em vez de painel central:** escolhido para preservar a área de
+  combate e refletir a referência; uma grande caixa central foi descartada
+  porque competiria com a leitura de ameaça;
+- **Boss acima da arena:** escolhido para dar uma âncora de perigo sem colidir
+  com ability/score; manter o boss no rodapé foi descartado depois de observar
+  disputa com os controles;
+- **Patch chips em vez de texto corrido:** escolhido para permitir comparação
+  rápida e glyphs sem inventar uma nova tela; o texto completo continua
+  disponível no estado/patch surfaces;
+- **Snapshot do Hud como autoridade:** escolhido para não duplicar gameplay;
+  acesso direto a Arena e reimplementação de combo/dash foram descartados;
+- **Micro-narrow empilhado:** escolhido com base na falha geométrica observada;
+  esconder módulos críticos ou reduzir tudo para microtexto foi descartado.
+
+### Evidência e limites
+
+Comprovado nesta etapa: 75 checks do probe do HUD, incluindo HP 1–12, meter,
+dash, combo, patches, boss split, safe area, não sobreposição, reflow,
+text-scale 115%, micro-narrow 320×568, input, sync por programa, banner/ciclo,
+damage direction e Arena real; E3 voltou a 35 checks verdes; a validação
+acumulada passou todos os grupos depois da correção do E3. Capturas limpas
+foram inspecionadas em 1280×720, 432×720 e 320×568 lógico.
+
+Capturas finais fora do Git:
+
+- `/tmp/kernel-panic-ui-captures-hud-final/hud-reference-pass-1280x720.png`;
+- `/tmp/kernel-panic-ui-captures-hud-final/hud-reference-pass-432x720.png`;
+- `/tmp/kernel-panic-ui-captures-hud-final/hud-reference-pass-micro-logical-v3.png`;
+- `/tmp/kernel-panic-ui-captures-hud/hud-runtime-vnext-v2.png` — Arena real,
+  sem o indicador legado duplicado.
+
+Ainda não comprovado: touchscreen Android, safe area de câmera, orientação
+landscape em aparelho, fontes fallback, text scale 150–200% no micro-narrow,
+FPS em Vega integrado/Android e qualidade da leitura em movimento intenso.
+Teardown diagnostics continuam sendo reportados separadamente.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário
@@ -966,8 +1274,8 @@ uma run completa.
 
 - ampliar o passe de arte code-drawn para todo o cast, com estados de ataque,
   hit, elite, telegraph e grayscale;
-- aplicar o mesmo critério de captura e revisão ao patch offer e ao combat HUD,
-  que ainda precisam de uma composição final consistente com o shell;
+- aplicar o mesmo critério de captura e revisão às telas restantes e ao HUD em
+  movimento, mantendo a composição do patch e combat HUD consistente com o shell;
 - fechar a migração das telas restantes e só depois remover os switches;
 - completar PT-BR de todos os textos player-facing;
 - validar touch, safe area, export e performance em Android real;
