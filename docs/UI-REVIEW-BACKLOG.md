@@ -66,9 +66,10 @@ final. Um item de backlog = um commit; rodar
   ou alpha (`hud.gd`). O HUD legado agora expõe estados textuais de integridade,
   escudo/overclock e dash, além de `HIT FROM <direção>` após dano; Rootlet usa
   o mesmo canal sem depender de cor para comunicar `SHIELD READY`.
-- [ ] **H5 — Colisões de layout.** Toast x encounter (`hud.gd:188-193`); SCRAP
-  bar/texto (`hud.gd:567-574`); pips HP > 10 (`hud.gd:528-530`); stats game-over
-  <800px (`panel_kit.gd:284-290`); pause touch x banner (`touch_controls.gd:109-111`).
+- [x] **H5 — Colisões de layout.** O toast agora reserva o espaço do banner e
+  respeita a largura segura; SCRAP usa uma largura medida e texto truncável;
+  pips de integridade densos cabem no painel; game-over estreito empilha stats
+  e ações; e o alvo de pausa touch foi medido contra o banner sem colisão.
 - [ ] **H6 — Camadas.** Vinheta de low-HP (layer 80, `arena_overlay.gd:10`) sobre
   game-over/pause (layer 60); watermark sobre painéis. Reordenar layers ou
   atenuar quando painel de estado ativo.

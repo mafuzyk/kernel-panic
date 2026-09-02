@@ -28,6 +28,13 @@ static func action_rects_for_viewport(viewport: Vector2, kind: String, count: in
 	if count <= 0:
 		return result
 	if kind == "game_over":
+		if viewport.x < 760.0:
+			var narrow_width := maxf(panel.size.x - 56.0, 120.0)
+			var narrow_height := 46.0
+			result.append(Rect2(panel.position + Vector2(28.0, panel.size.y - 148.0), Vector2(narrow_width, narrow_height)))
+			if count > 1:
+				result.append(Rect2(panel.position + Vector2(28.0, panel.size.y - 94.0), Vector2(narrow_width, narrow_height)))
+			return result
 		var game_gap := 18.0
 		var game_width := maxf((panel.size.x - 56.0 - game_gap) * 0.5, 120.0)
 		for index in count:
@@ -78,6 +85,33 @@ static func pause_layout(viewport: Vector2) -> Dictionary:
 		"shortcuts": shortcuts,
 		"scale": scale,
 	}
+
+static func game_over_section_rects_for_viewport(viewport: Vector2) -> Array[Rect2]:
+	var panel := panel_rect_for_viewport(viewport, "game_over")
+	var result: Array[Rect2] = []
+	if viewport.x < 760.0:
+		var width := maxf(panel.size.x - 56.0, 120.0)
+		var top := panel.position.y + 112.0
+		result.append(Rect2(panel.position.x + 28.0, top, width, 92.0))
+		result.append(Rect2(panel.position.x + 28.0, top + 102.0, width, 134.0))
+		return result
+	var gap := 18.0
+	var section_width := (panel.size.x - 56.0 - gap) * 0.5
+	var top := panel.position.y + 150.0
+	for index in 2:
+		result.append(Rect2(panel.position.x + 28.0 + index * (section_width + gap), top, section_width, 230.0))
+	return result
+
+static func game_over_stat_rects_for_viewport(viewport: Vector2) -> Array[Rect2]:
+	var sections := game_over_section_rects_for_viewport(viewport)
+	var result: Array[Rect2] = []
+	if viewport.x < 760.0:
+		result.append(Rect2(sections[0].position + Vector2(0.0, 40.0), Vector2(sections[0].size.x, 48.0)))
+		result.append(Rect2(sections[1].position + Vector2(0.0, 40.0), Vector2(sections[1].size.x, 84.0)))
+		return result
+	for section in sections:
+		result.append(Rect2(section.position + Vector2(24.0, 78.0), Vector2(section.size.x - 48.0, 138.0)))
+	return result
 
 static func terminal_layout(viewport: Vector2) -> Dictionary:
 	var panel := panel_rect_for_viewport(viewport, "terminal")
@@ -155,6 +189,17 @@ func _draw_pause_sections(panel: Rect2) -> void:
 
 func _draw_game_over_sections(panel: Rect2) -> void:
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
+	var sections := game_over_section_rects_for_viewport(size)
+	if size.x < 760.0:
+		for index in sections.size():
+			var section: Rect2 = sections[index]
+			var points := TacticalUIHelper.angular_points(section, 10.0)
+			draw_colored_polygon(points, Color(TacticalUIHelper.MAGENTA.r, TacticalUIHelper.MAGENTA.g, TacticalUIHelper.MAGENTA.b, 0.025))
+			draw_polyline(points + PackedVector2Array([points[0]]), Color(TacticalUIHelper.MAGENTA.r, TacticalUIHelper.MAGENTA.g, TacticalUIHelper.MAGENTA.b, 0.65), 1.2, true)
+			var heading := "CORE DUMP" if index == 0 else "RUN SUMMARY"
+			draw_string(mono, section.position + Vector2(18.0, 27.0), heading, HORIZONTAL_ALIGNMENT_LEFT, section.size.x - 36.0, 13, TacticalUIHelper.MAGENTA)
+			draw_line(section.position + Vector2(18.0, 36.0), Vector2(section.end.x - 18.0, section.position.y + 36.0), Color(TacticalUIHelper.MAGENTA.r, TacticalUIHelper.MAGENTA.g, TacticalUIHelper.MAGENTA.b, 0.38), 1.0)
+		return
 	var gap := 18.0
 	var section_size := Vector2((panel.size.x - 56.0 - gap) * 0.5, 230.0)
 	var top := panel.position.y + 150.0
@@ -178,11 +223,12 @@ func text_overflow_report() -> Array:
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
 	var out: Array = []
 	var panel := panel_rect_for_viewport(Vector2(size.x, size.y), "game_over")
-	var section_width: float = (panel.size.x - 56.0 - 18.0) * 0.5
+	var stat_rects := game_over_stat_rects_for_viewport(Vector2(size.x, size.y))
+	var section_width: float = float(stat_rects[0].size.x) if not stat_rects.is_empty() else 0.0
 	var longest_dump_line := ""
 	for line in "SEGFAULT AT player.hp=0 // state dumped\nKILLER DAEMON // HITS 99".split("\n"):
 		if line.length() > longest_dump_line.length():
 			longest_dump_line = line
-	out.append({"id": "gameover_headings", "fits": mono.get_string_size("RUN SUMMARY", HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x <= section_width - 48.0})
-	out.append({"id": "gameover_dump_line", "fits": mono.get_string_size(longest_dump_line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x <= section_width - 48.0 or TacticalUI.wrapped_height(mono, longest_dump_line, section_width - 48.0, 10) <= 190.0})
+	out.append({"id": "gameover_headings", "fits": mono.get_string_size("RUN SUMMARY", HORIZONTAL_ALIGNMENT_LEFT, -1, 13 if size.x < 760.0 else 15).x <= section_width - 36.0})
+	out.append({"id": "gameover_dump_line", "fits": mono.get_string_size(longest_dump_line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x <= section_width or TacticalUI.wrapped_height(mono, longest_dump_line, section_width, 10) <= 190.0})
 	return out

@@ -1562,6 +1562,87 @@ de overclock. O custo é apenas algumas medições e strings no desenho; nenhum
 asset raster ou dependência externa foi adicionado. A compatibilidade de dados
 permanece intacta.
 
+## 7.11 H5 — colisões de layout em HUD, game-over e touch
+
+### Problemas confirmados por inspeção geométrica
+
+O HUD legado tinha quatro pontos em que a composição dependia de uma largura
+desktop implícita: o toast de achievement recebia `430px` mesmo quando a tela
+compacta tinha menos espaço; os pips usavam um espaçamento mínimo de `22px`,
+fazendo os últimos pips passarem do painel quando a integridade crescia; o
+SCRAP tinha barra fixa de `86px` e texto sem limite; e os stats do game-over
+eram posicionados por offsets em torno do centro, com `408px` de deslocamento
+para a segunda coluna, em vez de serem derivados do painel estreito. Nesse
+último caso, a largura menor que `760px` podia colocar os labels fora da janela
+e mantinha botões longos em duas colunas apertadas.
+
+O alvo de pausa dos controles touch foi comparado à faixa reservada para o
+banner temporário. Ele fica no topo, enquanto o banner compacto começa abaixo
+do encounter register; não houve colisão reproduzida nessa relação e nenhuma
+mudança especulativa foi aplicada ao input touch.
+
+### Alteração
+
+- `src/ui/hud.gd` passou a centralizar `collision_layout_snapshot()`, com
+  retângulos de safe area, banner, toast, pips e SCRAP. O toast é colocado
+  depois do espaço reservado ao banner, recebe a largura segura real e usa
+  reticências quando o achievement é longo;
+- o banner compacto usa `_banner_base_y` calculado, não um `186px` fixo no
+  caminho de animação. Isso evita que o subtítulo ocupe o mesmo espaço do
+  toast em portrait;
+- `hp_pip_rects()` limita o espaçamento ao intervalo disponível entre as duas
+  margens do painel e reduz o raio apenas quando a densidade exige. Todos os
+  pips continuam existindo; nenhum ponto de vida é descartado;
+- `scrap_layout()` calcula a largura que sobra antes da margem direita, e a
+  barra e o texto usam o mesmo retângulo medido. O texto também passa por
+  `ellipsis_fit()`;
+- `src/ui/tactical_state_surface.gd` agora expõe retângulos de seções/stats do
+  game-over. Em viewport estreita, os dois blocos e as duas ações são
+  empilhados; em viewport wide, a composição de duas colunas permanece;
+- `src/arena/panel_kit.gd` posiciona os labels e botões pelo mesmo contrato
+  geométrico e `Arena._refresh_responsive_layout()` relayouta o game-over após
+  resize, não apenas a pausa;
+- `tools/hud_layout_collision_probe.gd/.tscn` mede os cinco tamanhos de
+  viewport, do HUD legado e do alvo touch ao estado de game-over. O validador
+  acumulado executa esse contrato em modo silencioso.
+
+### Decisão e alternativas
+
+Foi escolhido um contrato de retângulos compartilhado entre desenho, controles
+e probe. Corrigir apenas o `offset_right` do toast resolveria um caso, mas
+deixaria pips, SCRAP e game-over usando regras divergentes. Manter duas colunas
+no game-over exigiria reduzir os labels a um tamanho que prejudicaria a leitura;
+empilhar só em telas estreitas preserva a composição desktop e torna a ordem de
+leitura explícita. Para os pips, remover os extras ou exibir apenas um contador
+seria mais barato, mas esconderia a granularidade que o HUD já comunica; o
+espaçamento limitado e o raio adaptativo preservam todos os estados.
+
+O alvo touch não foi movido sem evidência: o probe compara a geometria real do
+`TouchControls._pause_btn()` com a faixa de banner para evitar transformar uma
+hipótese visual em regressão de input.
+
+### Evidência e limites
+
+`res://tools/hud_layout_collision_probe.tscn` terminou com 69 passes e zero
+falhas em `320×568`, `432×720`, `600×600`, `800×600` e `1280×720`. Foram
+verificados: toast dentro da safe area e fora do banner; doze pips ainda
+representados e dentro do painel; barra e label SCRAP dentro da janela; pausa
+touch fora do banner; stats e ações do game-over dentro do painel/viewport e
+sem sobreposição. `git diff --check` passou.
+
+Isso é evidência geométrica e não prova de acabamento visual em cada export. O
+probe ainda é headless; safe areas de notch, rotação, ponteiro touch nativo,
+texto PT-BR e alturas extremas de landscape precisam de validação de
+plataforma. O texto do HUD segue em inglês até a etapa de localização.
+
+### Impacto
+
+Não há alteração de gameplay, balanceamento, save ou semântica de input. Há
+mudança visual e de ordem de leitura no game-over estreito: stats e ações agora
+formam uma coluna. Achievements e SCRAP passam a truncar de modo explícito em
+vez de depender do clipping do renderer. O custo de desenho é marginal; não há
+asset novo, dependência externa ou breaking change de dados.
+
 ## 10. Próximos passos recomendados
 
 ### Para avaliação do usuário

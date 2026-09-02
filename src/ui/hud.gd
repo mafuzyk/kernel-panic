@@ -39,6 +39,7 @@ var _build_label: Label
 var _run_info_label: Label
 var _achievement_label: Label
 var _achievement_t := 0.0
+var _achievement_text := ""
 const PATCH_TOOLTIP_HOLD_TIME := 0.45
 var _patch_chip_rects: Dictionary = {}
 var _tooltip_patch_id := ""
@@ -193,19 +194,22 @@ func _refresh_aux_anchors() -> void:
 	var dash: Rect2 = lay["dash"]
 	var side := _safe_side_margin()
 	var vert := _safe_top_margin()
-	_banner_base_y = encounter.end.y + 16.0
+	var collision := collision_layout_snapshot(size, _max_hp)
+	var banner: Rect2 = collision["banner"]
+	var achievement: Rect2 = collision["achievement"]
+	_banner_base_y = banner.position.y
 	if _banner != null and is_instance_valid(_banner):
 		_banner.offset_top = _banner_base_y
 		_banner.offset_bottom = _banner_base_y + 52.0
 	if _banner_sub_l != null and is_instance_valid(_banner_sub_l):
-		_banner_sub_l.offset_top = _banner_base_y + 60.0
-		_banner_sub_l.offset_bottom = _banner_base_y + 82.0
+		_banner_sub_l.offset_top = _banner_base_y + (0.0 if bool(lay["compact"]) else 60.0)
+		_banner_sub_l.offset_bottom = _banner_sub_l.offset_top + (22.0 if bool(lay["compact"]) else 22.0)
 	if _achievement_label != null and is_instance_valid(_achievement_label):
-		var toast_y := maxf(integrity.end.y, encounter.end.y) + 8.0
-		_achievement_label.offset_left = side
-		_achievement_label.offset_right = side + 430.0
-		_achievement_label.offset_top = toast_y
-		_achievement_label.offset_bottom = toast_y + 24.0
+		_achievement_label.offset_left = achievement.position.x
+		_achievement_label.offset_right = achievement.end.x
+		_achievement_label.offset_top = achievement.position.y
+		_achievement_label.offset_bottom = achievement.end.y
+		_refresh_achievement_text(achievement.size.x)
 	if _run_info_label != null and is_instance_valid(_run_info_label):
 		var stack_end := score.end.y + 92.0
 		_run_info_label.offset_right = -side
@@ -228,6 +232,63 @@ func hud_bottom_y(gap: float) -> float:
 
 func layout_snapshot(viewport: Vector2 = size) -> Dictionary:
 	return TacticalUIHelper.layout(viewport, touch_layout(), Sfx.touch_scale)
+
+func _banner_reserved_rect(viewport: Vector2 = size) -> Rect2:
+	var lay := layout_snapshot(viewport)
+	var encounter: Rect2 = lay["encounter"]
+	var height := 22.0 if bool(lay["compact"]) else 82.0
+	return Rect2(0.0, encounter.end.y + 16.0, viewport.x, height)
+
+func hp_pip_rects(viewport: Vector2 = size, max_hp: int = _max_hp) -> Array[Rect2]:
+	var integrity: Rect2 = layout_snapshot(viewport)["integrity"]
+	var count := maxi(max_hp, 1)
+	var base := integrity.position + Vector2(18.0, 48.0)
+	var span := maxf(integrity.size.x - 36.0, 1.0)
+	var spacing := 30.0 if count <= 1 else minf(30.0, span / float(count - 1))
+	var radius := 9.0
+	if spacing < 22.0:
+		radius = clampf(spacing * 0.42, 3.0, 9.0)
+	var result: Array[Rect2] = []
+	for index in count:
+		var center := base + Vector2(float(index) * spacing, 0.0)
+		result.append(Rect2(center - Vector2(radius, radius), Vector2(radius * 2.0, radius * 2.0)))
+	return result
+
+func scrap_layout(viewport: Vector2 = size) -> Dictionary:
+	var lay := layout_snapshot(viewport)
+	var integrity: Rect2 = lay["integrity"]
+	var x := integrity.position.x + 16.0
+	var y := integrity.position.y + integrity.size.y - 34.0
+	var meter_width := maxf(integrity.size.x - 32.0, 80.0)
+	var sx := x + meter_width + 12.0
+	var right := viewport.x - _safe_side_margin_for_viewport(viewport)
+	var width := clampf(right - sx, 0.0, 86.0)
+	var bar := Rect2(sx, y, width, 8.0)
+	return {
+		"bar": bar,
+		"label": Rect2(sx, y + 8.0, width, 18.0),
+	}
+
+func _safe_side_margin_for_viewport(viewport: Vector2) -> float:
+	return TacticalUIHelper.frame_margins(viewport).x
+
+func collision_layout_snapshot(viewport: Vector2 = size, max_hp: int = _max_hp) -> Dictionary:
+	var lay := layout_snapshot(viewport)
+	var safe_margin := TacticalUIHelper.frame_margins(viewport)
+	var safe := Rect2(safe_margin.x, safe_margin.y, maxf(viewport.x - safe_margin.x * 2.0, 0.0), maxf(viewport.y - safe_margin.y * 2.0, 0.0))
+	var banner := _banner_reserved_rect(viewport)
+	var encounter: Rect2 = lay["encounter"]
+	var integrity: Rect2 = lay["integrity"]
+	var toast_y := maxf(maxf(integrity.end.y, encounter.end.y), banner.end.y) + 8.0
+	var achievement := Rect2(safe_margin.x, toast_y, maxf(viewport.x - safe_margin.x * 2.0, 1.0), 24.0)
+	return {
+		"safe": safe,
+		"banner": banner,
+		"achievement": achievement,
+		"integrity": integrity,
+		"hp_pips": hp_pip_rects(viewport, max_hp),
+		"scrap": scrap_layout(viewport),
+	}
 
 func touch_layout() -> bool:
 	return DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
@@ -312,9 +373,17 @@ func _on_achievement_unlocked(_id: String, label: String) -> void:
 func show_achievement(label: String) -> void:
 	if _achievement_label == null or not is_instance_valid(_achievement_label):
 		return
-	_achievement_label.text = "[ %07.3f ] achievement: %s enabled" % [float(Game.stats.get("time", 0.0)), label]
+	_achievement_text = "[ %07.3f ] achievement: %s enabled" % [float(Game.stats.get("time", 0.0)), label]
+	_refresh_achievement_text(float(_achievement_label.size.x))
 	_achievement_t = 4.0
 	_achievement_label.modulate.a = 1.0
+
+func _refresh_achievement_text(max_width: float) -> void:
+	if _achievement_label == null or not is_instance_valid(_achievement_label) or _mono == null:
+		return
+	if _achievement_text.is_empty():
+		return
+	_achievement_label.text = TacticalUIHelper.ellipsis_fit(_mono, _achievement_text, maxf(max_width, 1.0), 12)
 
 func show_banner(text: String, sub: String, dur := 2.0) -> void:
 	_banner_text = text
@@ -622,14 +691,13 @@ func _draw_tactical_shell(f: Font) -> void:
 			draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), line, HORIZONTAL_ALIGNMENT_LEFT, event_text_width, 11, event_color)
 
 func _hp_pips(f: Font) -> void:
-	var integrity_rect: Rect2 = layout_snapshot()["integrity"]
-	var base := integrity_rect.position + Vector2(18.0, 48.0)
-	var spacing := minf(30.0, maxf(22.0, (integrity_rect.size.x - 36.0) / float(maxi(_max_hp, 1))))
-	for i in _max_hp:
-		var p := base + Vector2(i * spacing, 0)
+	var pips := hp_pip_rects(size, _max_hp)
+	for i in pips.size():
+		var pip: Rect2 = pips[i]
+		var p := pip.get_center()
 		var on := i < _hp
 		var col := Balance.COL_PLAYER if on else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.18)
-		var s := 9.0
+		var s := pip.size.x * 0.5
 		if on and _hp == 1:
 			col.a = 0.6 + 0.4 * absf(sin(Time.get_ticks_msec() / 1000.0 * 5.0))
 		var pts := PackedVector2Array([p + Vector2(0, -s), p + Vector2(s, 0), p + Vector2(0, s), p + Vector2(-s, 0)])
@@ -664,11 +732,15 @@ func _oc_bar(f: Font) -> void:
 	if Game.patch_level("scrapdiet") > 0 and player != null and is_instance_valid(player):
 		var thr: int = player._scrap_threshold()
 		var sc := Color(1.0, 0.75, 0.4, 0.9)
-		var sx := x + r.size.x + 12.0
-		draw_rect(Rect2(sx, y, 86, 8), Color(sc.r, sc.g, sc.b, 0.14))
-		var sfrac: float = clampf(float(player.scrap_count) / float(thr), 0.0, 1.0)
-		draw_rect(Rect2(sx, y, 86.0 * sfrac, 8), Color(sc.r, sc.g, sc.b, 0.8))
-		draw_string(f, Vector2(sx, hud_top_y(60.0)), "SCRAP %d/%d" % [player.scrap_count, thr], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, sc)
+		var scrap := scrap_layout(size)
+		var scrap_bar: Rect2 = scrap["bar"]
+		var scrap_label: Rect2 = scrap["label"]
+		if scrap_bar.size.x > 1.0:
+			draw_rect(scrap_bar, Color(sc.r, sc.g, sc.b, 0.14))
+			var sfrac: float = clampf(float(player.scrap_count) / float(thr), 0.0, 1.0)
+			draw_rect(Rect2(scrap_bar.position, Vector2(scrap_bar.size.x * sfrac, scrap_bar.size.y)), Color(sc.r, sc.g, sc.b, 0.8))
+			var scrap_text := TacticalUIHelper.ellipsis_fit(f, "SCRAP %d/%d" % [player.scrap_count, thr], maxf(scrap_label.size.x, 1.0), 11)
+			draw_string(f, scrap_label.position + Vector2(0.0, 13.0), scrap_text, HORIZONTAL_ALIGNMENT_LEFT, scrap_label.size.x, 11, sc)
 	_patch_chips(f)
 
 func _patch_chips(f: Font) -> void:
@@ -714,7 +786,7 @@ func patch_dock_rects(viewport: Vector2 = size) -> Dictionary:
 func _draw_patch_tooltip(f: Font) -> void:
 	if not _tooltip_visible or _tooltip_data.is_empty() or not _patch_chip_rects.has(_tooltip_patch_id):
 		return
-	var width := minf(390.0, maxf(size.x - 24.0, 220.0))
+	var width := minf(390.0, maxf(size.x - _safe_side_margin() * 2.0, 1.0))
 	var height := 76.0
 	var chip_rect: Rect2 = _patch_chip_rects[_tooltip_patch_id]
 	var pos := chip_rect.position + Vector2(0, chip_rect.size.y + 8.0)
@@ -732,7 +804,7 @@ func _draw_patch_tooltip(f: Font) -> void:
 func tooltip_text_snapshot(max_width: float = -1.0) -> Dictionary:
 	if _tooltip_data.is_empty() or _mono == null:
 		return {}
-	var width := minf(390.0, maxf(size.x - 24.0, 220.0)) if max_width <= 0.0 else maxf(max_width, 40.0)
+	var width := minf(390.0, maxf(size.x - _safe_side_margin() * 2.0, 1.0)) if max_width <= 0.0 else maxf(max_width, 1.0)
 	var copy_width := maxf(width - 20.0, 1.0)
 	return {
 		"title": TacticalUIHelper.ellipsis_fit(_mono, str(_tooltip_data.get("title", "PATCH")), copy_width, 13),

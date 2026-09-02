@@ -97,6 +97,20 @@ func _layout_pause_panel() -> void:
 		var row_rect := Rect2(volume.position + Vector2(12.0 * scale, index * (row_height + row_gap)), Vector2(volume.size.x - 24.0 * scale, row_height))
 		_place_pause_control(a._pause_volume_rows[index], row_rect)
 
+func _layout_game_over_panel() -> void:
+	if a._over_core_stats == null or not is_instance_valid(a._over_core_stats):
+		return
+	if a._over_run_stats == null or not is_instance_valid(a._over_run_stats):
+		return
+	if a._over_primary == null or not is_instance_valid(a._over_primary):
+		return
+	if a._over_menu == null or not is_instance_valid(a._over_menu):
+		return
+	_position_game_over_stat(a._over_core_stats, false)
+	_position_game_over_stat(a._over_run_stats, true)
+	_position_game_over_button(a._over_primary, false)
+	_position_game_over_button(a._over_menu, true)
+
 func _build_terminal_panel() -> void:
 	var terminal_script: Script = load("res://src/ui/terminal_panel.gd")
 	if terminal_script == null:
@@ -278,20 +292,20 @@ func _make_button(txt: String, y: float) -> Button:
 
 func _position_game_over_button(button: Button, right_side: bool) -> void:
 	var viewport: Vector2 = a.get_viewport_rect().size
-	var panel: Rect2 = a.TacticalStateSurfaceHelper.panel_rect_for_viewport(viewport, "game_over")
-	var gap := 18.0
-	var button_width := maxf((panel.size.x - 56.0 - gap) * 0.5, 120.0)
-	var x := panel.position.x + 28.0 + (button_width + gap if right_side else 0.0)
-	button.offset_left = x - viewport.x * 0.5
-	button.offset_right = button.offset_left + button_width
+	var actions: Array[Rect2] = a.TacticalStateSurfaceHelper.action_rects_for_viewport(viewport, "game_over", 2)
+	if actions.size() < 2:
+		return
+	var rect: Rect2 = actions[1 if right_side else 0]
+	_place_pause_control(button, rect)
 
 func _position_game_over_stat(label: Label, right_side: bool) -> void:
-	var side_offset := 408.0 if right_side else 0.0
-	label.anchor_left = 0.5
-	label.anchor_right = 0.5
-	label.offset_left = -375.0 + side_offset
-	label.offset_right = -35.0 + side_offset
-	_center_panel_control(label, 320.0, 180.0)
+	var viewport: Vector2 = a.get_viewport_rect().size
+	var stats: Array[Rect2] = a.TacticalStateSurfaceHelper.game_over_stat_rects_for_viewport(viewport)
+	if stats.size() < 2:
+		return
+	var rect: Rect2 = stats[1 if right_side else 0]
+	_place_pause_control(label, rect)
+	label.add_theme_font_size_override("font_size", 11 if viewport.x < 760.0 else 13)
 
 func state_panel_rect(viewport: Vector2, design_top: float = 0.0, control_size: Vector2 = Vector2.ZERO) -> Rect2:
 	var kind := "game_over" if control_size.x > 700.0 else "pause"

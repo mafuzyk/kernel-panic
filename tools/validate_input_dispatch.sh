@@ -125,6 +125,7 @@ run_headless_probe "probe-h1-hud-hierarchy" "H1 HUD banner hierarchy probe" "res
 run_headless_probe "probe-h2-hud-legibility" "H2 HUD legibility probe" "res://tools/hud_legibility_probe.tscn"
 run_headless_probe "probe-h3-hud-scale-matrix" "H3 HUD scale matrix probe" "res://tools/hud_scale_matrix_probe.tscn"
 run_headless_probe "probe-h4-hud-state-signals" "H4 HUD state signal probe" "res://tools/hud_state_signal_probe.tscn"
+run_headless_probe "probe-h5-hud-layout-collisions" "H5 HUD layout collision probe" "res://tools/hud_layout_collision_probe.tscn"
 run_headless_probe "probe-r18-touch-multitouch" "R18 touch multitouch action probe" "res://tools/touch_multitouch_probe.tscn"
 run_headless_probe "probe-vnext-primitives" "VNext code-drawn primitive contract" "res://tools/vnext_primitives_probe.tscn"
 run_headless_probe "probe-vnext-entity-illustration" "VNext code-drawn entity illustration contract" "res://tools/vnext_entity_illustration_probe.tscn"

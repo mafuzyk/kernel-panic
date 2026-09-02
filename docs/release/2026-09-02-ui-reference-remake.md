@@ -82,6 +82,8 @@
 - Changed legacy HUD status communication to expose readable integrity,
   shield/overclock and dash states, including a cardinal damage-direction
   marker, so color and alpha are no longer the only signal.
+- Changed narrow legacy game-over composition to stack its diagnostic blocks and
+  actions when two desktop columns would make the copy unusable.
 - Kept the legacy route as the default rollback path; no public default switch
   was changed in this development checkpoint.
 
@@ -121,6 +123,8 @@
   width; the tooltip now fits title, detail and relation independently.
 - Fixed Rootlet's ready shield and shield meter presentation being represented
   through the generic overclock/meter language in the legacy HUD.
+- Fixed legacy HUD auxiliary copy, dense integrity pips, scrap telemetry and
+  narrow game-over controls exceeding their available layout regions.
 
 ## Improved
 
@@ -193,6 +197,8 @@
 - H4 HUD state signal probe: 12 focused headless passes, 0 failures; critical
   health, dash cooldown, damage direction and Rootlet shield readiness were
   checked through the live HUD state path.
+- H5 HUD layout collision probe: 69 focused headless passes, 0 failures across
+  320×568, 432×720, 600×600, 800×600 and 1280×720 layouts.
 - Reference-shell boot: 102 passes.
 - Program/Story selection: 225 passes, 0 failures.
 - Patch decision surface: 67 passes, 0 failures; real Arena adapter: 19 passes,

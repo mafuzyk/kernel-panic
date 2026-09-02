@@ -351,6 +351,7 @@ func _layout_patch_box() -> void:
 
 func _refresh_responsive_layout(viewport_height: float = -1.0) -> void:
 	_panel_kit._layout_pause_panel()
+	_panel_kit._layout_game_over_panel()
 	for panel in [_pause_panel, _over_panel, _patch_panel]:
 		if panel == null or not is_instance_valid(panel):
 			continue
