@@ -47,6 +47,9 @@ var _tooltip_hold_t := 0.0
 var _dash_icon: Control
 var _era_accent: Color = TacticalUIHelper.CYAN
 var _surface_scale := 1.0
+var _surface_window_size := Vector2(-1.0, -1.0)
+var _surface_viewport_size := Vector2(-1.0, -1.0)
+var _physical_display := false
 var _banner_base_y := 120.0
 var _banner_elapsed := 0.0
 var _aux_size := Vector2.ZERO
@@ -71,6 +74,7 @@ const BANNER_FADE_OUT_SECONDS := 0.32
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_physical_display = DisplayServer.get_name().to_lower() != "headless"
 	_vnext_hud_mode = OS.get_environment("KP_VNEXT_HUD") == "1"
 	if _vnext_hud_mode:
 		_vnext_hud_surface = VNextCombatHudScript.new()
@@ -79,7 +83,7 @@ func _ready() -> void:
 		add_child(_vnext_hud_surface)
 	_apply_surface_transform()
 	if is_inside_tree():
-		get_viewport().size_changed.connect(_apply_surface_transform)
+		get_window().size_changed.connect(_apply_surface_transform)
 	_score_font = load("res://assets/fonts/Orbitron.ttf")
 	_mono = load("res://assets/fonts/ShareTechMono.ttf")
 	_banner = _mk_label(40, Balance.COL_TEXT, Vector2(0, 120))
@@ -131,21 +135,39 @@ func _ready() -> void:
 	if _vnext_hud_surface != null:
 		_vnext_hud_surface.reflow_for_viewport(get_viewport_rect().size)
 
-## The stretch viewport keeps the 1280-wide design space on narrow windows
-## (aspect "expand"), which shrinks every design-px metric. Mount the HUD in
-## window pixels instead: local units == on-screen pixels, so margins, panels
-## and fonts keep their designed size and the compact grid engages below 760.
+## The combat HUD is authored in physical-window units, then fitted back into
+## the logical canvas with one uniform factor. That keeps panel and font sizes
+## stable while the project stretch maps the resulting canvas to the display.
+## TacticalUI.layout() still receives the physical window size, so wide,
+## compact and portrait compositions are selected from the real available area.
+## The size signature is checked once per frame as a fallback because some
+## window managers can maximize without changing the logical stretch viewport.
 func _apply_surface_transform() -> void:
 	var win := Vector2(DisplayServer.window_get_size())
 	var vp := get_viewport_rect().size
 	if win.x < 1.0 or win.y < 1.0 or vp.x < 1.0 or vp.y < 1.0:
 		return
-	_surface_scale = vp.x / win.x
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
 	position = Vector2.ZERO
 	size = win
+	_surface_scale = vp.x / win.x
+	_surface_window_size = win
+	_surface_viewport_size = vp
 	scale = Vector2(_surface_scale, _surface_scale)
 	_refresh_aux_anchors()
+
+func _surface_transform_needs_refresh() -> bool:
+	var vp := get_viewport_rect().size
+	if vp.x < 1.0 or vp.y < 1.0:
+		return false
+	if not _physical_display:
+		return not is_equal_approx(vp.x, _surface_viewport_size.x) \
+			or not is_equal_approx(vp.y, _surface_viewport_size.y)
+	var win := Vector2(DisplayServer.window_get_size())
+	return not is_equal_approx(win.x, _surface_window_size.x) \
+		or not is_equal_approx(win.y, _surface_window_size.y) \
+		or not is_equal_approx(vp.x, _surface_viewport_size.x) \
+		or not is_equal_approx(vp.y, _surface_viewport_size.y)
 
 func _mk_label(size: int, col: Color, pos: Vector2) -> Label:
 	var l := Label.new()
@@ -469,6 +491,8 @@ func boss_split_rows_snapshot() -> Array[Dictionary]:
 	return result
 
 func _process(delta: float) -> void:
+	if _surface_transform_needs_refresh():
+		_apply_surface_transform()
 	if size != _aux_size:
 		_aux_size = size
 		_refresh_aux_anchors()

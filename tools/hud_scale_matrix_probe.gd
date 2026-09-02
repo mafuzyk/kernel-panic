@@ -1,8 +1,9 @@
 extends Node
 
-## H3 audit probe: the legacy HUD intentionally compensates for Godot's
-## canvas_items stretch. This records the physical/logical transform instead of
-## assuming that different local coordinate spaces are automatically a bug.
+## H3 audit probe: the legacy HUD is authored in physical-window coordinates
+## and fitted back into the logical canvas with a uniform scale. The effective
+## CanvasLayer surface therefore matches the logical viewport; the physical
+## window stretch is applied after that layer transform.
 
 var _fails := 0
 var _finished := false
@@ -56,9 +57,11 @@ func _run() -> void:
 		if physical_display:
 			_check(window_size == Vector2(target), "physical window accepts %dx%d" % [target.x, target.y])
 		_check(hud_size.x > 0.0 and hud_size.y > 0.0, "HUD has a positive local surface at %dx%d" % [target.x, target.y])
-		_check(hud_scale.x > 0.0 and hud_scale.y > 0.0 and is_equal_approx(hud_scale.x, hud_scale.y), "HUD compensation stays uniform at %dx%d" % [target.x, target.y])
+		_check(hud_scale.x > 0.0 and hud_scale.y > 0.0 and is_equal_approx(hud_scale.x, hud_scale.y), "HUD surface scale stays uniform at %dx%d" % [target.x, target.y])
 		_check(effective_size.x > 0.0 and effective_size.y > 0.0, "HUD remains renderable after %dx%d resize" % [target.x, target.y])
-		_check(absf(effective_size.x - viewport_size.x) <= 1.0 and absf(effective_size.y - viewport_size.y) <= 1.0, "HUD effective canvas matches the stretched viewport at %dx%d" % [target.x, target.y])
+		_check(absf(effective_size.x - viewport_size.x) <= 1.0 and absf(effective_size.y - viewport_size.y) <= 1.0, "HUD effective canvas matches the logical viewport at %dx%d" % [target.x, target.y])
+		var expected_local_size := window_size if physical_display else viewport_size
+		_check(absf(hud_size.x - expected_local_size.x) <= 1.0 and absf(hud_size.y - expected_local_size.y) <= 1.0, "HUD local surface follows the physical window before fitting at %dx%d" % [target.x, target.y])
 	var legacy_layout: Dictionary = hud.call("layout_snapshot", Vector2(1280, 720))
 	var wide_layout: Dictionary = hud.call("layout_snapshot", Vector2(1920, 1080))
 	_check((legacy_layout["integrity"] as Rect2).size.x != (wide_layout["integrity"] as Rect2).size.x, "HUD layout responds to viewport width instead of freezing 1280 metrics")

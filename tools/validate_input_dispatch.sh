@@ -128,6 +128,7 @@ run_headless_probe "probe-h4-hud-state-signals" "H4 HUD state signal probe" "res
 run_headless_probe "probe-h5-hud-layout-collisions" "H5 HUD layout collision probe" "res://tools/hud_layout_collision_probe.tscn"
 run_headless_probe "probe-h6-overlay-layers" "H6 overlay layer probe" "res://tools/overlay_layer_probe.tscn"
 run_headless_probe "probe-h7-dead-widgets" "H7 dead widgets and affordances probe" "res://tools/hud_dead_widgets_probe.tscn"
+run_headless_probe "probe-h8-legacy-hud-adaptive" "H8 legacy HUD physical-window reflow" "res://tools/legacy_hud_adaptive_probe.tscn"
 run_headless_probe "probe-n1-state-panel-navigation" "N1 state-panel keyboard navigation probe" "res://tools/state_panel_navigation_probe.tscn"
 run_headless_probe "probe-n2-overlay-back-layout" "N2 overlay back layout probe" "res://tools/overlay_back_layout_probe.tscn"
 run_headless_probe "probe-n3-bestiary-scroll-visibility" "N3 Bestiary scroll visibility probe" "res://tools/bestiary_scroll_visibility_probe.tscn"
@@ -172,6 +173,10 @@ if command -v xvfb-run >/dev/null 2>&1; then
 	report_case "H3 HUD scale matrix xvfb" "$LOG_DIR/probe-h3-hud-scale-matrix-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
 	report_errors "H3 HUD scale matrix xvfb" "$LOG_DIR/probe-h3-hud-scale-matrix-xvfb.log"
+	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a -s '-screen 0 1920x1080x24' godot --audio-driver Dummy --path . res://tools/legacy_hud_adaptive_probe.tscn > "$LOG_DIR/probe-h8-legacy-hud-adaptive-xvfb.log" 2>&1
+	report_case "H8 legacy HUD physical-window reflow xvfb" "$LOG_DIR/probe-h8-legacy-hud-adaptive-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
+		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
+	report_errors "H8 legacy HUD physical-window reflow xvfb" "$LOG_DIR/probe-h8-legacy-hud-adaptive-xvfb.log"
 	timeout --kill-after="${VALIDATION_KILL_GRACE_SECONDS}s" "${VALIDATION_TIMEOUT_SECONDS}s" env XDG_DATA_HOME="$XDG" xvfb-run -a godot --audio-driver Dummy --path . res://tools/g2_display_settings_probe.tscn > "$LOG_DIR/probe-g2-display-settings-xvfb.log" 2>&1
 	report_case "G2 display settings xvfb" "$LOG_DIR/probe-g2-display-settings-xvfb.log" "$?" "PROBE_PASS" "PROBE_FAIL" \
 		'^PROBE_DONE fails=0$:::PROBE_DONE fails=0 marker'
