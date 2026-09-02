@@ -8,7 +8,9 @@ const MenuChromeKitScript = preload("res://src/ui/menu_chrome_kit.gd")
 const VNextBootScript = preload("res://src/ui/vnext/surfaces/boot_surface.gd")
 const VNextProgramScript = preload("res://src/ui/vnext/surfaces/program_surface.gd")
 const VNextStoryScript = preload("res://src/ui/vnext/surfaces/story_surface.gd")
+const VNextBestiaryScript = preload("res://src/ui/vnext/surfaces/bestiary_surface.gd")
 const VNextAccessibilityScript = preload("res://src/ui/vnext/surfaces/accessibility_surface.gd")
+const VNextTokens = preload("res://src/ui/vnext/ui_tokens.gd")
 
 var _title: Label
 var _title_r: Label
@@ -169,24 +171,51 @@ func _refresh_color_assist_label() -> void:
 func _refresh_aim_label(btn: Button) -> void:
 	btn.text = "AIM MODE: %s" % Game.effective_aim_mode().to_upper()
 
+func _vnext_layout_viewport() -> Vector2:
+	# The project deliberately keeps a 1280-wide logical canvas. With
+	# canvas_items + aspect=expand, a portrait window exposes a tall logical
+	# canvas instead of changing its width, so using get_viewport_rect() here
+	# would keep selecting the desktop composition forever. VNext surfaces are
+	# authored in the actual window coordinate space and fitted back into the
+	# logical canvas below.
+	var window_size := Vector2(get_window().size)
+	if window_size.x < 320.0 or window_size.y < 240.0:
+		var viewport_size := get_viewport_rect().size
+		return viewport_size if viewport_size.x >= 320.0 and viewport_size.y >= 240.0 else VNextTokens.BASE_VIEWPORT
+	return window_size
+
+func _fit_vnext_surface(surface: Control, layout_viewport: Vector2) -> void:
+	if surface == null or layout_viewport.x < 1.0 or layout_viewport.y < 1.0:
+		return
+	var logical_size := get_viewport_rect().size
+	var fit_scale := minf(logical_size.x / layout_viewport.x, logical_size.y / layout_viewport.y)
+	if fit_scale <= 0.0:
+		fit_scale = 1.0
+	surface.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	surface.position = Vector2.ZERO
+	surface.size = layout_viewport
+	surface.scale = Vector2.ONE * fit_scale
+
 func _configure_vnext_boot(next_viewport_size: Vector2 = Vector2.ZERO) -> void:
 	if _vnext_boot == null or not is_instance_valid(_vnext_boot):
 		return
-	var viewport_size := next_viewport_size if next_viewport_size != Vector2.ZERO else get_viewport_rect().size
+	var viewport_size := next_viewport_size if next_viewport_size != Vector2.ZERO else _vnext_layout_viewport()
+	_fit_vnext_surface(_vnext_boot, viewport_size)
 	var touch := DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
-	_vnext_boot.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_vnext_boot.configure({"program": Game.program, "best": Game.best_for_mode(), "settings_enabled": OS.get_environment("KP_VNEXT_SETTINGS") == "1"}, VNextBootScript.context_for_viewport(viewport_size, touch))
 
 func _configure_vnext_surface(next_viewport_size: Vector2 = Vector2.ZERO) -> void:
 	if _vnext_surface == null or not is_instance_valid(_vnext_surface):
 		return
-	var viewport_size := next_viewport_size if next_viewport_size != Vector2.ZERO else get_viewport_rect().size
+	var viewport_size := next_viewport_size if next_viewport_size != Vector2.ZERO else _vnext_layout_viewport()
+	_fit_vnext_surface(_vnext_surface, viewport_size)
 	var touch := DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
-	_vnext_surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if _vnext_surface.get_script() == VNextProgramScript:
 		_vnext_surface.configure({"selected": Game.program}, VNextProgramScript.context_for_viewport(viewport_size, touch))
 	elif _vnext_surface.get_script() == VNextStoryScript:
 		_vnext_surface.configure({"selected": Game.story_stage_index}, VNextStoryScript.context_for_viewport(viewport_size, touch))
+	elif _vnext_surface.get_script() == VNextBestiaryScript:
+		_vnext_surface.configure({"selected": "drone"}, VNextBestiaryScript.context_for_viewport(viewport_size, touch))
 	elif _vnext_surface.get_script() == VNextAccessibilityScript:
 		_vnext_surface.configure(Sfx.accessibility_snapshot(), VNextAccessibilityScript.context_for_viewport(viewport_size, touch))
 	else:
@@ -195,13 +224,16 @@ func _configure_vnext_surface(next_viewport_size: Vector2 = Vector2.ZERO) -> voi
 func _show_vnext_route(route: String) -> void:
 	if _vnext_surface != null and is_instance_valid(_vnext_surface):
 		_vnext_surface.queue_free()
-	_vnext_surface = VNextProgramScript.new() if route == "program" else VNextStoryScript.new() if route == "story" else VNextAccessibilityScript.new() if route == "settings" else VNextBootScript.new()
+	_vnext_surface = VNextProgramScript.new() if route == "program" else VNextStoryScript.new() if route == "story" else VNextBestiaryScript.new() if route == "bestiary" else VNextAccessibilityScript.new() if route == "settings" else VNextBootScript.new()
 	add_child(_vnext_surface)
 	_vnext_surface.action_requested.connect(_on_vnext_boot_action)
 	if route == "program":
 		_vnext_boot = null
 		_configure_vnext_surface()
 	elif route == "story":
+		_vnext_boot = null
+		_configure_vnext_surface()
+	elif route == "bestiary":
 		_vnext_boot = null
 		_configure_vnext_surface()
 	elif route == "settings":
@@ -218,6 +250,8 @@ func _on_vnext_boot_action(action_id: String, _payload: Dictionary) -> void:
 		_show_vnext_route("program")
 	elif action_id == "story":
 		_show_vnext_route("story")
+	elif action_id == "bestiary":
+		_show_vnext_route("bestiary")
 	elif action_id == "launch_program":
 		Game.set_program(str(_payload.get("program", Game.program)))
 		_start()

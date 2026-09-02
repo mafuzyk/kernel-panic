@@ -56,6 +56,8 @@ func action_regions() -> Dictionary:
 func semantic_snapshot() -> Dictionary:
 	return {
 		"screen": "settings/accessibility",
+		"visual_system": "reference_shell",
+		"route": "KP://SETTINGS/ACCESSIBILITY",
 		"title": _tr("accessibility.title", "ACCESSIBILITY"),
 		"selected_tab": "ACCESSIBILITY",
 		"focus": _focus,
@@ -74,6 +76,7 @@ func semantic_snapshot() -> Dictionary:
 		"reset_confirmed": _reset_completed,
 		"reset_armed": _reset_confirmed,
 		"unsupported_note": _unsupported_text(),
+		"composition": {"shell": "persistent", "header": "workstation", "content": "live_controls", "footer": "navigation"},
 		"navigation": _navigation.snapshot() if _navigation != null else {},
 	}
 
@@ -81,6 +84,7 @@ func text_overflow_report() -> Array:
 	if context == null or _layout.is_empty():
 		return [{"id": "surface", "fits": false}]
 	var entries := [
+		{"id": "shell_meta", "text": "ONLINE    KP://SETTINGS    GUEST" if context.density == "narrow" else "SYSTEM ONLINE    KP://SETTINGS/ACCESSIBILITY    USER: GUEST", "rect": _layout["shell_meta"], "font": ShareTechMono, "size": 12.0, "padding": 8.0},
 		{"id": "title", "text": _tr("accessibility.title", "ACCESSIBILITY"), "rect": _layout["title"], "font": Orbitron, "size": 28.0, "padding": 0.0},
 		{"id": "explanation", "text": _explanation_text(), "rect": _layout["explanation"], "font": ShareTechMono, "size": 14.0, "padding": 0.0},
 		{"id": "color_assist", "text": _label_for("color_assist"), "rect": _layout["color_assist"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
@@ -96,6 +100,7 @@ func text_overflow_report() -> Array:
 		{"id": "back", "text": _tr("accessibility.back", "< BACK"), "rect": _layout["back"], "font": ShareTechMono, "size": 16.0, "padding": 24.0},
 		{"id": "status", "text": _status, "rect": _layout["status"], "font": ShareTechMono, "size": 12.0, "padding": 0.0},
 		{"id": "unsupported", "text": _unsupported_text(), "rect": _layout["unsupported"], "font": ShareTechMono, "size": 11.0, "padding": 0.0},
+		{"id": "footer", "text": "", "rect": _layout["footer"], "font": ShareTechMono, "size": 10.0, "padding": 0.0},
 	]
 	var report: Array = []
 	for entry in entries:
@@ -144,22 +149,29 @@ func _focus_ids() -> Array[String]:
 
 func _layout_for_context() -> Dictionary:
 	var safe: Rect2 = context.safe_rect
-	var width := minf(760.0, safe.size.x)
+	var width := minf(860.0, maxf(0.0, safe.size.x - (32.0 if context.density == "narrow" else 0.0)))
 	var x := safe.position.x + (safe.size.x - width) * 0.5
-	var y := safe.position.y + 24.0
-	var gap := 5.0 if context.density != "narrow" else 4.0
-	var h := 48.0 if context.density != "narrow" else 44.0
+	var y := safe.position.y + 16.0
+	var gap := 3.0
+	var h := 44.0
 	var button_width := width
-	var button_y := y + 104.0
+	var shell_meta := Rect2(x, y, width, 24.0)
+	var title := Rect2(x, y + 32.0, width, 42.0)
+	var explanation := Rect2(x, y + 76.0, width, 20.0)
+	var status := Rect2(x, y + 100.0, width, 16.0)
+	var unsupported := Rect2(x, y + 120.0, width, 14.0)
+	var button_y := y + 138.0
 	var actions := {}
 	var ids := _focus_ids()
 	for index in ids.size():
 		actions[ids[index]] = Rect2(x, button_y + float(index) * (h + gap), button_width, h)
 	return {
 		"shell": safe,
-		"title": Rect2(x, y, width, 42.0),
-		"explanation": Rect2(x, y + 44.0, width, 24.0),
-		"status": Rect2(x, y + 76.0, width, 20.0),
+		"shell_meta": shell_meta,
+		"header": Rect2(x, y + 32.0, width, 104.0),
+		"title": title,
+		"explanation": explanation,
+		"status": status,
 		"color_assist": actions["color_assist"],
 		"haptics_enabled": actions["haptics_enabled"],
 		"shake_level": actions["shake_level"],
@@ -171,7 +183,8 @@ func _layout_for_context() -> Dictionary:
 		"defensive_music": actions["defensive_music"],
 		"reset_accessibility": actions["reset_accessibility"],
 		"back": actions["back"],
-		"unsupported": Rect2(x, safe.end.y - 22.0, width, 18.0),
+		"unsupported": unsupported,
+		"footer": Rect2(x, safe.end.y - 4.0, width, 2.0),
 	}
 
 func _create_button(action_id: String) -> void:
@@ -186,8 +199,13 @@ func _create_button(action_id: String) -> void:
 	button.add_theme_color_override("font_color", Tokens.role_color("structure"))
 	button.add_theme_color_override("font_hover_color", Tokens.role_color("focus"))
 	button.add_theme_color_override("font_focus_color", Tokens.role_color("focus"))
+	button.add_theme_color_override("font_pressed_color", Tokens.role_color("focus"))
 	for state in ["normal", "hover", "pressed", "focus"]:
-		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0, 0, 0, 0)
+		style.content_margin_left = 20.0
+		style.content_margin_right = 18.0
+		button.add_theme_stylebox_override(state, style)
 	button.pressed.connect(_on_button_pressed.bind(action_id))
 	button.focus_entered.connect(_on_button_focus.bind(action_id))
 	button.gui_input.connect(_on_button_gui_input)
@@ -330,10 +348,16 @@ func _draw() -> void:
 	var text_scale := float(context.text_scale)
 	draw_rect(Rect2(Vector2.ZERO, size), Tokens.role_color("background"))
 	draw_polyline(Tokens.frame_points(_layout["shell"], 16.0), Tokens.role_color("structure"), 1.5, true)
+	var shell_meta: Rect2 = _layout["shell_meta"]
+	var shell_color := Tokens.role_color("structure")
+	var shell_meta_text := "ONLINE    KP://SETTINGS    GUEST" if context.density == "narrow" else "■  SYSTEM ONLINE    KP://SETTINGS/ACCESSIBILITY    USER: GUEST"
+	draw_string(ShareTechMono, shell_meta.position, shell_meta_text, HORIZONTAL_ALIGNMENT_LEFT, shell_meta.size.x, int(round(12.0 * text_scale)), shell_color)
+	draw_line(shell_meta.position + Vector2(146.0, -4.0), shell_meta.position + Vector2(244.0, -4.0), Color(shell_color.r, shell_color.g, shell_color.b, 0.5), 1.0, true)
 	draw_string(Orbitron, _layout["title"].position + Vector2(0, 28), "ACCESSIBILITY", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(28.0 * text_scale)), Tokens.role_color("focus"))
 	draw_string(ShareTechMono, _layout["explanation"].position + Vector2(0, 16), _explanation_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(14.0 * text_scale)), Tokens.role_color("muted"))
 	draw_string(ShareTechMono, _layout["status"].position + Vector2(0, 15), _status, HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(12.0 * text_scale)), Tokens.role_color("muted"))
 	draw_string(ShareTechMono, _layout["unsupported"].position + Vector2(0, 13), _unsupported_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(11.0 * text_scale)), Tokens.role_color("muted"))
+	draw_line(_layout["footer"].position, Vector2(_layout["footer"].end.x, _layout["footer"].position.y), Color(shell_color.r, shell_color.g, shell_color.b, 0.42), 1.0, true)
 	for action_id in _focus_ids():
 		var color := Tokens.role_color("focus") if action_id == _focus else Tokens.role_color("structure")
 		draw_polyline(Tokens.frame_points(_layout[action_id], 10.0), color, 2.0 if action_id == _focus else 1.0, true)

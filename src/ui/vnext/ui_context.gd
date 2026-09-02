@@ -13,6 +13,8 @@ var text_scale := 1.0
 
 static func from_viewport(viewport: Vector2, touch := false, reduced := false, contrast := false, scale := 1.0) -> RefCounted:
 	var context = load("res://src/ui/vnext/ui_context.gd").new()
+	if viewport.x < 1.0 or viewport.y < 1.0:
+		viewport = Tokens.BASE_VIEWPORT
 	context.viewport_size = viewport
 	context.safe_rect = Tokens.safe_rect(viewport, Tokens.SAFE_MARGIN)
 	context.density = "wide" if viewport.x >= 1000 else ("compact" if viewport.x >= 600 else "narrow")

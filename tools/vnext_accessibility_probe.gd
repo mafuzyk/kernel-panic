@@ -92,6 +92,17 @@ func _ready() -> void:
 	surface = menu.get("_vnext_surface")
 	_check(surface.get_script().resource_path.ends_with("accessibility_surface.gd"), "surface is dedicated accessibility route")
 	_check(surface.has_method("layout_snapshot") and surface.has_method("action_regions") and surface.has_method("semantic_snapshot") and surface.has_method("text_overflow_report") and surface.has_method("handle_input"), "surface exposes deterministic contract")
+	var initial_layout: Dictionary = surface.layout_snapshot()
+	var initial_regions: Dictionary = initial_layout.get("regions", {})
+	for required_region in ["shell", "shell_meta", "header", "footer"]:
+		_check(initial_regions.has(required_region), "accessibility reference shell exposes " + required_region)
+	var initial_safe: Rect2 = initial_layout.get("safe_rect", Rect2())
+	for region_id in initial_regions:
+		if region_id in ["shell_meta", "header", "footer"] or region_id in surface.action_regions():
+			_check(initial_safe.encloses(initial_regions[region_id]) or region_id == "shell", "accessibility region stays inside safe area " + str(region_id))
+	var initial_semantic: Dictionary = surface.semantic_snapshot()
+	_check(str(initial_semantic.get("visual_system", "")) == "reference_shell", "accessibility identifies the reference visual system")
+	_check(str(initial_semantic.get("route", "")) == "KP://SETTINGS/ACCESSIBILITY", "accessibility publishes its route metadata")
 	var regions: Dictionary = surface.action_regions()
 	for action_id in ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "reduced_motion", "reduced_flashes", "left_handed_touch", "offensive_music", "defensive_music", "reset_accessibility", "back"]:
 		_check(regions.has(action_id), "surface exposes real control " + action_id)
@@ -124,12 +135,19 @@ func _ready() -> void:
 	_check(gui_actions.size() == 9 and gui_actions == ["color_assist", "haptics_enabled", "shake_level", "touch_scale", "reduced_motion", "reduced_flashes", "left_handed_touch", "offensive_music", "defensive_music"], "nine controls dispatch through GUI once each")
 	semantic = surface.semantic_snapshot()
 	_check(str(semantic.get("states", {}).get("color_assist", "")).contains("ON") or str(semantic.get("states", {}).get("color_assist", "")).contains("OFF"), "state is redundant semantic text")
-	_check(surface.text_overflow_report().all(func(item: Dictionary) -> bool: return bool(item.get("fits", false))), "accessibility labels fit")
+	var initial_overflow: Array = surface.text_overflow_report()
+	for item in initial_overflow:
+		if not bool(item.get("fits", false)):
+			print("PROBE_INFO accessibility_overflow ", item)
+	_check(initial_overflow.all(func(item: Dictionary) -> bool: return bool(item.get("fits", false))), "accessibility labels fit")
 	for viewport in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720), Vector2(390, 844)]:
 		menu.size = viewport
 		menu._configure_vnext_surface(viewport)
 		await get_tree().process_frame
 		var report: Array = surface.text_overflow_report()
+		for item in report:
+			if not bool(item.get("fits", false)):
+				print("PROBE_INFO accessibility_overflow ", viewport, " ", item)
 		_check(report.all(func(item: Dictionary) -> bool: return bool(item.get("fits", false))), "labels fit at " + str(viewport))
 		var current_regions: Dictionary = surface.action_regions()
 		_check(_regions_do_not_overlap(current_regions), "regions do not overlap at " + str(viewport))

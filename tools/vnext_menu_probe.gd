@@ -58,6 +58,18 @@ func _ready() -> void:
 	await get_tree().process_frame
 	surface = menu.get("_vnext_surface")
 	_check(Game.state == Game.State.MENU, "story back cannot fall through into boot")
+	surface.set_focus_id("bestiary")
+	_check(surface.handle_input(_key(KEY_ENTER)), "menu opens vnext bestiary route")
+	await get_tree().process_frame
+	var bestiary_surface = menu.get("_vnext_surface")
+	_check(bestiary_surface != null and bestiary_surface.get_node_or_null("BestiaryScroll/BestiaryList") is VBoxContainer, "menu owns bestiary surface")
+	var bestiary_actions := []
+	bestiary_surface.action_requested.connect(func(action_id: String, _payload: Dictionary) -> void: bestiary_actions.append(action_id))
+	bestiary_surface.set_focus_id("back")
+	_check(bestiary_surface.handle_input(_key(KEY_ENTER)), "bestiary back emits route action")
+	await get_tree().process_frame
+	surface = menu.get("_vnext_surface")
+	_check(Game.state == Game.State.MENU and surface != null and surface.get_node_or_null("BootAction") is Button, "bestiary back returns to boot route")
 	var boot_actions := []
 	surface.action_requested.connect(func(action_id: String, _payload: Dictionary) -> void: boot_actions.append(action_id))
 	var first_layout: Dictionary = surface.layout_snapshot()

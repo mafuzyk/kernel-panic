@@ -40,6 +40,12 @@ func _probe_program(script: Script) -> void:
 		var layout: Dictionary = surface.layout_snapshot()
 		var regions: Dictionary = surface.action_regions()
 		_check(str(layout.get("density", "")) in ["wide", "compact", "narrow"], "program density %s" % viewport)
+		var visual_regions: Dictionary = layout.get("regions", {})
+		for required_region in ["shell", "shell_meta", "header", "list", "detail", "detail_illustration", "footer"]:
+			_check(visual_regions.has(required_region), "program reference shell region %s %s" % [required_region, viewport])
+		_check((surface.semantic_snapshot().get("visual_system", "") == "reference_shell"), "program reference shell semantic %s" % viewport)
+		_check((surface.semantic_snapshot().get("route", "") == "KP://PROGRAMS"), "program route semantic %s" % viewport)
+		_check((visual_regions.get("detail_illustration", Rect2()) as Rect2).size.x >= 100.0 or str(layout.get("density", "")) == "narrow", "program dossier illustration allocation %s" % viewport)
 		_check(regions.has("back") and (regions.has("launch_program") or str(layout.get("density", "")) == "narrow"), "program actions %s" % viewport)
 		for raw in regions.values():
 			var rect: Rect2 = raw["rect"]

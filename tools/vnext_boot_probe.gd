@@ -36,6 +36,9 @@ func _ready() -> void:
 		surface.configure({"program": "kernel", "best": 42}, context)
 		var layout: Dictionary = surface.layout_snapshot()
 		var regions: Dictionary = surface.action_regions()
+		var composition: Dictionary = layout.get("regions", {})
+		for required_region in ["shell_meta", "identity", "telemetry", "navigation", "footer"]:
+			_check(composition.has(required_region), "reference shell exposes %s region for %s" % [required_region, viewport])
 		_check(str(layout.get("density", "")) in ["wide", "compact", "narrow"], "density exists for %s" % viewport)
 		_check(regions.has("boot") and regions.has("back"), "boot/back actions exist for %s" % viewport)
 		_check(float((regions["boot"] as Dictionary)["rect"].size.x) >= 44.0 and float((regions["boot"] as Dictionary)["rect"].size.y) >= 44.0, "boot target is touch safe for %s" % viewport)
@@ -43,10 +46,23 @@ func _ready() -> void:
 			var action_rect: Rect2 = regions[action_id]["rect"]
 			_check((layout["safe_rect"] as Rect2).encloses(action_rect), "%s target stays inside safe area for %s" % [action_id, viewport])
 		var overflow: Array = surface.text_overflow_report()
-		_check(overflow.all(func(item): return bool(item.get("fits", false)) and item.has("measured_width") and item.has("available_width")), "text is measured and fits for %s" % viewport)
+		var overflow_fits := overflow.all(func(item): return bool(item.get("fits", false)) and item.has("measured_width") and item.has("available_width"))
+		if not overflow_fits:
+			for item in overflow:
+				if not bool(item.get("fits", false)):
+					print("PROBE_DEBUG overflow id=%s measured=%s available=%s" % [item.get("id", ""), item.get("measured_width", 0.0), item.get("available_width", 0.0)])
+		_check(overflow_fits, "text is measured and fits for %s" % viewport)
 		for expected_id in ["title", "subtitle", "telemetry", "boot", "program", "story", "back"]:
 			_check(overflow.any(func(item): return item.get("id") == expected_id), "overflow covers %s for %s" % [expected_id, viewport])
 		_check(surface.semantic_snapshot().has("markers"), "semantic markers exist for %s" % viewport)
+		var semantic: Dictionary = surface.semantic_snapshot()
+		_check(str(semantic.get("visual_system", "")) == "reference_shell", "boot identifies the reference visual system for %s" % viewport)
+		_check(str(semantic.get("route", "")) == "KP://MAIN_MENU", "boot publishes its route metadata for %s" % viewport)
+		if str(layout.get("density", "")) == "wide":
+			var identity: Rect2 = composition.get("identity", Rect2())
+			var navigation: Rect2 = composition.get("navigation", Rect2())
+			_check(identity.size.x >= 300.0 and navigation.size.x >= 300.0, "wide composition has authored identity and navigation columns")
+			_check(navigation.position.x >= identity.end.x - 24.0, "wide navigation follows the identity column instead of a centered button stack")
 	_check(surface.get_node_or_null("BootAction") is Button and surface.get_node_or_null("BackAction") is Button, "actions have real focusable controls")
 	_check(surface.get_node("BootAction").get_theme_font("font") == load("res://assets/fonts/ShareTechMono.ttf"), "boot controls use project body font")
 	_check(str(surface.context.input_mode) == "touch" and bool(surface.context.reduce_motion) and bool(surface.context.high_contrast) and is_equal_approx(float(surface.context.text_scale), 1.15), "context carries input and accessibility preferences")
