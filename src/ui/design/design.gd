@@ -161,6 +161,18 @@ static func breakpoint_for(viewport_width: float) -> String:
 	return "ultra"
 
 
+## Dica de rolagem. "SWIPE TO SCROLL" vazava no build de desktop (B7) porque
+## a string era fixa em três painéis. Recebe o modo por parâmetro para ser
+## testável sem depender do dispositivo real.
+static func scroll_hint(is_touch: bool) -> String:
+	return "SWIPE TO SCROLL" if is_touch else "SCROLL // MOUSE WHEEL"
+
+
+## Verdadeiro quando a entrada corrente é toque.
+static func touch_input() -> bool:
+	return DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
+
+
 ## Alvo mínimo de interação para o dispositivo atual.
 static func target_min() -> float:
 	return TOUCH_TARGET_MIN if DisplayServer.is_touchscreen_available() else CLICK_TARGET_MIN

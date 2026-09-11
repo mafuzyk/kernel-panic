@@ -218,6 +218,45 @@ func _glyph_lib_test() -> void:
 	h._check(not draw_glyph_body.contains("EntitySprite.draw_entity"),
 		"arena glyph path stays code-drawn (sprites only via draw_portrait)")
 
+## B4/B7/B8 — três achados da auditoria de 2026-09-11.
+func _audit_fixes_test() -> void:
+	print("AT_STEP audit_fixes")
+
+	# B7: "SWIPE TO SCROLL" era string fixa em story/bestiary/program e vazava
+	# no build de desktop, onde não existe swipe.
+	h._check(Design.scroll_hint(true) != Design.scroll_hint(false),
+		"scroll hint differs between touch and pointer input")
+	h._check(not Design.scroll_hint(false).contains("SWIPE"),
+		"desktop scroll hint does not mention swiping")
+	# Comportamento: cada painel expõe a dica, e ela acompanha o dispositivo.
+	for panel_path in ["res://src/ui/bestiary_panel.gd", "res://src/ui/story_panel.gd", "res://src/ui/program_panel.gd"]:
+		var panel_script: Script = load(panel_path)
+		var probe = panel_script.new()
+		var has_hint: bool = probe.has_method("scroll_hint_text")
+		h._check(has_hint, "%s exposes its scroll hint" % panel_path.get_file())
+		if has_hint:
+			h._check(str(probe.call("scroll_hint_text")) == Design.scroll_hint(Design.touch_input()),
+				"%s routes its scroll hint through the design system" % panel_path.get_file())
+		probe.free()
+
+	# O bestiário existe para reconhecimento: se ele desenha uma forma e a arena
+	# desenha outra, ele ensina errado. O redesenho de silhuetas deixou 19 dos
+	# 20 sprites raster defasados, então o caminho de retrato tem de cair no
+	# mesmo desenho em código que a arena usa.
+	h._check(not GlyphLib.USE_RASTER_PORTRAITS,
+		"portrait path draws the same silhouettes as the arena")
+
+	# B8: o bestiário abria com "root" selecionado — última entrada da lista,
+	# fora da área visível. O painel de detalhe mostrava uma entrada que a lista
+	# não destacava em lugar nenhum.
+	var bestiary_script: Script = load("res://src/ui/bestiary_panel.gd")
+	var bestiary = bestiary_script.new()
+	var first_id := str(BestiaryPanel.ENTRIES[0]["id"])
+	h._check(str(bestiary.get("_selected_id")) == first_id,
+		"bestiary opens on the first listed entry, not one scrolled out of view")
+	bestiary.free()
+
+
 func _icon_quality_test() -> void:
 	print("AT_STEP icon_quality")
 	var icon_script: Script = load("res://src/ui/tactical_icon.gd")

@@ -383,13 +383,24 @@ static func draw_glyph(canvas: CanvasItem, kind: String, center: Vector2, radius
 			canvas.draw_polyline(anchor + PackedVector2Array([anchor[0]]), c, 2.4, true)
 			canvas.draw_arc(center - Vector2(0.0, radius * 0.30), radius * 0.30, 0, TAU, 24, Color(1, 1, 1, 0.7), 1.6, true)
 
-## Retrato grande e estático: usa o sprite raster quando existe e cai no
+## DESLIGADO por ora. O redesenho de silhuetas de 2026-09-11 tornou 19 dos 20
+## sprites raster defasados — só `kernel` não mudou. Com o raster ligado, o
+## bestiário ensinava o jogador a reconhecer formas que a arena não desenha
+## mais, que é o pior lugar possível para essa divergência: o bestiário existe
+## justamente para reconhecimento.
+##
+## Para religar, os PNGs em assets/sprites/generated/ precisam ser regerados a
+## partir dos glifos atuais. Ver docs/superpowers/specs/2026-09-11-brief-sprites.md.
+const USE_RASTER_PORTRAITS := false
+
+
+## Retrato grande e estático: usaria o sprite raster quando existe, caindo no
 ## glifo desenhado em código quando não. Só para UI (menu, bestiário), onde a
 ## arte aparece grande o bastante para o detalhe do arquivo chegar na tela.
 static func draw_portrait(canvas: CanvasItem, kind: String, center: Vector2, radius: float, color: Color, t: float = 0.0) -> void:
 	if canvas == null or radius <= 0.0:
 		return
-	if EntitySprite.draw_entity(canvas, kind, center, radius * 2.4, color):
+	if USE_RASTER_PORTRAITS and EntitySprite.draw_entity(canvas, kind, center, radius * 2.4, color):
 		return
 	draw_glyph(canvas, kind, center, radius, color, t)
 

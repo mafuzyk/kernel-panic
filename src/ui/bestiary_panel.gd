@@ -31,7 +31,14 @@ var _press_position := Vector2.ZERO
 var _drag_start_y := 0.0
 var _scroll_start := 0.0
 var _card_rects: Dictionary = {}
-var _selected_id := "root"
+## Começa na PRIMEIRA entrada. Antes era "root", que fica no fim da lista:
+## o painel de detalhe mostrava ROOT.exe enquanto nenhuma linha visível
+## aparecia destacada (B8).
+var _selected_id := ""
+
+func _init() -> void:
+	if not ENTRIES.is_empty():
+		_selected_id = str(ENTRIES[0]["id"])
 
 ## Detail-column vertical rhythm + glyph box geometry (single source of truth
 ## for _draw_detail and text_overflow_report).
@@ -179,6 +186,13 @@ func _select_at(position: Vector2) -> void:
 				Sfx.play("ui", 1.05, -8.0)
 			return
 
+## Dica de rolagem conforme o dispositivo. Era "SWIPE TO SCROLL" fixo, o que
+## vazava no build de desktop (B7). Exposto como método para o autotest poder
+## afirmar comportamento em vez de procurar string no arquivo.
+func scroll_hint_text() -> String:
+	return Design.scroll_hint(Design.touch_input())
+
+
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.01, 0.012, 0.03, 1.0))
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
@@ -249,7 +263,7 @@ func _draw() -> void:
 		var thumb_y: float = track.position.y + (track.size.y - thumb_h) * (scroll_y / max_scroll)
 		draw_rect(track, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.12))
 		draw_rect(Rect2(track.position.x, thumb_y, track.size.x, thumb_h), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.75))
-		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
+		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), scroll_hint_text(), HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
 
 func _draw_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
 	var rail := Rect2(float(metrics["list_w"]) + 58.0, 146.0, size.x - float(metrics["list_w"]) - 86.0, size.y - 258.0)
