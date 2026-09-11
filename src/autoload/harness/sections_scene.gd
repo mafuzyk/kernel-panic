@@ -100,6 +100,14 @@ func _menu_shell_test(menu: Node) -> void:
 			var warning_rect: Rect2 = pause_sections["warning"]
 			h._check(pause_panel.encloses(volume_rect) and pause_panel.encloses(warning_rect), "pause sections stay inside panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 			h._check(not volume_rect.intersects(warning_rect), "pause volume and abandon warning keep a visible gap at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			# B6: a dica de teclado ([ESC] RESUME / [R] RESTART / [Q] ARM ABANDON)
+			# era desenhada DENTRO da moldura vermelha de perigo, sugerindo que as
+			# três teclas pertenciam ao abandono. A asserção acima já existia mas
+			# comparava o par errado — volume contra aviso, não dica contra aviso.
+			var pause_full: Dictionary = tactical_surface_script.pause_layout(viewport_size)
+			var shortcuts_rect: Rect2 = pause_full["shortcuts"]
+			h._check(not shortcuts_rect.intersects(warning_rect), "pause shortcut hint sits outside the danger frame at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+			h._check(pause_panel.encloses(shortcuts_rect), "pause shortcut hint stays inside the panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
 
 func _story_scene_test() -> void:
 	print("AT_STEP story_scene")
