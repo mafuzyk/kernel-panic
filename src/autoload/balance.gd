@@ -26,15 +26,29 @@ const MOTE_KILL_VALUE := 2.0
 const MOTE_MAGNET := 115.0
 const MOTE_MAGNET_OC := 185.0
 const MOTE_LIFE := 12.0
+## Teto de motes simultâneos na tela. O MoteField reserva 128 slots, mas o
+## teto de projeto é este — ver docs/superpowers/reports/2026-09-11-auditoria-desktop.md (B9).
+const MOTE_CAP := 90
 
 const COMBO_WINDOW := 3.0
 const COMBO_MAX := 8
 
-const WAVE_BUDGET_BASE := 6
+## Curva de dificuldade. Estas constantes existiam mas NINGUÉM as lia: as
+## funções abaixo traziam os números no corpo, e diferentes dos declarados.
+## Decisão da autora (2026-09-11): vale o que roda — é o que shipou no v2.5.0,
+## foi jogado, e é a base sobre a qual DIFF_*_MULT foi calibrado. Os valores
+## foram corrigidos para a realidade e as funções agora os leem de fato.
+## Trocar qualquer um destes AGORA muda o balanceamento de verdade.
+const WAVE_BUDGET_BASE := 8
 const WAVE_BUDGET_GROWTH := 5
+## Termo extra por onda, a partir de WAVE_BUDGET_RAMP_AFTER.
+const WAVE_BUDGET_RAMP := 2
+const WAVE_BUDGET_RAMP_AFTER := 4
 const WAVE_SPAWN_INTERVAL := 1.7
 const WAVE_SPAWN_MIN := 0.6
-const WAVE_SCALE_CAP := 1.65
+## Incremento de escala por onda.
+const WAVE_SCALE_STEP := 0.03
+const WAVE_SCALE_CAP := 1.7
 const BOSS_EVERY := 5
 const HEAL_EVERY := 3
 
@@ -67,8 +81,9 @@ const COL_MOTE := Color("ffd24f")
 const COL_TEXT := Color("cfe9ff")
 const COL_DANGER := Color("ff2a4d")
 
+## Escala do inimigo por onda. O teto só passa a valer da onda 24 em diante.
 static func wave_scale(wave: int) -> float:
-	return minf(1.0 + float(wave - 1) * 0.03, 1.7)
+	return minf(1.0 + float(wave - 1) * WAVE_SCALE_STEP, WAVE_SCALE_CAP)
 
 const ERA_TINTS := [
 	Color("4ff2ff"),
@@ -96,7 +111,8 @@ static func threat_color(id: String, color_assist: bool = false) -> Color:
 	return threat_palette(color_assist).get(id, COL_TEXT)
 
 static func wave_budget(wave: int) -> int:
-	return 8 + (wave - 1) * 5 + maxi(0, wave - 4) * 2
+	return WAVE_BUDGET_BASE + (wave - 1) * WAVE_BUDGET_GROWTH \
+		+ maxi(0, wave - WAVE_BUDGET_RAMP_AFTER) * WAVE_BUDGET_RAMP
 
 static func max_alive(wave: int) -> int:
 	return mini(6 + wave * 2, 10)

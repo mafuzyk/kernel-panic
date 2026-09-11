@@ -190,7 +190,7 @@ bestiary_panel.gd detail_entry_id()
 tactical_ui.gd    const BG
 ```
 
-### R4b — ⚠️ Os knobs de dificuldade documentados estão MORTOS
+### R4b — ✅ RESOLVIDO — Os knobs de dificuldade documentados estavam MORTOS
 Achado mais sério da auditoria. Três constantes de `balance.gd` não são lidas
 por ninguém — e as funções que deveriam usá-las têm os valores **hardcoded**,
 com números **diferentes** dos das constantes:
@@ -239,7 +239,7 @@ não pega isso. Não afeta gameplay hoje, mas o teto de 40 está perto demais.
 > A autora liberou mudar quase tudo, desde que o **estilo de gameplay** não mude.
 > Esta seção é mais dura que a primeira e questiona decisões, não só defeitos.
 
-### B9 — ⚠️ O teto de motes na tela não existe mais (bug de gameplay vivo)
+### B9 — ✅ RESOLVIDO — O teto de motes na tela não existia mais
 `src/arena/arena.gd:808`
 
 ```gdscript
@@ -423,15 +423,29 @@ oportunidade dentro das fases.
 
 ## 4. Decisões que preciso de você
 
-### Mudam o balanceamento — não toco sem resposta
+### ✅ Decididas pela autora em 2026-09-11
 
-1. **Knobs de dificuldade mortos** (R4b). A curva real (teto 1.7, budget base 8)
-   difere da documentada (1.65 / 6). Qual vale?
-   - (a) o que roda hoje é o certo → atualizo constantes e documentação
-   - (b) o documentado é o certo → ligo as constantes, o jogo fica mais fácil
-   - (c) deixa como está, só marco o problema no código
-2. **Teto de motes** (B9). Voltou a 128 sem ninguém decidir. Volto para 90
-   (a intenção original) ou oficializo 128?
+1. **Knobs de dificuldade** (R4b) → **vale o que roda** (teto 1.7, base 8).
+   As constantes foram corrigidas para a realidade e as funções passaram a
+   lê-las. **Mudança nula em comportamento** — só remove a armadilha.
+
+   O raciocínio que sustentou a escolha: a divergência **não estava no late
+   game**. O teto (1.7 vs 1.65) só passa a valer da onda 24 em diante, com 3%
+   de diferença. A base de budget (8 vs 6) diverge 33% na onda 1, 7% na onda 5
+   e 1% na onda 20 — ou seja, o desvio inteiro vivia na **abertura**. Somado a
+   isso: base 8 foi o que shipou no v2.5.0 e foi jogado, e `DIFF_BUDGET_MULT`
+   (0.8/1.0/1.2) foi calibrado em cima dela — baixar a base recalibraria
+   EASY/NORMAL/HARD de uma vez só, sem ninguém pedir.
+
+   **Correção para o registro:** o handoff v2.3 propunha
+   `WAVE_SCALE_CAP 1.65 → 1.55` "se o late game ainda parecer impossível".
+   Esse knob mirava no lugar errado — mesmo funcionando, só age da onda 24 em
+   diante. As alavancas reais do late game são `WAVE_BUDGET_GROWTH`,
+   `WAVE_BUDGET_RAMP` e `max_alive`.
+
+2. **Teto de motes** (B9) → **90**, a intenção original. O teto passou a ser
+   aplicado dentro do `MoteField.spawn()`, onde nenhum caminho de spawn escapa
+   dele, e `arena.gd` parou de consultar o grupo morto.
 
 ### Direção
 

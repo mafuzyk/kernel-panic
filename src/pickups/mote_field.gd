@@ -89,8 +89,13 @@ func set_slot_position(idx: int, pos: Vector2) -> void:
 		_pos[idx] = pos
 		_vel[idx] = Vector2.ZERO
 
+## MAX é a capacidade do buffer; `Balance.MOTE_CAP` é o teto de PROJETO, e é
+## ele que manda. O teto vivia em arena.gd contado por
+## get_nodes_in_group("motes"), grupo que esta reescrita esvaziou — a contagem
+## virava sempre 0 e o teto deixou de existir. Aqui ele não tem como escapar:
+## qualquer caminho de spawn passa por este ponto.
 func spawn(pos: Vector2) -> int:
-	if _count >= MAX:
+	if _count >= mini(Balance.MOTE_CAP, MAX):
 		# Recycle the oldest near-death slot if full; else drop silently.
 		for i in _count:
 			if _life[i] < 1.0:
