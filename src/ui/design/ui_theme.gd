@@ -48,6 +48,16 @@ const _BUTTON_VARIANTS := {
 }
 
 
+## Instância compartilhada. Construir o Theme é barato, mas não há razão para
+## cada painel montar o seu — e ter uma só facilita trocar tokens em runtime.
+static var _shared: Theme = null
+
+static func shared() -> Theme:
+	if _shared == null:
+		_shared = build()
+	return _shared
+
+
 static func build() -> Theme:
 	var theme := Theme.new()
 	theme.default_font = Design.FONT_MONO
