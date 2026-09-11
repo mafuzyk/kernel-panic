@@ -229,6 +229,13 @@ func _state_label_color(state: String, color: Color) -> Color:
 		_:
 			return Color(TacticalUIHelper.MUTED.r, TacticalUIHelper.MUTED.g, TacticalUIHelper.MUTED.b, 0.7)
 
+## Dica de rolagem conforme o dispositivo. Era "SWIPE TO SCROLL" fixo, o que
+## vazava no build de desktop (B7). Exposto como método para o autotest poder
+## afirmar comportamento em vez de procurar string no arquivo.
+func scroll_hint_text() -> String:
+	return Design.scroll_hint(Design.touch_input())
+
+
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.01, 0.012, 0.03, 1.0))
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
@@ -339,7 +346,7 @@ func _draw() -> void:
 		var thumb_y: float = track.position.y + (track.size.y - thumb_h) * (scroll_y / max_scroll)
 		draw_rect(track, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.12))
 		draw_rect(Rect2(track.position.x, thumb_y, track.size.x, thumb_h), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.75))
-		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), "SWIPE TO SCROLL", HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
+		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), scroll_hint_text(), HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
 	if _is_wide():
 		var footer: Rect2 = TacticalUIHelper.shell_sections(size)["footer"]
 		var mount := Rect2(Vector2(size.x * 0.50, footer.position.y), Vector2(size.x * 0.46, footer.size.y - 4.0))

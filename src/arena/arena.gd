@@ -366,6 +366,14 @@ func pause_action_icon_kinds() -> Array[String]:
 	return _panel_kit.pause_action_icon_kinds()
 
 
+## B4: este forwarding sumiu quando `_open_terminal` foi movido para o
+## panel_kit, mas o par `_close_terminal` continuou sendo chamado daqui. O
+## modo de captura KP_SHOT=terminal ficou morto desde então e ninguém notou,
+## porque esse caminho não roda no autotest.
+func _open_terminal() -> void:
+	_panel_kit._open_terminal()
+
+
 func handle_pause_input(event: InputEvent) -> bool:
 	return _panel_kit.handle_pause_input(event)
 
