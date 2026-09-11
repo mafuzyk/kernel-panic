@@ -1,0 +1,169 @@
+class_name Design
+extends RefCounted
+
+## Tokens de design do KERNEL PANIC — fonte única de verdade para tipografia,
+## espaçamento, cor semântica, borda e movimento da interface.
+##
+## Por que existe: antes disto a UI usava 17 tamanhos de fonte distintos
+## (11 deles consecutivos entre 10 e 20px), 21 níveis de opacidade de texto
+## e 10 espaçamentos avulsos — nenhum deles uma escala. Cada widget era
+## pintado à mão com 310 chamadas `add_theme_*_override` espalhadas.
+##
+## Regra: nenhum arquivo de UI deve conter número mágico de tamanho, cor,
+## espaçamento ou duração. Se falta um token, adicione aqui.
+##
+## As cores de ENTIDADE (drone, lancer, spewer...) continuam em `Balance`:
+## são identidade de gameplay, não de interface. Este arquivo só define os
+## papéis de UI e reusa a paleta de lá onde faz sentido.
+
+# ─────────────────────────────────────────────────────────────────────
+# TIPOGRAFIA
+# ─────────────────────────────────────────────────────────────────────
+
+## Orbitron: títulos e números. Geométrica, wide, alta presença.
+const FONT_DISPLAY := preload("res://assets/fonts/Orbitron.ttf")
+## Share Tech Mono: corpo, rótulos, tudo que é "terminal".
+const FONT_MONO := preload("res://assets/fonts/ShareTechMono.ttf")
+
+## Escala de tipo — 7 degraus, cada um com papel definido.
+## Consolidada a partir do uso real: 42/44 eram o mesmo papel, 28/30 também.
+const TEXT_MICRO := 11      ## selos, unidades, rodapé de painel
+const TEXT_CAPTION := 13    ## rótulos de campo, dicas, legendas
+const TEXT_BODY := 15       ## corpo padrão, descrições
+const TEXT_SUBHEAD := 18    ## rótulo de botão, cabeçalho de lista
+const TEXT_HEADING := 32    ## título de tela (SETTINGS //, BESTIARY //)
+const TEXT_TITLE := 44      ## título de painel de estado (PAUSED)
+const TEXT_DISPLAY := 76    ## exclusivo do título do menu
+
+## Entrelinha como múltiplo do tamanho da fonte.
+const LEADING_TIGHT := 1.15
+const LEADING_NORMAL := 1.45
+
+# ─────────────────────────────────────────────────────────────────────
+# ESPAÇAMENTO — escala base 4
+# ─────────────────────────────────────────────────────────────────────
+
+const SPACE_XS := 4
+const SPACE_SM := 8
+const SPACE_MD := 12
+const SPACE_LG := 16
+const SPACE_XL := 24
+const SPACE_2XL := 32
+const SPACE_3XL := 48
+const SPACE_4XL := 64
+
+# ─────────────────────────────────────────────────────────────────────
+# COR — papéis semânticos, não valores crus
+# ─────────────────────────────────────────────────────────────────────
+
+## Superfícies. Painel de overlay é OPACO por contrato: quatro painéis
+## usavam alpha diferente e o de conquistas vazava o menu por trás.
+const SURFACE := Color(0.01, 0.012, 0.03, 1.0)
+const SURFACE_RAISED := Color(0.015, 0.020, 0.048, 1.0)
+const SURFACE_SUNKEN := Color(0.006, 0.008, 0.022, 1.0)
+## Véu sobre a cena de jogo (pausa, seleção de patch) — aí a transparência
+## é intencional, para manter contexto do que está acontecendo atrás.
+const SCRIM := Color(0.005, 0.006, 0.015, 0.82)
+
+## Texto — 5 níveis. Antes eram 21 opacidades indistinguíveis.
+const TEXT_PRIMARY := Color("cfe9ff")
+const TEXT_SECONDARY := Color(0.812, 0.914, 1.0, 0.72)
+const TEXT_MUTED := Color(0.812, 0.914, 1.0, 0.55)
+const TEXT_FAINT := Color(0.812, 0.914, 1.0, 0.35)
+const TEXT_GHOST := Color(0.812, 0.914, 1.0, 0.15)
+
+## Acento e estados semânticos.
+const ACCENT := Color("4ff2ff")           ## ciano do processo do jogador
+const ACCENT_HOT := Color("d8ffff")       ## acento em destaque/ativo
+const ACCENT_MUTED := Color(0.310, 0.949, 1.0, 0.45)  ## acento de baixa ênfase
+const DANGER := Color("ff2a4d")           ## perigo, morte, abandono
+const WARNING := Color("ffd24f")          ## atenção, recorde, motes
+const SUCCESS := Color("52ff7a")          ## cura, integridade recuperada
+const INFO := Color("58b8ff")             ## neutro informativo
+
+## Bordas — derivadas do acento para manter o visual táctico coeso.
+const BORDER := Color(0.310, 0.949, 1.0, 0.35)
+const BORDER_STRONG := Color(0.310, 0.949, 1.0, 0.65)
+const BORDER_SUBTLE := Color(0.310, 0.949, 1.0, 0.15)
+
+## Espessuras de traço.
+const STROKE_HAIRLINE := 1.0
+const STROKE_REGULAR := 2.0
+const STROKE_THICK := 3.0
+
+# ─────────────────────────────────────────────────────────────────────
+# ESTADOS INTERATIVOS
+# ─────────────────────────────────────────────────────────────────────
+## Multiplicadores aplicados sobre a cor base de um controle. Hoje a UI
+## não tem estado de foco algum: todo botão do projeto seta
+## `focus_mode = FOCUS_NONE`, o que torna o jogo inutilizável sem mouse.
+
+const STATE_HOVER_BOOST := 1.25      ## brilho no hover
+const STATE_PRESSED_BOOST := 0.85    ## afunda no clique
+const STATE_DISABLED_ALPHA := 0.35
+const FOCUS_RING_WIDTH := 2.0
+const FOCUS_RING_COLOR := Color("ffd24f")  ## âmbar: não colide com o ciano
+
+# ─────────────────────────────────────────────────────────────────────
+# MOVIMENTO
+# ─────────────────────────────────────────────────────────────────────
+
+const MOTION_INSTANT := 0.08   ## resposta de controle (hover, press)
+const MOTION_FAST := 0.18      ## troca de aba, aparecer/sumir de chip
+const MOTION_NORMAL := 0.35    ## entrada de painel
+const MOTION_SLOW := 0.6       ## transição de cena, fade de intro
+
+# ─────────────────────────────────────────────────────────────────────
+# LAYOUT RESPONSIVO
+# ─────────────────────────────────────────────────────────────────────
+## Foco atual é desktop. Os breakpoints existem para o layout parar de
+## partir de um palco fixo de 1280x720 e escalar por proporção — que é o
+## motivo de tudo acima de 1366px ficar pequeno e sobrando tela.
+
+const BP_COMPACT := 720.0    ## janela estreita / retrato
+const BP_MEDIUM := 1100.0    ## laptop
+const BP_WIDE := 1500.0      ## desktop
+const BP_ULTRA := 1900.0     ## 1080p cheio e acima
+
+## Largura máxima de coluna de conteúdo. Sem isto, um slider de volume
+## 0-100% estica por ~1000px em 1920 e o rótulo fica a 1200px do controle.
+const CONTENT_MAX_FORM := 720.0     ## formulários (settings)
+const CONTENT_MAX_PROSE := 640.0    ## texto corrido (lore, descrições)
+const CONTENT_MAX_PANEL := 1080.0   ## painéis de estado (pausa, game over)
+
+## Alvo mínimo de toque/clique. 44px é o mínimo confortável de mouse;
+## no celular o alvo sobe (ver TOUCH_TARGET_MIN).
+const CLICK_TARGET_MIN := 44.0
+const TOUCH_TARGET_MIN := 56.0
+
+
+## Degrau de breakpoint da largura dada: "compact", "medium", "wide" ou "ultra".
+static func breakpoint_for(viewport_width: float) -> String:
+	if viewport_width < BP_COMPACT:
+		return "compact"
+	if viewport_width < BP_MEDIUM:
+		return "medium"
+	if viewport_width < BP_WIDE:
+		return "wide"
+	return "ultra"
+
+
+## Alvo mínimo de interação para o dispositivo atual.
+static func target_min() -> float:
+	return TOUCH_TARGET_MIN if DisplayServer.is_touchscreen_available() else CLICK_TARGET_MIN
+
+
+## Aplica um multiplicador de brilho preservando o alpha.
+static func shade(base: Color, mult: float) -> Color:
+	return Color(
+		clampf(base.r * mult, 0.0, 1.0),
+		clampf(base.g * mult, 0.0, 1.0),
+		clampf(base.b * mult, 0.0, 1.0),
+		base.a
+	)
+
+
+## Mesma cor com outro alpha — evita reconstruir Color(c.r, c.g, c.b, a)
+## à mão, padrão que aparece dezenas de vezes hoje.
+static func alpha(base: Color, a: float) -> Color:
+	return Color(base.r, base.g, base.b, a)
