@@ -219,7 +219,7 @@ func _draw() -> void:
 func _draw_silhouette(key: String, c: Color) -> void:
 	var program_kind: String = {"kernel_arrow": "kernel", "daemon_fork": "daemon", "rootlet_block": "rootlet"}.get(key, "")
 	if program_kind != "":
-		GlyphLib.draw_glyph(self, program_kind, Vector2.ZERO, 16.0, c)
+		GlyphLib.draw_portrait(self, program_kind, Vector2.ZERO, 16.0, c)
 		return
 	match key:
 		"daemon_fork":
