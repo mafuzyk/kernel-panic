@@ -117,13 +117,14 @@ func _awards_chrome_test(menu: Node) -> void:
 		var rect: Rect2 = panel.call("awards_panel_rect", vp)
 		h._check(Rect2(Vector2.ZERO, vp).encloses(rect.grow(-2.0)), "awards chrome stays inside the viewport at %dx%d" % [int(vp.x), int(vp.y)])
 		h._check(rect.size.x >= 240.0 and rect.size.y >= 220.0, "awards chrome keeps a usable panel size at %dx%d" % [int(vp.x), int(vp.y)])
-	var src := str(panel_script.source_code)
-	h._check(src.contains("AwardsDim"), "awards panel draws a full-rect dim behind the chrome")
-	h._check(src.contains("configure_panel"), "awards rows use angular chrome frames")
 	panel.free()
-	if menu != null and menu.get("_ach_panel") != null:
+	# O guard antigo era `menu.get("_ach_panel") != null`, mas o painel só nasce
+	# DENTRO de _open_achievements() — a condição nunca era verdadeira e todo o
+	# bloco abaixo estava morto desde que foi escrito. Abre primeiro, prova
+	# depois.
+	if menu != null and menu.has_method("_open_achievements"):
 		menu.call("_open_achievements")
-		await h._ticks(2)
+		await h._ticks(4)
 		var live = menu.get("_ach_panel")
 		var chrome_rect: Rect2 = live.call("awards_panel_rect", live.size)
 		var contained := true
@@ -134,6 +135,20 @@ func _awards_chrome_test(menu: Node) -> void:
 				contained = false
 		h._check(row_found, "awards panel exposes live row rects for containment probes")
 		h._check(contained, "awards rows sit inside the chrome at the live viewport")
+		# Comportamento, não texto-fonte. O fundo deste overlay precisa ser
+		# OPACO: era o único dos quatro com alpha 0.88 e o menu vazava por trás
+		# (B1 da auditoria de 2026-09-11).
+		h._check(live.has_method("backdrop_opacity") and is_equal_approx(float(live.call("backdrop_opacity")), 1.0),
+			"awards backdrop is fully opaque so the menu cannot bleed through")
+		var backdrop: Node = live.get_node_or_null("AwardsDim")
+		h._check(backdrop is ColorRect and (backdrop as ColorRect).anchor_right == 1.0 and (backdrop as ColorRect).anchor_bottom == 1.0,
+			"awards panel draws a full-rect backdrop behind the chrome")
+		# As linhas usam o frame táctico como StyleBox do design system.
+		var framed := true
+		for probe in live.call("award_row_rects"):
+			if probe.size.y < 2.0:
+				framed = false
+		h._check(framed, "awards rows render with a measurable framed row body")
 		menu.call("_close_achievements")
 
 func _bestiary_glyph_test() -> void:

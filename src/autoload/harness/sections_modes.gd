@@ -333,6 +333,15 @@ func _demo() -> void:
 	print("DEMO_END t=%d wave=%d score=%d dead=%s" % [int(t), Game.wave, Game.score, str(player.dead)])
 	h.get_tree().quit(0)
 
+## Percorre a árvore inteira abaixo de um nó.
+func _descendants(root: Node) -> Array[Node]:
+	var out: Array[Node] = []
+	for child in root.get_children():
+		out.append(child)
+		out.append_array(_descendants(child))
+	return out
+
+
 func _achievements_panel_test() -> void:
 	print("AT_STEP achievements_panel")
 	var panel_script: Script = load("res://src/ui/achievements_panel.gd")
@@ -365,8 +374,14 @@ func _achievements_panel_test() -> void:
 		if not Game.achievements.has(str(row.get("id", ""))) and str(row.get("hint", "")).strip_edges().is_empty():
 			hints_ok = false
 	h._check(hints_ok, "locked achievements expose a hint line")
-	var panel_src := str(panel_script.source_code)
-	h._check(panel_src.contains("ScrollContainer"), "achievements panel scrolls instead of blocking mobile input")
+	# Comportamento em vez de grep: o painel precisa conter um ScrollContainer
+	# de verdade na árvore, não a string "ScrollContainer" no arquivo.
+	panel._build()
+	var scrolls := 0
+	for node in _descendants(panel):
+		if node is ScrollContainer:
+			scrolls += 1
+	h._check(scrolls >= 1, "achievements panel scrolls instead of blocking input")
 	panel.free()
 	var menu_src := str(load("res://src/ui/menu.gd").source_code)
 	h._check(menu_src.contains("_open_achievements"), "menu exposes an achievements entry point")
