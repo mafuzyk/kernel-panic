@@ -62,6 +62,19 @@ func _watchdog(real_s: float = 90.0) -> void:
 	print("AT_FAIL watchdog timeout")
 	get_tree().quit(1)
 
+## Primeiro Button em qualquer profundidade abaixo de `root`.
+func _first_button(root: Node) -> Button:
+	if root == null:
+		return null
+	for child in root.get_children():
+		if child is Button:
+			return child
+		var found := _first_button(child)
+		if found != null:
+			return found
+	return null
+
+
 func _ticks(n: int) -> void:
 	for i in n:
 		await get_tree().process_frame

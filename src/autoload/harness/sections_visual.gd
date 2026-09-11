@@ -375,10 +375,9 @@ func _charm_terminal_test(arena: Arena) -> void:
 	h._check(Game.has_method("log_event") and Game.has_method("dmesg_lines"), "game exposes run event log")
 	h._check(Game.has_method("consume_terminal_heal"), "game exposes one-use terminal heal")
 	h._check(arena.has_method("execute_terminal_command"), "arena exposes terminal command router")
-	var terminal_button_found := false
-	for child in arena._pause_panel.get_children():
-		if child is Button and child.text == "OPEN TERMINAL":
-			terminal_button_found = true
+	# A pausa virou PausePanel: a entrada do terminal é uma das ações da fileira.
+	var terminal_button_found: bool = arena._pause_screen != null \
+		and arena._pause_screen.action_labels().has(tr("PAUSE_TERMINAL"))
 	h._check(terminal_button_found and arena.get("_terminal_panel") != null, "pause exposes the terminal entry point")
 	if terminal_script == null or not arena.has_method("execute_terminal_command"):
 		return

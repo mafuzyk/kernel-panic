@@ -115,7 +115,8 @@ func _build_terminal_panel() -> void:
 func _open_terminal() -> void:
 	if a._terminal_panel == null or a._state != "play" or not a.get_tree().paused:
 		return
-	a._pause_panel.visible = false
+	if is_instance_valid(a._pause_screen):
+		a._pause_screen.visible = false
 	a._terminal_panel.call("open_terminal")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Sfx.play("ui", 1.1, -6.0)
@@ -123,8 +124,8 @@ func _open_terminal() -> void:
 func _close_terminal() -> void:
 	if a._terminal_panel != null and is_instance_valid(a._terminal_panel):
 		a._terminal_panel.visible = false
-	if a._pause_panel != null and is_instance_valid(a._pause_panel) and a._state == "play" and a.get_tree().paused:
-		a._pause_panel.visible = true
+	if is_instance_valid(a._pause_screen) and a._state == "play" and a.get_tree().paused:
+		a._pause_screen.visible = true
 
 func _make_volume_row(label_text: String, value: float, y: float, on_change: Callable) -> Control:
 	var row := HBoxContainer.new()

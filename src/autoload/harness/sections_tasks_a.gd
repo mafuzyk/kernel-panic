@@ -31,11 +31,9 @@ func _input_safety_test(arena: Arena) -> void:
 	h.get_viewport().push_input(h._key_event(KEY_ESCAPE))
 	h._check(not h.get_tree().paused, "Viewport Escape closes pause while tree is paused")
 	arena._set_paused(true)
-	var focused_pause_button: Button = null
-	for pause_child in arena._pause_panel.get_children():
-		if pause_child is Button and pause_child.text == "RESUME":
-			focused_pause_button = pause_child
-			break
+	# A tela de pausa virou PausePanel: os botões são Buttons transparentes por
+	# cima de PanelContainers, então busca-se por tipo na árvore, não por texto.
+	var focused_pause_button: Button = h._first_button(arena._pause_screen)
 	if focused_pause_button != null:
 		focused_pause_button.grab_focus()
 	h.get_viewport().push_input(h._key_event(KEY_ESCAPE))
@@ -49,7 +47,9 @@ func _input_safety_test(arena: Arena) -> void:
 	arena._set_paused(true)
 	arena._unhandled_input(h._key_event(KEY_Q))
 	h._check(Game.state == Game.State.PLAYING and arena.get("_abandon_armed") == true, "first Q arms abandon confirmation without leaving run")
-	h._check(arena._pause_info.text.contains("PRESS Q AGAIN // ABANDON PROCESS"), "pause explains two-step abandon confirmation")
+	# O aviso de dois passos vive no PRÓPRIO bloco de abandono agora, não numa
+	# linha solta dentro da moldura vermelha (B6).
+	h._check(arena._pause_screen.abandon_hint_text() == tr("PAUSE_ABANDON_ARMED"), "pause explains two-step abandon confirmation")
 	arena._unhandled_input(h._key_event(KEY_Q))
 	h._check(Game.state == Game.State.MENU, "second Q within confirmation window returns to menu")
 	Game.state = Game.State.PLAYING
@@ -77,10 +77,13 @@ func _input_safety_test(arena: Arena) -> void:
 	arena._unhandled_input(h._key_event(KEY_Q))
 	arena._set_paused(false)
 	h._check(arena.get("_abandon_armed") != true, "resume clears abandon confirmation")
-	var abandon_button: Button
-	for child in arena._pause_panel.get_children():
-		if child is Button and child.text == "ABANDON PROCESS":
-			abandon_button = child
+	# O abandono é o último bloco da fileira — ordem segura, verificada em
+	# "pause actions preserve safe order".
+	var abandon_button: Button = null
+	if arena._pause_screen != null and arena._pause_screen.get("_abandon_block") != null:
+		var block = arena._pause_screen.get("_abandon_block")
+		if block.has_meta("hit"):
+			abandon_button = block.get_meta("hit")
 	h._check(abandon_button != null, "pause exposes abandon button")
 	Game.state = Game.State.PLAYING
 	arena._set_paused(true)

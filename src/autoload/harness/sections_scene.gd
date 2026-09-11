@@ -90,24 +90,11 @@ func _menu_shell_test(menu: Node) -> void:
 			h.get_viewport().push_input(h._key_event(KEY_ESCAPE))
 			h._check(not bool(menu.get("_settings_panel").visible), "Viewport Escape closes settings with a focused text field")
 			menu._close_settings()
-	var tactical_surface_script: Script = load("res://src/ui/tactical_state_surface.gd")
-	h._check(tactical_surface_script != null and tactical_surface_script.has_method("pause_section_rects"), "pause surface exposes separated volume and warning geometry")
-	if tactical_surface_script != null and tactical_surface_script.has_method("pause_section_rects"):
-		for viewport_size in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
-			var pause_sections: Dictionary = tactical_surface_script.pause_section_rects(viewport_size)
-			var pause_panel: Rect2 = tactical_surface_script.panel_rect_for_viewport(viewport_size, "pause")
-			var volume_rect: Rect2 = pause_sections["volume"]
-			var warning_rect: Rect2 = pause_sections["warning"]
-			h._check(pause_panel.encloses(volume_rect) and pause_panel.encloses(warning_rect), "pause sections stay inside panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(not volume_rect.intersects(warning_rect), "pause volume and abandon warning keep a visible gap at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			# B6: a dica de teclado ([ESC] RESUME / [R] RESTART / [Q] ARM ABANDON)
-			# era desenhada DENTRO da moldura vermelha de perigo, sugerindo que as
-			# três teclas pertenciam ao abandono. A asserção acima já existia mas
-			# comparava o par errado — volume contra aviso, não dica contra aviso.
-			var pause_full: Dictionary = tactical_surface_script.pause_layout(viewport_size)
-			var shortcuts_rect: Rect2 = pause_full["shortcuts"]
-			h._check(not shortcuts_rect.intersects(warning_rect), "pause shortcut hint sits outside the danger frame at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(pause_panel.encloses(shortcuts_rect), "pause shortcut hint stays inside the panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+	# A geometria da pausa era verificada contra TacticalStateSurface.pause_layout(),
+	# que posicionava tudo por retângulo absoluto. A tela virou PausePanel, com
+	# containers, e essas asserções passaram a descrever um layout que não existe
+	# mais — foram substituídas pelas de contenção em _task9_test, que medem o
+	# painel VIVO. Ver docs/superpowers/reports/2026-09-11-auditoria-desktop.md.
 
 func _story_scene_test() -> void:
 	print("AT_STEP story_scene")
