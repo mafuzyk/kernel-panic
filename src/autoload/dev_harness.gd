@@ -379,7 +379,7 @@ func _autotest() -> void:
 	ok = await _until(func() -> bool: return Game.state == Game.State.GAME_OVER, 5.0, "game over state")
 	if not ok:
 		return _finish()
-	_check(arena._over_panel.visible, "game over panel visible")
+	_check(arena._run_summary.visible, "game over panel visible")
 	var best_after := Game.best
 	_check(best_after >= Game.score, "best score saved")
 	Game.start_run()

@@ -24,6 +24,19 @@ extends RefCounted
 const FONT_DISPLAY := preload("res://assets/fonts/Orbitron.ttf")
 ## Share Tech Mono: corpo, rótulos, tudo que é "terminal".
 const FONT_MONO := preload("res://assets/fonts/ShareTechMono.ttf")
+## Adwaita Sans (OFL-1.1): grotesca variável para a tipografia editorial das
+## telas de estado. Orbitron não faz esse papel — é display geométrica larga e
+## em corpo grande lê como logo de ficção científica, não como tipografia.
+##
+## Custo: 880KB contra 38KB do Orbitron, por ser variável e de cobertura ampla.
+## Vale um subsetting (latim + pesos usados) antes de um release mobile.
+const FONT_GROTESK := preload("res://assets/fonts/AdwaitaSans.ttf")
+
+## Pesos da grotesca.
+const WEIGHT_REGULAR := 400
+const WEIGHT_BOLD := 700
+const WEIGHT_HEAVY := 800
+const WEIGHT_BLACK := 900
 
 ## Escala de tipo — 7 degraus, cada um com papel definido.
 ## Consolidada a partir do uso real: 42/44 eram o mesmo papel, 28/30 também.
@@ -167,3 +180,22 @@ static func shade(base: Color, mult: float) -> Color:
 ## à mão, padrão que aparece dezenas de vezes hoje.
 static func alpha(base: Color, a: float) -> Color:
 	return Color(base.r, base.g, base.b, a)
+
+
+## Tag numérica do eixo de peso. `TextServer.name_to_tag()` não é estático, e
+## passar a string "wght" como chave de `variation_opentype` é silenciosamente
+## ignorado — o texto sai em Regular sem erro nenhum.
+static var _WEIGHT_TAG: int = TextServerManager.get_primary_interface().name_to_tag("weight")
+static var _grotesk_cache: Dictionary = {}
+
+
+## Grotesca no peso pedido. As instâncias são cacheadas: criar uma
+## FontVariation por Label recarregaria o atlas de glifos a cada vez.
+static func grotesk(weight: int = WEIGHT_BLACK) -> FontVariation:
+	if _grotesk_cache.has(weight):
+		return _grotesk_cache[weight]
+	var fv := FontVariation.new()
+	fv.base_font = FONT_GROTESK
+	fv.variation_opentype = {_WEIGHT_TAG: weight}
+	_grotesk_cache[weight] = fv
+	return fv

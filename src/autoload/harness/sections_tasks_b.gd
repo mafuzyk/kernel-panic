@@ -201,7 +201,7 @@ func _task9_test(arena: Arena) -> void:
 				continue
 			arena._refresh_responsive_layout_for_height(viewport_height)
 			var real_controls_fit := true
-			for panel in [arena._pause_panel, arena._over_panel, arena._patch_panel]:
+			for panel in [arena._pause_panel, arena._run_summary, arena._patch_panel]:
 				if panel == null or not is_instance_valid(panel):
 					continue
 				for control in panel.get_children():

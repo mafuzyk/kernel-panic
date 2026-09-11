@@ -26,14 +26,9 @@ var _fps_time := 0.0
 var _state := "play"
 var _pause_panel: Control
 var _pause_stats: Label
-var _over_panel: Control
-var _over_stats: Label
-var _over_core_stats: Label
-var _over_run_stats: Label
-var _over_title: Label
-var _over_sub: Label
-var _over_primary: Button
-var _over_menu: Button
+## Tela de fim de run. Substituiu sete Labels/Buttons posicionados por offset
+## absoluto em panel_kit, cujo conteúdo era montado com espaço contado à mão.
+var _run_summary: RunSummaryPanel
 var _story_stage: Dictionary = {}
 var _story_intro_panel: Control
 var _story_intro_path: Label
@@ -122,7 +117,14 @@ func _ready() -> void:
 	_build_patch_ui()
 	_panel_kit._build_pause_panel()
 	_panel_kit._build_terminal_panel()
-	_panel_kit._build_game_over_panel()
+	_run_summary = RunSummaryPanel.new()
+	_run_summary.visible = false
+	_run_summary.primary_pressed.connect(_handle_over_primary)
+	_run_summary.secondary_pressed.connect(_handle_over_secondary)
+	var summary_layer := CanvasLayer.new()
+	summary_layer.layer = 60
+	summary_layer.add_child(_run_summary)
+	add_child(summary_layer)
 	_intro_kit._build_intro()
 	if Game.mode == "story":
 		_story_stage = Game.story_stage_def(Game.story_stage_index)
@@ -329,7 +331,7 @@ func _layout_patch_box() -> void:
 
 func _refresh_responsive_layout(viewport_height: float = -1.0) -> void:
 	_panel_kit._layout_pause_panel()
-	for panel in [_pause_panel, _over_panel, _patch_panel]:
+	for panel in [_pause_panel, _patch_panel]:
 		if panel == null or not is_instance_valid(panel):
 			continue
 		for control in panel.get_children():
@@ -369,7 +371,7 @@ func handle_pause_input(event: InputEvent) -> bool:
 
 
 func game_over_action_labels() -> Array[String]:
-	return _panel_kit.game_over_action_labels()
+	return _run_summary.action_labels() if is_instance_valid(_run_summary) else _panel_kit.game_over_action_labels()
 
 
 const STORY_INTRO_FADE_IN := 0.35
@@ -676,56 +678,58 @@ func _show_game_over() -> void:
 	_clear_abandon_confirmation()
 	_story_victory = false
 	_story_next_stage = -1
-	_over_title.text = "PROCESS TERMINATED"
-	_over_title.add_theme_color_override("font_color", Balance.COL_DANGER)
-	_over_primary.text = "REBOOT  [ENTER]"
-	_over_menu.text = "ABANDON PROCESS  [ESC]"
 	Game.end_run()
 	var s := Game.stats
 	var acc := 0.0
 	if s["shots"] > 0:
 		acc = float(s["hits"]) / float(s["shots"]) * 100.0
-	var core_lines := [
-		"TERMINATED BY %s" % str(Game.stats.get("killer", "DAEMON")),
-		"PROGRAM       %s" % Game.program_def()["name"],
-		"BUILD         %s" % Game.build_string(),
-		"SEED          %s" % Game.run_seed_text(),
-	]
-	var run_lines := [
-		"FINAL SCORE      %07d" % Game.score,
-		"BEST             %07d" % Game.best_for_mode(),
-		"CYCLES        %d" % s["wave"],
-		"DAEMONS PURGED %d" % s["kills"],
-		_heals_line(s),
-		"ACCURACY      %d%%" % int(acc),
-		"UPTIME        %02d:%02d" % [int(s["time"] / 60.0), int(s["time"]) % 60],
-	]
-	_over_sub.text = ["segmentation fault (core dumped)", "process has stopped responding", "kernel oops", "the daemons send their regards"][randi() % 4]
-	_over_core_stats.text = "\n".join(core_lines)
-	_over_run_stats.text = "\n".join(run_lines)
-	for c in _over_panel.get_children():
-		if c is Label and c.text == "NEW RECORD":
-			c.queue_free()
-	if Game.new_best:
-		var nb: Label = _panel_kit._make_label("NEW RECORD", 20, Balance.COL_MOTE)
-		_panel_kit._center_panel_control(nb, 118.0, 30.0)
-		_over_panel.add_child(nb)
-		var ntw := nb.create_tween()
-		ntw.set_loops()
-		ntw.tween_property(nb, "modulate:a", 0.35, 0.5)
-		ntw.tween_property(nb, "modulate:a", 1.0, 0.5)
-	_over_panel.modulate.a = 0.0
-	_over_panel.visible = true
-	var tw := create_tween()
-	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
+	# Rótulo e valor são campos separados. Era aqui que nascia o B2
+	# (`SEED          SEED -19999...`, porque run_seed_text() já traz o prefixo)
+	# e o B3 (sete linhas em três colunas, alinhadas com espaço contado à mão).
+	_run_summary.show_summary({
+		"title": "PROCESS TERMINATED",
+		"accent": Balance.COL_DANGER,
+		"subtitle": "terminated by %s" % str(s.get("killer", "DAEMON")),
+		"score_caption": "SCORE",
+		"score_value": "%07d" % Game.score,
+		"badge": "NEW RECORD" if Game.new_best else "",
+		"stats": [
+			["CYCLES", "%d" % int(s["wave"])],
+			["DAEMONS PURGED", "%d" % int(s["kills"])],
+			["UPTIME", "%02d:%02d" % [int(s["time"] / 60.0), int(s["time"]) % 60]],
+			["ACCURACY", "%d%%" % int(acc)],
+		],
+		"meta": "%s / %s / BEST %07d / SEED %d / %s" % [
+			Game.program_def()["name"], Game.build_string(),
+			Game.best_for_mode(), Game.run_seed, _heals_line(s),
+		],
+		"primary": "REBOOT",
+		"secondary": "ABANDON PROCESS",
+	})
+	_show_run_summary()
 	Sfx.play("gameover", 0.9, 0.0)
 	Sfx.duck_music(-8.0, 2.0)
+
+
+## Exibe o painel de fim de run com fade. Compartilhado por morte e vitória.
+func _show_run_summary() -> void:
+	_run_summary.modulate.a = 0.0
+	_run_summary.visible = true
+	var tw := create_tween()
+	tw.tween_property(_run_summary, "modulate:a", 1.0, Design.MOTION_NORMAL)
+
 
 func _restart_current_run() -> void:
 	if Game.mode == "story":
 		Game.start_story(Game.story_stage_index)
 	else:
 		Game.start_run()
+
+## Ação secundária da tela de fim de run. Na morte volta ao menu; na vitória
+## de stage volta ao seletor — o rótulo muda junto, em show_summary().
+func _handle_over_secondary() -> void:
+	Game.to_menu()
+
 
 func _handle_over_primary() -> void:
 	if _story_victory:
@@ -740,25 +744,31 @@ func _show_story_victory(stage_id: String) -> void:
 	var index := Game.story_stage_index
 	_story_next_stage = index + 1 if index + 1 < Game.story_stage_count() and Game.story_stage_unlocked(index + 1) else -1
 	_story_victory = true
-	_over_title.text = "STAGE CLEARED"
-	_over_title.add_theme_color_override("font_color", _story_stage.get("theme", {}).get("accent", Balance.COL_PLAYER))
-	_over_sub.text = "%s // %s" % [_story_stage.get("path", ""), _story_stage.get("title", "")]
 	var next_line := "NEXT // %s" % Game.story_stage_def(_story_next_stage).get("path", "") if _story_next_stage >= 0 else "ACT 1 // UNIX RECOVERY COMPLETE"
 	if _story_next_stage < 0:
 		next_line = "BONUS ACT // TEMPLEOS COMPLETE" if stage_id == "temple_god" else "STORY // ALL MOUNTED PATHS COMPLETE"
 		if stage_id == "temple_god":
-			next_line += "\nRAINBOW GRID UNLOCKED FOR ENDLESS"
-	var best_value := Game.story_stage_best(index)
-	_over_core_stats.text = "STAGE          %s\nBEST           %07d\n\n%s" % [str(_story_stage.get("title", "STAGE CLEARED")), best_value, next_line]
-	_over_run_stats.text = "STAGE SCORE      %07d\nDAEMONS PURGED   %d\nUPTIME           %02d:%02d" % [Game.score, int(Game.stats.get("kills", 0)), int(float(Game.stats.get("time", 0.0)) / 60.0), int(float(Game.stats.get("time", 0.0))) % 60]
-	_over_primary.text = "NEXT STAGE  [ENTER]" if _story_next_stage >= 0 else "RETURN TO MENU  [ENTER]"
-	_over_menu.text = "STORY SELECT  [ESC]"
-	_over_panel.modulate.a = 0.0
-	_over_panel.visible = true
-	var tw := create_tween()
-	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
+			next_line += "  //  RAINBOW GRID UNLOCKED FOR ENDLESS"
+	var st := Game.stats
+	_run_summary.show_summary({
+		"title": "STAGE CLEARED",
+		"accent": _story_stage.get("theme", {}).get("accent", Balance.COL_PLAYER),
+		"subtitle": "%s // %s" % [_story_stage.get("path", ""), _story_stage.get("title", "")],
+		"score_caption": "STAGE SCORE",
+		"score_value": "%07d" % Game.score,
+		"badge": next_line,
+		"stats": [
+			["DAEMONS PURGED", "%d" % int(st.get("kills", 0))],
+			["UPTIME", "%02d:%02d" % [int(float(st.get("time", 0.0)) / 60.0), int(float(st.get("time", 0.0))) % 60]],
+			["STAGE BEST", "%07d" % Game.story_stage_best(index)],
+		],
+		"meta": str(_story_stage.get("title", "STAGE CLEARED")),
+		"primary": "NEXT STAGE" if _story_next_stage >= 0 else "RETURN TO MENU",
+		"secondary": "STORY SELECT",
+	})
+	_show_run_summary()
 	Sfx.play("ready", 1.2, -2.0)
-	Sfx.duck_music(-6.0, 2.0)
+
 
 func _heals_line(s: Dictionary) -> String:
 	var heals: Dictionary = s.get("heals", {})
