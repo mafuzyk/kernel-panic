@@ -24,6 +24,9 @@ var quality_tier := 0
 var _fps_accum := 0.0
 var _fps_time := 0.0
 var _state := "play"
+## Tela de pausa. Substituiu o layout por retângulo absoluto de
+## TacticalStateSurface.pause_layout().
+var _pause_screen: PausePanel
 var _pause_panel: Control
 var _pause_stats: Label
 ## Tela de fim de run. Substituiu sete Labels/Buttons posicionados por offset
@@ -115,7 +118,30 @@ func _ready() -> void:
 	overlay = ArenaOverlay.new()
 	add_child(overlay)
 	_build_patch_ui()
-	_panel_kit._build_pause_panel()
+	_pause_screen = PausePanel.new()
+	_pause_screen.visible = false
+	_pause_screen.resume_pressed.connect(func() -> void: _set_paused(false))
+	_pause_screen.restart_pressed.connect(func() -> void:
+		_set_paused(false)
+		_restart_current_run()
+	)
+	_pause_screen.terminal_pressed.connect(_open_terminal)
+	_pause_screen.abandon_pressed.connect(_request_abandon_confirmation)
+	_pause_screen.sfx_changed.connect(Sfx.set_sfx_vol)
+	_pause_screen.music_changed.connect(Sfx.set_music_vol)
+	var pause_layer := CanvasLayer.new()
+	pause_layer.layer = 58
+	pause_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	pause_layer.add_child(_pause_screen)
+	# O roteador é quem despacha o Escape ENQUANTO a árvore está pausada: a
+	# própria arena não roda nesse estado. Ele vivia dentro de _make_panel
+	# ("pause"), então aposentar o painel antigo o matou junto e o Escape
+	# parou de fechar a pausa.
+	var pause_router: Node = PauseInputRouterScript.new()
+	pause_router.arena = self
+	pause_layer.add_child(pause_router)
+	add_child(pause_layer)
+	_pause_screen.set_volumes(Sfx.sfx_vol, Sfx.music_vol)
 	_panel_kit._build_terminal_panel()
 	_run_summary = RunSummaryPanel.new()
 	_run_summary.visible = false
@@ -330,8 +356,8 @@ func _layout_patch_box() -> void:
 			card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 func _refresh_responsive_layout(viewport_height: float = -1.0) -> void:
-	_panel_kit._layout_pause_panel()
-	for panel in [_pause_panel, _patch_panel]:
+	# _layout_pause_panel foi aposentado junto com o painel de retângulo absoluto.
+	for panel in [_patch_panel]:
 		if panel == null or not is_instance_valid(panel):
 			continue
 		for control in panel.get_children():
@@ -359,11 +385,11 @@ func state_action_rects(viewport: Vector2, count: int) -> Array[Rect2]:
 
 
 func pause_action_labels() -> Array[String]:
-	return _panel_kit.pause_action_labels()
+	return _pause_screen.action_labels() if is_instance_valid(_pause_screen) else _panel_kit.pause_action_labels()
 
 
 func pause_action_icon_kinds() -> Array[String]:
-	return _panel_kit.pause_action_icon_kinds()
+	return _pause_screen.action_icon_kinds() if is_instance_valid(_pause_screen) else _panel_kit.pause_action_icon_kinds()
 
 
 ## B4: este forwarding sumiu quando `_open_terminal` foi movido para o
@@ -977,11 +1003,16 @@ func _set_paused(v: bool) -> void:
 		_clear_abandon_confirmation()
 		_panel_kit._close_terminal()
 	get_tree().paused = v
-	_pause_panel.visible = v
+	_pause_screen.visible = v
 	if v:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	if v:
-		_pause_stats.text = "%s // SCORE %07d   CYCLE %02d   COMBO x%d\nBUILD: %s" % [Game.program_def()["name"], Game.score, Game.wave, Game.mult, Game.build_string()]
+		_pause_screen.set_volumes(Sfx.sfx_vol, Sfx.music_vol)
+		_pause_screen.set_run_state([
+			[tr("STAT_CYCLE"), "%02d" % Game.wave],
+			[tr("STAT_SCORE"), "%07d" % Game.score],
+			[tr("STAT_CHAIN"), "x%d" % Game.mult],
+			[tr("STAT_INTEGRITY"), "%d/%d" % [player.hp, player.max_hp]],
+		], "%s / %s" % [Game.program_def()["name"], Game.build_string()])
 	Sfx.play("ui", 1.0, -6.0)
 	if not v:
 		_try_show_patch()
@@ -1076,7 +1107,13 @@ func _request_abandon_confirmation() -> void:
 	_abandon_generation += 1
 	_abandon_armed = true
 	_abandon_t = ABANDON_CONFIRM_WINDOW
-	_pause_info.text = PAUSE_INFO_CONFIRM
+	# O aviso vive no PRÓPRIO bloco de abandono agora. Antes era uma linha
+	# solta desenhada dentro da moldura vermelha, o que fazia [ESC] e [R]
+	# parecerem parte do abandono (B6).
+	if is_instance_valid(_pause_screen):
+		_pause_screen.set_abandon_armed(true)
+	if _pause_info != null and is_instance_valid(_pause_info):
+		_pause_info.text = PAUSE_INFO_CONFIRM
 	var generation := _abandon_generation
 	_abandon_timer = get_tree().create_timer(ABANDON_CONFIRM_WINDOW, true, false, true)
 	_abandon_timer.timeout.connect(_on_abandon_timeout.bind(generation))
@@ -1090,6 +1127,8 @@ func _clear_abandon_confirmation() -> void:
 	_abandon_armed = false
 	_abandon_t = 0.0
 	_abandon_timer = null
+	if is_instance_valid(_pause_screen):
+		_pause_screen.set_abandon_armed(false)
 	if _pause_info != null and is_instance_valid(_pause_info):
 		_pause_info.text = PAUSE_INFO_DEFAULT
 

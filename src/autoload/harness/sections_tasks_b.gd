@@ -118,47 +118,56 @@ func _task9_test(arena: Arena) -> void:
 	var tactical_surface_script: Script = load("res://src/ui/tactical_state_surface.gd")
 	var state_surface_ready := arena.has_method("state_panel_rect") and arena.has_method("state_action_rects") and arena.has_method("pause_action_labels") and arena.has_method("game_over_action_labels")
 	h._check(state_surface_ready, "state panels expose tactical geometry and action labels")
-	h._check(tactical_surface_script.has_method("pause_layout"), "pause surface exposes one shared responsive layout")
+	# A pausa virou PausePanel (containers), então a geometria não vem mais de
+	# um dicionário de retângulos absolutos. Estas asserções medem o painel
+	# VIVO e guardam os invariantes do desenho aprovado.
 	h._check(tactical_surface_script.has_method("terminal_layout"), "terminal surface exposes one shared responsive layout")
-	if tactical_surface_script.has_method("pause_layout"):
-		for viewport_size in [Vector2(525, 521), Vector2(720, 720), Vector2(1366, 768)]:
-			var pause_layout: Dictionary = tactical_surface_script.pause_layout(viewport_size)
-			var pause_panel: Rect2 = pause_layout["panel"]
-			var pause_actions: Array = pause_layout["actions"]
-			h._check(pause_actions.size() == 4, "pause layout exposes four aligned actions at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			for pause_key in ["info", "title", "stats", "volume", "warning", "shortcuts"]:
-				h._check(pause_panel.encloses(pause_layout[pause_key]), "pause %s stays inside panel at %dx%d" % [pause_key, int(viewport_size.x), int(viewport_size.y)])
-			for action_rect in pause_actions:
-				h._check(pause_panel.encloses(action_rect), "pause action stays inside panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(not Rect2(pause_layout["stats"]).intersects(Rect2(pause_actions[0])), "pause stats clear first action at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(not Rect2(pause_layout["volume"]).intersects(Rect2(pause_layout["warning"])), "pause audio clears warning at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			var warning_inner := Rect2(pause_layout["warning"]).grow(-6.0 * float(pause_layout["scale"]))
-			h._check(warning_inner.encloses(Rect2(pause_actions[3])), "pause abandon action clears warning frame at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(Rect2(pause_actions[3]).end.y + 6.0 * float(pause_layout["scale"]) <= Rect2(pause_layout["shortcuts"]).position.y, "pause abandon action clears shortcut row at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-	if tactical_surface_script.has_method("terminal_layout"):
-		for viewport_size in [Vector2(720, 521), Vector2(1096, 631), Vector2(1366, 768)]:
-			var terminal_layout: Dictionary = tactical_surface_script.terminal_layout(viewport_size)
-			var terminal_panel: Rect2 = terminal_layout["panel"]
-			for terminal_key in ["header", "history", "command_index", "system_status", "prompt", "shortcuts"]:
-				h._check(terminal_panel.encloses(terminal_layout[terminal_key]), "terminal %s stays inside panel at %dx%d" % [terminal_key, int(viewport_size.x), int(viewport_size.y)])
-			h._check(not Rect2(terminal_layout["history"]).intersects(Rect2(terminal_layout["command_index"])), "terminal history clears command index at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(not Rect2(terminal_layout["history"]).intersects(Rect2(terminal_layout["prompt"])), "terminal history clears prompt at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(not Rect2(terminal_layout["prompt"]).intersects(Rect2(terminal_layout["shortcuts"])), "terminal prompt clears shortcuts at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-	if state_surface_ready:
-		for viewport_size in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
-			var state_bounds := Rect2(Vector2.ZERO, viewport_size)
-			var panel_rect: Rect2 = arena.state_panel_rect(viewport_size)
-			h._check(state_bounds.encloses(panel_rect), "state panel fits viewport %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			for action_rect in arena.state_action_rects(viewport_size, 4):
-				h._check(state_bounds.encloses(action_rect) and panel_rect.encloses(action_rect), "state action stays in panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-		h._check(arena.pause_action_labels() == ["RESUME", "RESTART", "OPEN TERMINAL", "ABANDON PROCESS"], "pause actions preserve safe order")
-		h._check(arena.has_method("pause_action_icon_kinds"), "pause actions expose semantic icons")
-		if arena.has_method("pause_action_icon_kinds"):
-			h._check(arena.pause_action_icon_kinds() == ["resume", "restart", "terminal", "warning"], "pause icons preserve action semantics")
-		# Locale-independente: a direção editorial aprovada usa caixa de frase
-		# ("Reboot"), então fixar a string em CAIXA ALTA passou a ser errado.
-		# O que importa é a ordem — repetir vem antes de abandonar.
-		h._check(arena.game_over_action_labels() == [tr("OVER_REBOOT"), tr("OVER_ABANDON")], "game-over actions preserve retry first")
+	if is_instance_valid(arena._pause_screen):
+		arena._set_paused(true)
+		await h._ticks(3)
+		var screen = arena._pause_screen
+		# Mesma cobertura de resolução que as asserções aposentadas tinham, MAIS
+		# 1920x1080 — que a matriz antiga nunca cobria (B5 da auditoria: nada
+		# acima de 1366 de largura era testado, e é por isso que tudo quebrava lá).
+		for viewport_size in [Vector2(1920, 1080), Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			screen.size = viewport_size
+			await h._ticks(2)
+			var label := "%dx%d" % [int(viewport_size.x), int(viewport_size.y)]
+			var screen_rect := Rect2(Vector2.ZERO, viewport_size)
+			var all_inside := true
+			var slider_ok := true
+			for content in screen.content_rects():
+				if not screen_rect.encloses(content):
+					all_inside = false
+				if content.size.x > Design.CONTENT_MAX_PROSE:
+					slider_ok = false
+			h._check(all_inside, "pause content stays inside the screen at %s" % label)
+			# Os sliders pararam de esticar: antes um valor 0-100% ocupava
+			# ~1000px em 1920 e o rótulo ficava a 1200px do controle.
+			h._check(slider_ok, "pause controls respect the content max width at %s" % label)
+
+			# B6 por estrutura: o abandono fica no extremo oposto das ações
+			# seguras. A distância é o aviso — não existe mais moldura de perigo
+			# onde uma dica de teclado possa cair dentro por engano.
+			var abandon_block = screen.get("_abandon_block")
+			var first_action: Button = h._first_button(screen)
+			if abandon_block != null and first_action != null:
+				# Em tela larga a separação é horizontal; em janela estreita a
+				# fileira vira coluna e a separação passa a ser vertical. O
+				# invariante é o mesmo: o abandono nunca encosta nas ações seguras.
+				var safe := Rect2(first_action.global_position, first_action.size)
+				var danger := Rect2(abandon_block.global_position, abandon_block.size)
+				h._check(not safe.intersects(danger), "pause abandon stays clear of the safe actions at %s" % label)
+		screen.size = arena.get_viewport_rect().size
+		arena._set_paused(false)
+	h._check(arena.pause_action_labels() == [tr("PAUSE_RESUME"), tr("PAUSE_RESTART"), tr("PAUSE_TERMINAL"), tr("PAUSE_ABANDON")], "pause actions preserve safe order")
+	h._check(arena.has_method("pause_action_icon_kinds"), "pause actions expose semantic icons")
+	if arena.has_method("pause_action_icon_kinds"):
+		h._check(arena.pause_action_icon_kinds() == ["resume", "restart", "terminal", "warning"], "pause icons preserve action semantics")
+	# Locale-independente: a direção editorial aprovada usa caixa de frase
+	# ("Reboot"), então fixar a string em CAIXA ALTA passou a ser errado.
+	# O que importa é a ordem — repetir vem antes de abandonar.
+	h._check(arena.game_over_action_labels() == [tr("OVER_REBOOT"), tr("OVER_ABANDON")], "game-over actions preserve retry first")
 	var terminal: Control = arena._terminal_panel
 	var terminal_ready := terminal != null and terminal.has_method("workstation_rect") and terminal.has_method("status_snapshot")
 	h._check(terminal_ready, "terminal exposes tactical workstation geometry")
@@ -204,7 +213,7 @@ func _task9_test(arena: Arena) -> void:
 				continue
 			arena._refresh_responsive_layout_for_height(viewport_height)
 			var real_controls_fit := true
-			for panel in [arena._pause_panel, arena._run_summary, arena._patch_panel]:
+			for panel in [arena._pause_screen, arena._run_summary, arena._patch_panel]:
 				if panel == null or not is_instance_valid(panel):
 					continue
 				for control in panel.get_children():
