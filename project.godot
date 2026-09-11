@@ -34,6 +34,11 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=4
 
+[internationalization]
+
+locale/translations=PackedStringArray("res://assets/i18n/strings.en.translation", "res://assets/i18n/strings.pt_BR.translation")
+locale/fallback="en"
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

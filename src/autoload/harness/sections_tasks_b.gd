@@ -155,7 +155,10 @@ func _task9_test(arena: Arena) -> void:
 		h._check(arena.has_method("pause_action_icon_kinds"), "pause actions expose semantic icons")
 		if arena.has_method("pause_action_icon_kinds"):
 			h._check(arena.pause_action_icon_kinds() == ["resume", "restart", "terminal", "warning"], "pause icons preserve action semantics")
-		h._check(arena.game_over_action_labels() == ["REBOOT", "ABANDON PROCESS"], "game-over actions preserve retry first")
+		# Locale-independente: a direção editorial aprovada usa caixa de frase
+		# ("Reboot"), então fixar a string em CAIXA ALTA passou a ser errado.
+		# O que importa é a ordem — repetir vem antes de abandonar.
+		h._check(arena.game_over_action_labels() == [tr("OVER_REBOOT"), tr("OVER_ABANDON")], "game-over actions preserve retry first")
 	var terminal: Control = arena._terminal_panel
 	var terminal_ready := terminal != null and terminal.has_method("workstation_rect") and terminal.has_method("status_snapshot")
 	h._check(terminal_ready, "terminal exposes tactical workstation geometry")

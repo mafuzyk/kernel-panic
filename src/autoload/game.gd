@@ -88,6 +88,7 @@ func _enter_tree() -> void:
 	_setup_input()
 
 func _ready() -> void:
+	load_language()
 	_load_run_config()
 
 func _exit_tree() -> void:
@@ -512,6 +513,41 @@ func unlock_achievement(id: String) -> bool:
 	log_event("achievement: %s enabled" % label)
 	achievement_unlocked.emit(id, label)
 	return true
+
+## Idioma. Decisão da autora 2026-09-11: PT-BR e EN, com as strings sendo
+## extraídas conforme cada tela é reconstruída (ver R9 na auditoria — fazer a
+## extração depois significaria varrer a UI inteira duas vezes).
+const LANGUAGES := ["en", "pt_BR"]
+
+var _language := ""
+
+
+func language() -> String:
+	return _language if _language != "" else "en"
+
+
+func set_language(code: String) -> void:
+	if code not in LANGUAGES:
+		code = "en"
+	_language = code
+	TranslationServer.set_locale(code)
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("feel", "language", code)
+	cf.save(Sfx.SAVE_PATH)
+
+
+## Carrega o idioma salvo; na primeira execução segue o do sistema.
+func load_language() -> void:
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	var saved := str(cf.get_value("feel", "language", ""))
+	if saved in LANGUAGES:
+		_language = saved
+	else:
+		_language = "pt_BR" if OS.get_locale().begins_with("pt") else "en"
+	TranslationServer.set_locale(_language)
+
 
 func run_seed_text() -> String:
 	return "SEED %d" % run_seed
