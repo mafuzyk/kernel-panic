@@ -63,9 +63,13 @@ static func pause_layout(viewport: Vector2) -> Dictionary:
 	y += 8.0 * scale
 	var volume := Rect2(panel.position.x + inset_x, y, width, 72.0 * scale)
 	y = volume.end.y + 8.0 * scale
-	var warning := Rect2(panel.position.x + inset_x, y, width, 80.0 * scale)
+	# B6: a moldura de perigo contém APENAS a ação de abandono. A dica de
+	# teclado ficava dentro dela, sugerindo que [ESC] RESUME e [R] RESTART
+	# também pertenciam ao abandono. Agora ela vive abaixo, fora do aviso.
+	# A altura total não muda: o aviso encolhe exatamente o que a dica ocupa.
+	var warning := Rect2(panel.position.x + inset_x, y, width, action_height + 12.0 * scale)
 	var abandon := Rect2(warning.position + Vector2(8.0 * scale, 6.0 * scale), Vector2(warning.size.x - 16.0 * scale, action_height))
-	var shortcuts := Rect2(warning.position + Vector2(8.0 * scale, 54.0 * scale), Vector2(warning.size.x - 16.0 * scale, 18.0 * scale))
+	var shortcuts := Rect2(panel.position.x + inset_x, warning.end.y + 10.0 * scale, width, 18.0 * scale)
 	actions.append(abandon)
 	return {
 		"panel": panel,
