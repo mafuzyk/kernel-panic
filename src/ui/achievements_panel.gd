@@ -61,7 +61,7 @@ func progress_header() -> String:
 	for id in Game.ACHIEVEMENT_DEFS:
 		if Game.achievements.has(id):
 			unlocked += 1
-	return "ACHIEVEMENTS // %d / %d UNLOCKED" % [unlocked, Game.ACHIEVEMENT_DEFS.size()]
+	return tr("AWARDS_HEADER").format([unlocked, Game.ACHIEVEMENT_DEFS.size()])
 
 
 ## Retângulo do painel. Contrato de geometria verificado pelo autotest: precisa

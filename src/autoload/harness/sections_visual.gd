@@ -257,6 +257,38 @@ func _audit_fixes_test() -> void:
 	bestiary.free()
 
 
+## i18n — decisão da autora 2026-09-11: extrair strings conforme as telas são
+## reconstruídas, com PT-BR e EN, em vez de varrer a UI inteira duas vezes.
+func _i18n_test() -> void:
+	print("AT_STEP i18n")
+	var sample := ["PAUSE_TITLE", "OVER_TITLE", "STAT_ACCURACY", "AWARDS_HEADER"]
+	var previous := TranslationServer.get_locale()
+
+	for locale in ["en", "pt_BR"]:
+		TranslationServer.set_locale(locale)
+		var all_translated := true
+		for key in sample:
+			# Chave ausente volta como a própria chave: é o sinal de que a
+			# entrada não existe no CSV.
+			if tr(key) == key:
+				all_translated = false
+		h._check(all_translated, "every sampled string resolves in %s" % locale)
+
+	TranslationServer.set_locale("en")
+	var english := tr("OVER_TITLE")
+	TranslationServer.set_locale("pt_BR")
+	h._check(tr("OVER_TITLE") != english, "locales actually differ, not just fall back")
+
+	h._check(Game.has_method("set_language") and Game.has_method("language"),
+		"game owns the language setting")
+	if Game.has_method("set_language"):
+		Game.set_language("pt_BR")
+		h._check(Game.language() == "pt_BR" and TranslationServer.get_locale().begins_with("pt"),
+			"setting the language moves the TranslationServer locale")
+		Game.set_language("en")
+	TranslationServer.set_locale(previous)
+
+
 func _icon_quality_test() -> void:
 	print("AT_STEP icon_quality")
 	var icon_script: Script = load("res://src/ui/tactical_icon.gd")

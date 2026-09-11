@@ -34,8 +34,10 @@ var _primary_label: Label
 var _secondary_label: Label
 var _accent := Design.DANGER
 
-var _primary_text := "REBOOT"
-var _secondary_text := "ABANDON PROCESS"
+## Preenchidos em _ready a partir das chaves de tradução: como inicializador
+## de membro eles rodariam antes do TranslationServer estar no locale certo.
+var _primary_text := ""
+var _secondary_text := ""
 
 
 func _ready() -> void:
@@ -43,6 +45,8 @@ func _ready() -> void:
 	# anchors_AND_offsets: só `set_anchors_preset` ajusta as âncoras e deixa os
 	# offsets como estavam. Sob um CanvasLayer isso deixa o Control com tamanho
 	# zero, os containers colapsam no mínimo e o título quebra letra por letra.
+	_primary_text = tr("OVER_REBOOT")
+	_secondary_text = tr("OVER_ABANDON")
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_resize_to_viewport()
 	get_viewport().size_changed.connect(_resize_to_viewport)
@@ -211,7 +215,7 @@ func _build_masthead(parent: Node) -> void:
 	var l1 := _grot(28, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY); l1.text = "KERNEL"
 	var l2 := _grot(28, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY); l2.text = "PANIC"
 	mark.add_child(l1); mark.add_child(l2)
-	mark.add_child(_mono("last process standing", Design.TEXT_MICRO, Design.TEXT_MUTED))
+	mark.add_child(_mono(tr("TAGLINE"), Design.TEXT_MICRO, Design.TEXT_MUTED))
 	row.add_child(mark)
 
 	var grow := Control.new()
@@ -223,7 +227,7 @@ func _build_masthead(parent: Node) -> void:
 	tag.add_theme_constant_override("separation", Design.SPACE_MD)
 	tag.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tag.add_child(_mono("CORE DUMP", Design.TEXT_CAPTION, Design.TEXT_SECONDARY))
+	tag.add_child(_mono(tr("OVER_CORE_DUMP"), Design.TEXT_CAPTION, Design.TEXT_SECONDARY))
 	var dash := ColorRect.new()
 	dash.color = Design.alpha(Design.TEXT_PRIMARY, 0.5)
 	dash.custom_minimum_size = Vector2(34, 1)
@@ -257,7 +261,7 @@ func _build_hero(parent: Node) -> void:
 	right.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	right.size_flags_horizontal = Control.SIZE_SHRINK_END
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_score_caption = _mono("SCORE", Design.TEXT_SUBHEAD, Design.TEXT_SECONDARY)
+	_score_caption = _mono(tr("STAT_SCORE"), Design.TEXT_SUBHEAD, Design.TEXT_SECONDARY)
 	right.add_child(_score_caption)
 	_score_value = _grot(66, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
 	right.add_child(_score_value)

@@ -695,24 +695,24 @@ func _show_game_over() -> void:
 	# (`SEED          SEED -19999...`, porque run_seed_text() já traz o prefixo)
 	# e o B3 (sete linhas em três colunas, alinhadas com espaço contado à mão).
 	_run_summary.show_summary({
-		"title": "PROCESS TERMINATED",
+		"title": tr("OVER_TITLE"),
 		"accent": Balance.COL_DANGER,
-		"subtitle": "terminated by %s" % str(s.get("killer", "DAEMON")),
-		"score_caption": "SCORE",
+		"subtitle": tr("OVER_TERMINATED_BY").format([str(s.get("killer", "DAEMON"))]),
+		"score_caption": tr("STAT_SCORE"),
 		"score_value": "%07d" % Game.score,
-		"badge": "NEW RECORD" if Game.new_best else "",
+		"badge": tr("OVER_NEW_RECORD") if Game.new_best else "",
 		"stats": [
-			["CYCLES", "%d" % int(s["wave"])],
-			["DAEMONS PURGED", "%d" % int(s["kills"])],
-			["UPTIME", "%02d:%02d" % [int(s["time"] / 60.0), int(s["time"]) % 60]],
-			["ACCURACY", "%d%%" % int(acc)],
+			[tr("STAT_CYCLES"), "%d" % int(s["wave"])],
+			[tr("STAT_DAEMONS_PURGED"), "%d" % int(s["kills"])],
+			[tr("STAT_UPTIME"), "%02d:%02d" % [int(s["time"] / 60.0), int(s["time"]) % 60]],
+			[tr("STAT_ACCURACY"), "%d%%" % int(acc)],
 		],
 		"meta": "%s / %s / BEST %07d / SEED %d / %s" % [
 			Game.program_def()["name"], Game.build_string(),
 			Game.best_for_mode(), Game.run_seed, _heals_line(s),
 		],
-		"primary": "REBOOT",
-		"secondary": "ABANDON PROCESS",
+		"primary": tr("OVER_REBOOT"),
+		"secondary": tr("OVER_ABANDON"),
 	})
 	_show_run_summary()
 	Sfx.play("gameover", 0.9, 0.0)
@@ -759,20 +759,20 @@ func _show_story_victory(stage_id: String) -> void:
 			next_line += "  //  RAINBOW GRID UNLOCKED FOR ENDLESS"
 	var st := Game.stats
 	_run_summary.show_summary({
-		"title": "STAGE CLEARED",
+		"title": tr("VICTORY_TITLE"),
 		"accent": _story_stage.get("theme", {}).get("accent", Balance.COL_PLAYER),
 		"subtitle": "%s // %s" % [_story_stage.get("path", ""), _story_stage.get("title", "")],
-		"score_caption": "STAGE SCORE",
+		"score_caption": tr("STAT_STAGE_SCORE"),
 		"score_value": "%07d" % Game.score,
 		"badge": next_line,
 		"stats": [
-			["DAEMONS PURGED", "%d" % int(st.get("kills", 0))],
-			["UPTIME", "%02d:%02d" % [int(float(st.get("time", 0.0)) / 60.0), int(float(st.get("time", 0.0))) % 60]],
-			["STAGE BEST", "%07d" % Game.story_stage_best(index)],
+			[tr("STAT_DAEMONS_PURGED"), "%d" % int(st.get("kills", 0))],
+			[tr("STAT_UPTIME"), "%02d:%02d" % [int(float(st.get("time", 0.0)) / 60.0), int(float(st.get("time", 0.0))) % 60]],
+			[tr("STAT_STAGE_BEST"), "%07d" % Game.story_stage_best(index)],
 		],
 		"meta": str(_story_stage.get("title", "STAGE CLEARED")),
-		"primary": "NEXT STAGE" if _story_next_stage >= 0 else "RETURN TO MENU",
-		"secondary": "STORY SELECT",
+		"primary": tr("VICTORY_NEXT_STAGE") if _story_next_stage >= 0 else tr("VICTORY_RETURN"),
+		"secondary": tr("VICTORY_STORY_SELECT"),
 	})
 	_show_run_summary()
 	Sfx.play("ready", 1.2, -2.0)
