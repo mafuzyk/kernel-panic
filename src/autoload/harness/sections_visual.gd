@@ -192,10 +192,31 @@ func _glyph_lib_test() -> void:
 	h._check(Game.rng.seed == seed_before, "glyph drawing never advances the gameplay rng")
 	var mixed: Color = glyph.call("era_mix", Color.RED, Color.CYAN, 0.25)
 	h._check(not mixed.is_equal_approx(Color.RED) and not mixed.is_equal_approx(Color.CYAN), "era_mix blends identity colors toward the era accent")
+	# Comportamento, não texto-fonte. A versão anterior afirmava que os painéis
+	# continham a string literal "GlyphLib.draw_glyph" e quebrou ao renomear o
+	# ponto de entrada para draw_portrait — sem regressão nenhuma. O que o
+	# teste quer garantir é que os painéis reusam a biblioteca em vez de
+	# reimplementar desenho, e que os dois pontos de entrada funcionam.
 	var bestiary_source := str(load("res://src/ui/bestiary_panel.gd").source_code)
 	var program_source := str(load("res://src/ui/program_panel.gd").source_code)
-	h._check(bestiary_source.contains("GlyphLib.draw_glyph"), "bestiary detail views reuse glyph_lib")
-	h._check(program_source.contains("GlyphLib.draw_glyph"), "program cards reuse glyph_lib")
+	h._check(bestiary_source.contains("GlyphLib.draw_"), "bestiary detail views reuse glyph_lib")
+	h._check(program_source.contains("GlyphLib.draw_"), "program cards reuse glyph_lib")
+	var portrait_seed := Game.rng.seed
+	var portrait_ok := true
+	for kind in required:
+		if not glyph.has_method("draw_portrait"):
+			portrait_ok = false
+			break
+		glyph.call("draw_portrait", null, kind, Vector2.ZERO, 48.0, Color.CYAN, 0.0)
+	h._check(portrait_ok, "glyph library exposes the large-portrait entry point")
+	h._check(Game.rng.seed == portrait_seed, "portrait drawing never advances the gameplay rng")
+	# A arena precisa ficar no caminho desenhado em código: é o que preserva a
+	# animação das 10 entidades que usam `t` e a nitidez no tamanho real.
+	# Decisão da autora 2026-09-11, ver specs/2026-09-11-brief-sprites.md.
+	var glyph_source := str(load("res://src/ui/glyph_lib.gd").source_code)
+	var draw_glyph_body := glyph_source.split("static func draw_glyph")[1].split("static func ")[0]
+	h._check(not draw_glyph_body.contains("EntitySprite.draw_entity"),
+		"arena glyph path stays code-drawn (sprites only via draw_portrait)")
 
 func _icon_quality_test() -> void:
 	print("AT_STEP icon_quality")
