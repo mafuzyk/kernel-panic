@@ -805,8 +805,10 @@ func _on_enemy_died(e: EnemyBase) -> void:
 	n += Game.patch_level("frag")
 	if spawner.wave_event == "rich":
 		n *= 2
-	var motes := get_tree().get_nodes_in_group("motes").size()
-	n = mini(n, maxi(0, 90 - motes))
+	# O grupo "motes" foi esvaziado pela reescrita MultiMesh; contar por ele
+	# devolvia sempre 0 e o teto nunca era aplicado. O campo sabe seu tamanho.
+	var live_motes: int = mote_field.count() if is_instance_valid(mote_field) else 0
+	n = mini(n, maxi(0, Balance.MOTE_CAP - live_motes))
 	var field := mote_field if is_instance_valid(mote_field) else null
 	if field != null:
 		for i in n:
