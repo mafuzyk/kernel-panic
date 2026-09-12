@@ -129,6 +129,24 @@ func _story_scene_test() -> void:
 	h._check(Game.mode == "story", "story arena loads in story mode")
 	h._check(str(story_arena.get("_story_stage").get("path", "")) == "/boot", "story arena loads the selected stage")
 	h._check(story_arena.get("_story_intro_panel") != null, "story arena builds an intro card")
+	var story_intro_panel = story_arena.get("_story_intro_panel")
+	var story_intro_title: Label = story_arena.get("_story_intro_title")
+	h._check(story_intro_panel is Control and story_intro_panel.theme == UiTheme.shared(),
+		"story intro uses the shared design theme")
+	h._check(story_intro_panel is Control and story_intro_panel.has_method("content_rects"),
+		"story intro exposes live editorial content geometry")
+	if story_intro_panel is Control and story_intro_panel.has_method("content_rects"):
+		var intro_bounds := Rect2(Vector2.ZERO, story_intro_panel.size)
+		var intro_inside := true
+		for raw_rect in story_intro_panel.call("content_rects"):
+			intro_inside = intro_inside and intro_bounds.encloses(Rect2(raw_rect))
+		h._check(intro_inside, "story intro live editorial content stays inside the viewport")
+	h._check(story_intro_title != null and story_intro_title.get_theme_font("font") == Design.grotesk(Design.WEIGHT_BLACK),
+		"story intro title uses the editorial grotesk instead of Orbitron")
+	h._check(story_intro_title != null and story_intro_title.horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT,
+		"story intro title follows the left-aligned editorial hierarchy")
+	var tactical_story_surfaces: Array[Node] = story_intro_panel.find_children("*", "TacticalStateSurface", true, false) if story_intro_panel is Control else []
+	h._check(tactical_story_surfaces.is_empty(), "story intro no longer renders a TacticalStateSurface shell")
 	h._check(story_arena.has_method("story_intro_active"), "story arena exposes the intro state query")
 	h._check(not story_arena.spawner.story_mode, "story spawner idles during the intro")
 	await h._simulation_seconds(1.5)

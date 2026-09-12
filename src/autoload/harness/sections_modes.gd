@@ -224,7 +224,11 @@ func _capture() -> void:
 		elif OS.get_environment("KP_AWARDS") != "" and menu.has_method("_open_achievements"):
 			menu._open_achievements()
 	else:
-		Game.start_run()
+		if mode == "story_intro":
+			Game.story_cleared = {}
+			Game.start_story(0)
+		else:
+			Game.start_run()
 		await h._until(func() -> bool:
 			return h.get_tree().current_scene != null and h.get_tree().current_scene.name == "Arena", 8.0, "arena")
 		await h._ticks(10)
