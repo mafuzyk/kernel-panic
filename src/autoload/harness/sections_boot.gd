@@ -337,8 +337,12 @@ func _color_assist_test() -> void:
 	h._check(splitter.has_method("color_assist_marker") and splitter.color_assist_marker() == "SPLIT", "Splitter exposes code-drawn assist marker")
 	h._check(bulwark.has_method("color_assist_marker") and bulwark.color_assist_marker() == "BULW", "Bulwark exposes code-drawn assist marker")
 	h._check(splitter_source.contains("draw_string") and bulwark_source.contains("draw_string") and not splitter_source.contains(".png") and not bulwark_source.contains(".png"), "threat markers use code drawing without images")
-	var bestiary_source := FileAccess.get_file_as_string("res://src/ui/bestiary_panel.gd")
-	h._check(bestiary_source.contains("_draw_color_assist_marker") and bestiary_source.contains("SPLIT") and bestiary_source.contains("BULW") and bestiary_source.contains("Sfx.color_assist"), "bestiary draws assist markers beside Splitter and Bulwark glyphs")
+	var bestiary_probe := BestiaryPanel.new()
+	h._check(bestiary_probe.has_method("assist_marker_text") \
+		and bestiary_probe.call("assist_marker_text", "splitter") == ("SPLIT" if Sfx.color_assist else "") \
+		and bestiary_probe.call("assist_marker_text", "bulwark") == ("BULW" if Sfx.color_assist else ""),
+		"bestiary exposes the same color-assist markers as the arena threats")
+	bestiary_probe.free()
 	splitter.free()
 	bulwark.free()
 
@@ -347,4 +351,3 @@ func _color_assist_test() -> void:
 	h._restore_config_snapshot("feel", "color_assist", saved_disk)
 	if menu != null and menu.has_method("_refresh_color_assist_label"):
 		menu._refresh_color_assist_label()
-
