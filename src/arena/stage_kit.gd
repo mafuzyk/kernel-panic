@@ -19,6 +19,12 @@ func _build_background() -> void:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	a._bg_mat = ShaderMaterial.new()
 	a._bg_mat.shader = load("res://shaders/bg_grid.gdshader")
+	# Uma fonte só para a legibilidade do campo: o shader tem defaults iguais,
+	# mas quem manda é `Balance`, que é onde o autotest afirma a regra.
+	a._bg_mat.set_shader_parameter("corruption_col", Balance.BG_CORRUPTION_COL)
+	a._bg_mat.set_shader_parameter("corruption_mix", Balance.BG_CORRUPTION_MIX)
+	a._bg_mat.set_shader_parameter("corruption_coverage", Balance.BG_CORRUPTION_COVERAGE)
+	a._bg_mat.set_shader_parameter("subgrid_weight", Balance.BG_SUBGRID_WEIGHT)
 	rect.material = a._bg_mat
 	layer.add_child(rect)
 	a.add_child(layer)

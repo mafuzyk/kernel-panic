@@ -429,6 +429,7 @@ func _autotest() -> void:
 	await _sec_visual._i18n_test()
 	await _sec_visual._audit_fixes_test()
 	await _sec_visual._float_text_collision_test()
+	await _sec_visual._arena_field_test()
 	await _sec_visual._editorial_screens_test()
 	await _sec_visual._icon_quality_test()
 	await _sec_visual._raster_trial_test()

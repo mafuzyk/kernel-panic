@@ -173,15 +173,15 @@ func _free_text_slot(base: Vector2, incoming: FloatText) -> Vector2:
 		var probe := Rect2(
 			candidate - Vector2(incoming.half_width, incoming.line_height * 0.5),
 			Vector2(incoming.half_width * 2.0, incoming.line_height))
-		var lowest := -INF
+		var highest := INF
 		for node in _live_text:
 			var other: FloatText = node
 			var other_rect := other.text_rect()
 			if probe.intersects(other_rect):
-				lowest = maxf(lowest, other_rect.end.y)
-		if lowest == -INF:
+				highest = minf(highest, other_rect.position.y)
+		if highest == INF:
 			return candidate
-		candidate.y = lowest + incoming.line_height * 0.5 + TEXT_GAP
+		candidate.y = highest - incoming.line_height * 0.5 - TEXT_GAP
 	return candidate
 
 func stacktrace(pos: Vector2, killer: String, big := false) -> void:

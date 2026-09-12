@@ -143,6 +143,10 @@ func _ready() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/bg_grid.gdshader")
+	mat.set_shader_parameter("corruption_col", Balance.BG_CORRUPTION_COL)
+	mat.set_shader_parameter("corruption_mix", Balance.BG_CORRUPTION_MIX)
+	mat.set_shader_parameter("corruption_coverage", Balance.BG_CORRUPTION_COVERAGE)
+	mat.set_shader_parameter("subgrid_weight", Balance.BG_SUBGRID_WEIGHT)
 	bg.material = mat
 	add_child(bg)
 	var dust := CPUParticles2D.new()
