@@ -353,49 +353,14 @@ func _open_bestiary() -> void:
 	if _bestiary_panel == null:
 		_bestiary_panel = BestiaryPanel.new()
 		_bestiary_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-		var title := Label.new()
-		title.text = "BESTIARY // FIELD DATA"
-		title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
-		title.add_theme_font_size_override("font_size", 28)
-		title.add_theme_color_override("font_color", Balance.COL_TEXT)
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		title.anchor_left = 0.0
-		title.anchor_right = 1.0
-		title.offset_top = 60.0
-		title.offset_bottom = 110.0
-		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_bestiary_panel.add_child(title)
-		var hint := Label.new()
-		hint.text = "%d / %d LOGGED  //  SELECT A PROCESS FOR FIELD DATA" % [Game.bestiary.size(), BestiaryPanel.ENTRIES.size()]
-		hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		hint.add_theme_font_size_override("font_size", 13)
-		hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.anchor_left = 0.0
-		hint.anchor_right = 1.0
-		hint.offset_top = 112.0
-		hint.offset_bottom = 136.0
-		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_bestiary_panel.add_child(hint)
-		var back := Button.new()
-		_chrome_kit._style_overlay_back(back)
-		back.text = "BACK  [ESC]"
-		back.anchor_left = 0.0
-		back.anchor_right = 0.0
-		back.anchor_top = 1.0
-		back.anchor_bottom = 1.0
-		back.offset_left = 28.0
-		back.offset_right = 190.0
-		back.offset_top = -72.0
-		back.offset_bottom = -30.0
-		back.pressed.connect(_close_bestiary)
-		_bestiary_panel.add_child(back)
+		_bestiary_panel.back_pressed.connect(_close_bestiary)
 		var layer := CanvasLayer.new()
 		layer.layer = 70
+		layer.process_mode = Node.PROCESS_MODE_ALWAYS
 		layer.add_child(_bestiary_panel)
 		add_child(layer)
 	_bestiary_panel.visible = true
-	_bestiary_panel.scroll_y = 0.0
+	_bestiary_panel.refresh(true)
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_bestiary() -> void:

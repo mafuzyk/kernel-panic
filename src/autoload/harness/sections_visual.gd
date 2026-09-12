@@ -358,6 +358,78 @@ func _editorial_screens_test() -> void:
 	panel.queue_free()
 	await h._ticks(2)
 
+	# ── bestiário ─────────────────────────────────────────────────────
+	var bestiary_script: Script = load("res://src/ui/bestiary_panel.gd")
+	var bestiary: Control = bestiary_script.new()
+	h.get_tree().current_scene.add_child(bestiary)
+	await h._ticks(2)
+
+	h._check(bestiary.theme == UiTheme.shared(), "bestiary uses the shared design theme")
+	h._check(bestiary.has_method("title_text") and str(bestiary.call("title_text")) == tr("BESTIARY_TITLE"),
+		"bestiary owns its masthead title")
+	h._check(bestiary.has_method("title_font_size") and int(bestiary.call("title_font_size")) >= Design.TEXT_HEADING,
+		"bestiary title uses the display end of the type scale")
+	h._check(bestiary.has_signal("back_pressed"), "bestiary owns its back action")
+	h._check(bestiary.has_method("content_rects"), "bestiary exposes live content rects")
+
+	if bestiary.has_method("content_rects"):
+		for viewport_size in [Vector2(1920, 1080), Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			bestiary.size = viewport_size
+			await h._ticks(2)
+			var bestiary_label := "%dx%d" % [int(viewport_size.x), int(viewport_size.y)]
+			var bestiary_screen := Rect2(Vector2.ZERO, viewport_size)
+			var bestiary_inside := true
+			for content in bestiary.call("content_rects"):
+				if not bestiary_screen.encloses(content):
+					bestiary_inside = false
+			h._check(bestiary_inside, "bestiary content stays inside the screen at %s" % bestiary_label)
+
+	h._check(bestiary.has_method("entry_ink"), "bestiary entries expose semantic ink roles")
+	if bestiary.has_method("entry_ink"):
+		var entry_id := str(BestiaryPanel.ENTRIES[0]["id"])
+		var bestiary_ink: Dictionary = bestiary.call("entry_ink", entry_id)
+		var entry_identity := BestiaryPanel.entry_color(entry_id)
+		h._check(bestiary_ink.get("title", Color.BLACK) in [Design.TEXT_PRIMARY, Design.TEXT_FAINT],
+			"bestiary entry title uses neutral ink")
+		h._check(bestiary_ink.get("marker", Color.BLACK) == entry_identity,
+			"bestiary keeps entity identity colour as a marker")
+		h._check(bestiary_ink.get("body", Color.BLACK) != entry_identity,
+			"bestiary body text is not tinted by entity identity")
+
+	var saved_assist := Sfx.color_assist
+	Sfx.color_assist = true
+	bestiary.call("select_entry", "splitter")
+	await h._ticks(2)
+	var assist_label = bestiary.get("_detail_assist_label")
+	h._check(assist_label is Label and assist_label.is_visible_in_tree() and assist_label.text == "SPLIT",
+		"bestiary visibly carries the Splitter assist marker when color assist is enabled")
+	Sfx.color_assist = saved_assist
+
+	# O porte trocou hit-testing desenhado à mão por Buttons transparentes. Teste
+	# o caminho REAL de clique para não repetir o buraco que a revisão encontrou
+	# no primeiro porte do PatchCard (API verde, interação quebrável sem alarme).
+	var bestiary_rows: Dictionary = bestiary.get("_rows")
+	var click_id := str(BestiaryPanel.ENTRIES[1]["id"])
+	var click_row: Control = bestiary_rows.get(click_id)
+	var click_buttons := click_row.find_children("*", "Button", true, false) if click_row != null else []
+	h._check(not click_buttons.is_empty(), "bestiary row exposes a real interactive hit target")
+	if not click_buttons.is_empty():
+		(click_buttons[0] as Button).pressed.emit()
+		h._check(bestiary.call("detail_entry_id") == click_id,
+			"bestiary row click selects the corresponding field entry")
+
+	var back_events: Array = []
+	bestiary.back_pressed.connect(func() -> void: back_events.append(true))
+	var back_block = bestiary.get("_back_block")
+	var back_hit = back_block.get_meta("hit") if back_block is PanelContainer and back_block.has_meta("hit") else null
+	h._check(back_hit is Button, "bestiary back action exposes a real interactive hit target")
+	if back_hit is Button:
+		back_hit.pressed.emit()
+		h._check(back_events.size() == 1, "bestiary back action emits back_pressed")
+
+	bestiary.queue_free()
+	await h._ticks(2)
+
 	# ── seletor de fase ───────────────────────────────────────────────
 	var story_script: Script = load("res://src/ui/story_panel.gd")
 	var story: Control = story_script.new()
