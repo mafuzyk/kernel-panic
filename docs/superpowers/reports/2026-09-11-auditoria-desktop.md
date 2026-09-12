@@ -88,7 +88,30 @@ captura `KP_SHOT=terminal` está morto desde então e ninguém percebeu porque
 esse caminho não roda no autotest. O jogo em si funciona (o botão da pausa
 chama o `panel_kit` direto).
 
-### B5 — Layout de desktop quebra acima de 1366px
+### B5 — ⚠️ CORRIGIDO PARCIALMENTE E **REENQUADRADO** (2026-09-11)
+
+> **Correção importante.** Eu afirmei que "tudo quebra acima de 1366px". Isso
+> está **errado**. O projeto usa `window/stretch/mode="canvas_items"` com base
+> 1280×720, então o jogo **sempre renderiza em 1280×720 lógico** e o Godot
+> escala para a janela. Em 1920×1080 não há layout novo — é a mesma tela
+> ampliada 1,5×.
+>
+> O que eu vi nas capturas de 1920 e chamei de "quebra em resolução alta" eram
+> **problemas de proporção dentro do palco de 1280×720**, ampliados junto:
+> o slider ocupava ~660 de 1080 lógicos com o valor empurrado para longe, e o
+> indicador do `CheckButton` ficava ancorado na borda direita da coluna. Esses
+> eram reais e foram corrigidos.
+>
+> Também afirmei que **"o botão BACK transborda o painel"**. Não transborda.
+> Em coordenadas lógicas o rodapé fica dentro do workstation, abaixo do rail de
+> navegação. Eu li errado a captura ampliada.
+>
+> O que continua válido: a matriz de testes parava em 1366 de largura, e as
+> asserções de contenção que adicionei em 1920×1080 protegem contra mudança
+> futura de `stretch` e contra modos de janela onde o viewport lógico muda —
+> mas elas **não** descrevem o que o jogo renderiza hoje por padrão.
+
+### B5 (texto original) — Layout de desktop quebra acima de 1366px
 O autotest cobre 1366×768, 432×720, 720×720, 900×400 e mais alguns — **nada
 acima de 1366 de largura**. Em 1920×1080:
 
