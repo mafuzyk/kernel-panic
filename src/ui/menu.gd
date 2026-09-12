@@ -147,6 +147,8 @@ func _ready() -> void:
 	mat.set_shader_parameter("corruption_mix", Balance.BG_CORRUPTION_MIX)
 	mat.set_shader_parameter("corruption_coverage", Balance.BG_CORRUPTION_COVERAGE)
 	mat.set_shader_parameter("subgrid_weight", Balance.BG_SUBGRID_WEIGHT)
+	mat.set_shader_parameter("era_gain_grid", Balance.ERA_TINT_GAIN_GRID)
+	mat.set_shader_parameter("era_gain_glow", Balance.ERA_TINT_GAIN_GLOW)
 	bg.material = mat
 	add_child(bg)
 	var dust := CPUParticles2D.new()
