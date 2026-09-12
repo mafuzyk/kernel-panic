@@ -81,6 +81,29 @@ const COL_MOTE := Color("ffd24f")
 const COL_TEXT := Color("cfe9ff")
 const COL_DANGER := Color("ff2a4d")
 
+## ── legibilidade do campo da arena ────────────────────────────────────
+##
+## Regra: o fundo nunca fica mais claro que a entidade mais escura. O jogador
+## lê FORMAS em movimento sobre o campo; quando o campo acende na mesma faixa
+## de matiz dos inimigos, as duas leituras competem.
+##
+## A corrupção era vermelho aceso (0.85, 0.08, 0.28) misturado a 32% sobre 24%
+## da tela. Virou escurecimento: um setor corrompido é grade DANIFICADA — luz
+## que falta, não luz somada. O matiz vermelho sobrevive na borda do setor, que
+## é onde ele informa sem ofuscar.
+const BG_CORRUPTION_COL := Color(0.075, 0.012, 0.030)
+## Quanto o setor corrompido puxa o campo para a cor acima.
+const BG_CORRUPTION_MIX := 0.72
+## Fração das células do fundo que podem corromper.
+const BG_CORRUPTION_COVERAGE := 0.14
+## Peso da grade secundária. Era 0.22 e, correndo em direção oposta à primária,
+## produzia moiré — duas réguas em vez de uma régua e uma textura.
+const BG_SUBGRID_WEIGHT := 0.10
+
+
+static func background_corruption_color() -> Color:
+	return BG_CORRUPTION_COL
+
 ## Escala do inimigo por onda. O teto só passa a valer da onda 24 em diante.
 static func wave_scale(wave: int) -> float:
 	return minf(1.0 + float(wave - 1) * WAVE_SCALE_STEP, WAVE_SCALE_CAP)

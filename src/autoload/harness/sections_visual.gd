@@ -580,6 +580,36 @@ func _float_text_collision_test() -> void:
 	h._check(disjoint, "simultaneous floating notices never overlap each other")
 
 
+## O campo da arena não pode competir com as entidades.
+##
+## Capturado em 2026-09-12 com `KP_SHOT=game KP_WAVE=7`: os setores corrompidos
+## do fundo eram vermelho ACESO, cobrindo ~24% da tela, na mesma faixa de matiz
+## dos inimigos — e o campo virava ruído onde o jogador precisa ler formas.
+##
+## A regra que isto fixa é a de legibilidade de arena: o fundo nunca fica mais
+## claro que a entidade mais escura. Corrupção passa a ser ausência de luz na
+## grade, não luz somada.
+func _arena_field_test() -> void:
+	print("AT_STEP arena_field")
+	# `Balance` resolve como CLASSE, não instância — `has_method` não se aplica.
+	var corruption: Color = Balance.background_corruption_color()
+	h._check(corruption == Balance.BG_CORRUPTION_COL, "balance owns the background corruption tint")
+	var entities := [Balance.COL_DRONE, Balance.COL_LANCER, Balance.COL_SPEWER,
+		Balance.COL_SPLITTER, Balance.COL_BULWARK, Balance.COL_MOTE, Balance.COL_PLAYER]
+	var dimmest := 1.0
+	for entity in entities:
+		var entity_color: Color = entity
+		dimmest = minf(dimmest, entity_color.get_luminance())
+	h._check(corruption.get_luminance() < dimmest,
+		"corrupted background sectors stay darker than the dimmest entity")
+	h._check(corruption.get_luminance() <= Balance.COL_GRID.get_luminance(),
+		"corruption reads as damage to the grid, not as added light")
+	h._check(Balance.BG_CORRUPTION_COVERAGE <= 0.15,
+		"corrupted sectors stay a minority of the field")
+	h._check(Balance.BG_SUBGRID_WEIGHT <= 0.12,
+		"the secondary grid stays a texture instead of a second ruling")
+
+
 func _icon_quality_test() -> void:
 	print("AT_STEP icon_quality")
 	var icon_script: Script = load("res://src/ui/tactical_icon.gd")
