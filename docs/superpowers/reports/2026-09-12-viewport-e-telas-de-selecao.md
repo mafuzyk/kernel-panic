@@ -146,3 +146,69 @@ leitura periférica, precisa ser lido sem foco central, e tipografia grande de
 revista atrapalha isso. Mas três das quatro coisas acima não são sobre
 tipografia: a paleta órfã, a moldura por módulo e a colisão de avisos são
 problemas independentes da direção, e o ruído da arena também.
+
+---
+
+# Adendo: a prova de silhueta e os seus limites
+
+2026-09-12, depois do redesenho dos símbolos de patch.
+
+A autora apontou o ícone das cartas. Medi com a prova de silhueta que governou
+o redesenho dos inimigos e ela disse que estava tudo bem — pior par 0.191,
+muito abaixo do limiar de ~0.55. Mas a tela mostrava três hexágonos em fila.
+
+## A métrica estava medindo a coisa errada
+
+A prova de inimigo compara máscaras **cruas** e funciona, porque aqueles glifos
+são preenchidos. Os ícones de patch são de **contorno**: traço de 2px sobre
+vazio. Dois hexágonos de tamanhos ligeiramente diferentes quase não se tocam
+pixel a pixel, então a interseção-sobre-união dá quase zero — e a métrica
+declara "distintas" duas coisas que o olho lê como a mesma mancha.
+
+Dilatar a máscara antes de comparar transforma o traço no bloco que ele
+delimita, que é o que a visão periférica registra àquela distância. Com isso,
+seis dos quinze pares passavam do limiar; `fire` x `utility` batia **0.733**.
+
+Redesenhados por gestalt — radial, faixa deitada, vertical, crescente vazado,
+diagonal, escada:
+
+```
+pior par        0.733 → 0.560
+pares > 0.55        6 → 1
+```
+
+## Mas o limiar 0.55 NÃO transfere — e a calibração prova isso
+
+Rodei a métrica dilatada sobre os glifos de INIMIGO, que já são aceitos em jogo
+e que foram redesenhados exatamente para distinção. Se 0.55 fosse o limiar
+certo nesta escala, eles teriam que passar com folga. Não passam:
+
+```
+GLYPH_SIMILAR 1.000 root <-> boss
+GLYPH_SIMILAR 0.892 root <-> god
+GLYPH_SIMILAR 0.873 bloatware <-> boss
+GLYPH_SIMILAR 0.860 drone <-> update_loop
+GLYPH_SIMILAR 0.855 bulwark <-> bluescreen
+GLYPH_SIMILAR 0.851 firewall <-> pagefault
+```
+
+Os inimigos pontuam **0.84–1.00** na métrica dilatada; as famílias de patch
+pontuam no máximo **0.56**. Ou seja: com raio de dilatação 3 numa caixa de 48px
+a métrica **satura** — quase tudo que é centrado se sobrepõe, e o número perde
+poder de discriminação.
+
+Conclusão honesta, e é menos do que eu gostaria de afirmar:
+
+- A métrica **crua** subestima colisão de contorno. Demonstrado.
+- A métrica **dilatada com raio 3** satura. Demonstrado.
+- Portanto **nenhum dos dois números é limiar absoluto válido.** O que é válido
+  é a comparação **antes/depois na mesma métrica**: 0.733 → 0.560, com o
+  redesenho mirando exatamente as duas famílias que dominavam a lista.
+
+O que falta para fechar isso de verdade: varrer o raio de dilatação (1, 2, 3)
+e a caixa (48, 64, 96) e escolher o ponto onde a métrica **separa** os pares
+que o olho separa. Sem essa varredura, o número serve para comparar versões,
+não para aprovar ou reprovar uma sozinha.
+
+De passagem, a calibração confirma um item que já estava aberto: `root` e
+`boss` medem **1.000** — eles compartilham literalmente o mesmo glifo.
