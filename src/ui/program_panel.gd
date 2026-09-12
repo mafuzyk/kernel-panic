@@ -192,7 +192,11 @@ func _draw() -> void:
 		var summary_size: int = TacticalUI.fit_block(mono, str(definition.get("summary", "")), card_w - 32.0, 34.0, 12, 10)["font_size"]
 		draw_multiline_string(mono, origin + Vector2(16.0, 91.0), str(definition.get("summary", "")), HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, summary_size, 3, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.68 if unlocked else 0.36))
 		var stat_text := "INTEGRITY  %s\nSPEED      %s\nFIRE       %s\nRANGE      %s\nDASH/CORE  %s" % [definition.get("integrity", "—"), definition.get("speed", "—"), definition.get("fire", "—"), definition.get("range", "—"), definition.get("dash_shield", "—")]
-		var stat_size: int = TacticalUI.fit_block(mono, stat_text, card_w - 32.0, 64.0, 11, 9)["font_size"]
+		# A altura vem do espaço REAL entre o bloco e o separador. Estava cravada
+		# em 64px, então o fit_block encolhia o texto para 9px enquanto ~120px
+		# ficavam vazios logo abaixo.
+		var stat_room: float = maxf((card_h - 62.0) - 132.0 - 10.0, 48.0)
+		var stat_size: int = TacticalUI.fit_block(mono, stat_text, card_w - 32.0, stat_room, 15, 9)["font_size"]
 		draw_multiline_string(mono, origin + Vector2(16.0, 132.0), stat_text, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, stat_size, 5, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.78 if unlocked else 0.42))
 		draw_line(origin + Vector2(16.0, card_h - 62.0), origin + Vector2(card_w - 16.0, card_h - 62.0), Color(border.r, border.g, border.b, 0.32), 1.0)
 		draw_multiline_string(mono, origin + Vector2(16.0, card_h - 42.0), _tradeoff(id), HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 10, 2, Color(border.r, border.g, border.b, 0.78 if unlocked else 0.42))

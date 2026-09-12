@@ -282,7 +282,9 @@ func _draw_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
 	draw_polyline(frame + PackedVector2Array([frame[0]]), Color(accent.r, accent.g, accent.b, 0.62), 1.5, true)
 	draw_string(mono, rail.position + Vector2(20.0, 26.0), "FIELD ENTRY // %s" % ("LOGGED" if seen else "LOCKED"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, Color(accent.r, accent.g, accent.b, 0.85))
 	draw_string(orbitron, rail.position + Vector2(20.0, 58.0), str(entry["name"]) if seen else "UNKNOWN PROCESS", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 220.0, 23, TacticalUIHelper.TEXT)
-	draw_string(mono, rail.position + Vector2(20.0, 82.0), "%d THREAT POINTS" % int(entry["threat"]) if seen else "PURGE THIS PROCESS TO REVEAL", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 220.0, 11, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.85 if seen else 0.45))
+	# "N THREAT POINTS" repetia o chip "N PTS" logo abaixo. Fica só o rótulo
+	# genérico; o número aparece uma vez, no chip.
+	draw_string(mono, rail.position + Vector2(20.0, 82.0), tr("BESTIARY_THREAT_LEVEL") if seen else tr("BESTIARY_LOCKED"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 220.0, 11, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.85 if seen else 0.45))
 	var glyph_box := _detail_glyph_box(rail)
 	var points_chip := Rect2(Vector2(rail.position.x + float(DETAIL_METRICS["inset"]), glyph_box.end.y - 36.0), Vector2(154.0, 36.0))
 	var points_frame := TacticalUIHelper.angular_points(points_chip, 7.0)
@@ -294,11 +296,11 @@ func _draw_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
 	_draw_glyph(id, Color(accent.r, accent.g, accent.b, 0.9 if seen else 0.2))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	draw_line(rail.position + Vector2(float(DETAIL_METRICS["inset"]), float(DETAIL_METRICS["divider_y"])), rail.position + Vector2(rail.size.x - float(DETAIL_METRICS["inset"]), float(DETAIL_METRICS["divider_y"])), Color(accent.r, accent.g, accent.b, 0.28), 1.0)
-	draw_string(mono, rail.position + Vector2(20.0, 180.0), "BEHAVIOR", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
+	draw_string(mono, rail.position + Vector2(20.0, 180.0), tr("BESTIARY_BEHAVIOR"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
 	var desc_text := "> " + (str(entry["desc"]) if seen else "No field data available. The first sighting will unlock this behavior report.")
 	var desc_size: int = TacticalUI.fit_block(mono, desc_text, rail.size.x - 40.0, 64.0, 13, 10)["font_size"]
 	draw_multiline_string(mono, rail.position + Vector2(20.0, 204.0), desc_text, HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, desc_size, 5, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.78 if seen else 0.42))
-	draw_string(mono, rail.position + Vector2(20.0, 278.0), "BUG REPORT", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
+	draw_string(mono, rail.position + Vector2(20.0, 278.0), tr("BESTIARY_BUG_REPORT"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, 11, accent)
 	var bugs_text := "> " + (str(entry["bugs"]) if seen else "LOCKED // COMPLETE A SIGHTING TO ACCESS NOTES")
 	var bugs_size: int = TacticalUI.fit_block(mono, bugs_text, rail.size.x - 40.0, float(rail.size.y) - 316.0, 12, 10)["font_size"]
 	draw_multiline_string(mono, rail.position + Vector2(20.0, 302.0), bugs_text, HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 40.0, bugs_size, 6, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.64 if seen else 0.36))
