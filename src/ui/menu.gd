@@ -116,7 +116,7 @@ func _refresh_color_assist_label() -> void:
 	_settings_kit._refresh_color_assist_label()
 
 func _refresh_aim_label(btn: Button) -> void:
-	btn.text = "AIM MODE: %s" % Game.effective_aim_mode().to_upper()
+	btn.text = tr("MENU_AIM") % Game.effective_aim_mode().to_upper()
 
 func _ready() -> void:
 	_settings_kit = MenuSettingsKitScript.new(self)
@@ -234,7 +234,7 @@ func _ready() -> void:
 	_best_label.offset_bottom = 289.0
 	add_child(_best_label)
 	var tag := Label.new()
-	tag.text = "KERNEL PANIC v%s // purge loop online" % ProjectSettings.get_setting("application/config/version", "dev")
+	tag.text = tr("MENU_TAGLINE") % ProjectSettings.get_setting("application/config/version", "dev")
 	tag.add_theme_font_override("font", mono)
 	tag.add_theme_font_size_override("font_size", 11)
 	tag.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.3))
@@ -291,7 +291,7 @@ func _ready() -> void:
 
 func _refresh_program_label() -> void:
 	if _program_btn != null:
-		_program_btn.text = "PROGRAM: %s" % Game.program_def()["name"]
+		_program_btn.text = tr("MENU_PROGRAM") % Game.program_def()["name"]
 
 func _open_program_selector() -> void:
 	if _program_panel == null:
@@ -498,31 +498,31 @@ func _refresh_difficulty_label() -> void:
 	if _diff_btn == null:
 		return
 	if Game.mode == "story":
-		_diff_btn.text = "DIFFICULTY: FIXED CURVE"
+		_diff_btn.text = tr("MENU_DIFFICULTY_FIXED")
 	else:
-		_diff_btn.text = "DIFFICULTY: %s" % Game.difficulty.to_upper()
+		_diff_btn.text = tr("MENU_DIFFICULTY") % Game.difficulty.to_upper()
 
 func _refresh_mode_ui() -> void:
 	var cf := ConfigFile.new()
 	cf.load(Sfx.SAVE_PATH)
 	match Game.mode:
 		"story":
-			_mode_btn.text = "MODE: STORY"
+			_mode_btn.text = tr("MENU_MODE_STORY")
 			var story_path: String = str(Game.story_stage_def(Game.story_stage_index).get("path", "/boot"))
-			_mode_info.text = "UNIX ACT 1 // CURRENT %s // %d/%d STAGES CLEAR" % [story_path, Game.story_cleared.size(), Game.story_stage_count()]
+			_mode_info.text = tr("MENU_STORY_PROGRESS") % [story_path, Game.story_cleared.size(), Game.story_stage_count()]
 		"weekly":
-			_mode_btn.text = "MODE: WEEKLY RUN"
+			_mode_btn.text = tr("MENU_MODE_WEEKLY")
 			var cur := int(cf.get_value("weekly", "best", 0)) if cf.get_value("weekly", "id", "") == Game.week_id() else 0
 			var last := int(cf.get_value("weekly", "last_best", 0))
-			_mode_info.text = "WEEK %s // LOCAL DETERMINISTIC // BEST %d // LAST %d" % [Game.week_id(), cur, last]
+			_mode_info.text = tr("MENU_WEEKLY_INFO") % [Game.week_id(), cur, last]
 		"onehp":
-			_mode_btn.text = "MODE: ONE-HP"
+			_mode_btn.text = tr("MENU_MODE_ONEHP")
 			_mode_info.text = "1 INTEGRITY // SCORE x3 // BEST %d" % int(cf.get_value("run", "best_onehp", 0))
 		_:
-			_mode_btn.text = "MODE: CLASSIC"
-			_mode_info.text = "CLASSIC // ENDLESS WAVES // HIGH SCORE %07d" % Game.best
+			_mode_btn.text = tr("MENU_MODE_CLASSIC")
+			_mode_info.text = tr("MENU_CLASSIC_INFO") % Game.best
 	if Game.mode == "story":
-		_mode_info.text = "STORY // FIXED DIFFICULTY CURVE // " + _mode_info.text
+		_mode_info.text = tr("MENU_STORY_INFO") + _mode_info.text
 	_update_best()
 	_refresh_difficulty_label()
 
@@ -539,7 +539,7 @@ func _export_save_to_clipboard() -> void:
 	var encoded := Game.export_save_string()
 	_save_transfer_field.text = encoded
 	DisplayServer.clipboard_set(encoded)
-	_save_transfer_status.text = "SAVE EXPORTED // COPIED TO CLIPBOARD"
+	_save_transfer_status.text = tr("MENU_SAVE_EXPORTED")
 
 func _import_save_from_clipboard() -> void:
 	if _save_transfer_field == null or not is_instance_valid(_save_transfer_field):
@@ -549,11 +549,11 @@ func _import_save_from_clipboard() -> void:
 		encoded = DisplayServer.clipboard_get().strip_edges()
 	if Game.import_save_string(encoded):
 		_save_transfer_field.text = encoded
-		_save_transfer_status.text = "SAVE IMPORTED // PROGRESS RESTORED"
+		_save_transfer_status.text = tr("MENU_SAVE_IMPORTED")
 		_refresh_mode_ui()
 		_refresh_program_label()
 	else:
-		_save_transfer_status.text = "IMPORT REJECTED // INVALID SAVE STRING"
+		_save_transfer_status.text = tr("MENU_SAVE_REJECTED")
 
 func _reset_scores() -> void:
 	Game.best = 0
@@ -571,7 +571,7 @@ static func _next_touch_scale_idx(v: float) -> int:
 
 func _update_best() -> void:
 	var b := Game.best_for_mode()
-	_best_label.text = ("HIGH SCORE  %07d" % b) if b > 0 else "NO RECORD YET"
+	_best_label.text = (tr("MENU_HIGH_SCORE") % b) if b > 0 else "NO RECORD YET"
 
 const KLOG_POOL := [
 	"daemon[666]: segfault at 0 ip 0xdeadbeef sp 0xffffd0 error 6",
@@ -589,7 +589,7 @@ func _process(delta: float) -> void:
 	if _esc_armed > 0.0:
 		_esc_armed -= delta
 		if _esc_armed <= 0.0 and not _starting:
-			_prompt.text = "PRESS [ENTER] OR HIT >> PURGE" if not DisplayServer.is_touchscreen_available() else "HIT PURGE TO BEGIN"
+			_prompt.text = "PRESS [ENTER] OR HIT >> PURGE" if not DisplayServer.is_touchscreen_available() else tr("MENU_HIT_PURGE")
 			_prompt.add_theme_color_override("font_color", Balance.COL_PLAYER)
 	_klog_t -= delta
 	if _klog_t <= 0.0 and _klog != null:
@@ -703,7 +703,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_tree().quit()
 		else:
 			_esc_armed = 2.0
-			_prompt.text = "PRESS ESC AGAIN TO QUIT"
+			_prompt.text = tr("MENU_QUIT_CONFIRM")
 			_prompt.add_theme_color_override("font_color", Balance.COL_DANGER)
 			Sfx.play("ui", 0.8, -8.0)
 		get_viewport().set_input_as_handled()

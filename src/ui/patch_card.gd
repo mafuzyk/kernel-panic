@@ -199,7 +199,7 @@ func _refresh() -> void:
 	_title.text = card_title()
 	_title.add_theme_font_size_override("font_size", _title_font_size(_title.text))
 	_title.add_theme_color_override("font_color", ink.get("title", Design.TEXT_PRIMARY))
-	_desc.text = str(_def.get("desc", ""))
+	_desc.text = patch_desc(_def)
 	_desc.add_theme_color_override("font_color", ink.get("body", Design.TEXT_SECONDARY))
 	_marker_rule.color = Design.alpha(marker, 0.58)
 	_level_label.text = "LEVEL %d → %d" % [_level, _level + 1] if _level > 0 else "NEW PATCH"
@@ -247,6 +247,16 @@ const USE_RASTER_PATCH_ICONS := false
 const PATCH_RASTER_PAD := 0.08
 
 static var _raster_tex_cache := {}
+
+
+## Descrição localizada de um patch, com queda para o texto em inglês de
+## `Game.PATCH_DEFS`. O TÍTULO fica como está: nomes de patch são substantivos
+## próprios do mundo, como os nomes de inimigo.
+static func patch_desc(definition: Dictionary) -> String:
+	var fallback := str(definition.get("desc", ""))
+	var key := "PATCH_DESC_%s" % str(definition.get("id", "")).to_upper()
+	var translated := TranslationServer.translate(key)
+	return fallback if translated == key else translated
 
 
 static func patch_icon_family(id: String) -> String:
@@ -385,8 +395,8 @@ static func _draw_economy_glyph(canvas: CanvasItem, center: Vector2, accent: Col
 func text_overflow_report() -> Array:
 	var longest_desc := ""
 	for definition in Game.PATCH_DEFS:
-		if str(definition.get("desc", "")).length() > longest_desc.length():
-			longest_desc = str(definition.get("desc", ""))
+		if patch_desc(definition).length() > longest_desc.length():
+			longest_desc = patch_desc(definition)
 	var body_w := maxf(size.x - float(CARD_PAD * 2) - ICON_SLOT - float(Design.SPACE_LG), 120.0)
 	var fits := TacticalUI.wrapped_height(Design.FONT_MONO, longest_desc, body_w, Design.TEXT_CAPTION) <= 96.0 \
 		or TacticalUI.wrapped_height(Design.FONT_MONO, longest_desc, body_w, Design.TEXT_MICRO) <= 96.0
