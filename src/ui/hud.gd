@@ -56,7 +56,7 @@ func _ready() -> void:
 	_apply_surface_transform()
 	if is_inside_tree():
 		get_viewport().size_changed.connect(_apply_surface_transform)
-	_score_font = load("res://assets/fonts/Orbitron.ttf")
+	_score_font = Design.grotesk(Design.WEIGHT_BLACK)
 	_mono = load("res://assets/fonts/ShareTechMono.ttf")
 	_score_label = _mk_label(30, Balance.COL_TEXT, Vector2(0, 14))
 	_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -244,6 +244,15 @@ func status_surface_points(rect: Rect2) -> PackedVector2Array:
 		rect.end,
 		Vector2(rect.position.x, rect.end.y),
 	])
+
+func primary_surface_points(rect: Rect2) -> PackedVector2Array:
+	return status_surface_points(rect)
+
+func primary_surface_fill() -> Color:
+	return Color(0.015, 0.035, 0.07, 0.055)
+
+func outer_frame_segments(_viewport: Vector2 = size) -> Array[PackedVector2Array]:
+	return []
 
 func visible_event_lines(limit: int = 4) -> Array[String]:
 	var result: Array[String] = []
@@ -544,7 +553,7 @@ func _dismiss_patch_tooltip() -> void:
 
 func _draw() -> void:
 	var f := _mono
-	_draw_tactical_shell(f)
+	_draw_combat_shell(f)
 	_hp_pips(f)
 	_oc_bar(f)
 	_mult_chip(f)
@@ -555,13 +564,12 @@ func _draw() -> void:
 		_boss_bar(f)
 	_draw_patch_tooltip(f)
 
-func _draw_angular_panel(rect: Rect2, color: Color, fill_alpha: float = 0.08, combat: bool = false) -> void:
-	var points := TacticalUIHelper.angular_points(rect, minf(12.0, rect.size.y * 0.22))
-	draw_colored_polygon(points, TacticalUIHelper.panel_fill_color(combat))
-	draw_colored_polygon(points, Color(color.r, color.g, color.b, fill_alpha))
-	var outline := points.duplicate()
-	outline.append(points[0])
-	draw_polyline(outline, Color(color.r, color.g, color.b, 0.72), 1.4, true)
+func _draw_primary_surface(rect: Rect2, color: Color, tint_alpha: float = 0.025) -> void:
+	var points := primary_surface_points(rect)
+	draw_colored_polygon(points, primary_surface_fill())
+	draw_colored_polygon(points, Color(color.r, color.g, color.b, tint_alpha))
+	draw_line(rect.position, Vector2(rect.end.x, rect.position.y), Color(color.r, color.g, color.b, 0.48), 1.0, true)
+	draw_line(rect.position, Vector2(rect.position.x, rect.end.y), Color(color.r, color.g, color.b, 0.30), 1.0, true)
 
 func _draw_status_surface(rect: Rect2, color: Color, fill_alpha: float = 0.025) -> void:
 	var points := status_surface_points(rect)
@@ -570,36 +578,30 @@ func _draw_status_surface(rect: Rect2, color: Color, fill_alpha: float = 0.025) 
 	draw_line(rect.position, Vector2(rect.end.x, rect.position.y), Color(color.r, color.g, color.b, 0.46), 1.0, true)
 	draw_line(rect.position, Vector2(rect.position.x, rect.end.y), Color(color.r, color.g, color.b, 0.28), 1.0, true)
 
-func _draw_tactical_shell(f: Font) -> void:
+func _draw_combat_shell(f: Font) -> void:
 	var layout := layout_snapshot()
 	var compact := bool(layout["compact"])
-	var outer := TacticalUIHelper.shell_rect(size)
-	var outer_points := TacticalUIHelper.angular_points(outer, 14.0)
-	draw_polyline(outer_points + PackedVector2Array([outer_points[0]]), Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.68), 1.25, true)
-	draw_line(outer.position + Vector2(26.0, 7.0), outer.position + Vector2(170.0, 7.0), Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.52), 1.0)
-	draw_line(Vector2(outer.end.x - 170.0, outer.position.y + 7.0), Vector2(outer.end.x - 26.0, outer.position.y + 7.0), Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.52), 1.0)
-	draw_line(outer.position + Vector2(26.0, -7.0 + outer.size.y), outer.position + Vector2(170.0, outer.size.y - 7.0), Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.52), 1.0)
-	draw_line(Vector2(outer.end.x - 170.0, outer.end.y - 7.0), outer.end - Vector2(26.0, 7.0), Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.52), 1.0)
-	for corner in [Vector2(outer.position.x + 28.0, outer.position.y + 14.0), Vector2(outer.end.x - 28.0, outer.position.y + 14.0), Vector2(outer.position.x + 28.0, outer.end.y - 14.0), Vector2(outer.end.x - 28.0, outer.end.y - 14.0)]:
-		draw_circle(corner, 2.0, Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.82))
+	for segment in outer_frame_segments(size):
+		if segment.size() >= 2:
+			draw_line(segment[0], segment[1], Color(_era_accent.r, _era_accent.g, _era_accent.b, 0.35), 1.0, true)
 	var integrity_rect: Rect2 = layout["integrity"]
 	var encounter_rect: Rect2 = layout["encounter"]
 	var score_rect: Rect2 = layout["score"]
 	var dash_rect: Rect2 = layout["dash"]
 	var patch_rect: Rect2 = layout["patches"]
-	_draw_angular_panel(integrity_rect, _era_accent, 0.055, true)
-	_draw_angular_panel(encounter_rect, _era_accent, 0.045, true)
-	_draw_angular_panel(score_rect, _era_accent, 0.055, true)
+	_draw_primary_surface(integrity_rect, _era_accent, 0.028)
+	_draw_primary_surface(encounter_rect, _era_accent, 0.022)
+	_draw_primary_surface(score_rect, _era_accent, 0.028)
 	if not touch_layout():
-		_draw_angular_panel(dash_rect, _era_accent, 0.045, true)
+		_draw_primary_surface(dash_rect, _era_accent, 0.022)
 	_draw_status_surface(patch_rect, _era_accent, 0.028)
-	draw_string(f, integrity_rect.position + Vector2(16.0, 22.0), "INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, TacticalUIHelper.TEXT)
+	draw_string(f, integrity_rect.position + Vector2(16.0, 22.0), "INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, Design.TEXT_SECONDARY)
 	var cycle_label := "CYCLE %02d" % Game.wave
 	draw_string(_score_font, encounter_rect.position + Vector2(0.0, 30.0 if compact else 38.0), cycle_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 24 if compact else 32, TacticalUIHelper.TEXT)
 	var encounter_label := _boss_name if not _boss_name.is_empty() else "PROCESS PURGE"
 	draw_string(f, encounter_rect.position + Vector2(0.0, 50.0 if compact else 62.0), encounter_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 11 if compact else 12, TacticalUIHelper.MUTED)
 	draw_string(f, score_rect.position + Vector2(14.0, 22.0), "SCORE", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, _era_accent)
-	draw_string(_score_font, score_rect.position + Vector2(14.0, 52.0), "%07d" % _score, HORIZONTAL_ALIGNMENT_RIGHT, score_rect.size.x - 28.0, 24 if compact else 28, TacticalUIHelper.TEXT)
+	draw_string(_score_font, score_rect.position + Vector2(14.0, 52.0), "%07d" % _score, HORIZONTAL_ALIGNMENT_RIGHT, score_rect.size.x - 28.0, 24 if compact else 28, Design.TEXT_PRIMARY)
 	if event_log_visible():
 		var event_rect := event_log_rect(size)
 		_draw_status_surface(event_rect, _era_accent, 0.018)
