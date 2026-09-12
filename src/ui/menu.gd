@@ -6,6 +6,8 @@ const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 const MenuSettingsKitScript = preload("res://src/ui/menu_settings_kit.gd")
 const MenuChromeKitScript = preload("res://src/ui/menu_chrome_kit.gd")
 
+## Shell novo. O antigo continua na árvore, escondido — ver _ready.
+var _shell: MenuShell
 var _title: Label
 var _title_r: Label
 var _title_b: Label
@@ -157,6 +159,11 @@ func _ready() -> void:
 	dust.scale_amount_max = 2.2
 	dust.color = Color(1.0, 0.85, 0.35, 0.14)
 	add_child(dust)
+	# O shell antigo (pilha centralizada posicionada por retângulo absoluto em
+	# MenuChromeKit.apply_menu_layout) continua sendo construído porque muita
+	# lógica de refresh ainda referencia seus widgets — mas fica ESCONDIDO: quem
+	# desenha é o MenuShell. Remover menu_chrome_kit é o passo seguinte.
+	var legacy_first := get_child_count()
 	var chrome: Control = TacticalChromeScript.new()
 	chrome.set_anchors_preset(Control.PRESET_FULL_RECT)
 	chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -262,6 +269,13 @@ func _ready() -> void:
 	_klog.text = "[    0.000000] kernel panic daemon online"
 	add_child(_klog)
 	_chrome_kit.apply_menu_layout()
+	for legacy_index in range(legacy_first, get_child_count()):
+		var legacy_node := get_child(legacy_index)
+		if legacy_node is CanvasItem:
+			(legacy_node as CanvasItem).visible = false
+		if legacy_node is Control:
+			(legacy_node as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_build_shell()
 	if not DevHarness.active and DisplayServer.get_name() != "headless":
 		_boot = BootOverlay.new()
 		var bl := CanvasLayer.new()
@@ -467,8 +481,51 @@ func _close_achievements() -> void:
 		_ach_panel.visible = false
 	Sfx.play("ui", 0.9, -8.0)
 
+## Constrói o shell novo e liga seus sinais aos fluxos que já existiam.
+func _build_shell() -> void:
+	_shell = MenuShell.new()
+	_shell.purge_pressed.connect(_start)
+	_shell.story_pressed.connect(_open_story_selector)
+	_shell.archives_pressed.connect(_open_bestiary)
+	_shell.configure_pressed.connect(_open_program_selector)
+	_shell.settings_pressed.connect(_open_settings)
+	_shell.awards_pressed.connect(_open_achievements)
+	_shell.quit_pressed.connect(func() -> void: get_tree().quit())
+	var layer := CanvasLayer.new()
+	layer.layer = 5
+	layer.add_child(_shell)
+	add_child(layer)
+	_shell.set_version("v%s" % ProjectSettings.get_setting("application/config/version", "2.5.0"))
+	refresh_shell()
+
+
+## Reflete o estado corrente (modo, dificuldade, recorde, programa) no shell.
+func refresh_shell() -> void:
+	if not is_instance_valid(_shell):
+		return
+	# Tipo explícito: Dictionary.get() devolve Variant e o projeto trata
+	# inferência a partir de Variant como erro.
+	var mode_keys := {
+		"classic": "MODE_CLASSIC", "weekly": "MODE_WEEKLY",
+		"onehp": "MODE_ONEHP", "story": "MODE_STORY",
+	}
+	var mode_key: String = str(mode_keys.get(Game.mode, "MODE_CLASSIC"))
+	var mode_text := tr(mode_key)
+	if Game.mode in ["classic", "weekly", "onehp"]:
+		mode_text += "  /  " + tr("DIFF_%s" % Game.difficulty.to_upper())
+	var best := Game.best_for_mode()
+	var best_text := "%s %07d" % [tr("MENU_BEST"), best] if best > 0 else tr("MENU_NO_RECORD")
+	_shell.set_run_config(mode_text, best_text, str(Game.program_def()["name"]))
+	_shell.set_hero(str(Game.program), Balance.COL_PLAYER)
+
+
 func main_shell_snapshot() -> Dictionary:
 	var shell_sections := TacticalUIHelper.shell_sections(size)
+	if is_instance_valid(_shell):
+		var live := _shell.shell_snapshot()
+		live["shell_rect"] = TacticalUIHelper.shell_rect(size)
+		live["footer_rect"] = shell_sections["footer"]
+		return live
 	return {
 		"title": _title.text if _title != null else "KERNEL PANIC",
 		"primary_action": _purge_btn.text if _purge_btn != null else ">> PURGE",

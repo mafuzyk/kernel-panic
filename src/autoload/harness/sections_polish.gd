@@ -102,6 +102,22 @@ func _menu_reflow_test(menu: Node) -> void:
 				var b: Rect2 = lay[band_keys[j]]
 				h._check(not a.intersects(b), "menu %s and %s stay disjoint at %dx%d" % [str(band_keys[i]), str(band_keys[j]), int(vp.x), int(vp.y)])
 		h._check(int(lay["title_size"]) >= 44, "menu title scales down with the viewport at %dx%d" % [int(vp.x), int(vp.y)])
+	# O shell virou MenuShell (containers). Estas asserções medem o shell VIVO
+	# em quatro resoluções — incluindo 1920x1080, que a matriz antiga nunca
+	# cobria (B5 da auditoria).
+	var shell = menu.get("_shell")
+	h._check(shell != null, "menu exposes the rebuilt shell")
+	if shell != null:
+		for vp in [Vector2(1920, 1080), Vector2(1366, 768), Vector2(1024, 640), Vector2(432, 720)]:
+			shell.size = vp
+			await h._ticks(2)
+			var view := Rect2(Vector2.ZERO, vp)
+			var inside := true
+			for content in shell.content_rects():
+				if not view.encloses(content):
+					inside = false
+			h._check(inside, "menu shell content stays inside the viewport at %dx%d" % [int(vp.x), int(vp.y)])
+		shell.size = menu.size
 	var src := str(load("res://src/ui/menu_chrome_kit.gd").source_code)
 	h._check(src.contains("apply_menu_layout"), "menu chrome kit applies the layout dict on resize")
 	h._check(not src.contains("m.size.y * 0.44"), "draw_shell derives its decorative anchors from the shared dict")
