@@ -229,6 +229,19 @@ const PATCH_ICON_FAMILIES := {
 
 const RASTER_DIR := "res://assets/icons/generated/"
 
+## Caminho de raster dos ícones de patch. Desligado.
+##
+## Existem rasters para SEIS dos 26 patches. Os seis desenhavam uma insígnia
+## hexagonal chapada em cinza; os outros vinte desenhavam o símbolo de família
+## em código, tingido pelo acento da carta. Duas linguagens visuais na MESMA
+## fileira de três cartas, e o jogador escolhendo entre elas.
+##
+## Mesma decisão que `GlyphLib.USE_RASTER_PORTRAITS`: o caminho em código é o
+## que é mantido, é o que acompanha a cor da carta, e é o que a folha de prova
+## mede. Os arquivos ficam no repositório — ligar isto de novo é mudar uma
+## constante, não recriar arte.
+const USE_RASTER_PATCH_ICONS := false
+
 ## Optical pad fraction for patch rasters inside the 52px slot; matches the
 ## tactical_icon optical pass so rasters and code glyphs share stroke weight.
 const PATCH_RASTER_PAD := 0.08
@@ -245,6 +258,16 @@ static func patch_icon_metrics(id: String) -> Dictionary:
 
 
 static func patch_raster_path(id: String) -> String:
+	if not USE_RASTER_PATCH_ICONS:
+		return ""
+	var path := RASTER_DIR + "patch_" + id + ".png"
+	return path if ResourceLoader.exists(path) else ""
+
+
+## Onde o raster VIVE, independente de estar em uso. Separado de
+## `patch_raster_path()` para o autotest continuar afirmando que os arquivos
+## existem e carregam, sem reabrir o caminho de desenho.
+static func patch_raster_asset(id: String) -> String:
 	var path := RASTER_DIR + "patch_" + id + ".png"
 	return path if ResourceLoader.exists(path) else ""
 
@@ -287,51 +310,76 @@ static func draw_family_glyph(canvas: CanvasItem, family: String, center: Vector
 			_draw_economy_glyph(canvas, center, accent)
 
 
+## ── símbolos de família ───────────────────────────────────────────────
+##
+## Seis famílias, e a prova de silhueta com máscara dilatada mostrou que as
+## anteriores colidiam: `fire` x `utility` batia 0.733 de interseção-sobre-união
+## — muito acima do limiar de ~0.55 em que duas formas se confundem de relance.
+## `fire` aparecia em quatro dos seis piores pares e `utility` em quatro.
+##
+## O redesenho dá a cada família uma GESTALT diferente, não um detalhe interno
+## diferente. Detalhe interno some na distância de leitura; o que resta é a
+## mancha. As seis manchas agora são: radial, faixa horizontal, vertical,
+## anel vazado, diagonal e escada.
+
+## DANO — estrela de três pontas. Radial, espinhosa, centro vazio.
 static func _draw_damage_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
 	for i in 3:
 		var a := -PI * 0.5 + TAU * float(i) / 3.0
-		var tip := center + Vector2.from_angle(a) * 22.0
-		var left := center + Vector2.from_angle(a - 0.42) * 8.0
-		var right := center + Vector2.from_angle(a + 0.42) * 8.0
+		var tip := center + Vector2.from_angle(a) * 23.0
+		var left := center + Vector2.from_angle(a - 0.30) * 7.0
+		var right := center + Vector2.from_angle(a + 0.30) * 7.0
 		canvas.draw_colored_polygon(PackedVector2Array([tip, left, right]), accent)
-	canvas.draw_arc(center, 7.0, 0.0, TAU, 16, accent, 2.0, true)
 
 
+## TIRO — faixa horizontal. Larga e baixa: a única de proporção deitada.
 static func _draw_fire_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
-	for i in 3:
-		var x := center.x - 14.0 + float(i) * 10.0
-		var pts := PackedVector2Array([Vector2(x, center.y - 10.0), Vector2(x + 8.0, center.y), Vector2(x, center.y + 10.0)])
-		canvas.draw_polyline(pts, accent, 2.2, true)
+	var dart := PackedVector2Array([
+		center + Vector2(-22.0, -6.0), center + Vector2(10.0, -9.0), center + Vector2(23.0, 0.0),
+		center + Vector2(10.0, 9.0), center + Vector2(-22.0, 6.0), center + Vector2(-15.0, 0.0),
+	])
+	canvas.draw_colored_polygon(dart, accent)
 
 
+## DEFESA — escudo. Alto e estreito: a única de proporção em pé.
 static func _draw_defense_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
 	var pts := PackedVector2Array([
-		center + Vector2(0.0, -20.0), center + Vector2(15.0, -12.0), center + Vector2(15.0, 4.0),
-		center + Vector2(0.0, 20.0), center + Vector2(-15.0, 4.0), center + Vector2(-15.0, -12.0),
+		center + Vector2(0.0, -22.0), center + Vector2(13.0, -14.0), center + Vector2(13.0, 5.0),
+		center + Vector2(0.0, 22.0), center + Vector2(-13.0, 5.0), center + Vector2(-13.0, -14.0),
 	])
-	canvas.draw_colored_polygon(pts, Design.alpha(accent, 0.14))
-	canvas.draw_polyline(pts + PackedVector2Array([pts[0]]), accent, 2.2, true)
-	canvas.draw_line(center + Vector2(0.0, -12.0), center + Vector2(0.0, 12.0), accent, 2.0)
+	canvas.draw_colored_polygon(pts, Design.alpha(accent, 0.22))
+	canvas.draw_polyline(pts + PackedVector2Array([pts[0]]), accent, 3.0, true)
 
 
+## UTILIDADE — anel aberto. A única com o centro VAZIO: onde as outras têm
+## mancha, esta tem buraco, e é isso que a separa do escudo.
 static func _draw_utility_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
-	var nut := PackedVector2Array()
-	for i in 6:
-		nut.append(center + Vector2.from_angle(TAU * float(i) / 6.0) * 15.0)
-	canvas.draw_polyline(nut + PackedVector2Array([nut[0]]), accent, 2.2, true)
-	canvas.draw_circle(center, 5.0, accent)
+	# Meia-lua, não anel quase fechado. Com 259° de arco e um pino no topo ela
+	# ainda media 0.563 contra o escudo — as duas eram mancha redonda centrada.
+	# Cortada pela metade e empurrada para o perímetro, vira crescente: massa
+	# só de um lado, e o miolo onde o escudo é sólido fica vazio.
+	canvas.draw_arc(center + Vector2(4.0, 0.0), 20.0, PI * 0.42, PI * 1.58, 28, accent, 5.0, true)
 
 
+## MOVIMENTO — seta diagonal. O único eixo inclinado das seis.
 static func _draw_movement_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
-	canvas.draw_line(center + Vector2(-16.0, 6.0), center + Vector2(2.0, 6.0), Design.alpha(accent, 0.6), 2.0)
-	canvas.draw_line(center + Vector2(-10.0, -2.0), center + Vector2(8.0, -2.0), accent, 2.2)
-	canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(8.0, -8.0), center + Vector2(16.0, -2.0), center + Vector2(8.0, 4.0)]), accent)
+	var tail := center + Vector2(-17.0, 15.0)
+	var head := center + Vector2(11.0, -13.0)
+	canvas.draw_line(tail, head, accent, 4.0)
+	var dir := (head - tail).normalized()
+	var side := Vector2(-dir.y, dir.x)
+	canvas.draw_colored_polygon(PackedVector2Array([
+		head + dir * 8.0, head + side * 8.0 - dir * 3.0, head - side * 8.0 - dir * 3.0,
+	]), accent)
 
 
+## ECONOMIA — escada ascendente, ancorada embaixo. Massa fora do centro.
 static func _draw_economy_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
-	for offset in [Vector2(-12.0, -8.0), Vector2(-4.0, 2.0), Vector2(6.0, -4.0)]:
-		canvas.draw_circle(center + offset, 4.0, accent)
-	canvas.draw_line(center + Vector2(-14.0, 12.0), center + Vector2(14.0, 12.0), accent, 2.0)
+	var base := center.y + 17.0
+	for i in 3:
+		var h := 10.0 + float(i) * 11.0
+		var x := center.x - 20.0 + float(i) * 13.0
+		canvas.draw_rect(Rect2(Vector2(x, base - h), Vector2(9.0, h)), accent)
 
 
 func text_overflow_report() -> Array:

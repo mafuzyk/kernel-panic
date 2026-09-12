@@ -735,7 +735,7 @@ func _raster_trial_test() -> void:
 	var patch_resolved := 0
 	var patch_fallback := 0
 	for id in Game.PATCH_CODES:
-		var path: String = patch_script.call("patch_raster_path", str(id))
+		var path: String = patch_script.call("patch_raster_asset", str(id))
 		if path.is_empty():
 			patch_fallback += 1
 			continue
@@ -743,7 +743,17 @@ func _raster_trial_test() -> void:
 		var tex: Texture2D = load(path)
 		h._check(tex != null, "patch %s raster resolves to a loadable texture" % str(id))
 	h._check(patch_resolved >= 6, "the six generated patch-family rasters resolve through the registry")
-	h._check(patch_fallback > 0, "patch ids without a generated asset keep the code-drawn fallback")
+	h._check(patch_fallback > 0, "most patch ids never had a generated asset")
+	# Seis dos 26 patches tinham raster e vinte não. Os seis desenhavam insígnia
+	# hexagonal chapada em cinza, os vinte desenhavam o símbolo de família
+	# tingido pelo acento da carta — duas linguagens visuais na MESMA fileira de
+	# três cartas. Agora TODOS desenham em código.
+	h._check(not PatchCard.USE_RASTER_PATCH_ICONS, "every patch card draws its symbol in code")
+	var uniform := true
+	for id in Game.PATCH_CODES:
+		if not str(patch_script.call("patch_raster_path", str(id))).is_empty():
+			uniform = false
+	h._check(uniform, "no patch card takes the raster path any more")
 	h._check(str(icon_script.source_code).contains("match _kind"), "tactical icon keeps the code-drawn draw dispatch")
 	# Era texto-fonte: procurava `match patch_icon_family` DENTRO do arquivo, e
 	# quebrou ao mover o match para `draw_family_glyph()` — um ponto de entrada
