@@ -185,11 +185,44 @@ func _patch_mask(family: String) -> Array:
 	add_child(vp)
 	await RenderingServer.frame_post_draw
 	var img := vp.get_texture().get_image()
-	var out := []
+	var raw := []
 	for y in box:
 		for x in box:
-			out.append(img.get_pixel(x, y).a > 0.35)
+			raw.append(img.get_pixel(x, y).a > 0.35)
 	vp.queue_free()
+	return _dilate(raw, box, 3)
+
+
+## Dilata a máscara antes de comparar.
+##
+## Correção de método, 2026-09-12. A prova de silhueta de INIMIGO compara
+## máscaras cruas e funciona, porque aqueles glifos são preenchidos. Os ícones
+## de patch são de CONTORNO: traço de 2px sobre vazio. Duas formas com o mesmo
+## contorno externo — um hexágono e outro hexágono — dão interseção quase zero
+## em máscara crua, porque os traços quase não se tocam, e a métrica declara
+## "distintas" duas coisas que o olho lê como a mesma.
+##
+## Dilatar transforma o traço no BLOCO que ele delimita, que é o que a visão
+## periférica registra a essa distância. É a mesma pergunta de antes — "isso se
+## confunde de relance?" — feita sobre o dado certo.
+static func _dilate(mask: Array, box: int, radius: int) -> Array:
+	var out := []
+	out.resize(mask.size())
+	for y in box:
+		for x in box:
+			var on := false
+			for dy in range(-radius, radius + 1):
+				for dx in range(-radius, radius + 1):
+					var nx := x + dx
+					var ny := y + dy
+					if nx < 0 or ny < 0 or nx >= box or ny >= box:
+						continue
+					if bool(mask[ny * box + nx]):
+						on = true
+						break
+				if on:
+					break
+			out[y * box + x] = on
 	return out
 
 
@@ -216,12 +249,16 @@ func _mask_24(kind: String) -> Array:
 	add_child(vp)
 	await RenderingServer.frame_post_draw
 	var img := vp.get_texture().get_image()
-	var out := []
+	var raw := []
 	for y in box:
 		for x in box:
-			out.append(img.get_pixel(x, y).a > 0.35)
+			raw.append(img.get_pixel(x, y).a > 0.35)
 	vp.queue_free()
-	return out
+	# Dilatada igual à dos patches, para as duas provas ficarem na MESMA escala.
+	# Os glifos de inimigo são a régua: eles já foram aprovados no jogo, então o
+	# maior par deles é o que "aceitável" significa nesta métrica. Comparar um
+	# número dilatado com um limiar de máscara crua é comparar réguas diferentes.
+	return _dilate(raw, box, 3)
 
 
 func _measure(kind: String, radius: float) -> float:
