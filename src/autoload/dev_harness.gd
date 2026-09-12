@@ -428,6 +428,7 @@ func _autotest() -> void:
 	await _sec_visual._glyph_lib_test()
 	await _sec_visual._i18n_test()
 	await _sec_visual._audit_fixes_test()
+	await _sec_visual._float_text_collision_test()
 	await _sec_visual._editorial_screens_test()
 	await _sec_visual._icon_quality_test()
 	await _sec_visual._raster_trial_test()
@@ -650,4 +651,3 @@ func _spawn_boss(arena: Arena, mk := 1) -> void:
 		var orb := EnemyOrb.new()
 		orb.setup(boss.global_position + Vector2.from_angle(TAU * i / 5.0) * 60.0, Vector2.from_angle(TAU * i / 5.0), 120.0, boss.col)
 		arena.enemy_container.add_child(orb)
-
