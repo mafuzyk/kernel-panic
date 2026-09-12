@@ -84,7 +84,9 @@ func _layout_settings() -> void:
 		m._settings_scroll.offset_top = content.position.y + 8.0
 		m._settings_scroll.offset_bottom = footer.position.y - 8.0
 	if m._settings_box != null and is_instance_valid(m._settings_box):
-		m._settings_box.custom_minimum_size.x = maxf(content.size.x - 28.0, 240.0)
+		# Mesmo teto do construtor. Esta linha reescrevia a largura a cada
+		# passada de layout e desfazia o limite de coluna de formulário.
+		m._settings_box.custom_minimum_size.x = clampf(content.size.x - 28.0, 240.0, Design.CONTENT_MAX_FORM)
 	if m._settings_title != null and is_instance_valid(m._settings_title):
 		m._settings_title.position = title.position
 		m._settings_title.size = title.size
@@ -119,8 +121,12 @@ func _build_settings() -> void:
 	m._settings_panel.visible = false
 	m._settings_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var dim := ColorRect.new()
+	dim.name = "SettingsDim"
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.01, 0.012, 0.03, 0.88)
+	# Opaco por contrato, como os outros overlays. Estava em 0.88 — o mesmo
+	# defeito do painel de conquistas (B1 da auditoria), só que aqui o menu
+	# atrás é o shell novo e o vazamento fica ainda mais evidente.
+	dim.color = Design.SURFACE
 	m._settings_panel.add_child(dim)
 	var outer_chrome: Control = TacticalChromeScript.new()
 	outer_chrome.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -175,12 +181,28 @@ func _build_settings() -> void:
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 	m._settings_panel.add_child(scroll)
+	# Largura MÁXIMA de formulário. Sem isto a coluna ocupava toda a área de
+	# conteúdo (~1200px em 1920): os sliders esticavam de ponta a ponta e o
+	# indicador do CheckButton — que o Godot ancora na borda direita — ficava a
+	# mais de mil pixels do próprio rótulo. É o B5 da auditoria no settings.
+	# O ScrollContainer estica o filho até a própria largura quando a rolagem
+	# horizontal está desabilitada — `custom_minimum_size` é MÍNIMO, não máximo,
+	# então limitar a coluna por ali não fazia efeito nenhum. A coluna vai dentro
+	# de um HBox com espaçador: o Scroll estica o HBox, a coluna fica no teto.
+	var form_wrap := HBoxContainer.new()
+	form_wrap.name = "SettingsFormWrap"
+	form_wrap.add_theme_constant_override("separation", 0)
+	scroll.add_child(form_wrap)
 	var box := VBoxContainer.new()
 	m._settings_box = box
-	box.custom_minimum_size.x = maxf(content.size.x - 28.0, 240.0)
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_theme_constant_override("separation", 20)
-	scroll.add_child(box)
+	box.custom_minimum_size.x = clampf(content.size.x - 28.0, 240.0, Design.CONTENT_MAX_FORM)
+	box.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	box.add_theme_constant_override("separation", Design.SPACE_XL)
+	form_wrap.add_child(box)
+	var form_spacer := Control.new()
+	form_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	form_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	form_wrap.add_child(form_spacer)
 	var title := Label.new()
 	title.text = "SETTINGS // AUDIO"
 	title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
@@ -218,7 +240,7 @@ func _build_settings() -> void:
 		Sfx.set_muted(on)
 	)
 	assign_section(mute, "AUDIO")
-	box.add_child(mute)
+	box.add_child(_bounded_row(mute))
 	var mute_hint := _settings_group_label("M = MUTE IN GAME")
 	mute_hint.add_theme_font_size_override("font_size", 12)
 	mute_hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.4))
@@ -484,10 +506,30 @@ func _build_settings() -> void:
 		chip.pressed.connect(set_active_section.bind(str(section)))
 		chips_row.add_child(chip)
 		m._settings_chip_buttons.append(chip)
-	m.add_child(m._settings_panel)
+	# CanvasLayer acima do MenuShell (layer 5). Antes era filho direto do menu,
+	# então o shell novo — que pinta fundo opaco — cobria o settings inteiro.
+	var settings_layer := CanvasLayer.new()
+	settings_layer.layer = 70
+	settings_layer.add_child(m._settings_panel)
+	m.add_child(settings_layer)
 	_apply_section_visibility()
 	_refresh_nav_selection()
 	_layout_settings()
+## Envolve um controle numa linha de largura limitada. O CheckButton do Godot
+## ancora o indicador na BORDA DIREITA: numa coluna larga o botão ficava a mais
+## de mil pixels do próprio rótulo.
+func _bounded_row(control: Control) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	control.custom_minimum_size.x = Design.SLIDER_WIDTH
+	control.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	row.add_child(control)
+	var tail := Control.new()
+	tail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(tail)
+	return row
+
+
 func _settings_group_label(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
@@ -618,21 +660,26 @@ func _handle_keybind_capture(event: InputEventKey) -> bool:
 
 func _make_slider_row(label_text: String, value: float, on_change: Callable) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
+	row.add_theme_constant_override("separation", Design.SPACE_LG)
 	var l := Label.new()
 	l.text = label_text
-	l.custom_minimum_size = Vector2(86, 0)
-	l.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	l.add_theme_font_size_override("font_size", 17)
-	l.add_theme_color_override("font_color", Balance.COL_TEXT)
+	l.custom_minimum_size = Vector2(110, 0)
+	l.add_theme_font_override("font", Design.FONT_MONO)
+	l.add_theme_font_size_override("font_size", Design.TEXT_SUBHEAD)
+	l.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
 	row.add_child(l)
 	var s := HSlider.new()
 	s.min_value = 0.0
 	s.max_value = 1.0
 	s.step = 0.05
 	s.value = value
-	s.custom_minimum_size = Vector2(220, 36)
-	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Largura FIXA com espaçador depois, em vez de EXPAND_FILL. Tentar limitar
+	# pela coluna não funciona: o ScrollContainer estica o filho até a própria
+	# largura quando a rolagem horizontal está desabilitada, e `custom_minimum_size`
+	# é mínimo, não máximo. Aqui o controle manda no próprio tamanho.
+	s.custom_minimum_size = Vector2(Design.SLIDER_WIDTH, 36)
+	s.focus_mode = Control.FOCUS_ALL
+	s.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	s.modulate = Color(0.55, 0.9, 1.0)
 	s.value_changed.connect(on_change)
@@ -640,14 +687,18 @@ func _make_slider_row(label_text: String, value: float, on_change: Callable) -> 
 	var v := Label.new()
 	v.text = "%d%%" % int(value * 100.0)
 	v.custom_minimum_size = Vector2(56, 0)
-	v.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	v.add_theme_font_size_override("font_size", 15)
-	v.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.7))
+	v.add_theme_font_override("font", Design.FONT_MONO)
+	v.add_theme_font_size_override("font_size", Design.TEXT_BODY)
+	v.add_theme_color_override("font_color", Design.TEXT_SECONDARY)
 	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	s.value_changed.connect(func(val: float) -> void:
 		v.text = "%d%%" % int(val * 100.0)
 	)
 	row.add_child(v)
+	var tail := Control.new()
+	tail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(tail)
 	return row
 
 func _open_settings() -> void:

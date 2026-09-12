@@ -118,6 +118,30 @@ func _menu_reflow_test(menu: Node) -> void:
 					inside = false
 			h._check(inside, "menu shell content stays inside the viewport at %dx%d" % [int(vp.x), int(vp.y)])
 		shell.size = menu.size
+	# Todo overlay do menu precisa ficar ACIMA do shell e pintar fundo OPACO.
+	# O shell novo pinta fundo sólido, então um overlay em camada baixa some
+	# atrás dele, e um overlay translúcido deixa o shell vazar por cima.
+	# Viewport larga de propósito: com viewport estreita o teto coincide com a
+	# largura disponível e a asserção passaria sem provar nada.
+	menu.call("_open_settings")
+	await h._ticks(3)
+	var settings_panel = menu.get("_settings_panel")
+	h._check(settings_panel != null and settings_panel.visible, "settings panel opens above the shell")
+	if settings_panel != null:
+		var settings_dim: Node = settings_panel.get_node_or_null("SettingsDim")
+		h._check(settings_dim is ColorRect and is_equal_approx((settings_dim as ColorRect).color.a, 1.0),
+			"settings backdrop is fully opaque")
+		# B5 no settings: sem teto, a coluna ocupava toda a área de conteúdo
+		# (~1200px em 1920), os sliders esticavam de ponta a ponta e o indicador
+		# do CheckButton ficava a mais de mil pixels do próprio rótulo.
+		var form_box = menu.get("_settings_box")
+		# Viewport larga de propósito: com viewport estreita o teto coincide com
+		# a largura disponível e a asserção passaria sem provar nada.
+		menu._settings_kit.apply_viewport(Vector2(1920, 1080))
+		await h._ticks(2)
+		h._check(form_box != null and form_box.size.x <= Design.CONTENT_MAX_FORM + 1.0,
+			"settings form column respects the max width (%d)" % int(form_box.size.x if form_box != null else -1))
+	menu.call("_close_settings")
 	var src := str(load("res://src/ui/menu_chrome_kit.gd").source_code)
 	h._check(src.contains("apply_menu_layout"), "menu chrome kit applies the layout dict on resize")
 	h._check(not src.contains("m.size.y * 0.44"), "draw_shell derives its decorative anchors from the shared dict")

@@ -146,6 +146,10 @@ const CONTENT_MAX_PANEL := 1080.0   ## painéis de estado (pausa, game over)
 
 ## Alvo mínimo de toque/clique. 44px é o mínimo confortável de mouse;
 ## no celular o alvo sobe (ver TOUCH_TARGET_MIN).
+## Largura de um controle deslizante. Um valor de 0-100% não ganha nada em
+## esticar: só afasta o rótulo do controle e o controle do valor.
+const SLIDER_WIDTH := 320.0
+
 const CLICK_TARGET_MIN := 44.0
 const TOUCH_TARGET_MIN := 56.0
 
