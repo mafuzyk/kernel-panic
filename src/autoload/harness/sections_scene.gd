@@ -11,6 +11,18 @@ var h: Node
 func _init(harness: Node) -> void:
 	h = harness
 
+## Um card de fase estreito demais corta a descrição no meio da palavra —
+## era o caso com `cols = 6` cravado (73px por card).
+func _story_card_width_test(story_panel) -> void:
+	if story_panel == null or not story_panel.has_method("_content_metrics"):
+		return
+	for vp in [Vector2(1280, 720), Vector2(1366, 768), Vector2(720, 720)]:
+		story_panel.size = vp
+		var metrics: Dictionary = story_panel.call("_content_metrics")
+		h._check(float(metrics["card_w"]) >= 120.0,
+			"story stage cards stay readable at %dx%d (%dpx)" % [int(vp.x), int(vp.y), int(metrics["card_w"])])
+
+
 func _story_menu_test(menu: Node) -> void:
 	print("AT_STEP story_menu")
 	var story_panel_script: Script = load("res://src/ui/story_panel.gd")
@@ -24,6 +36,7 @@ func _story_menu_test(menu: Node) -> void:
 	h._check(panel != null and panel.visible, "story selector opens without changing endless mode")
 	if panel != null:
 		h._check(panel.has_method("available_stage_indices") and panel.has_method("select_stage"), "story selector exposes stage interaction API")
+		await _story_card_width_test(panel)
 		h._check(panel.available_stage_indices().has(0), "first Story stage is selectable")
 	menu.call("_close_story_selector")
 	await h._ticks(1)

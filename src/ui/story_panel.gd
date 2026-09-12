@@ -62,11 +62,18 @@ func _columns() -> int:
 		return 2
 	return 1
 
+## Largura mínima para o título e a descrição de uma fase caberem sem corte.
+const MIN_CARD_W := 150.0
+
+
 func _content_metrics() -> Dictionary:
 	if _is_wide():
 		var route_w := size.x * 0.42
 		var gap := 10.0
-		var cols := 6
+		# As colunas saem de uma largura MÍNIMA legível, não de um número fixo.
+		# Com `cols = 6` cravado num rail de ~538px os cards ficavam com 73px e
+		# a descrição era cortada no meio da palavra.
+		var cols: int = clampi(int((route_w - 48.0 + gap) / (MIN_CARD_W + gap)), 1, 6)
 		var card_h := 250.0
 		var card_w: float = (route_w - 48.0 - gap * float(cols - 1)) / float(cols)
 		var visible_count := _visible_stage_indices().size()
