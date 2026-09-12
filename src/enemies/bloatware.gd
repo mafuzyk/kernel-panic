@@ -16,9 +16,10 @@ func popup_count_on_death() -> int:
 	return 5
 
 func die() -> void:
-	if _death_done:
+	if _death_done or dead:
 		return
 	_death_done = true
+	dead = true
 	var pos := global_position
 	var parent := get_parent()
 	died.emit(self)

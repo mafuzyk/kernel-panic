@@ -628,6 +628,7 @@ func _try_show_patch() -> void:
 	_layout_patch_box()
 	_patch_panel.modulate.a = 1.0
 	_patch_panel.visible = true
+	ScreenKit.open_focus(_patch_panel)
 	var cards := _patch_box.get_children()
 	for i in cards.size():
 		var card: Control = cards[i]
@@ -750,6 +751,7 @@ func _show_game_over() -> void:
 func _show_run_summary() -> void:
 	_run_summary.modulate.a = 0.0
 	_run_summary.visible = true
+	ScreenKit.open_focus(_run_summary)
 	var tw := create_tween()
 	tw.tween_property(_run_summary, "modulate:a", 1.0, Design.MOTION_NORMAL)
 
@@ -959,8 +961,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			KEY_F4:
 				debug_clear_combatants()
-		get_viewport().set_input_as_handled()
-		return
+		if event.physical_keycode in [KEY_F1, KEY_F2, KEY_F3, KEY_F4]:
+			get_viewport().set_input_as_handled()
+			return
 	if _terminal_panel != null and _terminal_panel.visible:
 		if event.is_action_pressed("pause"):
 			_panel_kit._close_terminal()
@@ -1006,6 +1009,7 @@ func _set_paused(v: bool) -> void:
 	get_tree().paused = v
 	_pause_screen.visible = v
 	if v:
+		ScreenKit.open_focus(_pause_screen, _pause_screen.get("_action_blocks")[0].get_meta("hit"))
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		_pause_screen.set_volumes(Sfx.sfx_vol, Sfx.music_vol)
 		_pause_screen.set_run_state([
@@ -1016,7 +1020,13 @@ func _set_paused(v: bool) -> void:
 		], "%s / %s" % [Game.program_def()["name"], Game.build_string()])
 	Sfx.play("ui", 1.0, -6.0)
 	if not v:
+		ScreenKit.close_focus(_pause_screen)
 		_try_show_patch()
+
+## Rota usada pelo botão de fechar do TerminalPanel.
+func _close_terminal() -> void:
+	_panel_kit._close_terminal()
+
 
 func execute_terminal_command(command: String) -> String:
 	var raw := command.strip_edges()

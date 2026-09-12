@@ -336,4 +336,5 @@ func _action_block(primary: bool) -> Control:
 	else:
 		hit.pressed.connect(func() -> void: secondary_pressed.emit())
 	stack.add_child(hit)
+	ScreenKit.bind_feedback(hit, label, sb if primary else null)
 	return stack

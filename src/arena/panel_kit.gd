@@ -115,6 +115,7 @@ func _build_terminal_panel() -> void:
 func _open_terminal() -> void:
 	if a._terminal_panel == null or a._state != "play" or not a.get_tree().paused:
 		return
+	ScreenKit.open_focus(a._terminal_panel, a._terminal_panel.get("_input"))
 	if is_instance_valid(a._pause_screen):
 		a._pause_screen.visible = false
 	a._terminal_panel.call("open_terminal")
@@ -126,6 +127,7 @@ func _close_terminal() -> void:
 		a._terminal_panel.visible = false
 	if is_instance_valid(a._pause_screen) and a._state == "play" and a.get_tree().paused:
 		a._pause_screen.visible = true
+		ScreenKit.close_focus(a._terminal_panel)
 
 func _make_volume_row(label_text: String, value: float, y: float, on_change: Callable) -> Control:
 	var row := HBoxContainer.new()
@@ -313,4 +315,3 @@ func _center_panel_control(control: Control, design_top: float, control_height: 
 	control.scale = Vector2(scale, scale)
 	control.set_meta("panel_design_top", design_top)
 	control.set_meta("panel_control_height", control_height)
-

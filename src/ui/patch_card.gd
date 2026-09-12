@@ -185,6 +185,7 @@ func _build() -> void:
 	hit.add_theme_stylebox_override("hover", glow)
 	hit.pressed.connect(func() -> void: selected.emit(_index))
 	add_child(hit)
+	ScreenKit.bind_feedback(hit, _title)
 
 
 func _refresh() -> void:

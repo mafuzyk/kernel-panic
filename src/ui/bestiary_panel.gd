@@ -405,6 +405,7 @@ func _make_row(entry: Dictionary) -> PanelContainer:
 			Sfx.play("ui", 1.05, -8.0)
 	)
 	row.add_child(hit)
+	ScreenKit.bind_feedback(hit, name_label)
 
 	row.set_meta("glyph", glyph)
 	row.set_meta("name", name_label)

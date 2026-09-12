@@ -11,6 +11,276 @@ var h: Node
 func _init(harness: Node) -> void:
 	h = harness
 
+
+## Entrada pelo viewport: detecta ausência de foco, armadilha de seta e foco
+## perdido ao fechar overlays. Não chama handlers de teclado diretamente.
+func _desktop_focus_test(menu: Node) -> void:
+	print("AT_STEP desktop_focus")
+	var viewport: Viewport = h.get_viewport()
+	var shell: Control = menu.get("_shell")
+	var initial: Control = viewport.gui_get_focus_owner()
+	h._check(initial != null and shell.is_ancestor_of(initial),
+		"desktop menu opens with an actionable keyboard focus")
+	# Mesmo sem foco inicial, reproduz a armadilha de seta de forma independente.
+	var purge: Button = h._first_button(shell)
+	purge.grab_focus()
+	_focus_key(KEY_DOWN)
+	var next: Control = viewport.gui_get_focus_owner()
+	h._check(next != null and next != purge and shell.is_ancestor_of(next),
+		"Down leaves PURGE for another menu action")
+	if next != null and next != purge:
+		_focus_key(KEY_ENTER)
+		if not h._check(not bool(menu.get("_starting")),
+			"Enter on a menu route does not trigger the global start shortcut"):
+			return
+		await h._ticks(3)
+		var opened: Control = menu.get("_program_panel")
+		h._check(opened != null and opened.visible,
+			"menu Down then Enter opens program selection without a mouse")
+		if opened != null and opened.visible:
+			menu.call("_close_program_selector")
+	for spec in [
+		["program", "_open_program_selector", "_close_program_selector", "_program_panel"],
+		["story", "_open_story_selector", "_close_story_selector", "_story_panel"],
+		["bestiary", "_open_bestiary", "_close_bestiary", "_bestiary_panel"],
+		["achievements", "_open_achievements", "_close_achievements", "_ach_panel"],
+		["settings", "_open_settings", "_close_settings", "_settings_panel"],
+	]:
+		purge.grab_focus()
+		menu.call(str(spec[1]))
+		await h._ticks(3)
+		var panel: Control = menu.get(str(spec[3]))
+		var focused: Control = viewport.gui_get_focus_owner()
+		h._check(focused != null and panel.is_ancestor_of(focused),
+			"%s takes keyboard focus when opened" % spec[0])
+		var visited: Array[Control] = []
+		var contained := true
+		for step in panel.find_children("*", "Control", true, false).size() + 1:
+			focused = viewport.gui_get_focus_owner()
+			if focused == null or not panel.is_ancestor_of(focused):
+				contained = false
+				break
+			if visited.has(focused):
+				break
+			visited.append(focused)
+			_focus_key(KEY_TAB)
+		h._check(contained, "%s keeps Tab inside the open panel" % spec[0])
+		var reachable := true
+		for node in panel.find_children("*", "BaseButton", true, false):
+			if node.is_visible_in_tree() and not node.disabled and node.focus_mode == Control.FOCUS_ALL:
+				reachable = reachable and visited.has(node)
+		h._check(reachable, "%s makes every enabled button reachable by Tab" % spec[0])
+		menu.call(str(spec[2]))
+		await h._ticks(3)
+		h._check(viewport.gui_get_focus_owner() == purge,
+			"%s returns focus to its opener when closed" % spec[0])
+		# O segundo show não passa por _ready().
+		menu.call(str(spec[1]))
+		await h._ticks(3)
+		focused = viewport.gui_get_focus_owner()
+		h._check(focused != null and panel.is_ancestor_of(focused),
+			"%s takes keyboard focus again when reopened" % spec[0])
+		menu.call(str(spec[2]))
+		await h._ticks(3)
+	purge.grab_focus()
+	await _selector_activation_test()
+	await _menu_pointer_test()
+	await _action_feedback_test()
+	purge.grab_focus()
+
+
+func _action_feedback_test() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	h.add_child(layer)
+	var col := VBoxContainer.new()
+	layer.add_child(col)
+	for emphasis in ["text", "danger", "primary"]:
+		var block := ScreenKit.action("Action", "", emphasis, func() -> void: pass)
+		col.add_child(block)
+		await h._ticks(3)
+		var hit: Button = block.get_meta("hit")
+		var label: Label = block.get_meta("label_node")
+		var outside := InputEventMouseMotion.new()
+		outside.position = Vector2(1200, 650)
+		h.get_viewport().push_input(outside, true)
+		hit.release_focus()
+		await h._ticks(2)
+		var idle: Color = label.self_modulate
+		var fill: StyleBoxFlat = block.get_theme_stylebox("panel")
+		var idle_fill: Color = fill.bg_color
+		var motion := InputEventMouseMotion.new()
+		motion.position = hit.get_global_rect().get_center()
+		h.get_viewport().push_input(motion, true)
+		await h._ticks(2)
+		var hover: Color = label.self_modulate
+		var hover_fill: Color = fill.bg_color
+		hit.grab_focus()
+		h.get_viewport().push_input(outside, true)
+		await h._ticks(2)
+		h._check(label.self_modulate == hover and fill.bg_color == hover_fill,
+			"%s mouse and keyboard use the same active feedback" % emphasis)
+		if emphasis == "primary":
+			h._check(idle_fill == Design.ACCENT and hover_fill == Design.ACCENT_HOT
+				and label.get_theme_color("font_color") == Design.SURFACE and label.self_modulate == Color.WHITE,
+				"primary feedback brightens the surface while preserving dark text")
+		else:
+			h._check(is_equal_approx(idle.a, Design.TEXT_SECONDARY.a) and hover == Color.WHITE,
+				"%s feedback brightens the separate label on hover" % emphasis)
+		hit.release_focus()
+		await h._ticks(2)
+		h._check(label.self_modulate == idle and fill.bg_color == idle_fill,
+			"%s feedback restores idle after mouse and focus leave" % emphasis)
+		hit.disabled = true
+		h.get_viewport().push_input(motion, true)
+		await h._ticks(2)
+		h._check(label.self_modulate == idle and fill.bg_color == idle_fill,
+			"%s disabled action does not display active feedback" % emphasis)
+		hit.disabled = false
+		hit.grab_focus()
+		await h._ticks(2)
+		hit.disabled = true
+		await h._ticks(2)
+		h._check(label.self_modulate == idle and fill.bg_color == idle_fill,
+			"%s disabling an active action removes its feedback" % emphasis)
+		var ring: StyleBoxFlat = hit.get_theme_stylebox("focus")
+		h._check(ring.border_color == Design.FOCUS_RING_COLOR and ring.border_width_left == int(Design.FOCUS_RING_WIDTH),
+			"%s feedback preserves the amber keyboard ring" % emphasis)
+		block.queue_free()
+		await h._ticks(2)
+	layer.queue_free()
+	await h._ticks(2)
+
+
+func _menu_pointer_test() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	h.add_child(layer)
+	var shell := MenuShell.new()
+	layer.add_child(shell)
+	await h._ticks(3)
+	var presses: Array = []
+	shell.purge_pressed.connect(func() -> void: presses.append("purge"))
+	var label: Label = shell.get("_purge_label")
+	var hit: Button = h._first_button(shell)
+	h._check(hit.get_global_rect().encloses(label.get_global_rect()),
+		"PURGE mouse target covers its visible label")
+	await _focus_click(label.get_global_rect().get_center())
+	h._check(presses == ["purge"], "clicking the PURGE label triggers it exactly once")
+	presses.clear()
+	hit.grab_focus()
+	_focus_key(KEY_ENTER)
+	h._check(presses == ["purge"], "keyboard and mouse activate the same PURGE action")
+	layer.queue_free()
+	await h._ticks(2)
+
+
+func _focus_click(position: Vector2) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.position = position
+	# get_global_rect() está no viewport lógico; não aplicar o stretch da janela
+	# novamente ao injetar coordenadas de mouse.
+	h.get_viewport().push_input(motion, true)
+	await h._ticks(1)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = position
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		h.get_viewport().push_input(event, true)
+
+
+func _selector_activation_test() -> void:
+	var saved_program: String = Game.program
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	h.add_child(layer)
+	var program := ProgramPanel.new()
+	program.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(program)
+	await h._ticks(3)
+	var selections: Array = []
+	var boots: Array = []
+	program.selection_changed.connect(func(id: String) -> void: selections.append(id))
+	program.boot_pressed.connect(func() -> void: boots.append(true))
+	var card: Button = program.get("_cards")["kernel"].get_meta("hit")
+	card.grab_focus()
+	_focus_key(KEY_ENTER)
+	h._check(selections == ["kernel"] and boots.is_empty(),
+		"program Enter selects the focused card once without booting")
+	selections.clear()
+	boots.clear()
+	var boot: Button = program.get("_boot_block").get_meta("hit")
+	boot.grab_focus()
+	_focus_key(KEY_ENTER)
+	h._check(boots == [true], "program Enter on BOOT emits exactly one boot")
+	program.hide()
+	var story: Control = load("res://src/ui/story_panel.gd").new()
+	story.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(story)
+	await h._ticks(3)
+	var mounts: Array = []
+	story.stage_mounted.connect(func(index: int) -> void: mounts.append(index))
+	var mount: Button = story.get("_mount_block").get_meta("hit")
+	mount.grab_focus()
+	_focus_key(KEY_ENTER)
+	h._check(mounts.size() == 1, "story Enter on MOUNT emits exactly one mount")
+	layer.queue_free()
+	await h._ticks(2)
+	Game.set_program(saved_program)
+
+
+func _focus_key(code: int) -> void:
+	var event: InputEventKey = h._key_event(code)
+	h.get_viewport().push_input(event)
+	var released := InputEventKey.new()
+	released.keycode = code
+	released.physical_keycode = code
+	h.get_viewport().push_input(released)
+
+
+func _arena_focus_test(arena: Arena) -> void:
+	print("AT_STEP arena_focus")
+	arena._set_paused(true)
+	await h._ticks(3)
+	var pause: Control = arena.get("_pause_screen")
+	var resume: Button = h._first_button(pause)
+	h._check(h.get_viewport().gui_get_focus_owner() == resume,
+		"pause opens with Resume focused instead of requiring Tab")
+	var terminal: Button = pause.get("_action_blocks")[2].get_meta("hit")
+	terminal.grab_focus()
+	_focus_key(KEY_ENTER)
+	await h._ticks(3)
+	var terminal_panel: Control = arena.get("_terminal_panel")
+	h._check(terminal_panel.visible and h.get_viewport().gui_get_focus_owner() is LineEdit,
+		"Enter on Terminal opens the command field")
+	terminal_panel.close_terminal()
+	await h._ticks(3)
+	h._check(pause.visible, "Terminal close action restores the pause panel")
+	h._check(h.get_viewport().gui_get_focus_owner() == terminal,
+		"closing Terminal restores focus to its pause action")
+	arena._set_paused(false)
+	arena._show_run_summary()
+	await h._ticks(3)
+	var summary: Control = arena.get("_run_summary")
+	h._check(h.get_viewport().gui_get_focus_owner() == h._first_button(summary),
+		"run summary opens with its primary action focused")
+	summary.hide()
+	var saved_pending: int = arena.get("_patch_pending")
+	var saved_rng: int = Game.rng.state
+	arena.set("_patch_pending", 1)
+	arena._try_show_patch()
+	await h._ticks(3)
+	var patch_panel: Control = arena.get("_patch_panel")
+	var focused: Control = h.get_viewport().gui_get_focus_owner()
+	h._check(focused != null and patch_panel.is_ancestor_of(focused),
+		"patch offers open with a card focused")
+	patch_panel.hide()
+	arena.set("_patch_open", false)
+	arena.set("_patch_pending", saved_pending)
+	Game.rng.state = saved_rng
+	h.get_tree().paused = false
+
 ## Um card de fase estreito demais corta a descrição no meio da palavra —
 ## era o caso com `cols = 6` cravado (73px por card).
 func _story_card_width_test(story_panel) -> void:

@@ -357,7 +357,7 @@ func try_overclock() -> void:
 func collect_mote() -> void:
 	if dead:
 		return
-	if shield_ready:
+	if bool(prog.get("shield_mode", false)):
 		if not shield_ready_full():
 			shield_meter = minf(shield_meter + Balance.MOTE_VALUE, Balance.OC_METER_MAX)
 			if shield_meter >= Balance.OC_METER_MAX:
@@ -411,7 +411,7 @@ func add_absorb_charge() -> void:
 	absorb_charges += 1
 
 func add_kill_mote_bonus() -> void:
-	if shield_ready:
+	if bool(prog.get("shield_mode", false)):
 		if not shield_ready_full():
 			shield_meter = minf(shield_meter + Balance.MOTE_KILL_VALUE, Balance.OC_METER_MAX)
 			meter_changed.emit(shield_meter, false)

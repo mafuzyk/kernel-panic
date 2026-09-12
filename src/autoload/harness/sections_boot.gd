@@ -182,6 +182,8 @@ func _task10_test(menu: Node) -> void:
 	var capture_api_ready := menu != null and menu.has_method("_desktop_keybinds_enabled") and menu.has_method("keybind_capture_visible")
 	h._check(capture_api_ready, "menu exposes desktop-only keybind capture state")
 	if capture_api_ready:
+		menu._open_settings()
+		menu.get("_settings_kit").set_active_section("CONTROLS")
 		var desktop_keybinds := Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
 		h._check(bool(menu._desktop_keybinds_enabled()) == desktop_keybinds, "keybind capture is desktop-only and touch-gated")
 		h._check(bool(menu.keybind_capture_visible()) == desktop_keybinds, "keybind capture panel visibility follows desktop gate")
@@ -191,7 +193,7 @@ func _task10_test(menu: Node) -> void:
 			h._check(str(menu.get("_capture_action")) == "", "Escape cancels keybind capture")
 			menu._begin_keybind_capture("dash")
 			menu._handle_keybind_capture(h._key_event(KEY_E))
-			h._check(str(menu.get("_capture_action")) == "dash" and str(menu.get("_keybind_status").text).contains("CONFLICT"), "capture shows duplicate conflict without assigning")
+			h._check(str(menu.get("_capture_action")) == "dash" and str(menu.get("_keybind_status").text) == tr("SET_BIND_CONFLICT") % ["E", tr("SET_BIND_OVERCLOCK")], "capture shows duplicate conflict without assigning")
 			menu._handle_keybind_capture(h._key_event(KEY_G, true))
 			h._check(str(menu.get("_capture_action")) == "dash", "echo key does not capture")
 			menu._handle_keybind_capture(h._key_event(KEY_H))
@@ -205,7 +207,7 @@ func _task10_test(menu: Node) -> void:
 			var settings_scroll: ScrollContainer = settings_scrolls[0]
 			var reset_button: Button = null
 			for node in settings_scroll.find_children("*", "Button", true, false):
-				if node is Button and node.text == "RESET KEYBINDS":
+				if node is Button and node.text == tr("SET_BIND_RESET"):
 					reset_button = node
 					break
 			h._check(reset_button != null, "keybind reset remains reachable inside settings scroll")
@@ -237,7 +239,8 @@ func _task11_test(menu: Node) -> void:
 			var tooltip_rect: Rect2 = hud.call("patch_tooltip_rect", viewport, probe_chip)
 			h._check(Rect2(Vector2.ZERO, viewport).encloses(tooltip_rect), "patch tooltip stays inside viewport %dx%d" % [int(viewport.x), int(viewport.y)])
 		var mouse_motion := InputEventMouseMotion.new()
-		mouse_motion.position = chip_rect.get_center()
+		var chip_position: Vector2 = hud.get_global_transform_with_canvas() * chip_rect.get_center()
+		mouse_motion.position = chip_position
 		hud._input(mouse_motion)
 		h._check(hud.patch_tooltip_visible(), "desktop hover shows patch tooltip")
 		var tooltip_snapshot: Dictionary = hud.patch_tooltip_snapshot()
@@ -245,7 +248,7 @@ func _task11_test(menu: Node) -> void:
 		var touch_down := InputEventScreenTouch.new()
 		touch_down.index = 41
 		touch_down.pressed = true
-		touch_down.position = chip_rect.get_center()
+		touch_down.position = chip_position
 		hud._input(touch_down)
 		hud._process(0.44)
 		h._check(not hud.patch_tooltip_visible(), "touch hold below threshold stays hidden")
@@ -253,17 +256,17 @@ func _task11_test(menu: Node) -> void:
 		h._check(hud.patch_tooltip_visible(), "touch hold at threshold shows patch tooltip")
 		var touch_drag := InputEventScreenDrag.new()
 		touch_drag.index = 41
-		touch_drag.position = chip_rect.get_center() + Vector2(20, 0)
+		touch_drag.position = chip_position + Vector2(20, 0)
 		hud._input(touch_drag)
 		h._check(not hud.patch_tooltip_visible(), "touch movement dismisses patch tooltip")
-		touch_down.position = chip_rect.get_center()
+		touch_down.position = chip_position
 		hud._input(touch_down)
 		hud._process(0.5)
 		var paused_before := h.get_tree().paused
 		var touch_up := InputEventScreenTouch.new()
 		touch_up.index = 41
 		touch_up.pressed = false
-		touch_up.position = chip_rect.get_center()
+		touch_up.position = chip_position
 		hud._input(touch_up)
 		h._check(not hud.patch_tooltip_visible() and h.get_tree().paused == paused_before, "touch release dismisses tooltip without pausing")
 	Game.patch_levels = {}
@@ -274,13 +277,17 @@ func _task11_test(menu: Node) -> void:
 	Game.mode = "weekly"
 	Sfx.aim_mode = "lockon"
 	h._check(Game.effective_aim_mode() == "lockon", "weekly keeps saved local lock-on mode")
-	if menu != null and menu.has_method("_refresh_mode_ui") and menu.has_method("_refresh_aim_label"):
-		menu._refresh_mode_ui()
+	# A barra antiga foi removida; verificar o shell vivo e o controle de mira
+	# das settings. Ler _mode_info abortava este teste antes da restauração.
+	if menu != null and menu.has_method("refresh_shell") and menu.has_method("_refresh_aim_label"):
+		menu.refresh_shell()
 		menu._refresh_aim_label(menu.get("_aim_btn_ref"))
-		h._check(not str(menu.get("_mode_info").text).contains("BLOCKED") and str(menu.get("_mode_info").text).contains("LOCAL"), "weekly menu explains local deterministic play")
+		h._check(str(menu.main_shell_snapshot().get("mode_explanation", "")).contains(tr("MODE_WEEKLY")), "weekly mode appears in the live menu shell")
 		h._check(not str(menu.get("_aim_btn_ref").text).contains("BLOCKED"), "weekly menu does not block lock-on")
 	Game.mode = saved_mode
 	Sfx.aim_mode = saved_aim
+	if menu != null:
+		menu.refresh_shell()
 
 func _color_assist_test() -> void:
 	print("AT_STEP color_assist")
@@ -321,16 +328,16 @@ func _color_assist_test() -> void:
 		if menu.has_method("_open_settings"):
 			menu._open_settings()
 		for node in menu.find_children("*", "Button", true, false):
-			if node is Button and str(node.text).begins_with("COLOR ASSIST:"):
+			if node is Button and node == menu.get("_color_assist_btn"):
 				color_button = node
 				break
 	h._check(color_button != null, "settings expose color assist toggle")
 	if color_button != null:
-		h._check(color_button.text == "COLOR ASSIST: OFF", "color assist toggle shows OFF by default")
+		h._check(color_button.text == tr("SET_COLOR_ASSIST") % tr("SET_VAL_OFF"), "color assist toggle shows OFF by default")
 		color_button.pressed.emit()
-		h._check(bool(Sfx.get("color_assist")) and color_button.text == "COLOR ASSIST: ON", "color assist toggle enables assist mode")
+		h._check(bool(Sfx.get("color_assist")) and color_button.text == tr("SET_COLOR_ASSIST") % tr("SET_VAL_ON"), "color assist toggle enables assist mode")
 		color_button.pressed.emit()
-		h._check(not bool(Sfx.get("color_assist")) and color_button.text == "COLOR ASSIST: OFF", "color assist toggle disables assist mode")
+		h._check(not bool(Sfx.get("color_assist")) and color_button.text == tr("SET_COLOR_ASSIST") % tr("SET_VAL_OFF"), "color assist toggle disables assist mode")
 	if menu != null and menu.has_method("_close_settings"):
 		menu._close_settings()
 

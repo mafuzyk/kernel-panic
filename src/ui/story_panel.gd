@@ -332,10 +332,12 @@ func _tab_for_position(position: Vector2) -> String:
 	return ""
 
 
-## ENTER monta a fase destacada. Só chega aqui se nenhum botão da tela tiver
-## foco — com foco, o próprio botão consome o ui_accept.
+## ENTER sem foco monta a fase destacada. Com foco, o Button aciona no release;
+## tratar também o press aqui monta antes de selecionar ou monta duas vezes.
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not visible or not (event is InputEventKey) or not event.is_pressed() or event.is_echo():
+		return
+	if get_viewport().gui_get_focus_owner() != null:
 		return
 	if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
 		_mount()
@@ -515,6 +517,7 @@ func _build_tabs(parent: Node) -> void:
 			Sfx.play("ui", 1.05, -8.0)
 		)
 		cell.add_child(hit)
+		ScreenKit.bind_feedback(hit, label)
 
 		cell.set_meta("label", label)
 		cell.set_meta("bar", bar)
@@ -659,6 +662,7 @@ func _make_row(index: int) -> PanelContainer:
 			Sfx.play("ui", 1.05, -8.0)
 	)
 	row.add_child(hit)
+	ScreenKit.bind_feedback(hit, path_label)
 
 	row.set_meta("path", path_label)
 	row.set_meta("title", title_label)

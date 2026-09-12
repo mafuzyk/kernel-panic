@@ -105,6 +105,8 @@ func _escape() -> void:
 	queue_free()
 
 func die() -> void:
+	if dead:
+		return
 	var f := _field()
 	if f != null:
 		f.release_all_stolen()

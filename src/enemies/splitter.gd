@@ -36,6 +36,8 @@ func _draw_color_assist_marker(c: Color) -> void:
 	draw_string(ThemeDB.fallback_font, center + Vector2(-24.0, 4.0), color_assist_marker(), HORIZONTAL_ALIGNMENT_CENTER, 48.0, 9, c)
 
 func die() -> void:
+	if dead:
+		return
 	for i in 2:
 		var m := DroneEnemy.new()
 		m.setup_mini()

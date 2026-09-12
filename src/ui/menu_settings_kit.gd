@@ -786,6 +786,7 @@ func _make_slider_row(label_text: String, value: float, on_change: Callable) -> 
 
 func _open_settings() -> void:
 	_layout_settings()
+	ScreenKit.open_focus(m._settings_panel)
 	m._set_main_menu_controls_visible(false)
 	m._settings_panel.visible = true
 	Sfx.play("ui", 1.1, -6.0)
@@ -794,6 +795,7 @@ func _close_settings() -> void:
 	m._capture_action = ""
 	m._settings_panel.visible = false
 	m._set_main_menu_controls_visible(true)
+	ScreenKit.close_focus(m._settings_panel)
 	Sfx.play("ui", 0.9, -6.0)
 
 func _refresh_color_assist_label() -> void:

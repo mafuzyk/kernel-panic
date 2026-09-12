@@ -107,9 +107,9 @@ const STROKE_THICK := 3.0
 # ─────────────────────────────────────────────────────────────────────
 # ESTADOS INTERATIVOS
 # ─────────────────────────────────────────────────────────────────────
-## Multiplicadores aplicados sobre a cor base de um controle. Hoje a UI
-## não tem estado de foco algum: todo botão do projeto seta
-## `focus_mode = FOCUS_NONE`, o que torna o jogo inutilizável sem mouse.
+## Multiplicadores aplicados sobre a cor base de um controle. Os botões
+## usam foco de teclado; nos alvos transparentes, o estado visual também
+## precisa alcançar o conteúdo que vive em nós separados.
 
 const STATE_HOVER_BOOST := 1.25      ## brilho no hover
 const STATE_PRESSED_BOOST := 0.85    ## afunda no clique

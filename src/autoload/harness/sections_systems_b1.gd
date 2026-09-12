@@ -163,7 +163,7 @@ func _systems_test_b1(arena: Arena) -> void:
 		h.get_tree().current_scene.add_child(bestiary_geometry)
 		await h._ticks(2)
 		h._check(bestiary_geometry.has_method("content_viewport_rect") and bestiary_geometry.has_method("visible_card_rects"), "bestiary exposes content geometry")
-		h._check(bestiary_geometry.has_method("entry_status") and str(bestiary_geometry.entry_status("root")).contains("LOCKED"), "bestiary keeps locked entries explicit")
+		h._check(bestiary_geometry.has_method("entry_status") and str(bestiary_geometry.entry_status("root")) == tr("BESTIARY_STATUS_LOCKED"), "bestiary keeps locked entries explicit")
 		if bestiary_geometry.has_method("visible_card_rects") and bestiary_geometry.has_method("content_viewport_rect"):
 			var bestiary_viewport: Rect2 = bestiary_geometry.content_viewport_rect()
 			var bestiary_cards_contained := true
@@ -457,4 +457,3 @@ func _systems_test_b1(arena: Arena) -> void:
 		h._check(left == 0, "firewall wall dies with owner")
 	player.invuln = 9999.0
 	player.hp = player.max_hp
-

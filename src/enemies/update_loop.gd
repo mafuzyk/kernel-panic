@@ -41,7 +41,7 @@ func take_hit(dmg: int, from: Vector2) -> void:
 	super.take_hit(dmg, from)
 
 func die() -> void:
-	if _reinstalling:
+	if _reinstalling or dead:
 		return
 	if not _reinstalled:
 		_reinstalling = true

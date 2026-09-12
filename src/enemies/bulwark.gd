@@ -37,14 +37,15 @@ func take_hit(dmg: int, from: Vector2) -> void:
 		Sfx.play("hit", 0.6, -8.0)
 
 func die() -> void:
-	if _nova_pending:
+	if _nova_pending or dead:
 		return
 	_nova_pending = true
+	dead = true
+	died.emit(self)
 	var pos := global_position
 	var parent := get_parent()
 	var c := col
 	var wave_scale_f := 1.0
-	died.emit(self)
 	Fx.burst(pos, c, 2.2, 12)
 	Fx.hitstop(70.0)
 	Sfx.play("explode_big", randf_range(0.9, 1.05), -2.0)
@@ -57,7 +58,7 @@ func die() -> void:
 func _spawn_nova_orb(parent: Node, pos: Vector2, angle: float, _ws: float) -> void:
 	var orb := EnemyOrb.new()
 	orb.setup(pos + Vector2.from_angle(angle) * 30.0, Vector2.from_angle(angle), 210.0, col)
-	parent.call_deferred("add_child", orb)
+	parent.add_child(orb)
 
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)

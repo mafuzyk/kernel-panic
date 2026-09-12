@@ -95,7 +95,10 @@ func _touch_test() -> void:
 	player.lockon_active = false
 	var idle_rot := player.rotation
 	await h._ticks(30)
-	h._check(absf(wrapf(player.rotation - idle_rot, -PI, PI)) < 0.05, "touch idle keeps aim (no auto-aim)")
+	if not Balance.is_desktop_display():
+		h._check(absf(wrapf(player.rotation - idle_rot, -PI, PI)) < 0.05, "touch idle keeps aim (no auto-aim)")
+	else:
+		print("AT_SKIP touch idle heading requires a non-desktop display; desktop follows the mouse")
 	var saved_aim := Sfx.aim_mode
 	Sfx.aim_mode = "stick"
 	_press(Vector2(900, 400), true, 8)

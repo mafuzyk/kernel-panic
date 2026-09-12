@@ -49,6 +49,7 @@ func _ready() -> void:
 	_resize_to_viewport()
 	get_viewport().size_changed.connect(_resize_to_viewport)
 	_build()
+	ScreenKit.focus_first.call_deferred(self)
 
 
 func _resize_to_viewport() -> void:
@@ -220,12 +221,10 @@ func _build_actions(parent: Node) -> void:
 	# isto domina sem precisar de bloco sólido.
 	var purge_row := HBoxContainer.new()
 	purge_row.add_theme_constant_override("separation", Design.SPACE_LG)
-	col.add_child(purge_row)
 	purge_row.add_child(ScreenKit.grot("→", 72, Design.WEIGHT_BLACK, Design.ACCENT))
 	_purge_label = ScreenKit.grot(tr("MENU_PURGE"), 92, Design.WEIGHT_BLACK, Design.ACCENT)
 	purge_row.add_child(_purge_label)
-	var purge_hit := _overlay_button(purge_row, func() -> void: purge_pressed.emit())
-	purge_hit.focus_neighbor_bottom = purge_hit.get_path()
+	col.add_child(_overlay_button(purge_row, func() -> void: purge_pressed.emit()))
 
 	_mode_label = ScreenKit.mono("", Design.TEXT_SUBHEAD, Design.TEXT_SECONDARY)
 	col.add_child(_mode_label)
@@ -268,13 +267,17 @@ func _link(text: String, on_press: Callable) -> Control:
 	underline.custom_minimum_size = Vector2(0, 1)
 	underline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wrap.add_child(underline)
-	_overlay_button(wrap, on_press)
-	return wrap
+	return _overlay_button(wrap, on_press)
 
 
-## Botão transparente cobrindo um Control, para clique/hover/foco sem que o
-## `Button` precise dispor filhos (ele não dispõe).
-func _overlay_button(host: Control, on_press: Callable) -> Button:
+## O PanelContainer sobrepõe conteúdo e hit. Dentro de HBox/VBox, o hit virava
+## uma célula ao lado/abaixo do texto e clicar no rótulo não acionava nada.
+func _overlay_button(content: Control, on_press: Callable) -> PanelContainer:
+	var host := PanelContainer.new()
+	host.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	host.size_flags_horizontal = content.size_flags_horizontal
+	host.size_flags_vertical = content.size_flags_vertical
+	host.add_child(content)
 	var hit := Button.new()
 	hit.flat = true
 	hit.focus_mode = Control.FOCUS_ALL
@@ -290,7 +293,15 @@ func _overlay_button(host: Control, on_press: Callable) -> Button:
 	hit.add_theme_stylebox_override("hover", glow)
 	hit.pressed.connect(on_press)
 	host.add_child(hit)
-	return hit
+	_bind_labels(hit, content)
+	return host
+
+
+func _bind_labels(hit: Button, content: Node) -> void:
+	if content is Label:
+		ScreenKit.bind_feedback(hit, content)
+	for child in content.get_children():
+		_bind_labels(hit, child)
 
 
 func _build_footer(parent: Node) -> void:
@@ -311,10 +322,9 @@ func _build_footer(parent: Node) -> void:
 		[tr("MENU_QUIT"), func() -> void: quit_pressed.emit()],
 	]:
 		var cell := Control.new()
-		var label := ScreenKit.mono(str(spec[0]), Design.TEXT_CAPTION, Design.TEXT_SECONDARY)
+		var label := ScreenKit.mono(str(spec[0]), Design.TEXT_CAPTION, Design.TEXT_PRIMARY)
 		cell.custom_minimum_size = Vector2(label.get_minimum_size().x + Design.SPACE_LG, Design.SPACE_XL)
 		label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
 		label.position = Vector2(Design.SPACE_SM, 0)
 		cell.add_child(label)
-		_overlay_button(cell, spec[1])
-		row.add_child(cell)
+		row.add_child(_overlay_button(cell, spec[1]))

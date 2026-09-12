@@ -309,12 +309,14 @@ func _open_program_selector() -> void:
 		layer.layer = 70
 		layer.add_child(_program_panel)
 		add_child(layer)
+	ScreenKit.open_focus(_program_panel)
 	_program_panel.visible = true
 	_program_panel.scroll_y = 0.0
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_program_selector() -> void:
 	_program_panel.visible = false
+	ScreenKit.close_focus(_program_panel)
 	Sfx.play("ui", 0.9, -8.0)
 
 func _open_story_selector() -> void:
@@ -334,6 +336,7 @@ func _open_story_selector() -> void:
 		layer.process_mode = Node.PROCESS_MODE_ALWAYS
 		layer.add_child(_story_panel)
 		add_child(layer)
+	ScreenKit.open_focus(_story_panel)
 	_story_panel.visible = true
 	_story_panel.scroll_y = 0.0
 	Sfx.play("ui", 1.1, -8.0)
@@ -341,6 +344,7 @@ func _open_story_selector() -> void:
 func _close_story_selector() -> void:
 	if _story_panel != null:
 		_story_panel.visible = false
+		ScreenKit.close_focus(_story_panel)
 	Sfx.play("ui", 0.9, -8.0)
 
 func _start_story(index: int) -> void:
@@ -361,12 +365,14 @@ func _open_bestiary() -> void:
 		layer.process_mode = Node.PROCESS_MODE_ALWAYS
 		layer.add_child(_bestiary_panel)
 		add_child(layer)
+	ScreenKit.open_focus(_bestiary_panel)
 	_bestiary_panel.visible = true
 	_bestiary_panel.refresh(true)
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_bestiary() -> void:
 	_bestiary_panel.visible = false
+	ScreenKit.close_focus(_bestiary_panel)
 	Sfx.play("ui", 0.9, -8.0)
 
 func _open_achievements() -> void:
@@ -382,6 +388,7 @@ func _open_achievements() -> void:
 		layer.layer = 70
 		layer.add_child(_ach_panel)
 		add_child(layer)
+	ScreenKit.open_focus(_ach_panel)
 	_ach_panel.visible = true
 	if _ach_panel.has_method("refresh"):
 		_ach_panel.call("refresh")
@@ -390,6 +397,7 @@ func _open_achievements() -> void:
 func _close_achievements() -> void:
 	if _ach_panel != null:
 		_ach_panel.visible = false
+		ScreenKit.close_focus(_ach_panel)
 	Sfx.play("ui", 0.9, -8.0)
 
 ## Constrói o shell novo e liga seus sinais aos fluxos que já existiam.
@@ -698,7 +706,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			Sfx.play("ui", 0.8, -8.0)
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("confirm"):
+	# BaseButton aciona no release, mas o press ainda pode chegar aqui.
+	# O atalho global só serve quando não há um controle tratando o teclado.
+	if event.is_action_pressed("confirm") and get_viewport().gui_get_focus_owner() == null:
 		_start()
 
 func text_overflow_report() -> Array:
