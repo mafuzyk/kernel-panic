@@ -67,7 +67,7 @@ func _settings_tabs_test(menu: Node) -> void:
 				visible += 1
 		h._check(visible >= 1, "%s tab keeps at least one visible control" % str(section))
 		var title: Label = menu.get("_settings_title")
-		h._check(title != null and str(title.text).ends_with(str(section)), "settings title shows the active section (%s)" % str(section))
+		h._check(title != null and str(title.text) == tr("SET_TITLE") % str(kit.section_label(str(section))), "settings title shows the active section (%s)" % str(section))
 		var selected_index: int = sections.find(str(section))
 		var nav_buttons: Array = menu.get("_settings_nav_buttons")
 		var selected_ok: bool = nav_buttons.size() == sections.size()
@@ -213,16 +213,21 @@ func _video_settings_test() -> void:
 	# Persistência: o valor tem de sobreviver a um round-trip pelo disco.
 	Sfx.set_window_mode(0)
 	Sfx.set_vsync_mode(0)
-	Sfx.load_settings()
+	Sfx._load_settings()
 	h._check(Sfx.window_mode == 0 and Sfx.vsync_mode == 0, "video options survive a save/load round trip")
 
 	# E tem de CHEGAR no servidor de display, não só no arquivo.
-	Sfx.set_vsync_mode(0)
-	h._check(DisplayServer.window_get_vsync_mode() == DisplayServer.VSYNC_DISABLED,
-		"turning vsync off reaches the display server")
-	Sfx.set_vsync_mode(1)
-	h._check(DisplayServer.window_get_vsync_mode() == DisplayServer.VSYNC_ENABLED,
-		"turning vsync on reaches the display server")
+	# O driver headless não tem janela nem vsync: verificar o servidor exige
+	# a passada gráfica. Antes a chamada de load inexistente escondia isso.
+	if Balance.is_desktop_display():
+		Sfx.set_vsync_mode(0)
+		h._check(DisplayServer.window_get_vsync_mode() == DisplayServer.VSYNC_DISABLED,
+			"turning vsync off reaches the display server")
+		Sfx.set_vsync_mode(1)
+		h._check(DisplayServer.window_get_vsync_mode() == DisplayServer.VSYNC_ENABLED,
+			"turning vsync on reaches the display server")
+	else:
+		print("AT_SKIP vsync display round trip requires a graphical display driver")
 
 	# Uma seção nova no settings, e ela aparece na navegação.
 	var kit_script: Script = load("res://src/ui/menu_settings_kit.gd")

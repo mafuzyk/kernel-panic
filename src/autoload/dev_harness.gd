@@ -10,6 +10,7 @@ const HSectionVisual = preload("res://src/autoload/harness/sections_visual.gd")
 const HSectionScene = preload("res://src/autoload/harness/sections_scene.gd")
 const HSectionModes = preload("res://src/autoload/harness/sections_modes.gd")
 const HSectionPolish = preload("res://src/autoload/harness/sections_polish.gd")
+const HSectionDeep = preload("res://src/autoload/harness/sections_deep.gd")
 
 var active := false
 const LEAK_GUARD_MAX_ORPHANS := 40
@@ -25,6 +26,7 @@ var _sec_visual
 var _sec_scene
 var _sec_modes
 var _sec_polish
+var _sec_deep
 
 func _ready() -> void:
 	_init_sections()
@@ -42,6 +44,9 @@ func _ready() -> void:
 	elif OS.get_environment("KP_SHOT") != "":
 		active = true
 		_sec_modes._capture.call_deferred()
+	elif OS.get_environment("KP_DEEP") != "":
+		active = true
+		_sec_deep._probe.call_deferred()
 
 func _pass(msg: String) -> void:
 	print("AT_PASS ", msg)
@@ -107,6 +112,7 @@ func _init_sections() -> void:
 	_sec_scene = HSectionScene.new(self)
 	_sec_modes = HSectionModes.new(self)
 	_sec_polish = HSectionPolish.new(self)
+	_sec_deep = HSectionDeep.new(self)
 
 func _autotest() -> void:
 	_watchdog()
@@ -116,7 +122,7 @@ func _autotest() -> void:
 	Game.set_program("kernel")
 	await _ticks(20)
 	_check(get_tree().current_scene != null and get_tree().current_scene.name == "Menu", "menu is main scene")
-	_check(Balance.is_desktop_display() == (DisplayServer.get_name() in ["windows", "macos", "x11", "wayland", "embedded"]), "is_desktop_display matches display server")
+	_check(Balance.is_desktop_display() == (DisplayServer.get_name().to_lower() in ["windows", "macos", "x11", "wayland", "embedded"]), "is_desktop_display matches display server")
 	_check(get_tree().current_scene.find_children("*", "BootOverlay", true, false).is_empty(), "boot overlay skipped in headless")
 	var required_bestiary_ids := ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "boss", "recursor", "firewall", "update_loop", "bloatware", "god", "root", "segfault", "bluescreen", "pagefault"]
 	var entry_ids := {}
@@ -132,6 +138,7 @@ func _autotest() -> void:
 	_check(Game.BESTIARY_MAP.get("BLUE SCREEN", "") == "bluescreen", "blue screen maps to bestiary")
 	_check(Game.BESTIARY_MAP.get("PAGE FAULT", "") == "pagefault", "page fault maps to bestiary")
 	await _sec_boot._color_assist_test()
+	await _sec_scene._desktop_focus_test(get_tree().current_scene)
 	Fx.stacktrace(Vector2.ZERO, "TEST_CRASH")
 	await _ticks(2)
 	_check(true, "stacktrace renders without error")
@@ -174,6 +181,7 @@ func _autotest() -> void:
 	var onboarding_abort_path := OS.get_environment("KP_ONBOARDING_ABORT") != ""
 	var onboarding_restore_label := "aborted onboarding probe restores tutorial hints ConfigFile section" if onboarding_abort_path else "onboarding probe restores tutorial hints ConfigFile section"
 	_check(_config_snapshot_matches(onboarding_tutorial_disk_before, _config_snapshot("tutorial", "hints", {})), onboarding_restore_label)
+	await _sec_scene._arena_focus_test(arena)
 	await _sec_tasks_a._input_safety_test(arena)
 	Game.state = Game.State.PLAYING
 	get_tree().paused = false
@@ -418,6 +426,11 @@ func _autotest() -> void:
 	await _sec_systems_a._systems_test_a(arena2)
 	await _sec_systems_b1._systems_test_b1(arena2)
 	await _sec_systems_b2._systems_test_b2(arena2)
+	await _sec_deep._enemy_death_idempotency_test()
+	await _sec_deep._rootlet_shield_recharge_test()
+	await _sec_deep._splitshot_rotation_test(arena2)
+	await _sec_deep._deferred_orb_cap_test(arena2)
+	await _sec_deep._temple_god_spawn_test()
 	await _sec_misc._difficulty_test()
 	await _sec_misc._debug_controls_test(arena2)
 	await _sec_misc._mote_sweep_test(arena2)

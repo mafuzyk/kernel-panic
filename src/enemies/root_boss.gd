@@ -476,10 +476,12 @@ func _corruption_volley(n: int) -> void:
 	var target := player.global_position
 	var base := aim_at_player().angle()
 	for i in n:
+		if not EnemyOrb.can_spawn(self):
+			break
 		var shot: Node = shot_script.new()
 		var dir := Vector2.from_angle(base + (i - (n - 1) * 0.5) * 0.16)
 		shot.call("setup_corruption", global_position + dir * (radius + 8.0), target, 1, col, dir, player)
-		get_parent().call_deferred("add_child", shot)
+		get_parent().add_child(shot)
 	Sfx.play("shoot", 0.6, -5.0)
 
 func _pages_alive() -> int:
@@ -555,7 +557,7 @@ func _spawn_orb(dir: Vector2, spd: float) -> void:
 		return
 	var orb := EnemyOrb.new()
 	orb.setup(global_position + dir * (radius + 8.0), dir, spd, col)
-	get_parent().call_deferred("add_child", orb)
+	get_parent().add_child(orb)
 
 func _enter_phase() -> void:
 	_phase_flash = 1.0
@@ -571,6 +573,8 @@ func _enter_phase() -> void:
 	glow.self_modulate = col
 
 func take_hit(dmg: int, from: Vector2) -> void:
+	if dead:
+		return
 	if kind == 4 and _pages_alive() > 0:
 		Fx.sparks(from, Color(0.7, 0.5, 1.0), 4, 120.0, 0.25, 2.0)
 		return
@@ -620,7 +624,10 @@ func _warn_and_rebuild_shield() -> void:
 	Fx.ring(global_position, Color(0.8, 0.65, 1.0), radius + 20.0, radius + 90.0, 0.4, 3.0, true)
 
 func _split_into_minis() -> void:
+	if split_done or dead:
+		return
 	split_done = true
+	dead = true
 	var fragment_hp := maxi(6, int(max_hp * 0.18))
 	Fx.flash(Color(1, 1, 1), 0.4, 0.4)
 	Fx.burst(global_position, col, 2.4, 12)
@@ -661,6 +668,9 @@ func _split_into_minis() -> void:
 var _split_silent := false
 
 func die() -> void:
+	if dead:
+		return
+	dead = true
 	died.emit(self)
 	var pos := global_position
 	var c := col

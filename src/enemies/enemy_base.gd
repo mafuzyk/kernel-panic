@@ -26,6 +26,7 @@ var last_pdash_id := -1
 var player: Node2D
 var glow: Sprite2D
 var era_accent := Color(0, 0, 0, 0)
+var dead := false
 
 func configure(wave_scale_f: float, is_elite: bool) -> void:
 	hp = int(ceil(hp * wave_scale_f * (2.0 if is_elite else 1.0)))
@@ -78,6 +79,8 @@ func _on_ready() -> void:
 	pass
 
 func _physics_process(delta: float) -> void:
+	if dead:
+		return
 	t += delta
 	spawn_t += delta
 	if hit_flash > 0.0:
@@ -130,6 +133,8 @@ func _separation() -> Vector2:
 	return push
 
 func take_hit(dmg: int, from: Vector2) -> void:
+	if dead:
+		return
 	hp -= dmg
 	hit_flash = 1.0
 	var dir := (global_position - from).normalized()
@@ -139,12 +144,15 @@ func take_hit(dmg: int, from: Vector2) -> void:
 		die()
 
 func die() -> void:
+	if dead:
+		return
+	dead = true
 	died.emit(self)
 	if volatile_burst_count() > 0:
 		for i in volatile_burst_count():
 			var orb := EnemyOrb.new()
 			orb.setup(global_position, Vector2.from_angle(TAU * i / 6.0 + Game.rng.randf() * 0.4), 230.0, col)
-			get_parent().call_deferred("add_child", orb)
+			get_parent().add_child(orb)
 		Fx.ring(global_position, Color(1, 1, 1, 0.8), radius, radius + 44.0, 0.3, 2.5)
 	Fx.burst(global_position, col, 1.0 if radius < 20.0 else 1.7)
 	Fx.hitstop(35.0)

@@ -295,11 +295,12 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
-## ENTER dá boot. Só chega aqui se NENHUM botão da tela tiver foco — quando um
-## card está focado, o próprio botão consome o ui_accept e seleciona. Assim o
-## rótulo "[ENTER]" do rodapé deixa de ser decoração sem ação.
+## ENTER sem foco mantém o atalho de boot. Com foco, o Button seleciona no
+## release; o press pode chegar aqui também e não deve iniciar uma run.
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not visible or not (event is InputEventKey) or not event.is_pressed() or event.is_echo():
+		return
+	if get_viewport().gui_get_focus_owner() != null:
 		return
 	if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
 		boot_pressed.emit()
@@ -500,6 +501,7 @@ func _make_card(id: String) -> PanelContainer:
 			Sfx.play("ui", 1.05, -8.0)
 	)
 	card.add_child(hit)
+	ScreenKit.bind_feedback(hit, name_label)
 
 	card.set_meta("stats", stat_lines)
 	card.set_meta("prose", [summary, tradeoff])

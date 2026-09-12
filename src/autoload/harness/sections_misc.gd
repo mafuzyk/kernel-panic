@@ -70,7 +70,8 @@ func _debug_controls_test(arena: Arena) -> void:
 	h._check(debug_panel_script != null, "debug panel script loads")
 	h._check(arena.has_method("debug_controls_enabled"), "arena exposes debug controls gate")
 	if arena.has_method("debug_controls_enabled"):
-		h._check(not bool(arena.call("debug_controls_enabled")), "headless run keeps debug controls disabled")
+		var desktop_debug: bool = OS.is_debug_build() and Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
+		h._check(bool(arena.call("debug_controls_enabled")) == desktop_debug, "debug controls follow the desktop debug-build gate")
 	var sp: Spawner = arena.spawner
 	var debug_api_ready := sp.has_method("debug_skip_to_wave") and sp.has_method("debug_spawn_enemy") and sp.has_method("debug_spawn_boss") and sp.has_method("debug_spawn_root_split")
 	h._check(debug_api_ready, "spawner exposes debug wave and spawn controls")
@@ -167,4 +168,3 @@ func _oom_steal_identity_test(arena: Arena) -> void:
 	mf.free_all_stolen()
 	oom.queue_free()
 	await h._ticks(2)
-

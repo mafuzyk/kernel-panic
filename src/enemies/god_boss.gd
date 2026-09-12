@@ -63,6 +63,8 @@ func _oracle_cast(attack: String) -> void:
 	Sfx.play("shoot", 0.55, -4.0)
 
 func take_hit(dmg: int, from: Vector2) -> void:
+	if dead:
+		return
 	hp -= dmg
 	hit_flash = 1.0
 	kb += (global_position - from).normalized() * 18.0

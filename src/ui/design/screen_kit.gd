@@ -186,7 +186,29 @@ static func action(label: String, key: String, emphasis: String, on_press: Calla
 	stack.add_child(hit)
 	stack.set_meta("label_node", line.get_child(0))
 	stack.set_meta("hit", hit)
+	bind_feedback(hit, line.get_child(0), sb if emphasis == "primary" else null)
 	return stack
+
+
+## O hit transparente pinta o rótulo separado. Modulação preserva a cor
+## semântica quando seletores atualizam texto/cor. O anel continua no Button.
+static func bind_feedback(hit: Button, label: Label, primary_surface: StyleBoxFlat = null) -> void:
+	var sync := func() -> void:
+		var active := hit.is_visible_in_tree() and not hit.disabled and (hit.is_hovered() or hit.has_focus())
+		if primary_surface != null:
+			var fill: Color = Design.ACCENT_HOT if active else Design.ACCENT
+			if primary_surface.bg_color != fill:
+				primary_surface.bg_color = fill
+		else:
+			label.self_modulate = Color.WHITE if active else Design.alpha(Color.WHITE, Design.TEXT_SECONDARY.a)
+	hit.mouse_entered.connect(sync)
+	hit.mouse_exited.connect(sync)
+	hit.focus_entered.connect(sync)
+	hit.focus_exited.connect(sync)
+	hit.visibility_changed.connect(sync)
+	# BaseButton redesenha ao mudar disabled; não há sinal disabled_changed.
+	hit.draw.connect(sync)
+	sync.call()
 
 
 ## Reaperta o respiro vertical de um bloco criado por `action()`. Em janela
@@ -212,6 +234,45 @@ static func set_action_label(block: PanelContainer, text: String) -> void:
 		var node: Label = block.get_meta("label_node")
 		if is_instance_valid(node):
 			node.text = text
+
+
+## O painel guarda uma referência fraca ao acionador: fechar o overlay devolve
+## o teclado ao mesmo ponto, sem manter a cena anterior viva.
+static func open_focus(panel: Control, preferred: Control = null) -> void:
+	var previous := panel.get_viewport().gui_get_focus_owner()
+	if previous != null and not panel.is_ancestor_of(previous):
+		panel.set_meta("return_focus", weakref(previous))
+	focus_first.call_deferred(panel, preferred)
+
+
+static func close_focus(panel: Control) -> void:
+	if not panel.has_meta("return_focus"):
+		return
+	var previous: Control = panel.get_meta("return_focus").get_ref()
+	panel.remove_meta("return_focus")
+	if is_instance_valid(previous) and previous.is_visible_in_tree():
+		previous.grab_focus()
+
+
+## Adiado até os containers terminarem de abrir. Não inclui scrollbar nem
+## controles desabilitados: o ponto de partida deve ser uma ação utilizável.
+static func focus_first(root: Control, preferred: Control = null) -> void:
+	if not is_instance_valid(root) or not root.is_inside_tree() or not root.is_visible_in_tree():
+		return
+	if is_instance_valid(preferred) and preferred.is_visible_in_tree() and root.is_ancestor_of(preferred):
+		preferred.grab_focus()
+		return
+	for child in root.get_children():
+		if not child is Control or child.is_queued_for_deletion() or not child.is_visible_in_tree():
+			continue
+		if child.focus_mode == Control.FOCUS_ALL and not child is ScrollBar:
+			if not child is BaseButton or not child.disabled:
+				child.grab_focus()
+				return
+		focus_first(child)
+		var focused := root.get_viewport().gui_get_focus_owner()
+		if focused != null and child.is_ancestor_of(focused):
+			return
 
 
 ## Um Control que desenha um glyph da `GlyphLib`.
