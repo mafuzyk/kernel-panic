@@ -244,8 +244,8 @@ func _systems_test_b1(arena: Arena) -> void:
 	# assertion. Drain both mote systems and wait until they are actually
 	# empty instead of trusting a fixed tick count; the assertion itself
 	# stays strict.
-	for mote in h.get_tree().get_nodes_in_group("motes"):
-		mote.queue_free()
+	# O laço sobre o grupo "motes" saiu junto com a classe Mote: o grupo nunca
+	# teve membros desde a reescrita MultiMesh, então ele drenava nada.
 	for slot in range(arena.mote_field.count() - 1, -1, -1):
 		arena.mote_field.kill_slot(slot)
 	await h._until(func() -> bool:
