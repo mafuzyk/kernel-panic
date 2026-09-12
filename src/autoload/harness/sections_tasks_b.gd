@@ -152,14 +152,43 @@ func _task9_test(arena: Arena) -> void:
 			h._check(selected_indices == [0], "patch card click emits its configured selection index")
 			patch_card.queue_free()
 			await h._ticks(2)
-	var patch_box_visual := arena.patch_box_rect_for_viewport(Vector2(1366, 768))
-	var patch_cards_visual: Array[Rect2] = arena.patch_card_rects_for_viewport(Vector2(1366, 768))
-	h._check(patch_box_visual.position.y > 230.0 and patch_box_visual.position.y < 270.0 and patch_box_visual.size.y > 280.0 and patch_box_visual.size.y < 315.0 and patch_box_visual.end.y < 570.0, "patch cards match the approved compact overlay proportion")
-	var patch_cards_aligned := patch_cards_visual.size() == 3
-	if patch_cards_aligned:
-		for card in patch_cards_visual:
-			patch_cards_aligned = patch_cards_aligned and absf(card.position.y - patch_cards_visual[0].position.y) < 0.01 and absf(card.size.y - patch_cards_visual[0].size.y) < 0.01
-	h._check(patch_cards_aligned, "patch cards share one straight baseline and height")
+			var long_card: Control = patch_card_script.new()
+			long_card.configure({"id": "restore", "title": "REINTEGRATION", "desc": "RECOVER LOST INTEGRITY", "rare": false, "legend": false}, 1)
+			long_card.size = Vector2(294.0, 295.0)
+			h.get_tree().current_scene.add_child(long_card)
+			await h._ticks(2)
+			var long_title = long_card.get("_title")
+			var long_title_fits := false
+			if long_title is Label:
+				var title_font: Font = long_title.get_theme_font("font")
+				var title_size: int = long_title.get_theme_font_size("font_size")
+				var measured := title_font.get_string_size("REINTEGRATION", HORIZONTAL_ALIGNMENT_LEFT, -1, title_size).x
+				long_title_fits = measured <= long_title.size.x + 0.5
+			h._check(long_title_fits, "long patch titles stay on one editorial heading line")
+			long_card.queue_free()
+			await h._ticks(2)
+		var patch_box_visual := arena.patch_box_rect_for_viewport(Vector2(1366, 768))
+		var patch_cards_visual: Array[Rect2] = arena.patch_card_rects_for_viewport(Vector2(1366, 768))
+		h._check(patch_box_visual.position.y > 230.0 and patch_box_visual.position.y < 270.0 and patch_box_visual.size.y > 280.0 and patch_box_visual.size.y < 315.0 and patch_box_visual.end.y < 570.0, "patch cards match the approved compact overlay proportion")
+		var patch_cards_aligned := patch_cards_visual.size() == 3
+		if patch_cards_aligned:
+			for card in patch_cards_visual:
+				patch_cards_aligned = patch_cards_aligned and absf(card.position.y - patch_cards_visual[0].position.y) < 0.01 and absf(card.size.y - patch_cards_visual[0].size.y) < 0.01
+		h._check(patch_cards_aligned, "patch cards share one straight baseline and height")
+		h._check(arena.has_method("patch_header_rect_for_viewport"), "patch offer exposes responsive editorial header geometry")
+		if arena.has_method("patch_header_rect_for_viewport"):
+			for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+				var header: Rect2 = arena.patch_header_rect_for_viewport(vp)
+				var box: Rect2 = arena.patch_box_rect_for_viewport(vp)
+				h._check(Rect2(Vector2.ZERO, vp).encloses(header) and header.end.y <= box.position.y,
+					"patch editorial header stays above the cards at %dx%d" % [int(vp.x), int(vp.y)])
+		var live_patch_panel = arena.get("_patch_panel")
+		var live_patch_title: Label = live_patch_panel.find_child("PatchOfferTitle", true, false) if live_patch_panel is Control else null
+		h._check(live_patch_panel is Control and live_patch_panel.theme == UiTheme.shared(), "patch offer wrapper uses the shared design theme")
+		h._check(live_patch_title != null and live_patch_title.get_theme_font("font") == Design.grotesk(Design.WEIGHT_BLACK),
+			"patch offer title uses the editorial grotesk instead of Orbitron")
+		h._check(live_patch_title != null and live_patch_title.horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT,
+			"patch offer title follows the left-aligned editorial hierarchy")
 	var tactical_surface_script: Script = load("res://src/ui/tactical_state_surface.gd")
 	var state_surface_ready := arena.has_method("state_panel_rect") and arena.has_method("state_action_rects") and arena.has_method("pause_action_labels") and arena.has_method("game_over_action_labels")
 	h._check(state_surface_ready, "state panels expose tactical geometry and action labels")
