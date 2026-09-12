@@ -1,21 +1,24 @@
 class_name AchievementsPanel
 extends Control
 
-## Overlay de conquistas do menu.
+## Conquistas na direção editorial/suíça do menu.
 ##
-## Primeira tela migrada para o design system (`src/ui/design/`). O layout usa
-## containers em vez de offsets absolutos, e toda cor, tamanho e espaçamento
-## vem de `Design` — nenhum número mágico.
-##
-## Corrige B1 da auditoria de 2026-09-11: este era o único dos quatro overlays
-## com fundo translúcido (alpha 0.88), então o menu inteiro vazava por trás e
-## colidia com as linhas de conquista. Os irmãos (bestiary, story, program)
-## sempre pintaram fundo opaco. Agora o contrato de opacidade é o token
-## `Design.SURFACE`.
+## O primeiro porte para `Design` ainda mantinha a gramática antiga: um grande
+## `TacticalPanel` central e uma moldura angular por conquista. Esta versão usa
+## a mesma linguagem de Program/Story/Bestiary: título grotesco, mono para a voz
+## de sistema, espaço + réguas como estrutura e cor semântica só como marcador.
 
-const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
+signal back_pressed
 
-const ACHIEVEMENT_HINTS := {
+const ACHIEVEMENT_HINT_KEYS := {
+	"first_blood": "AWARDS_HINT_FIRST_BLOOD",
+	"boss_purge": "AWARDS_HINT_BOSS_PURGE",
+	"chain_max": "AWARDS_HINT_CHAIN_MAX",
+	"terminal_operator": "AWARDS_HINT_TERMINAL_OPERATOR",
+	"integrity_restored": "AWARDS_HINT_INTEGRITY_RESTORED",
+}
+
+const ACHIEVEMENT_HINT_FALLBACKS := {
 	"first_blood": "Terminate your first daemon.",
 	"boss_purge": "Take down a ROOT-class boss.",
 	"chain_max": "Push the combo meter to its maximum multiplier.",
@@ -23,26 +26,39 @@ const ACHIEVEMENT_HINTS := {
 	"integrity_restored": "Recover integrity after it drops.",
 }
 
-## Altura mínima de uma linha. Acompanha o alvo de clique do design system.
-const ROW_HEIGHT := 52.0
-const ICON_SIZE := 26.0
+const ROW_MIN_HEIGHT := Design.CLICK_TARGET_MIN + Design.SPACE_XL
 
 var _header: Label
+var _title: Label
+var _subtitle: Label
+var _scroll: ScrollContainer
+var _rows_box: VBoxContainer
+var _footer: BoxContainer
+var _back_block: PanelContainer
+var _hint: Label
 var _row_controls: Array[Control] = []
 var _backdrop: ColorRect
-var _frame: MarginContainer
 
 
 func _ready() -> void:
 	theme = UiTheme.shared()
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	Game.achievement_unlocked.connect(_on_achievement_unlocked)
-	resized.connect(_layout_frame)
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if not Game.achievement_unlocked.is_connected(_on_achievement_unlocked):
+		Game.achievement_unlocked.connect(_on_achievement_unlocked)
 	_build()
+	_apply_layout_mode()
 
 
-# ── dados (API consumida pelo harness) ────────────────────────────────
+# ── conteúdo / contratos ─────────────────────────────────────────────
+
+func title_text() -> String:
+	return tr("AWARDS_TITLE")
+
+
+func title_font_size() -> int:
+	return Design.TEXT_HEADING if Design.breakpoint_for(size.x) == "compact" else Design.TEXT_TITLE
+
 
 func achievement_rows() -> Array:
 	var rows: Array = []
@@ -51,7 +67,7 @@ func achievement_rows() -> Array:
 			"id": str(id),
 			"label": str(Game.ACHIEVEMENT_DEFS[id]),
 			"unlocked": Game.achievements.has(id),
-			"hint": str(ACHIEVEMENT_HINTS.get(id, "")),
+			"hint": _hint_text(str(id)),
 		})
 	return rows
 
@@ -61,23 +77,34 @@ func progress_header() -> String:
 	for id in Game.ACHIEVEMENT_DEFS:
 		if Game.achievements.has(id):
 			unlocked += 1
-	return tr("AWARDS_HEADER").format([unlocked, Game.ACHIEVEMENT_DEFS.size()])
+	return tr("AWARDS_PROGRESS").format([unlocked, Game.ACHIEVEMENT_DEFS.size()])
 
 
-## Retângulo do painel. Contrato de geometria verificado pelo autotest: precisa
-## caber no viewport e manter no mínimo 240x220 mesmo em janela estreita.
+func row_ink(id: String) -> Dictionary:
+	var unlocked := Game.achievements.has(id)
+	return {
+		"title": Design.TEXT_PRIMARY if unlocked else Design.TEXT_SECONDARY,
+		"marker": Design.SUCCESS if unlocked else Design.TEXT_GHOST,
+		"body": Design.TEXT_SECONDARY if unlocked else Design.TEXT_MUTED,
+		"status": Design.SUCCESS if unlocked else Design.TEXT_MUTED,
+	}
+
+
+func _hint_text(id: String) -> String:
+	var key := str(ACHIEVEMENT_HINT_KEYS.get(id, ""))
+	if key != "":
+		var localized := tr(key)
+		if localized != key:
+			return localized
+	return str(ACHIEVEMENT_HINT_FALLBACKS.get(id, ""))
+
+
+## Mantido como API de compatibilidade. O "panel" agora é a página editorial,
+## não uma caixa tática centralizada.
 func awards_panel_rect(viewport: Vector2) -> Rect2:
-	var w: float = minf(Design.CONTENT_MAX_FORM, maxf(viewport.x - Design.SPACE_3XL, 240.0))
-	# A altura acompanha o CONTEÚDO, limitada pelo espaço disponível. Antes era
-	# sempre `viewport.y - 216`, o que em 1080p deixava ~500px de vazio abaixo
-	# de cinco linhas.
-	var rows := float(Game.ACHIEVEMENT_DEFS.size())
-	var content := Design.SPACE_LG * 2.0 + Design.TEXT_SUBHEAD * Design.LEADING_NORMAL \
-		+ Design.SPACE_LG + rows * ROW_HEIGHT + maxf(rows - 1.0, 0.0) * Design.SPACE_MD \
-		+ Design.SPACE_LG * 2.0
-	var available: float = maxf(viewport.y - 216.0, 220.0)
-	var h: float = clampf(content, 220.0, available)
-	return Rect2((viewport.x - w) * 0.5, 102.0, w, h)
+	var w := maxf(viewport.x - float(Design.SPACE_4XL) * 2.0, 240.0)
+	var h := maxf(viewport.y - float(Design.SPACE_2XL) * 2.0, 220.0)
+	return Rect2(Design.SPACE_4XL, Design.SPACE_2XL, w, h)
 
 
 func award_row_rects() -> Array[Rect2]:
@@ -88,15 +115,27 @@ func award_row_rects() -> Array[Rect2]:
 	return out
 
 
-## O fundo é OPACO por contrato — ver B1 no cabeçalho. Exposto para o autotest
-## poder afirmar isso como comportamento em vez de procurar string no código.
+func content_viewport_rect() -> Rect2:
+	if is_instance_valid(_scroll):
+		return Rect2(_scroll.global_position - global_position, _scroll.size)
+	return Rect2()
+
+
+func content_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for node in [_title, _subtitle, _header, _scroll, _footer]:
+		if node != null and is_instance_valid(node) and node.is_visible_in_tree():
+			out.append(Rect2(node.global_position, node.size))
+	return out
+
+
 func backdrop_opacity() -> float:
 	return _backdrop.color.a if is_instance_valid(_backdrop) else 0.0
 
 
 func refresh() -> void:
 	_build()
-	queue_redraw()
+	_apply_layout_mode()
 
 
 func _on_achievement_unlocked(_id: String, _label: String) -> void:
@@ -104,125 +143,178 @@ func _on_achievement_unlocked(_id: String, _label: String) -> void:
 		refresh()
 
 
-# ── construção ────────────────────────────────────────────────────────
+func _process(_delta: float) -> void:
+	if visible:
+		_sync_scroll_hint()
+
+
+# ── construção ───────────────────────────────────────────────────────
 
 func _build() -> void:
 	for child in get_children():
-		if child is Button:
-			continue
 		remove_child(child)
 		child.queue_free()
 	_row_controls.clear()
 
-	# Fundo opaco de tela cheia. O nome AwardsDim vem da versão anterior e é
-	# mantido para não quebrar referências externas; o que mudou é a opacidade.
 	_backdrop = ColorRect.new()
 	_backdrop.name = "AwardsDim"
-	_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_backdrop.color = Design.SURFACE
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_backdrop)
 
-	_frame = MarginContainer.new()
-	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
-		_frame.add_theme_constant_override(side, Design.SPACE_LG)
-	add_child(_frame)
+	var col := ScreenKit.page(self)
+	ScreenKit.gap(col, Design.SPACE_LG)
 
-	var panel := Panel.new()
-	panel.theme_type_variation = "TacticalPanel"
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_frame.add_child(panel)
+	_title = ScreenKit.grot(title_text(), Design.TEXT_TITLE, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
+	_title.autowrap_mode = TextServer.AUTOWRAP_WORD
+	col.add_child(_title)
 
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", Design.SPACE_LG)
-	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_frame.add_child(col)
+	_subtitle = ScreenKit.mono(tr("AWARDS_SUBTITLE"), Design.TEXT_CAPTION, Design.TEXT_SECONDARY)
+	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD
+	col.add_child(_subtitle)
 
-	_header = Label.new()
-	_header.theme_type_variation = "SubheadLabel"
-	_header.add_theme_color_override("font_color", Design.ACCENT)
-	_header.text = progress_header()
-	_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_header = ScreenKit.mono(progress_header(), Design.TEXT_MICRO, Design.TEXT_MUTED)
 	col.add_child(_header)
 
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	col.add_child(scroll)
+	ScreenKit.gap(col, Design.SPACE_XL)
+	ScreenKit.rule(col)
+	ScreenKit.gap(col, Design.SPACE_LG)
 
-	var rows_box := VBoxContainer.new()
-	rows_box.add_theme_constant_override("separation", Design.SPACE_MD)
-	rows_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(rows_box)
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(_scroll)
+
+	_rows_box = VBoxContainer.new()
+	_rows_box.add_theme_constant_override("separation", Design.SPACE_SM)
+	_rows_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(_rows_box)
 
 	for row in achievement_rows():
 		var row_control := _make_row(row)
 		_row_controls.append(row_control)
-		rows_box.add_child(row_control)
+		_rows_box.add_child(row_control)
 
-	_layout_frame()
-
-
-func _layout_frame() -> void:
-	if not is_instance_valid(_frame):
-		return
-	var rect := awards_panel_rect(size)
-	_frame.position = rect.position
-	_frame.size = rect.size
+	ScreenKit.gap(col, Design.SPACE_LG)
+	ScreenKit.rule(col)
+	ScreenKit.gap(col, Design.SPACE_MD)
+	_build_footer(col)
 
 
-## Uma linha de conquista. Desbloqueada usa o acento de sucesso e ganha ícone;
-## bloqueada fica rebaixada e mostra a dica na mesma linha.
+func _build_footer(parent: Node) -> void:
+	_footer = BoxContainer.new()
+	_footer.add_theme_constant_override("separation", Design.SPACE_XL)
+	parent.add_child(_footer)
+
+	_back_block = ScreenKit.action(tr("UI_BACK"), "[ESC]", "text",
+		func() -> void: back_pressed.emit())
+	_footer.add_child(_back_block)
+	ScreenKit.grow_h(_footer)
+
+	_hint = ScreenKit.mono(Design.scroll_hint(Design.touch_input()), Design.TEXT_MICRO, Design.TEXT_FAINT)
+	_hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_footer.add_child(_hint)
+
+
 func _make_row(row: Dictionary) -> Control:
+	var id := str(row.get("id", ""))
 	var unlocked := bool(row.get("unlocked", false))
-	var accent: Color = Design.SUCCESS if unlocked else Design.ACCENT_MUTED
+	var ink := row_ink(id)
 
 	var shell := PanelContainer.new()
-	shell.custom_minimum_size = Vector2(0.0, ROW_HEIGHT)
+	shell.custom_minimum_size = Vector2(0.0, ROW_MIN_HEIGHT)
 	shell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	shell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var style := TacticalStyleBox.new()
-	style.accent = accent
-	style.fill_alpha = 0.06 if unlocked else 0.015
-	style.rail_length = 48.0
+	var style := StyleBoxFlat.new()
+	style.bg_color = Design.SURFACE_RAISED if unlocked else Design.SURFACE_SUNKEN
+	style.border_width_left = int(Design.STROKE_THICK)
+	style.border_color = ink.get("marker", Design.TEXT_GHOST)
+	style.content_margin_left = Design.SPACE_LG
+	style.content_margin_right = Design.SPACE_LG
+	style.content_margin_top = Design.SPACE_MD
+	style.content_margin_bottom = Design.SPACE_MD
 	shell.add_theme_stylebox_override("panel", style)
 
 	var line := HBoxContainer.new()
-	line.add_theme_constant_override("separation", Design.SPACE_MD)
+	line.add_theme_constant_override("separation", Design.SPACE_LG)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	shell.add_child(line)
 
-	# A coluna do ícone é SEMPRE reservada, mesmo bloqueada. Sem isso o texto
-	# das linhas sem ícone começa mais à esquerda e a margem esquerda da lista
-	# fica serrilhada.
-	var icon_slot := Control.new()
-	icon_slot.custom_minimum_size = Vector2(ICON_SIZE, ICON_SIZE)
-	icon_slot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	icon_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_child(icon_slot)
-	if unlocked:
-		var icon: Control = TacticalIconScript.new()
-		icon.set_anchors_preset(Control.PRESET_FULL_RECT)
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		icon_slot.add_child(icon)
-		icon.call("configure", "check", Design.SUCCESS)
+	var state_mark := ScreenKit.mono("✓" if unlocked else "·", Design.TEXT_SUBHEAD,
+		ink.get("marker", Design.TEXT_GHOST))
+	state_mark.custom_minimum_size.x = Design.SPACE_XL
+	state_mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	state_mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(state_mark)
 
-	var label := Label.new()
-	label.theme_type_variation = "CaptionLabel"
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if unlocked:
-		label.text = str(row.get("label", ""))
-		label.add_theme_color_override("font_color", Design.SUCCESS)
-	else:
-		label.text = "%s  //  %s" % [str(row.get("label", "")), str(row.get("hint", ""))]
-		label.add_theme_color_override("font_color", Design.TEXT_FAINT)
-	line.add_child(label)
+	var text_col := VBoxContainer.new()
+	text_col.add_theme_constant_override("separation", Design.SPACE_XS)
+	text_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_child(text_col)
 
+	var title := ScreenKit.grot(str(row.get("label", "")), Design.TEXT_SUBHEAD,
+		Design.WEIGHT_BOLD, ink.get("title", Design.TEXT_PRIMARY))
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	text_col.add_child(title)
+
+	var hint := ScreenKit.mono(str(row.get("hint", "")), Design.TEXT_CAPTION,
+		ink.get("body", Design.TEXT_FAINT))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_col.add_child(hint)
+
+	var status := ScreenKit.mono(tr("AWARDS_UNLOCKED") if unlocked else tr("AWARDS_LOCKED"),
+		Design.TEXT_MICRO, ink.get("status", Design.TEXT_MUTED))
+	status.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(status)
+
+	shell.set_meta("title", title)
+	shell.set_meta("hint", hint)
+	shell.set_meta("status", status)
+	shell.set_meta("id", id)
 	return shell
+
+
+func _apply_layout_mode() -> void:
+	if not is_instance_valid(_title):
+		return
+	var step := Design.breakpoint_for(size.x)
+	var narrow := step == "compact" or step == "medium"
+	_title.add_theme_font_size_override("font_size", title_font_size())
+	_subtitle.visible = not narrow
+	if is_instance_valid(_back_block):
+		ScreenKit.set_action_density(_back_block, narrow)
+	_sync_scroll_hint()
+
+
+func _sync_scroll_hint() -> void:
+	if not is_instance_valid(_hint) or not is_instance_valid(_scroll):
+		return
+	var bar := _scroll.get_v_scroll_bar()
+	var scrollable := bar != null and bar.max_value > bar.page
+	_hint.visible = scrollable and Design.breakpoint_for(size.x) in ["wide", "ultra"]
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED:
+		_apply_layout_mode()
+
+
+## O hint quebra linha por construção. O que precisamos garantir é que, no
+## menor viewport suportado pelo harness, ainda exista coluna útil suficiente
+## para uma palavra longa e o título de máquina não precise sair do card.
+func text_overflow_report() -> Array:
+	var page_w := maxf(size.x - float(Design.SPACE_4XL) * 2.0, 120.0)
+	var inner := page_w - float(Design.SPACE_LG) * 2.0 \
+		- float(Design.SPACE_XL) - float(Design.SPACE_LG) * 2.0
+	var longest_title := "INTEGRITY_RESTORED"
+	var title_w := Design.grotesk(Design.WEIGHT_BOLD).get_string_size(
+		longest_title, HORIZONTAL_ALIGNMENT_LEFT, -1, Design.TEXT_SUBHEAD).x
+	return [
+		{"id": "awards_title", "fits": title_w <= maxf(inner, 120.0)},
+		{"id": "awards_hint_wrap", "fits": inner >= 120.0},
+	]
