@@ -48,7 +48,10 @@ func _detail_glyph_box(rail: Rect2) -> Rect2:
 	var w := minf(float(DETAIL_METRICS["glyph_box_w"]), maxf(rail.size.x - 2.0 * float(DETAIL_METRICS["inset"]), 0.0))
 	return Rect2(rail.position + Vector2(rail.size.x - w - float(DETAIL_METRICS["inset"]), 32.0), Vector2(w, float(DETAIL_METRICS["glyph_box_h"])))
 
-func _entry_color(id: String) -> Color:
+## Cor de identidade de uma entidade. Estática porque o seletor de fase também
+## precisa dela para listar as ameaças de cada ponto de montagem, e duas tabelas
+## de cor para a mesma entidade sairiam de sincronia na primeira mudança.
+static func entry_color(id: String) -> Color:
 	match id:
 		"drone": return Balance.COL_DRONE
 		"lancer": return Balance.COL_LANCER
@@ -66,6 +69,11 @@ func _entry_color(id: String) -> Color:
 		"update_loop": return Color("67b8ff")
 		"bloatware": return Color("4b9ee8")
 		_: return Balance.COL_TEXT
+
+
+func _entry_color(id: String) -> Color:
+	return entry_color(id)
+
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -191,6 +199,16 @@ func _select_at(position: Vector2) -> void:
 ## afirmar comportamento em vez de procurar string no arquivo.
 func scroll_hint_text() -> String:
 	return Design.scroll_hint(Design.touch_input())
+
+
+## Silhuetas que esta tela mostra, na ordem da lista. Exposto para o autotest
+## afirmar que o bestiário reusa a biblioteca de glyphs por comportamento em
+## vez de procurar "GlyphLib.draw_" no código-fonte.
+func glyph_kinds() -> Array[String]:
+	var out: Array[String] = []
+	for entry in ENTRIES:
+		out.append(str(entry["id"]))
+	return out
 
 
 func _draw() -> void:

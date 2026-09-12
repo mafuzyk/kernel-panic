@@ -290,45 +290,25 @@ func _refresh_program_label() -> void:
 func _open_program_selector() -> void:
 	if _program_panel == null:
 		_program_panel = ProgramPanel.new()
-		_program_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+		# `set_anchors_preset` deixa os offsets como estavam; sob um CanvasLayer
+		# isso dá tamanho zero e a tela inteira colapsa.
+		_program_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		_program_panel.selection_changed.connect(func(_id: String) -> void:
 			_refresh_program_label()
 		)
-		var title := Label.new()
-		title.text = "SELECT PROGRAM"
-		title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
-		title.add_theme_font_size_override("font_size", 28)
-		title.add_theme_color_override("font_color", Balance.COL_TEXT)
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		title.anchor_left = 0.0
-		title.anchor_right = 1.0
-		title.offset_top = 60.0
-		title.offset_bottom = 110.0
-		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_program_panel.add_child(title)
-		var hint := Label.new()
-		hint.text = "Choose the process that survives the purge."
-		hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		hint.add_theme_font_size_override("font_size", 13)
-		hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.anchor_left = 0.0
-		hint.anchor_right = 1.0
-		hint.offset_top = 112.0
-		hint.offset_bottom = 136.0
-		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_program_panel.add_child(hint)
-		var back := Button.new()
-		_chrome_kit._style_overlay_back(back)
-		back.pressed.connect(_close_program_selector)
-		_program_panel.add_child(back)
+		_program_panel.back_pressed.connect(_close_program_selector)
+		# O rodapé anterior desenhava ">> BOOT KERNEL [ENTER]" e não fazia nada:
+		# era rótulo sem ação. Agora ele faz o que diz.
+		_program_panel.boot_pressed.connect(func() -> void:
+			_close_program_selector()
+			_start()
+		)
 		var layer := CanvasLayer.new()
 		layer.layer = 70
 		layer.add_child(_program_panel)
 		add_child(layer)
 	_program_panel.visible = true
 	_program_panel.scroll_y = 0.0
-	_program_panel.queue_redraw()
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_program_selector() -> void:
@@ -341,36 +321,12 @@ func _open_story_selector() -> void:
 		if story_script == null:
 			return
 		_story_panel = story_script.new()
-		_story_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-		_story_panel.stage_selected.connect(_start_story)
-		var title := Label.new()
-		title.text = "SELECT MOUNT POINT"
-		title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
-		title.add_theme_font_size_override("font_size", 28)
-		title.add_theme_color_override("font_color", Balance.COL_TEXT)
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		title.anchor_left = 0.0
-		title.anchor_right = 1.0
-		title.offset_top = 60.0
-		title.offset_bottom = 110.0
-		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_story_panel.add_child(title)
-		var hint := Label.new()
-		hint.text = "Trace the infection across three operating systems."
-		hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		hint.add_theme_font_size_override("font_size", 13)
-		hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.anchor_left = 0.0
-		hint.anchor_right = 1.0
-		hint.offset_top = 112.0
-		hint.offset_bottom = 136.0
-		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_story_panel.add_child(hint)
-		var back := Button.new()
-		_chrome_kit._style_overlay_back(back)
-		back.pressed.connect(_close_story_selector)
-		_story_panel.add_child(back)
+		_story_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		# `stage_selected` passou a significar DESTACAR, não entrar. Antes ele
+		# ia direto em `_start_story`, então clicar num card já iniciava a fase
+		# e o painel de detalhe — a metade direita da tela — nunca era lido.
+		_story_panel.stage_mounted.connect(_start_story)
+		_story_panel.back_pressed.connect(_close_story_selector)
 		var layer := CanvasLayer.new()
 		layer.layer = 70
 		layer.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -378,7 +334,6 @@ func _open_story_selector() -> void:
 		add_child(layer)
 	_story_panel.visible = true
 	_story_panel.scroll_y = 0.0
-	_story_panel.queue_redraw()
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_story_selector() -> void:

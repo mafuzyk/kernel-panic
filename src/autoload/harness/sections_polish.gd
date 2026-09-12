@@ -238,25 +238,61 @@ func _story_path_test() -> void:
 	h._check(script != null, "story panel script loads")
 	if script == null:
 		return
-	var src := str(script.source_code)
-	h._check(src.contains("_draw_node_brackets"), "story rail draws node brackets")
-	h._check(src.contains("_draw_state_glyph"), "story rail draws state rings and glyphs")
-	h._check(src.contains("\"CLEARED\"") and src.contains("\"CURRENT\"") and src.contains("\"LOCKED\""), "story rail renders the three state labels")
-	h._check(src.contains("sin(t"), "story rail keeps the cosmetic-time pulse (no gameplay rng)")
+	# Estas quatro asserções eram texto-fonte: procuravam `_draw_node_brackets`,
+	# `_draw_state_glyph` e `sin(t` DENTRO do arquivo. Passavam mesmo se as
+	# funções nunca fossem chamadas, e travavam a rota na forma desenhada à mão.
+	# O que elas queriam garantir é comportamento: os três estados existem, são
+	# distinguíveis, e a animação do marcador não toca a rng de gameplay.
 	var panel = script.new()
 	if panel == null:
 		return
+	h.get_tree().current_scene.add_child(panel)
+	panel.size = Vector2(1366, 768)
+	await h._ticks(2)
+
+	var states := ["CLEARED", "CURRENT", "LOCKED"]
+	var inks: Array[Color] = []
+	var labels := {}
+	for state in states:
+		inks.append(panel.call("state_ink", state, 0))
+		labels[str(panel.call("state_label", str(state)))] = true
+	h._check(labels.size() == states.size(), "story rail renders three distinct state labels")
+	var distinct := true
+	for i in inks.size():
+		for j in range(i + 1, inks.size()):
+			if inks[i].is_equal_approx(inks[j]):
+				distinct = false
+	h._check(distinct, "story rail gives each state its own ink")
+	h._check(states.has(str(panel.call("stage_state", 0))), "story rail reports a known state for the first stage")
+
+	# O pulso do marcador usa tempo de frame. Se ele sorteasse, a rota
+	# consumiria a mesma sequência que o gameplay — o invariante real.
+	var seed_before: int = Game.rng.seed
+	await h._ticks(6)
+	h._check(Game.rng.seed == seed_before, "story rail pulse never advances the gameplay rng")
+
+	# As silhuetas da tela precisam ser tipos que a biblioteca sabe desenhar:
+	# se o seletor mostra uma forma e a arena mostra outra, ele ensina errado.
+	var kinds: Array = panel.call("glyph_kinds")
+	h._check(not kinds.is_empty(), "story detail lists the threats of the selected stage")
+	var glyph_seed: int = Game.rng.seed
+	for kind in kinds:
+		GlyphLib.draw_glyph(null, str(kind), Vector2.ZERO, 16.0, Color.CYAN, 0.0)
+	h._check(Game.rng.seed == glyph_seed, "story threat glyphs never advance the gameplay rng")
+
 	var ok := true
 	var saw_labels := false
 	for vp in [Vector2(1366, 768), Vector2(432, 720)]:
 		panel.size = vp
+		await h._ticks(2)
 		for entry in panel.call("text_overflow_report"):
 			if str(entry.get("id", "")) == "story_state_labels":
 				saw_labels = true
 			ok = ok and bool(entry.get("fits", false))
 	h._check(saw_labels, "story report carries the story_state_labels entry")
 	h._check(ok, "story rail report stays green including the state labels")
-	panel.free()
+	panel.queue_free()
+	await h._ticks(2)
 
 func _leak_guard_test() -> void:
 	print("AT_STEP leak_guard")

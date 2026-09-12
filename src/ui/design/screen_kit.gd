@@ -212,3 +212,37 @@ static func set_action_label(block: PanelContainer, text: String) -> void:
 		var node: Label = block.get_meta("label_node")
 		if is_instance_valid(node):
 			node.text = text
+
+
+## Um Control que desenha um glyph da `GlyphLib`.
+##
+## Existe para as telas não reimplementarem desenho de entidade: o bestiário, o
+## seletor de programa e o de fase mostram as MESMAS silhuetas que a arena, e é
+## esse vínculo que faz a tela ensinar reconhecimento em vez de decorar.
+##
+## `portrait` escolhe o ponto de entrada de retrato (tamanho grande) em vez do
+## de arena. A cor sai de um meta para poder mudar sem reconstruir o nó.
+static func glyph(kind: String, color: Color, px: float, portrait: bool = false) -> Control:
+	var node := Control.new()
+	node.custom_minimum_size = Vector2(px, px)
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	node.set_meta("glyph_kind", kind)
+	node.set_meta("glyph_color", color)
+	node.set_meta("glyph_portrait", portrait)
+	node.draw.connect(func() -> void:
+		var radius: float = minf(node.size.x, node.size.y) * 0.44
+		var tint: Color = node.get_meta("glyph_color")
+		var id: String = str(node.get_meta("glyph_kind"))
+		if bool(node.get_meta("glyph_portrait")):
+			GlyphLib.draw_portrait(node, id, node.size * 0.5, radius, tint)
+		else:
+			GlyphLib.draw_glyph(node, id, node.size * 0.5, radius, tint)
+	)
+	return node
+
+
+static func set_glyph_tint(node: Control, color: Color) -> void:
+	if node == null or not is_instance_valid(node) or not node.has_meta("glyph_color"):
+		return
+	node.set_meta("glyph_color", color)
+	node.queue_redraw()

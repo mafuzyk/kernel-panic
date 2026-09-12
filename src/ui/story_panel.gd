@@ -1,28 +1,86 @@
 class_name StoryPanel
 extends Control
 
-const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
-const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
+## Seleção de ponto de montagem na direção editorial.
+##
+## Porte de 2026-09-12. A versão anterior desenhava um "mapa de rota": uma grade
+## de cards ligados por linhas, tudo em `_draw()` com offset absoluto. Numa
+## coluna de ~538px com seis colunas os cards ficavam com 156px e o texto caía
+## para 9px — a tela existia para você LER a fase antes de entrar, e não dava
+## para ler.
+##
+## Aqui a rota virou uma LISTA vertical numerada. A progressão continua legível
+## (01, 02, 03… de cima para baixo, estado ao lado), e cada linha tem largura de
+## sobra para o caminho e o título. O painel de detalhe à direita passou a ser
+## o corpo da tela em vez de um apêndice.
+##
+## Duas coisas que a tela antiga prometia e não cumpria:
+##
+## 1. Ela desenhava "MOUNT /boot [ENTER]" no rodapé, mas `stage_selected` estava
+##    ligado direto em `_start_story`: clicar num card JÁ entrava na fase. O
+##    rodapé era rótulo sem ação, e o painel de detalhe era impossível de ler,
+##    porque o clique que o preencheria também iniciava a partida. Agora são
+##    dois passos — `stage_selected` destaca, `stage_mounted` entra.
+## 2. O "ARENA PREVIEW" era uma grade estática com um ponto no meio, igual para
+##    todas as fases. Decoração fingindo informação. No lugar dele entram as
+##    silhuetas reais das ameaças daquela fase, desenhadas pela mesma
+##    `GlyphLib` que a arena usa.
 
 signal stage_selected(index: int)
+signal stage_mounted(index: int)
+signal back_pressed
+
+## Proporção da lista quando há espaço para as duas colunas.
+const LIST_RATIO := 0.40
+const ROW_HEIGHT := 72.0
+const THREAT_GLYPH := 30.0
+const ACTS := ["unix", "windows", "templeos"]
 
 var scroll_y := 0.0
-var _dragging := false
-var _press_position := Vector2.ZERO
-var _drag_start_y := 0.0
-var _scroll_start := 0.0
+var t := 0.0
 var _card_rects: Dictionary = {}
 var _tab_rects: Dictionary = {}
 var _selected_stage := 0
 var _act_filter := "unix"
 
+var _title: Label
+var _subtitle: Label
+var _tabs_row: HBoxContainer
+var _body: BoxContainer
+var _scroll: ScrollContainer
+var _rows_box: VBoxContainer
+var _detail_scroll: ScrollContainer
+var _detail: VBoxContainer
+var _footer: BoxContainer
+var _mount_block: PanelContainer
+var _back_block: PanelContainer
+var _hint: Label
+var _rows: Dictionary = {}
+var _tabs: Dictionary = {}
+
+var _dragging := false
+var _press_position := Vector2.ZERO
+var _drag_start_y := 0.0
+var _scroll_start := 0.0
+
+
 func _ready() -> void:
+	theme = UiTheme.shared()
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var chrome: Control = TacticalChromeScript.new()
-	chrome.set_anchors_preset(Control.PRESET_FULL_RECT)
-	chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	chrome.call("configure_shell", TacticalUIHelper.CYAN, 0.0)
-	add_child(chrome)
+	_act_filter = _act_of(_selected_stage)
+	_build()
+	_apply_layout_mode()
+
+
+# ── conteúdo ──────────────────────────────────────────────────────────
+
+func title_text() -> String:
+	return tr("STORY_TITLE")
+
+
+func title_font_size() -> int:
+	return Design.TEXT_HEADING if Design.breakpoint_for(size.x) == "compact" else Design.TEXT_TITLE
+
 
 func available_stage_indices() -> Array:
 	var result: Array = []
@@ -31,72 +89,105 @@ func available_stage_indices() -> Array:
 			result.append(i)
 	return result
 
+
 func select_stage(index: int) -> bool:
 	if not Game.story_stage_unlocked(index):
 		return false
 	_selected_stage = index
+	var act := _act_of(index)
+	if act != _act_filter:
+		_act_filter = act
+		_rebuild_rows()
 	stage_selected.emit(index)
-	queue_redraw()
+	_refresh_rows()
+	_fill_detail()
 	return true
+
 
 func selected_stage_index() -> int:
 	return _selected_stage
 
-func _is_wide() -> bool:
-	return size.x >= 1080.0
 
-func _visible_stage_indices() -> Array:
-	var result: Array = []
-	for index in Game.story_stage_count():
-		var stage := Game.story_stage_def(index)
-		var act := str(stage.get("act", "unix"))
-		if _is_wide() and act != _act_filter:
-			continue
-		result.append(index)
-	return result
-
-func _columns() -> int:
-	if size.x >= 1080.0:
-		return 3
-	if size.x >= 720.0:
-		return 2
-	return 1
-
-## Largura mínima para o título e a descrição de uma fase caberem sem corte.
-const MIN_CARD_W := 150.0
+## Estado de uma fase. Público porque é o que o autotest deve afirmar — a
+## versão anterior era verificada procurando `_draw_state_glyph` no texto do
+## arquivo, o que passava mesmo se a função nunca fosse chamada.
+func stage_state(index: int) -> String:
+	if not Game.story_stage_unlocked(index):
+		return "LOCKED"
+	if bool(Game.story_cleared.get(Game.story_stage_id(index), false)):
+		return "CLEARED"
+	return "CURRENT"
 
 
-func _content_metrics() -> Dictionary:
-	if _is_wide():
-		var route_w := size.x * 0.42
-		var gap := 10.0
-		# As colunas saem de uma largura MÍNIMA legível, não de um número fixo.
-		# Com `cols = 6` cravado num rail de ~538px os cards ficavam com 73px e
-		# a descrição era cortada no meio da palavra.
-		var cols: int = clampi(int((route_w - 48.0 + gap) / (MIN_CARD_W + gap)), 1, 6)
-		var card_h := 250.0
-		var card_w: float = (route_w - 48.0 - gap * float(cols - 1)) / float(cols)
-		var visible_count := _visible_stage_indices().size()
-		var rows := ceili(float(maxi(visible_count, 1)) / float(cols))
-		var content_h := rows * card_h + maxf(rows - 1, 0) * gap
-		var viewport_top := 210.0
-		var viewport_bottom: float = maxf(size.y - 132.0, viewport_top + card_h)
-		return {"cols": cols, "gap": gap, "card_h": card_h, "card_w": card_w, "rows": rows, "content_h": content_h, "viewport_top": viewport_top, "viewport_bottom": viewport_bottom, "viewport_h": viewport_bottom - viewport_top, "route_w": route_w}
-	var cols := _columns()
-	var gap := 18.0
-	var card_h := 190.0
-	var card_w: float = minf(390.0, (size.x - 48.0 - gap * float(cols - 1)) / float(cols))
-	var rows := ceili(float(Game.story_stage_count()) / float(cols))
-	var content_h := rows * card_h + maxf(rows - 1, 0) * gap
-	var viewport_top := 140.0
-	var viewport_bottom: float = maxf(size.y - 130.0, viewport_top)
-	return {"cols": cols, "gap": gap, "card_h": card_h, "card_w": card_w, "content_h": content_h, "viewport_top": viewport_top, "viewport_bottom": viewport_bottom, "viewport_h": viewport_bottom - viewport_top}
+func state_label(state: String) -> String:
+	match state:
+		"CLEARED": return tr("STORY_STATE_CLEARED")
+		"CURRENT": return tr("STORY_STATE_CURRENT")
+		_: return tr("STORY_STATE_LOCKED")
+
+
+## Os três estados têm tintas distintas — é isso que o teste de estado quer
+## garantir, não a existência de uma função de desenho.
+func state_ink(state: String, index: int = -1) -> Color:
+	match state:
+		"CLEARED": return Design.SUCCESS
+		"CURRENT": return _stage_color(index) if index >= 0 else Design.ACCENT
+		_: return Design.TEXT_GHOST
+
+
+func card_accent(index: int) -> Color:
+	var accent := _stage_color(index)
+	if index == _selected_stage and Game.story_stage_unlocked(index):
+		return accent
+	return Design.alpha(accent, 0.46)
+
+
+## Papéis de tinta de uma linha. A cor da fase fica no MARCADOR; o caminho e o
+## título ficam em tinta neutra.
+func card_ink(index: int) -> Dictionary:
+	var unlocked := Game.story_stage_unlocked(index)
+	var state := stage_state(index)
+	return {
+		"title": Design.TEXT_PRIMARY if unlocked else Design.TEXT_FAINT,
+		"marker": _stage_color(index),
+		"body": Design.TEXT_MUTED if unlocked else Design.TEXT_GHOST,
+		"state": state_ink(state, index),
+	}
+
+
+## Silhuetas que esta tela mostra. Exposto para o autotest afirmar que cada uma
+## é um tipo que a `GlyphLib` sabe desenhar, em vez de procurar a string
+## "GlyphLib.draw_" no código-fonte.
+func glyph_kinds() -> Array[String]:
+	var out: Array[String] = []
+	for kind in _threats(_selected_stage):
+		out.append(str(kind))
+	return out
+
+
+func mount_label() -> String:
+	return tr("STORY_MOUNT").format([str(Game.story_stage_def(_selected_stage).get("path", "/boot"))])
+
+
+func scroll_hint_text() -> String:
+	return Design.scroll_hint(Design.touch_input())
+
+
+# ── geometria consumida pelo autotest ─────────────────────────────────
+
+func content_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for node in [_title, _subtitle, _tabs_row, _body, _mount_block, _back_block, _footer]:
+		if node != null and is_instance_valid(node) and node.is_visible_in_tree():
+			out.append(Rect2(node.global_position, node.size))
+	return out
+
 
 func content_viewport_rect() -> Rect2:
-	var metrics := _content_metrics()
-	var x := 28.0 if _is_wide() else 0.0
-	var width := float(metrics.get("route_w", size.x)) if _is_wide() else size.x
-	return Rect2(x, float(metrics["viewport_top"]), width, float(metrics["viewport_h"]))
+	if is_instance_valid(_scroll):
+		return Rect2(_scroll.global_position - global_position, _scroll.size)
+	return Rect2()
+
 
 func visible_card_rects() -> Array[Rect2]:
 	var result: Array[Rect2] = []
@@ -107,31 +198,149 @@ func visible_card_rects() -> Array[Rect2]:
 			result.append(rect)
 	return result
 
-func card_accent(index: int) -> Color:
-	var accent := _stage_color(index)
-	if index == _selected_stage and Game.story_stage_unlocked(index):
-		return accent
-	return Color(accent.r, accent.g, accent.b, 0.46)
+
+## Aritmética pura: o harness chama isto em painel fora da árvore.
+func _content_metrics() -> Dictionary:
+	var step := Design.breakpoint_for(size.x)
+	var narrow := step == "compact" or step == "medium"
+	var page_w: float = maxf(size.x - float(Design.SPACE_4XL) * 2.0, 160.0)
+	var list_w: float = page_w if narrow else (page_w - float(Design.SPACE_XL)) * LIST_RATIO
+	var visible := _visible_stage_indices().size()
+	return {
+		"cols": 1,
+		"gap": float(Design.SPACE_SM),
+		"card_w": maxf(list_w, 120.0),
+		"card_h": ROW_HEIGHT,
+		"rows": visible,
+		"content_h": float(visible) * (ROW_HEIGHT + float(Design.SPACE_SM)),
+		"compact": narrow,
+	}
+
+
+## O caminho da fase acompanha a largura da linha. A 272px úteis, 22px deixam
+## "TempleOS::BOOT" sem espaço para o rótulo de estado ao lado.
+func _path_font_size() -> int:
+	return 18 if float(_content_metrics().get("card_w", 400.0)) < 360.0 else 22
+
+
+func _visible_stage_indices() -> Array:
+	var result: Array = []
+	for index in Game.story_stage_count():
+		if _act_of(index) == _act_filter:
+			result.append(index)
+	return result
+
+
+func _act_of(index: int) -> String:
+	return str(Game.story_stage_def(index).get("act", "unix"))
+
+
+func _stage_color(index: int) -> Color:
+	var stage := Game.story_stage_def(index)
+	var theme_data: Dictionary = stage.get("theme", {})
+	return theme_data.get("accent", Design.ACCENT)
+
+
+static func _act_color(act: String) -> Color:
+	match act:
+		"windows": return Color("b46bff")
+		"templeos": return Design.WARNING
+		_: return Design.ACCENT
+
+
+func _threats(index: int) -> Array:
+	var names: Array = []
+	for wave in Game.story_stage_def(index).get("waves", []):
+		for enemy in wave:
+			if not names.has(enemy):
+				names.append(enemy)
+	return names
+
+
+# ── processo ──────────────────────────────────────────────────────────
+
+## Pulso cosmético do marcador da fase atual. Usa tempo de frame, nunca a rng
+## de gameplay — é esse o invariante que o autotest afirma.
+func _process(delta: float) -> void:
+	if not visible:
+		return
+	t += delta
+	_sync_card_rects()
+	_sync_scroll_hint()
+	if is_instance_valid(_scroll):
+		scroll_y = float(_scroll.scroll_vertical)
+	for raw_index in _rows:
+		var row: PanelContainer = _rows[raw_index]
+		if is_instance_valid(row) and row.has_meta("pulse") and stage_state(int(raw_index)) == "CURRENT":
+			var dot: Control = row.get_meta("pulse")
+			if is_instance_valid(dot):
+				dot.modulate.a = 0.55 + sin(t * 4.0) * 0.35
+
+
+func _sync_card_rects() -> void:
+	_card_rects.clear()
+	for raw_index in _rows:
+		var row: Control = _rows[raw_index]
+		if is_instance_valid(row):
+			_card_rects[int(raw_index)] = Rect2(row.global_position - global_position, row.size)
+	_tab_rects.clear()
+	for raw_act in _tabs:
+		var tab: Control = _tabs[raw_act]
+		if is_instance_valid(tab):
+			_tab_rects[str(raw_act)] = Rect2(tab.global_position - global_position, tab.size)
+
+
+func _sync_scroll_hint() -> void:
+	if not is_instance_valid(_hint) or not is_instance_valid(_scroll):
+		return
+	var bar := _scroll.get_v_scroll_bar()
+	var scrollable := bar != null and bar.max_value > bar.page
+	# Só em tela larga: a 720 a dica empurra o bloco de ação para fora da coluna.
+	_hint.visible = scrollable and Design.breakpoint_for(size.x) in ["wide", "ultra"]
+
+
+# ── entrada ───────────────────────────────────────────────────────────
+
+func _scroll_to(value: float) -> void:
+	if is_instance_valid(_scroll):
+		_scroll.scroll_vertical = int(maxf(value, 0.0))
+		scroll_y = float(_scroll.scroll_vertical)
+	_sync_card_rects()
+
+
+func _select_act(act_id: String) -> void:
+	if act_id == "" or act_id == _act_filter or not ACTS.has(act_id):
+		return
+	_act_filter = act_id
+	_rebuild_rows()
+	_scroll_to(0.0)
+	# A primeira fase do ato passa a ser o destaque: sem isso o detalhe mostra
+	# uma fase que não está na lista visível.
+	var visible := _visible_stage_indices()
+	if not visible.is_empty():
+		_selected_stage = int(visible[0])
+		stage_selected.emit(_selected_stage)
+		_refresh_rows()
+		_fill_detail()
+
 
 func _tab_for_position(position: Vector2) -> String:
 	for raw_act in _tab_rects:
-		if _tab_rects[raw_act].has_point(position):
+		var rect: Rect2 = _tab_rects[raw_act]
+		if rect.has_point(position):
 			return str(raw_act)
 	return ""
 
-func _select_act(act_id: String) -> void:
-	if act_id == "" or act_id == _act_filter:
-		return
-	_act_filter = act_id
-	_scroll_to(0.0)
-	queue_redraw()
 
-func _scroll_to(value: float) -> void:
-	var metrics := _content_metrics()
-	var content_top: float = 214.0 if _is_wide() else 150.0
-	var max_scroll: float = maxf(content_top + float(metrics["content_h"]) - float(metrics["viewport_bottom"]), 0.0)
-	scroll_y = clampf(value, 0.0, max_scroll)
-	queue_redraw()
+## ENTER monta a fase destacada. Só chega aqui se nenhum botão da tela tiver
+## foco — com foco, o próprio botão consome o ui_accept.
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not visible or not (event is InputEventKey) or not event.is_pressed() or event.is_echo():
+		return
+	if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+		_mount()
+		get_viewport().set_input_as_handled()
+
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -149,11 +358,7 @@ func _gui_input(event: InputEvent) -> void:
 				_scroll_start = scroll_y
 			else:
 				if _dragging and event.position.distance_to(_press_position) < 14.0:
-					var act := _tab_for_position(event.position)
-					if act != "":
-						_select_act(act)
-					else:
-						_select_at(event.position)
+					_tap(event.position)
 				_dragging = false
 			accept_event()
 	elif event is InputEventMouseMotion and _dragging:
@@ -167,265 +372,516 @@ func _gui_input(event: InputEvent) -> void:
 			_scroll_start = scroll_y
 		else:
 			if _dragging and event.position.distance_to(_press_position) < 18.0:
-				var act := _tab_for_position(event.position)
-				if act != "":
-					_select_act(act)
-				else:
-					_select_at(event.position)
+				_tap(event.position)
 			_dragging = false
 		accept_event()
 	elif event is InputEventScreenDrag and _dragging:
 		_scroll_to(_scroll_start - (event.position.y - _drag_start_y))
 		accept_event()
 
+
+func _tap(position: Vector2) -> void:
+	_sync_card_rects()
+	var act := _tab_for_position(position)
+	if act != "":
+		_select_act(act)
+		Sfx.play("ui", 1.05, -8.0)
+		return
+	_select_at(position)
+
+
 func _select_at(position: Vector2) -> void:
 	for raw_index in _card_rects:
 		var index := int(raw_index)
-		if _card_rects[index].has_point(position):
+		var rect: Rect2 = _card_rects[index]
+		if rect.has_point(position):
 			if select_stage(index):
 				Sfx.play("ui", 1.05, -8.0)
 			return
 
-var t := 0.0
 
-func _process(_delta: float) -> void:
-	t += _delta
-	queue_redraw()
-
-func _stage_color(index: int) -> Color:
-	var stage := Game.story_stage_def(index)
-	return stage.get("theme", {}).get("accent", Balance.COL_PLAYER)
-
-func _stage_state(index: int) -> String:
-	if not Game.story_stage_unlocked(index):
-		return "LOCKED"
-	if bool(Game.story_cleared.get(Game.story_stage_id(index), false)):
-		return "CLEARED"
-	return "CURRENT"
-
-func _draw_node_brackets(node: Vector2, radius: float, color: Color) -> void:
-	var arm := radius * 0.55
-	for sign_x in [-1.0, 1.0]:
-		for sign_y in [-1.0, 1.0]:
-			var corner := node + Vector2(sign_x * (radius + 5.0), sign_y * (radius + 5.0))
-			draw_line(corner, corner + Vector2(-sign_x * arm, 0.0), Color(color.r, color.g, color.b, 0.7), 1.2, true)
-			draw_line(corner, corner + Vector2(0.0, -sign_y * arm), Color(color.r, color.g, color.b, 0.7), 1.2, true)
-
-func _draw_state_glyph(node: Vector2, radius: float, state: String, color: Color) -> void:
-	match state:
-		"CLEARED":
-			draw_arc(node, radius + 3.0, 0.0, TAU, 24, Color(color.r, color.g, color.b, 0.95), 2.2, true)
-			var b := node + Vector2(radius + 6.0, -radius - 6.0)
-			draw_line(b + Vector2(-3.0, 0.0), b + Vector2(-0.5, 2.5), Color(color.r, color.g, color.b, 0.95), 2.0, true)
-			draw_line(b + Vector2(-0.5, 2.5), b + Vector2(3.5, -2.5), Color(color.r, color.g, color.b, 0.95), 2.0, true)
-		"CURRENT":
-			var pulse := radius + 3.0 + sin(t * 4.0) * 2.0
-			draw_arc(node, pulse, 0.0, TAU, 24, Color(color.r, color.g, color.b, 0.95), 2.6, true)
-		"LOCKED":
-			draw_arc(node, radius + 3.0, 0.0, TAU, 24, Color(color.r, color.g, color.b, 0.3), 2.0, true)
-			var lb := node + Vector2(radius + 6.0, -radius - 6.0)
-			draw_rect(Rect2(lb + Vector2(-3.0, -1.0), Vector2(6.0, 5.0)), Color(color.r, color.g, color.b, 0.6), false, 1.4)
-			draw_arc(lb + Vector2(0.0, -1.0), 2.2, PI, TAU, 10, Color(color.r, color.g, color.b, 0.6), 1.4, true)
-
-func _state_label_color(state: String, color: Color) -> Color:
-	match state:
-		"CLEARED":
-			return Color(color.r, color.g, color.b, 0.9)
-		"CURRENT":
-			return TacticalUIHelper.TEXT
-		_:
-			return Color(TacticalUIHelper.MUTED.r, TacticalUIHelper.MUTED.g, TacticalUIHelper.MUTED.b, 0.7)
-
-## Dica de rolagem conforme o dispositivo. Era "SWIPE TO SCROLL" fixo, o que
-## vazava no build de desktop (B7). Exposto como método para o autotest poder
-## afirmar comportamento em vez de procurar string no arquivo.
-func scroll_hint_text() -> String:
-	return Design.scroll_hint(Design.touch_input())
+func _mount() -> void:
+	if Game.story_stage_unlocked(_selected_stage):
+		stage_mounted.emit(_selected_stage)
 
 
-func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.01, 0.012, 0.03, 1.0))
-	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
-	var orbitron: Font = load("res://assets/fonts/Orbitron.ttf")
-	var metrics := _content_metrics()
-	var cols: int = metrics["cols"]
-	var gap: float = metrics["gap"]
-	var card_w: float = metrics["card_w"]
-	var card_h: float = metrics["card_h"]
-	var total_w := card_w * float(cols) + gap * float(cols - 1)
-	var x0 := 28.0 if _is_wide() else (size.x - total_w) * 0.5
-	var content_top: float = 214.0 if _is_wide() else 150.0
-	var y0 := content_top - scroll_y
-	var viewport_top: float = metrics["viewport_top"]
-	var viewport_bottom: float = metrics["viewport_bottom"]
-	_tab_rects.clear()
-	if _is_wide():
-		var tab_x := 28.0
-		var tab_y := 154.0
-		var tab_w := (float(metrics["route_w"]) - 20.0) / 3.0
-		for act_id in ["unix", "windows", "templeos"]:
-			var tab := Rect2(tab_x, tab_y, tab_w, 34.0)
-			_tab_rects[act_id] = tab
-			var tab_col := Balance.COL_PLAYER if act_id == "unix" else Color("b46bff") if act_id == "windows" else Balance.COL_MOTE
-			var active: bool = act_id == _act_filter
-			var tab_points := TacticalUIHelper.angular_points(tab, 7.0)
-			draw_colored_polygon(tab_points, Color(tab_col.r, tab_col.g, tab_col.b, 0.16 if active else 0.035))
-			draw_polyline(tab_points + PackedVector2Array([tab_points[0]]), Color(tab_col.r, tab_col.g, tab_col.b, 0.95 if active else 0.42), 1.7 if active else 1.0, true)
-			draw_string(mono, tab.position + Vector2(14.0, 22.0), act_id.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, tab.size.x - 28.0, 12, Color(tab_col.r, tab_col.g, tab_col.b, 1.0 if active else 0.58))
-			tab_x += tab_w + 10.0
-	var stage_indices: Array = _visible_stage_indices()
-	_card_rects.clear()
-	# Route connectors are drawn first so each stage marker remains legible above them.
-	for route_i in stage_indices.size() - 1:
-		var first_index: int = stage_indices[route_i]
-		var second_index: int = stage_indices[route_i + 1]
-		var first_col := route_i % cols
-		var first_row := route_i / cols
-		var second_col := (route_i + 1) % cols
-		var second_row := (route_i + 1) / cols
-		var first_center := Vector2(x0 + first_col * (card_w + gap) + card_w * 0.5, y0 + first_row * (card_h + gap) + card_h * 0.5)
-		var second_center := Vector2(x0 + second_col * (card_w + gap) + card_w * 0.5, y0 + second_row * (card_h + gap) + card_h * 0.5)
-		var route_col := _stage_color(second_index) if Game.story_stage_unlocked(second_index) else Color(TacticalUIHelper.MUTED.r, TacticalUIHelper.MUTED.g, TacticalUIHelper.MUTED.b, 0.25)
-		draw_line(first_center, second_center, Color(route_col.r, route_col.g, route_col.b, 0.54), 2.0)
-	for i in stage_indices.size():
-		var stage_index: int = stage_indices[i]
-		var stage := Game.story_stage_def(stage_index)
-		var col := i % cols
-		var row := i / cols
-		var origin := Vector2(x0 + col * (card_w + gap), y0 + row * (card_h + gap))
-		var rect := Rect2(origin, Vector2(card_w, card_h))
-		_card_rects[stage_index] = rect
-		if origin.y < viewport_top or origin.y + card_h > viewport_bottom:
+# ── construção ────────────────────────────────────────────────────────
+
+func _build() -> void:
+	var ground := ColorRect.new()
+	ground.color = Design.SURFACE
+	ground.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(ground)
+
+	var col := ScreenKit.page(self)
+	# Sem masthead. O wordmark KERNEL/PANIC pertence ao menu e às interrupções
+	# de jogo (pausa, fim de run), onde reancorar faz sentido. Numa subtela
+	# alcançada A PARTIR do menu ele é repetição que custa ~79px de altura — e
+	# era esse o custo que empurrava o detalhe para fora da tela a 720.
+	ScreenKit.gap(col, Design.SPACE_LG)
+
+	_title = ScreenKit.grot(title_text(), Design.TEXT_TITLE, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
+	_title.autowrap_mode = TextServer.AUTOWRAP_WORD
+	col.add_child(_title)
+	_subtitle = ScreenKit.mono(tr("STORY_SUBTITLE"), Design.TEXT_CAPTION, Design.TEXT_SECONDARY)
+	col.add_child(_subtitle)
+
+	ScreenKit.gap(col, Design.SPACE_XL)
+	ScreenKit.rule(col)
+	ScreenKit.gap(col, Design.SPACE_MD)
+	_build_tabs(col)
+	ScreenKit.gap(col, Design.SPACE_MD)
+	ScreenKit.rule(col)
+	ScreenKit.gap(col, Design.SPACE_XL)
+
+	_body = BoxContainer.new()
+	_body.add_theme_constant_override("separation", Design.SPACE_XL)
+	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(_body)
+
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_scroll.size_flags_stretch_ratio = LIST_RATIO
+	_body.add_child(_scroll)
+
+	_rows_box = VBoxContainer.new()
+	_rows_box.add_theme_constant_override("separation", Design.SPACE_SM)
+	_rows_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(_rows_box)
+
+	_detail_scroll = ScrollContainer.new()
+	_detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_detail_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_detail_scroll.size_flags_stretch_ratio = 1.0 - LIST_RATIO
+	_body.add_child(_detail_scroll)
+
+	_detail = VBoxContainer.new()
+	_detail.add_theme_constant_override("separation", 0)
+	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail_scroll.add_child(_detail)
+
+	ScreenKit.gap(col, Design.SPACE_XL)
+	ScreenKit.rule(col)
+	ScreenKit.gap(col, Design.SPACE_MD)
+	_build_footer(col)
+
+	_rebuild_rows()
+	_fill_detail()
+
+
+## Abas de ato. Sem moldura: rótulo e uma barra na cor do ato embaixo do ativo.
+## A versão anterior desenhava três caixas de canto cortado em três cores, todas
+## acesas ao mesmo tempo.
+func _build_tabs(parent: Node) -> void:
+	_tabs_row = HBoxContainer.new()
+	_tabs_row.add_theme_constant_override("separation", Design.SPACE_XL)
+	parent.add_child(_tabs_row)
+	for act in ACTS:
+		var act_id := str(act)
+		# PanelContainer e não VBox como raiz da aba: um `Button` filho de um
+		# VBox é DISPOSTO como mais uma linha e empurra a altura da fileira em
+		# ~31px de vazio. O PanelContainer estica todos os filhos para o mesmo
+		# retângulo, que é o que faz o botão transparente ficar por cima.
+		var cell := PanelContainer.new()
+		var transparent := StyleBoxFlat.new()
+		transparent.bg_color = Color(0, 0, 0, 0)
+		cell.add_theme_stylebox_override("panel", transparent)
+		_tabs_row.add_child(cell)
+
+		var stack := VBoxContainer.new()
+		stack.add_theme_constant_override("separation", Design.SPACE_SM)
+		stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(stack)
+
+		var label := ScreenKit.mono(tr("STORY_ACT_%s" % act_id.to_upper()), Design.TEXT_CAPTION,
+			Design.TEXT_MUTED)
+		stack.add_child(label)
+		var bar := ColorRect.new()
+		bar.color = _act_color(act_id)
+		bar.custom_minimum_size = Vector2(0, 2)
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		stack.add_child(bar)
+
+		var hit := Button.new()
+		hit.flat = true
+		hit.focus_mode = Control.FOCUS_ALL
+		hit.add_theme_stylebox_override("focus", _focus_ring())
+		hit.pressed.connect(func() -> void:
+			_select_act(act_id)
+			Sfx.play("ui", 1.05, -8.0)
+		)
+		cell.add_child(hit)
+
+		cell.set_meta("label", label)
+		cell.set_meta("bar", bar)
+		_tabs[act_id] = cell
+	_refresh_tabs()
+	ScreenKit.grow_h(_tabs_row)
+
+
+func _refresh_tabs() -> void:
+	for raw_act in _tabs:
+		var act_id := str(raw_act)
+		var cell: Control = _tabs[act_id]
+		if not is_instance_valid(cell):
 			continue
-		var unlocked: bool = Game.story_stage_unlocked(stage_index)
-		var selected: bool = stage_index == _selected_stage and unlocked
-		var accent: Color = card_accent(stage_index) if unlocked else _stage_color(stage_index)
-		var border := accent if unlocked else Color(accent.r, accent.g, accent.b, 0.24)
-		var card_points := TacticalUIHelper.angular_points(rect, 10.0)
-		# Opaque card fill keeps route connectors behind the card, never through its copy.
-		draw_colored_polygon(card_points, Color(0.01, 0.012, 0.03, 0.96))
-		if selected:
-			draw_colored_polygon(card_points, Color(border.r, border.g, border.b, 0.12))
-		draw_polyline(card_points + PackedVector2Array([card_points[0]]), border, 2.1 if selected else (1.7 if unlocked else 1.1), true)
-		if selected:
-			var selected_points := TacticalUIHelper.angular_points(rect.grow(-4.0), 7.0)
-			draw_polyline(selected_points + PackedVector2Array([selected_points[0]]), Color(border.r, border.g, border.b, 0.48), 1.0, true)
-		var name_text := str(stage.get("path", "")) if unlocked else "LOCKED"
-		var waves: int = stage.get("waves", []).size()
-		if _is_wide():
-			var node := origin + Vector2(card_w * 0.5, 42.0)
-			var state := _stage_state(stage_index)
-			draw_circle(node, 18.0, Color(border.r, border.g, border.b, 0.12))
-			draw_arc(node, 18.0, 0.0, TAU, 20, border, 1.4, true)
-			_draw_node_brackets(node, 18.0, border)
-			_draw_state_glyph(node, 18.0, state, border)
-			draw_string(mono, origin + Vector2(0.0, 47.0), "%02d" % (stage_index + 1), HORIZONTAL_ALIGNMENT_CENTER, card_w, 13, border)
-			draw_string(mono, origin + Vector2(0.0, 68.0), state, HORIZONTAL_ALIGNMENT_CENTER, card_w, 9, _state_label_color(state, border))
-			draw_string(orbitron, origin + Vector2(6.0, 82.0), name_text, HORIZONTAL_ALIGNMENT_CENTER, card_w - 12.0, 14, Balance.COL_TEXT if unlocked else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.42))
-			draw_string(mono, origin + Vector2(6.0, 98.0), str(stage.get("title", "STORY STAGE")) if unlocked else "LOCKED", HORIZONTAL_ALIGNMENT_CENTER, card_w - 12.0, 9, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.35))
-			var body := str(stage.get("intro", "")) if unlocked else "NOT MOUNTED"
-			draw_multiline_string(mono, origin + Vector2(8.0, 105.0), body, HORIZONTAL_ALIGNMENT_CENTER, card_w - 16.0, 9, 4, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.66 if unlocked else 0.32))
-			var footer := "%d WAVES" % waves if unlocked else "LOCKED"
-			draw_string(mono, origin + Vector2(8.0, card_h - 18.0), footer, HORIZONTAL_ALIGNMENT_CENTER, card_w - 16.0, 9, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.45))
-		else:
-			var node := origin + Vector2(42.0, 43.0)
-			var state := _stage_state(stage_index)
-			draw_circle(node, 18.0, Color(border.r, border.g, border.b, 0.12))
-			draw_arc(node, 18.0, 0.0, TAU, 20, border, 1.4, true)
-			_draw_node_brackets(node, 18.0, border)
-			_draw_state_glyph(node, 18.0, state, border)
-			draw_string(mono, origin + Vector2(31.0, 48.0), "%02d" % (stage_index + 1), HORIZONTAL_ALIGNMENT_LEFT, 24.0, 13, border)
-			draw_string(mono, origin + Vector2(12.0, 68.0), state, HORIZONTAL_ALIGNMENT_CENTER, 60.0, 9, _state_label_color(state, border))
-			draw_string(orbitron, origin + Vector2(76.0, 36.0), name_text, HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 18, Balance.COL_TEXT if unlocked else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.42))
-			draw_string(mono, origin + Vector2(76.0, 59.0), str(stage.get("title", "STORY STAGE")) if unlocked else "CLEAR THE PREVIOUS STAGE", HORIZONTAL_ALIGNMENT_LEFT, card_w - 92.0, 11, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.35))
-			var body := str(stage.get("intro", "")) if unlocked else "This process is not mounted yet."
-			draw_multiline_string(mono, origin + Vector2(16.0, 93.0), body, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 12, 2, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.68 if unlocked else 0.32))
-			var footer := "%d FIXED WAVES // READY" % waves if unlocked else "[ LOCKED ]"
-			draw_string(mono, origin + Vector2(16.0, card_h - 16.0), footer, HORIZONTAL_ALIGNMENT_LEFT, card_w - 32.0, 11, Color(border.r, border.g, border.b, 0.8 if unlocked else 0.45))
-	if _is_wide():
-		_draw_stage_detail(metrics, mono, orbitron)
-	var viewport_h: float = metrics["viewport_h"]
-	var content_h: float = metrics["content_h"]
-	var max_scroll: float = maxf(content_top + content_h - viewport_bottom, 0.0)
-	if max_scroll > 0.0:
-		var track := Rect2((float(metrics["route_w"]) if _is_wide() else size.x) - 22.0, float(metrics["viewport_top"]), 4.0, viewport_h)
-		var thumb_h: float = maxf(28.0, viewport_h * viewport_h / content_h)
-		var thumb_y: float = track.position.y + (track.size.y - thumb_h) * (scroll_y / max_scroll)
-		draw_rect(track, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.12))
-		draw_rect(Rect2(track.position.x, thumb_y, track.size.x, thumb_h), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.75))
-		draw_string(mono, Vector2(size.x - 210.0, size.y - 102.0), scroll_hint_text(), HORIZONTAL_ALIGNMENT_RIGHT, 180.0, 11, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
-	if _is_wide():
-		var footer: Rect2 = TacticalUIHelper.shell_sections(size)["footer"]
-		var mount := Rect2(Vector2(size.x * 0.50, footer.position.y), Vector2(size.x * 0.46, footer.size.y - 4.0))
-		var mount_points := TacticalUIHelper.angular_points(mount, 9.0)
-		var mount_accent := _stage_color(_selected_stage)
-		draw_colored_polygon(mount_points, Color(mount_accent.r, mount_accent.g, mount_accent.b, 0.08))
-		draw_polyline(mount_points + PackedVector2Array([mount_points[0]]), mount_accent, 1.7, true)
-		draw_string(orbitron, mount.position + Vector2(20.0, 30.0), "MOUNT %s" % str(Game.story_stage_def(_selected_stage).get("path", "/boot")), HORIZONTAL_ALIGNMENT_LEFT, mount.size.x - 110.0, 16, mount_accent)
-		draw_string(mono, mount.position + Vector2(mount.size.x - 76.0, 30.0), "[ENTER]", HORIZONTAL_ALIGNMENT_RIGHT, 62.0, 10, TacticalUIHelper.TEXT)
+		var active := act_id == _act_filter
+		var label: Label = cell.get_meta("label")
+		var bar: ColorRect = cell.get_meta("bar")
+		if is_instance_valid(label):
+			label.add_theme_color_override("font_color",
+				Design.TEXT_PRIMARY if active else Design.TEXT_MUTED)
+		if is_instance_valid(bar):
+			bar.color = _act_color(act_id) if active else Design.alpha(Design.TEXT_PRIMARY, 0.12)
 
-func _draw_stage_detail(metrics: Dictionary, mono: Font, orbitron: Font) -> void:
-	var route_w: float = metrics["route_w"]
-	var rail := Rect2(route_w + 48.0, float(metrics["viewport_top"]), size.x - route_w - 76.0, float(metrics["viewport_h"]))
-	var stage := Game.story_stage_def(_selected_stage)
-	var accent := _stage_color(_selected_stage)
-	var frame := TacticalUIHelper.angular_points(rail, 13.0)
-	draw_colored_polygon(frame, Color(accent.r, accent.g, accent.b, 0.055))
-	draw_polyline(frame + PackedVector2Array([frame[0]]), Color(accent.r, accent.g, accent.b, 0.66), 1.5, true)
-	draw_string(mono, rail.position + Vector2(18.0, 24.0), "MOUNT POINT // %s" % str(stage.get("path", "UNKNOWN")), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, Color(accent.r, accent.g, accent.b, 0.9))
-	draw_string(orbitron, rail.position + Vector2(18.0, 54.0), str(stage.get("title", "STORY STAGE")), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 20, TacticalUIHelper.TEXT)
-	var unlocked: bool = Game.story_stage_unlocked(_selected_stage)
-	draw_string(mono, rail.position + Vector2(18.0, 76.0), "STATUS: %s" % ("READY TO MOUNT" if unlocked else "LOCKED // CLEAR PREVIOUS"), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, accent if unlocked else TacticalUIHelper.MUTED)
-	var intro_size: int = TacticalUI.fit_block(mono, str(stage.get("intro", "")), rail.size.x - 36.0, 56.0, 12, 10)["font_size"]
-	draw_multiline_string(mono, rail.position + Vector2(18.0, 108.0), str(stage.get("intro", "")), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, intro_size, 5, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.74))
-	var divider_y := rail.position.y + 164.0
-	draw_line(rail.position + Vector2(18.0, divider_y - rail.position.y), rail.position + Vector2(rail.size.x - 18.0, divider_y - rail.position.y), Color(accent.r, accent.g, accent.b, 0.3), 1.0)
-	draw_string(mono, rail.position + Vector2(18.0, 188.0), "THREATS", HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, accent)
-	var threat_names: Array = []
-	for wave in stage.get("waves", []):
-		for enemy in wave:
-			if not threat_names.has(enemy):
-				threat_names.append(enemy)
-	var threat_text := ", ".join(threat_names)
-	draw_multiline_string(mono, rail.position + Vector2(18.0, 210.0), threat_text.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, 2, TacticalUIHelper.TEXT)
-	draw_string(mono, rail.position + Vector2(18.0, 252.0), "WAVES  %02d     SCALE  %.2fx" % [stage.get("waves", []).size(), float(stage.get("scale", 1.0))], HORIZONTAL_ALIGNMENT_LEFT, rail.size.x - 36.0, 11, TacticalUIHelper.MUTED)
-	var preview := Rect2(rail.position + Vector2(18.0, 274.0), Vector2(minf(rail.size.x - 36.0, 170.0), 92.0))
-	var preview_points := TacticalUIHelper.angular_points(preview, 8.0)
-	draw_colored_polygon(preview_points, Color(0.02, 0.06, 0.11, 0.75))
-	draw_polyline(preview_points + PackedVector2Array([preview_points[0]]), Color(accent.r, accent.g, accent.b, 0.42), 1.0, true)
-	for grid_i in range(1, 5):
-		draw_line(preview.position + Vector2(float(grid_i) * preview.size.x / 5.0, 8.0), preview.position + Vector2(float(grid_i) * preview.size.x / 5.0, preview.size.y - 8.0), Color(accent.r, accent.g, accent.b, 0.16), 1.0)
-	for grid_i in range(1, 3):
-		draw_line(preview.position + Vector2(8.0, float(grid_i) * preview.size.y / 3.0), preview.position + Vector2(preview.size.x - 8.0, float(grid_i) * preview.size.y / 3.0), Color(accent.r, accent.g, accent.b, 0.16), 1.0)
-	draw_circle(preview.get_center(), 5.0, accent)
-	draw_string(mono, preview.position + Vector2(12.0, 18.0), "ARENA PREVIEW", HORIZONTAL_ALIGNMENT_LEFT, preview.size.x - 24.0, 9, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.62))
+
+func _build_footer(parent: Node) -> void:
+	_footer = BoxContainer.new()
+	_footer.add_theme_constant_override("separation", Design.SPACE_XL)
+	parent.add_child(_footer)
+
+	_mount_block = ScreenKit.action(mount_label(), "[ENTER]", "primary", _mount)
+	_footer.add_child(_mount_block)
+	_back_block = ScreenKit.action(tr("UI_BACK"), "[ESC]", "text",
+		func() -> void: back_pressed.emit())
+	_footer.add_child(_back_block)
+	ScreenKit.grow_h(_footer)
+
+	_hint = ScreenKit.mono(scroll_hint_text(), Design.TEXT_MICRO, Design.TEXT_FAINT)
+	_hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_footer.add_child(_hint)
+
+
+static func _focus_ring() -> StyleBoxFlat:
+	var ring := StyleBoxFlat.new()
+	ring.bg_color = Color(0, 0, 0, 0)
+	for side in ["border_width_left", "border_width_right", "border_width_top", "border_width_bottom"]:
+		ring.set(side, int(Design.FOCUS_RING_WIDTH))
+	ring.border_color = Design.FOCUS_RING_COLOR
+	return ring
+
+
+func _rebuild_rows() -> void:
+	if not is_instance_valid(_rows_box):
+		return
+	for child in _rows_box.get_children():
+		_rows_box.remove_child(child)
+		child.queue_free()
+	_rows.clear()
+	for raw_index in _visible_stage_indices():
+		var index := int(raw_index)
+		var row := _make_row(index)
+		_rows[index] = row
+		_rows_box.add_child(row)
+	_refresh_tabs()
+	_refresh_rows()
+
+
+## Uma linha da rota: número, caminho, título, estado e contagem de ondas.
+func _make_row(index: int) -> PanelContainer:
+	var stage := Game.story_stage_def(index)
+	var row := PanelContainer.new()
+	row.custom_minimum_size = Vector2(0.0, ROW_HEIGHT)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var pad := MarginContainer.new()
+	pad.add_theme_constant_override("margin_left", Design.SPACE_LG)
+	pad.add_theme_constant_override("margin_right", Design.SPACE_LG)
+	pad.add_theme_constant_override("margin_top", Design.SPACE_MD)
+	pad.add_theme_constant_override("margin_bottom", Design.SPACE_MD)
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(pad)
+
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", Design.SPACE_LG)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pad.add_child(line)
+
+	# Marcador da fase: o número e, na fase atual, um ponto que pulsa. É o que
+	# sobrou do "nó da rota" da versão anterior — o mesmo sinal, sem os colchetes
+	# e os arcos desenhados à mão em volta.
+	var marker := HBoxContainer.new()
+	marker.add_theme_constant_override("separation", Design.SPACE_SM)
+	marker.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_child(marker)
+
+	var dot := ColorRect.new()
+	dot.custom_minimum_size = Vector2(4, 4)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	marker.add_child(dot)
+	var number := ScreenKit.mono("%02d" % (index + 1), Design.TEXT_CAPTION, Design.TEXT_MUTED)
+	number.custom_minimum_size = Vector2(24, 0)
+	marker.add_child(number)
+
+	var names := VBoxContainer.new()
+	names.add_theme_constant_override("separation", 0)
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	names.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	names.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_child(names)
+	var path_label := ScreenKit.grot(str(stage.get("path", "")), _path_font_size(),
+		Design.WEIGHT_BOLD, Design.TEXT_PRIMARY)
+	# "TempleOS::BOOT" não cabe em linha estreita. Reticências são degradação
+	# honesta; corte no meio do glifo não é.
+	path_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(path_label)
+	var title_label := ScreenKit.mono("", Design.TEXT_MICRO, Design.TEXT_MUTED)
+	names.add_child(title_label)
+
+	var meta := VBoxContainer.new()
+	meta.add_theme_constant_override("separation", 0)
+	meta.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	meta.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_child(meta)
+	var state_label := ScreenKit.mono("", Design.TEXT_MICRO, Design.TEXT_MUTED)
+	state_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	meta.add_child(state_label)
+	var waves_label := ScreenKit.mono("", Design.TEXT_MICRO, Design.TEXT_FAINT)
+	waves_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	meta.add_child(waves_label)
+
+	var hit := Button.new()
+	hit.flat = true
+	hit.focus_mode = Control.FOCUS_ALL
+	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hit.add_theme_stylebox_override("focus", _focus_ring())
+	var glow := StyleBoxFlat.new()
+	glow.bg_color = Design.alpha(Design.TEXT_PRIMARY, 0.06)
+	hit.add_theme_stylebox_override("hover", glow)
+	hit.pressed.connect(func() -> void:
+		if select_stage(index):
+			Sfx.play("ui", 1.05, -8.0)
+	)
+	row.add_child(hit)
+
+	row.set_meta("path", path_label)
+	row.set_meta("title", title_label)
+	row.set_meta("state", state_label)
+	row.set_meta("waves", waves_label)
+	row.set_meta("number", number)
+	row.set_meta("pulse", dot)
+	return row
+
+
+func _refresh_rows() -> void:
+	for raw_index in _rows:
+		var index := int(raw_index)
+		var row: PanelContainer = _rows[index]
+		if not is_instance_valid(row):
+			continue
+		var stage := Game.story_stage_def(index)
+		var unlocked := Game.story_stage_unlocked(index)
+		var selected := index == _selected_stage and unlocked
+		var ink: Dictionary = card_ink(index)
+		var state := stage_state(index)
+
+		var box := StyleBoxFlat.new()
+		box.bg_color = Design.SURFACE_RAISED if selected else Design.SURFACE_SUNKEN
+		box.border_width_left = int(Design.STROKE_THICK) if selected else 0
+		box.border_color = ink.get("marker", Design.ACCENT)
+		row.add_theme_stylebox_override("panel", box)
+
+		var path_text := str(stage.get("path", "")) if unlocked else tr("STORY_STATE_LOCKED")
+		_set_label(row, "path", ink.get("title", Design.TEXT_PRIMARY), path_text)
+		_set_label(row, "title", ink.get("body", Design.TEXT_MUTED),
+			_stage_title(index) if unlocked else tr("STORY_STATUS_LOCKED"))
+		_set_label(row, "state", ink.get("state", Design.TEXT_MUTED), state_label(state))
+		_set_label(row, "waves", Design.TEXT_FAINT,
+			"%02d %s" % [stage.get("waves", []).size(), tr("STORY_WAVES")])
+		_set_label(row, "number", ink.get("marker", Design.ACCENT) if unlocked else Design.TEXT_GHOST, "")
+
+		if row.has_meta("pulse"):
+			var dot: ColorRect = row.get_meta("pulse")
+			if is_instance_valid(dot):
+				dot.color = ink.get("state", Design.TEXT_MUTED)
+				dot.modulate.a = 1.0
+	if is_instance_valid(_mount_block):
+		ScreenKit.set_action_label(_mount_block, mount_label())
+
+
+func _set_label(row: PanelContainer, key: String, color: Color, text: String) -> void:
+	if not row.has_meta(key):
+		return
+	var label: Label = row.get_meta(key)
+	if not is_instance_valid(label):
+		return
+	label.add_theme_color_override("font_color", color)
+	if text != "":
+		label.text = text
+
+
+# ── detalhe ───────────────────────────────────────────────────────────
+
+func _stage_title(index: int) -> String:
+	return _content(index, "title", "STORY_TITLE_%s" % Game.story_stage_id(index).to_upper())
+
+
+func _stage_intro(index: int) -> String:
+	return _content(index, "intro", "STORY_INTRO_%s" % Game.story_stage_id(index).to_upper())
+
+
+## Conteúdo localizado com queda para o texto em inglês de `StoryData`. Uma
+## chave ausente volta como a própria chave — é esse o sinal de queda, e é o que
+## faz uma fase nova aparecer na tela mesmo antes de entrar no CSV.
+func _content(index: int, field: String, key: String) -> String:
+	var fallback := str(Game.story_stage_def(index).get(field, ""))
+	var translated := tr(key)
+	return fallback if translated == key else translated
+
+
+func _fill_detail() -> void:
+	if not is_instance_valid(_detail):
+		return
+	for child in _detail.get_children():
+		_detail.remove_child(child)
+		child.queue_free()
+
+	var index := _selected_stage
+	var stage := Game.story_stage_def(index)
+	var unlocked := Game.story_stage_unlocked(index)
+	var accent := _stage_color(index)
+
+	_detail.add_child(ScreenKit.mono(
+		tr("STORY_DETAIL_TAG").format([str(stage.get("path", ""))]),
+		Design.TEXT_MICRO, accent))
+	ScreenKit.gap(_detail, Design.SPACE_SM)
+	_detail.add_child(ScreenKit.grot(_stage_title(index), 34, Design.WEIGHT_BLACK,
+		Design.TEXT_PRIMARY if unlocked else Design.TEXT_FAINT))
+	ScreenKit.gap(_detail, Design.SPACE_XS)
+	_detail.add_child(ScreenKit.mono(
+		tr("STORY_STATUS_READY") if unlocked else tr("STORY_STATUS_LOCKED"),
+		Design.TEXT_MICRO, accent if unlocked else Design.TEXT_MUTED))
+
+	ScreenKit.gap(_detail, Design.SPACE_LG)
+	ScreenKit.rule(_detail)
+	ScreenKit.gap(_detail, Design.SPACE_LG)
+
+	var intro := ScreenKit.mono(
+		_stage_intro(index) if unlocked else tr("STORY_LOCKED_BODY"),
+		Design.TEXT_CAPTION, Design.TEXT_SECONDARY if unlocked else Design.TEXT_GHOST)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_detail.add_child(intro)
+
+	ScreenKit.gap(_detail, Design.SPACE_LG)
+	ScreenKit.stat_row(_detail, [
+		[tr("STORY_WAVES"), "%02d" % stage.get("waves", []).size()],
+		[tr("STORY_SCALE"), "%.2fx" % float(stage.get("scale", 1.0))],
+		[tr("STORY_BEST"), str(Game.story_stage_best(index))],
+	], 26)
+
+	ScreenKit.gap(_detail, Design.SPACE_LG)
+	_detail.add_child(ScreenKit.mono(tr("STORY_THREATS"), Design.TEXT_MICRO, Design.TEXT_MUTED))
+	ScreenKit.gap(_detail, Design.SPACE_SM)
+	_build_threats(_detail, index, unlocked)
+
 	var klog: Array = stage.get("klog", [])
-	var klog_x := 18.0 + preview.size.x + 20.0
-	var klog_width := maxf(rail.size.x - klog_x - 18.0, 0.0)
-	for log_i in mini(klog.size(), 2):
-		var klog_text := "> " + str(klog[log_i])
-		draw_string(mono, rail.position + Vector2(klog_x, 292.0 + float(log_i) * 20.0), TacticalUI.ellipsis_fit(mono, klog_text, klog_width, 10), HORIZONTAL_ALIGNMENT_LEFT, klog_width, 10, Color(TacticalUIHelper.TEXT.r, TacticalUIHelper.TEXT.g, TacticalUIHelper.TEXT.b, 0.56))
+	if unlocked and not klog.is_empty():
+		ScreenKit.gap(_detail, Design.SPACE_LG)
+		_detail.add_child(ScreenKit.mono(tr("STORY_KLOG"), Design.TEXT_MICRO, Design.TEXT_MUTED))
+		ScreenKit.gap(_detail, Design.SPACE_SM)
+		for log_i in mini(klog.size(), 2):
+			var log_line := ScreenKit.mono("> %s" % str(klog[log_i]), Design.TEXT_MICRO,
+				Design.TEXT_FAINT)
+			log_line.autowrap_mode = TextServer.AUTOWRAP_WORD
+			_detail.add_child(log_line)
 
+
+## As ameaças da fase, desenhadas pela mesma biblioteca que a arena usa, cada
+## uma na cor de identidade que ela tem em jogo. Substitui o "ARENA PREVIEW",
+## que era a mesma grade estática para todas as onze fases.
+func _build_threats(parent: Node, index: int, unlocked: bool) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", Design.SPACE_LG)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(row)
+	for kind in _threats(index):
+		var id := str(kind)
+		var cell := VBoxContainer.new()
+		cell.add_theme_constant_override("separation", Design.SPACE_XS)
+		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(cell)
+		var tint: Color = BestiaryPanel.entry_color(id) if unlocked else Design.TEXT_GHOST
+		var mark := ScreenKit.glyph(id, tint, THREAT_GLYPH)
+		mark.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		cell.add_child(mark)
+		var name_label := ScreenKit.mono(id.to_upper(), Design.TEXT_MICRO,
+			Design.TEXT_MUTED if unlocked else Design.TEXT_GHOST)
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cell.add_child(name_label)
+	ScreenKit.grow_h(row)
+
+
+# ── modo de layout ────────────────────────────────────────────────────
+
+func _apply_layout_mode() -> void:
+	if not is_instance_valid(_title):
+		return
+	var step := Design.breakpoint_for(size.x)
+	var narrow := step == "compact" or step == "medium"
+	_title.add_theme_font_size_override("font_size", title_font_size())
+	_subtitle.visible = not narrow
+	if is_instance_valid(_body):
+		# Em compact/medium a soma dos mínimos da lista e do detalhe ultrapassa a
+		# coluna útil (720px físicos deixam 592px após as margens de página). Empilhar
+		# aqui evita que o mínimo horizontal do corpo alargue a página inteira.
+		_body.vertical = narrow
+	var path_size := _path_font_size()
+	for raw_index in _rows:
+		var row: PanelContainer = _rows[raw_index]
+		if is_instance_valid(row) and row.has_meta("path"):
+			var path_label: Label = row.get_meta("path")
+			if is_instance_valid(path_label):
+				path_label.add_theme_font_size_override("font_size", path_size)
+	if is_instance_valid(_footer):
+		_footer.vertical = narrow
+		_footer.add_theme_constant_override("separation",
+			Design.SPACE_SM if narrow else Design.SPACE_XL)
+	for block in [_mount_block, _back_block]:
+		ScreenKit.set_action_density(block, narrow)
+	_sync_scroll_hint()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED:
+		_apply_layout_mode()
+
+
+# ── relatório de transbordamento ──────────────────────────────────────
+
+## Com container e autowrap a prosa não transborda por construção. O que ainda
+## pode estourar é um rótulo de linha única: o caminho da fase, o rótulo de
+## estado e a contagem de ondas, que dividem a largura de uma linha da lista.
 func text_overflow_report() -> Array:
-	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
-	var orbitron: Font = load("res://assets/fonts/Orbitron.ttf")
+	var mono: Font = Design.FONT_MONO
+	var metrics := _content_metrics()
+	var inner: float = float(metrics.get("card_w", 300.0)) - float(Design.SPACE_LG) * 2.0
+	var longest_path := ""
+	for index in Game.story_stage_count():
+		var path := str(Game.story_stage_def(index).get("path", ""))
+		if path.length() > longest_path.length():
+			longest_path = path
+	var longest_state := ""
+	for state in ["CLEARED", "CURRENT", "LOCKED"]:
+		var label := state_label(str(state))
+		if label.length() > longest_state.length():
+			longest_state = label
+	var path_w: float = Design.grotesk(Design.WEIGHT_BOLD).get_string_size(
+		longest_path, HORIZONTAL_ALIGNMENT_LEFT, -1, _path_font_size()).x
+	var state_w: float = mono.get_string_size(longest_state, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		Design.TEXT_MICRO).x
+	# Ponto (4) + número (24) + as duas separações internas. `inner` já
+	# desconta o padding da linha — somá-lo de novo aqui media o dobro.
+	var marker_w := 4.0 + 24.0 + float(Design.SPACE_SM) + float(Design.SPACE_LG)
 	var out: Array = []
-	var longest_intro := ""
-	var longest_title := ""
-	var longest_klog := ""
-	for stage_index in Game.story_stage_count():
-		var stage: Dictionary = Game.story_stage_def(stage_index)
-		if str(stage.get("intro", "")).length() > longest_intro.length():
-			longest_intro = str(stage.get("intro", ""))
-		if str(stage.get("title", "")).length() > longest_title.length():
-			longest_title = str(stage.get("title", ""))
-		for line in stage.get("klog", []):
-			if ("> " + str(line)).length() > longest_klog.length():
-				longest_klog = "> " + str(line)
-	var rail_w: float = size.x * 0.42 if _is_wide() else size.x
-	out.append({"id": "detail_intro", "fits": TacticalUI.wrapped_height(mono, longest_intro, rail_w - 36.0, 12) <= 56.0 or TacticalUI.wrapped_height(mono, longest_intro, rail_w - 36.0, 10) <= 56.0})
-	out.append({"id": "detail_title", "fits": orbitron.get_string_size(longest_title, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x <= rail_w - 36.0})
-	var klog_width: float = maxf(rail_w - (minf(rail_w - 36.0, 170.0) + 38.0) - 18.0, 0.0)
-	out.append({"id": "klog_lines", "fits": mono.get_string_size(TacticalUI.ellipsis_fit(mono, longest_klog, klog_width, 10), HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x <= klog_width})
-	out.append({"id": "story_state_labels", "fits": mono.get_string_size("CLEARED", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0 and mono.get_string_size("CURRENT", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0 and mono.get_string_size("LOCKED", HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x <= 60.0})
+	out.append({"id": "story_row", "fits": marker_w + path_w + state_w <= inner})
+	out.append({"id": "story_state_labels", "fits": state_w <= 120.0})
+	out.append({"id": "story_mount_action",
+		"fits": Design.grotesk(Design.WEIGHT_HEAVY).get_string_size(
+			mount_label(), HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x <= size.x * 0.6})
 	return out
