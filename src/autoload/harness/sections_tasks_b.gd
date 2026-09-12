@@ -103,10 +103,55 @@ func _task9_test(arena: Arena) -> void:
 	if patch_card_script != null:
 		var patch_card: Control = patch_card_script.new()
 		patch_card.configure({"id": "staticf", "title": "STATIC FIELD", "desc": "BURNS ENEMIES WITHIN 70PX", "rare": true, "legend": true}, 0)
-		h._check(patch_card.has_method("frame_points") and patch_card.frame_points().size() == 8, "patch card exposes clipped angular frame")
-		h._check(patch_card.has_method("rarity_label") and patch_card.rarity_label() == "LEGENDARY", "patch card exposes semantic rarity label")
-		h._check(patch_card.has_method("card_title") and patch_card.card_title() == "STATIC FIELD", "patch card preserves readable title")
-		patch_card.queue_free()
+		patch_card.size = Vector2(280.0, 330.0)
+		h.get_tree().current_scene.add_child(patch_card)
+		await h._ticks(2)
+		h._check(patch_card.theme == UiTheme.shared(), "patch card uses the shared editorial theme")
+		h._check(patch_card.has_method("card_ink"), "patch card exposes semantic ink roles")
+		if patch_card.has_method("card_ink"):
+			var patch_ink: Dictionary = patch_card.call("card_ink")
+			h._check(patch_ink.get("title", Color.BLACK) == Design.TEXT_PRIMARY,
+				"patch card title stays neutral instead of inheriting rarity colour")
+			h._check(patch_ink.get("body", Color.BLACK) == Design.TEXT_SECONDARY,
+				"patch card body stays neutral instead of inheriting rarity colour")
+			h._check(patch_ink.get("marker", Color.BLACK) == Design.WARNING,
+				"legendary patch keeps rarity colour as a marker")
+		h._check(patch_card.has_method("content_rects"), "patch card exposes live content geometry")
+		if patch_card.has_method("content_rects"):
+			var patch_bounds := Rect2(Vector2.ZERO, patch_card.size)
+			var patch_content_inside := true
+			var patch_content_measurable := true
+			for raw_rect in patch_card.call("content_rects"):
+				patch_content_inside = patch_content_inside and patch_bounds.encloses(raw_rect)
+				patch_content_measurable = patch_content_measurable and raw_rect.size.x > 0.0 and raw_rect.size.y > 0.0
+			h._check(patch_content_inside, "patch card content stays inside the 280x330 card")
+			h._check(patch_content_measurable, "patch card editorial content keeps measurable layout boxes")
+			h._check(patch_card.has_method("rarity_label") and patch_card.rarity_label() == "LEGENDARY", "patch card exposes semantic rarity label")
+			h._check(patch_card.has_method("card_title") and patch_card.card_title() == "STATIC FIELD", "patch card preserves readable title")
+			var patch_title_node = patch_card.get("_title")
+			h._check(patch_title_node is Label and patch_title_node.text == "STATIC FIELD" \
+				and patch_title_node.size.y >= float(Design.TEXT_HEADING),
+				"patch card renders its title as a visible editorial heading")
+			var patch_icon_slot = patch_card.get("_icon_slot")
+			var icon_inside := false
+			if patch_icon_slot is Control:
+				var icon_rect := Rect2(patch_icon_slot.global_position - patch_card.global_position, patch_icon_slot.size)
+				icon_inside = Rect2(Vector2.ZERO, patch_card.size).encloses(icon_rect) \
+					and icon_rect.size.x >= 52.0 and icon_rect.size.y >= 52.0
+			h._check(icon_inside, "patch card keeps its live icon slot contained and large enough for the 52px glyph")
+			var selected_indices: Array[int] = []
+			patch_card.selected.connect(func(selected_index: int) -> void: selected_indices.append(selected_index))
+			var patch_hit: Button = null
+			for child in patch_card.get_children():
+				if child is Button:
+					patch_hit = child
+					break
+			h._check(patch_hit != null, "patch card exposes a full-card interactive hit target")
+			if patch_hit != null:
+				patch_hit.emit_signal("pressed")
+			h._check(selected_indices == [0], "patch card click emits its configured selection index")
+			patch_card.queue_free()
+			await h._ticks(2)
 	var patch_box_visual := arena.patch_box_rect_for_viewport(Vector2(1366, 768))
 	var patch_cards_visual: Array[Rect2] = arena.patch_card_rects_for_viewport(Vector2(1366, 768))
 	h._check(patch_box_visual.position.y > 230.0 and patch_box_visual.position.y < 270.0 and patch_box_visual.size.y > 280.0 and patch_box_visual.size.y < 315.0 and patch_box_visual.end.y < 570.0, "patch cards match the approved compact overlay proportion")
@@ -324,4 +369,3 @@ func _task6_test(arena: Arena) -> void:
 	split_parent.queue_free()
 	EnemyBase.shared_list = arena.enemy_list
 	await h._ticks(2)
-
