@@ -130,41 +130,10 @@ func _process(delta: float) -> void:
 			player.lockon_active = false
 	queue_redraw()
 
-func _draw() -> void:
-	var c := Balance.COL_PLAYER
-	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
-	var pb := _pause_btn()
-	draw_arc(pb.get_center(), pb.size.y * 0.42, 0, TAU, 32, Color(c.r, c.g, c.b, 0.5), 2.0, true)
-	var psize := pb.size.y * 0.5
-	draw_texture_rect(_tex_pause, Rect2(pb.get_center() - Vector2(psize, psize) * 0.5, Vector2(psize, psize)), false, Color(1, 1, 1, 0.85))
-	if _move_id != -1:
-		var movement := movement_geometry()
-		var draw_radius: float = movement["draw_radius"]
-		var knob_radius: float = movement["knob_radius"]
-		var knob_offset: float = draw_radius * 0.75
-		draw_circle(_move_origin, draw_radius, Color(c.r, c.g, c.b, 0.08))
-		draw_arc(_move_origin, draw_radius, 0, TAU, 40, Color(c.r, c.g, c.b, 0.4), 2.0, true)
-		draw_circle(_move_origin + _move_vec * knob_offset, knob_radius, Color(c.r, c.g, c.b, 0.35))
-	if not _aim_active:
-		return
-	var draw_mode := Game.effective_aim_mode()
-	if draw_mode == "stick":
-		draw_circle(_aim_origin, 44.0, Color(c.r, c.g, c.b, 0.07))
-		draw_arc(_aim_origin, 44.0, 0, TAU, 32, Color(c.r, c.g, c.b, 0.45), 2.0, true)
-		var knob := _aim_origin + (_aim_pos - _aim_origin).limit_length(44.0)
-		draw_circle(knob, 16.0, Color(1, 1, 1, 0.2))
-		draw_arc(knob, 16.0, 0, TAU, 20, Color(1, 1, 1, 0.6), 2.0, true)
-		draw_line(_aim_origin, knob, Color(c.r, c.g, c.b, 0.3), 2.0)
-	elif draw_mode == "lockon":
-		draw_circle(_aim_origin, 26.0, Color(c.r, c.g, c.b, 0.06))
-		draw_arc(_aim_origin, 26.0, 0, TAU, 32, Color(c.r, c.g, c.b, 0.45), 2.0, true)
-		draw_string(mono, _aim_origin + Vector2(-34, -32), "LOCK", HORIZONTAL_ALIGNMENT_CENTER, 80, 12, Color(1, 0.4, 0.5, 0.8))
-	else:
-		draw_circle(_aim_origin, 26.0, Color(c.r, c.g, c.b, 0.06))
-		draw_arc(_aim_origin, 26.0, 0, TAU, 32, Color(c.r, c.g, c.b, 0.45), 2.0, true)
-		draw_line(_aim_origin, _aim_pos, Color(c.r, c.g, c.b, 0.3), 2.0)
-		draw_circle(_aim_pos, 10.0, Color(1, 1, 1, 0.15))
-		draw_arc(_aim_pos, 10.0, 0, TAU, 20, Color(1, 1, 1, 0.6), 2.0, true)
+func visual_state() -> Dictionary:
+	return {"dash": true, "boost": true, "aim": _aim_active}
+
+func _draw_action_buttons(c: Color, mono: Font) -> void:
 	var db := _dash_btn()
 	var dash_ready := player == null or not is_instance_valid(player) or player.dash_cd <= 0.0
 	var dc := Color(c.r, c.g, c.b, 0.4) if dash_ready else Color(c.r, c.g, c.b, 0.18)
@@ -186,3 +155,40 @@ func _draw() -> void:
 	var ocol := Color(1, 1, 1, 1.0 if (player != null and is_instance_valid(player) and player.oc_ready) else 0.4)
 	draw_texture_rect(_tex_oc, Rect2(ob.get_center() - Vector2(osize, osize) * 0.5, Vector2(osize, osize)), false, ocol)
 	draw_string(mono, ob.get_center() + Vector2(-34, ob.size.y * 0.42), "BOOST", HORIZONTAL_ALIGNMENT_CENTER, 80, 13 * _sc(), Color(c.r, c.g, c.b, 0.8 if (player != null and is_instance_valid(player) and player.oc_ready) else 0.4))
+
+func _draw() -> void:
+	var c := Balance.COL_PLAYER
+	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
+	var pb := _pause_btn()
+	draw_arc(pb.get_center(), pb.size.y * 0.42, 0, TAU, 32, Color(c.r, c.g, c.b, 0.5), 2.0, true)
+	var psize := pb.size.y * 0.5
+	draw_texture_rect(_tex_pause, Rect2(pb.get_center() - Vector2(psize, psize) * 0.5, Vector2(psize, psize)), false, Color(1, 1, 1, 0.85))
+	if _move_id != -1:
+		var movement := movement_geometry()
+		var draw_radius: float = movement["draw_radius"]
+		var knob_radius: float = movement["knob_radius"]
+		var knob_offset: float = draw_radius * 0.75
+		draw_circle(_move_origin, draw_radius, Color(c.r, c.g, c.b, 0.08))
+		draw_arc(_move_origin, draw_radius, 0, TAU, 40, Color(c.r, c.g, c.b, 0.4), 2.0, true)
+		draw_circle(_move_origin + _move_vec * knob_offset, knob_radius, Color(c.r, c.g, c.b, 0.35))
+	_draw_action_buttons(c, mono)
+	if not _aim_active:
+		return
+	var draw_mode := Game.effective_aim_mode()
+	if draw_mode == "stick":
+		draw_circle(_aim_origin, 44.0, Color(c.r, c.g, c.b, 0.07))
+		draw_arc(_aim_origin, 44.0, 0, TAU, 32, Color(c.r, c.g, c.b, 0.45), 2.0, true)
+		var knob := _aim_origin + (_aim_pos - _aim_origin).limit_length(44.0)
+		draw_circle(knob, 16.0, Color(1, 1, 1, 0.2))
+		draw_arc(knob, 16.0, 0, TAU, 20, Color(1, 1, 1, 0.6), 2.0, true)
+		draw_line(_aim_origin, knob, Color(c.r, c.g, c.b, 0.3), 2.0)
+	elif draw_mode == "lockon":
+		draw_circle(_aim_origin, 26.0, Color(c.r, c.g, c.b, 0.06))
+		draw_arc(_aim_origin, 26.0, 0, TAU, 32, Color(c.r, c.g, c.b, 0.45), 2.0, true)
+		draw_string(mono, _aim_origin + Vector2(-34, -32), "LOCK", HORIZONTAL_ALIGNMENT_CENTER, 80, 12, Color(1, 0.4, 0.5, 0.8))
+	else:
+		draw_circle(_aim_origin, 26.0, Color(c.r, c.g, c.b, 0.06))
+		draw_arc(_aim_origin, 26.0, 0, TAU, 32, Color(c.r, c.g, c.b, 0.45), 2.0, true)
+		draw_line(_aim_origin, _aim_pos, Color(c.r, c.g, c.b, 0.3), 2.0)
+		draw_circle(_aim_pos, 10.0, Color(1, 1, 1, 0.15))
+		draw_arc(_aim_pos, 10.0, 0, TAU, 20, Color(1, 1, 1, 0.6), 2.0, true)
