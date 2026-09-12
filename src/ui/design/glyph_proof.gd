@@ -106,12 +106,22 @@ func _report() -> void:
 			% [kind, int(radius * 2.0), cov, verdict])
 	await _report_similarity()
 	await _report_patch_similarity()
+	if OS.get_environment("KP_METRIC_SWEEP") != "":
+		await _report_metric_sweep()
+		await _report_patch_sweep()
 	_capture_if_requested()
 
 
 ## Distinção de silhueta: a função de um glifo de inimigo é ser reconhecido de
-## relance. Renderiza cada um como máscara binária em 24px e compara par a par
-## por interseção-sobre-união. Pares acima de ~0.55 são confundíveis em jogo.
+## relance. Renderiza cada um como máscara binária e compara par a par por
+## interseção-sobre-união.
+##
+## Limiar 0.55, VALIDADO pela varredura de 2026-09-12 nesta configuração: o par
+## idêntico dá 1.000 e o maior par distinto do conjunto aprovado dá 0.336, então
+## 0.55 fica com folga dos dois lados. O `0.55` sempre foi certo para máscara
+## CRUA — o erro tinha sido aplicá-lo à máscara dilatada, onde o conjunto
+## aprovado já marcava 0.892 e reprovaria a si mesmo.
+const SILHOUETTE_MAX := 0.55
 func _report_similarity() -> void:
 	var masks := {}
 	for kind in GlyphLib.glyph_kinds():
@@ -136,7 +146,125 @@ func _report_similarity() -> void:
 	pairs.sort_custom(func(x, y): return x[0] > y[0])
 	for k in mini(12, pairs.size()):
 		var pr: Array = pairs[k]
-		print("GLYPH_SIMILAR %.3f %s <-> %s" % [pr[0], pr[1], pr[2]])
+		var verdict := "ok" if pr[0] < SILHOUETTE_MAX else "CONFUNDIVEL"
+		print("GLYPH_SIMILAR %.3f %s <-> %s %s" % [pr[0], pr[1], pr[2], verdict])
+
+
+## Varredura de calibração da métrica de silhueta.
+##
+## O problema: `0.55` veio da métrica de máscara CRUA e não transfere para a
+## dilatada. Escolher um número novo no olho seria trocar um palpite por outro.
+##
+## Existe um ponto de verdade: `root` e `boss` desenham o MESMO glifo. Uma
+## métrica útil tem de dar ~1.0 neles e claramente menos em todo o resto — o
+## que interessa é a MARGEM entre o par idêntico e o segundo colocado. Quanto
+## maior a margem, mais poder de discriminação o número tem.
+##
+## Roda sob `KP_METRIC_SWEEP=1` porque é caro: nove combinações de raio e caixa.
+func _report_metric_sweep() -> void:
+	var kinds: Array = GlyphLib.glyph_kinds()
+	for box in [48, 64, 96]:
+		for radius in [0, 1, 2, 3]:
+			var masks := {}
+			for kind in kinds:
+				masks[str(kind)] = await _sweep_mask(str(kind), int(box), int(radius))
+			var identical := 0.0
+			var runner_up := 0.0
+			for i in kinds.size():
+				for j in range(i + 1, kinds.size()):
+					var score := _iou(masks[kinds[i]], masks[kinds[j]])
+					var pair_is_root: bool = (str(kinds[i]) == "root" and str(kinds[j]) == "boss") \
+						or (str(kinds[i]) == "boss" and str(kinds[j]) == "root")
+					if pair_is_root:
+						identical = score
+					else:
+						runner_up = maxf(runner_up, score)
+			print("METRIC_SWEEP box=%d radius=%d identical=%.3f runner_up=%.3f margin=%.3f"
+				% [int(box), int(radius), identical, runner_up, identical - runner_up])
+
+
+## Varredura de calibração da métrica de CONTORNO.
+##
+## A varredura de inimigo não vale aqui. O ponto de verdade dela é `root` e
+## `boss`, dois glifos PREENCHIDOS; ícone de patch é traço de 2px sobre vazio.
+## Aplicar um número calibrado em massa a uma forma de contorno repetiria
+## exatamente o erro que o `0.55` cometeu.
+##
+## Ponto de verdade próprio: o MESMO ícone deslocado 1px continua sendo o
+## mesmo ícone. Uma métrica útil para contorno tem de dar alto nele — é para
+## isso que a dilatação existe, tolerar desregistro de traço — e baixo entre
+## famílias diferentes. De novo o que interessa é a MARGEM.
+func _report_patch_sweep() -> void:
+	var families := ["damage", "fire", "defense", "utility", "movement", "economy"]
+	for box in [48, 64, 96]:
+		for radius in [0, 1, 2, 3]:
+			var masks := {}
+			for family in families:
+				masks[str(family)] = await _patch_sweep_mask(str(family), int(box), int(radius), Vector2.ZERO)
+			# o mesmo ícone, deslocado: tem de continuar sendo ele mesmo
+			var shifted := await _patch_sweep_mask("damage", int(box), int(radius), Vector2.ONE)
+			var identical := _iou(masks["damage"], shifted)
+			var runner_up := 0.0
+			for i in families.size():
+				for j in range(i + 1, families.size()):
+					runner_up = maxf(runner_up, _iou(masks[families[i]], masks[families[j]]))
+			print("PATCH_SWEEP box=%d radius=%d identical=%.3f runner_up=%.3f margin=%.3f"
+				% [int(box), int(radius), identical, runner_up, identical - runner_up])
+
+
+func _patch_sweep_mask(family: String, box: int, radius: int, offset: Vector2) -> Array:
+	var vp := SubViewport.new()
+	vp.size = Vector2i(box, box)
+	vp.transparent_bg = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var probe := _PatchProbe.new()
+	probe.family = family
+	probe.offset = offset
+	probe.size = Vector2(box, box)
+	vp.add_child(probe)
+	add_child(vp)
+	await RenderingServer.frame_post_draw
+	var img := vp.get_texture().get_image()
+	var raw := []
+	for y in box:
+		for x in box:
+			raw.append(img.get_pixel(x, y).a > 0.35)
+	vp.queue_free()
+	return raw if radius <= 0 else _dilate(raw, box, radius)
+
+
+static func _iou(a: Array, b: Array) -> float:
+	var inter := 0
+	var uni := 0
+	for n in a.size():
+		var pa: bool = a[n]
+		var pb: bool = b[n]
+		if pa and pb:
+			inter += 1
+		if pa or pb:
+			uni += 1
+	return float(inter) / float(maxi(uni, 1))
+
+
+func _sweep_mask(kind: String, box: int, radius: int) -> Array:
+	var vp := SubViewport.new()
+	vp.size = Vector2i(box, box)
+	vp.transparent_bg = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var probe := _GlyphProbe.new()
+	probe.kind = kind
+	probe.radius = float(box) * 0.25
+	probe.centre = Vector2(box, box) * 0.5
+	vp.add_child(probe)
+	add_child(vp)
+	await RenderingServer.frame_post_draw
+	var img := vp.get_texture().get_image()
+	var raw := []
+	for y in box:
+		for x in box:
+			raw.append(img.get_pixel(x, y).a > 0.35)
+	vp.queue_free()
+	return raw if radius <= 0 else _dilate(raw, box, radius)
 
 
 ## Mesma prova, aplicada às famílias de ícone dos patches.
@@ -145,6 +273,25 @@ func _report_similarity() -> void:
 ## cartas. Isso já é pouca distinção; se as seis famílias ainda se parecerem
 ## entre si, a coluna do ícone deixa de informar qualquer coisa e vira ruído
 ## decorativo ao lado do título.
+## Similaridade de ícone de patch: RELATÓRIO, sem limiar. Deliberado.
+##
+## A varredura de contorno de 2026-09-12 procurou um limiar e mostrou que não
+## existe um utilizável. Ponto de verdade: o MESMO ícone deslocado 1px.
+##
+##   raio=0 -> mesmo ícone 0.410, famílias distintas 0.319, margem 0.091
+##   raio=2 -> mesmo ícone 0.709, famílias distintas 0.505, margem 0.205
+##   raio=3 -> mesmo ícone 0.760, famílias distintas 0.560, margem 0.199
+##
+## No melhor caso o mesmo ícone marca 0.760 e dois ícones DIFERENTES marcam
+## 0.560. As faixas quase se encostam, e 1px de desregistro está dentro da
+## variação normal de render. Qualquer limiar aqui reprovaria desenhos bons ou
+## aprovaria colisões reais, dependendo do pixel.
+##
+## A causa é a representação, não a métrica: interseção sobre união compara
+## ÁREA, e estes ícones são traço de 2px sobre vazio — quase toda a área é
+## fundo compartilhado. Para virar critério, precisaria de um descritor de
+## FORMA, não de área. Até lá o número serve para comparar versões do mesmo
+## ícone, não para aprovar ou reprovar um ícone sozinho.
 func _report_patch_similarity() -> void:
 	var families := ["damage", "fire", "defense", "utility", "movement", "economy"]
 	var masks := {}
@@ -230,20 +377,36 @@ static func _dilate(mask: Array, box: int, radius: int) -> Array:
 ## desenho real do card — medir uma cópia seria medir ficção.
 class _PatchProbe extends Control:
 	var family := "damage"
+	## Deslocamento em pixels. Serve ao ponto de verdade da varredura de
+	## contorno: o MESMO ícone deslocado continua sendo o mesmo ícone.
+	var offset := Vector2.ZERO
 
 	func _draw() -> void:
-		PatchCard.draw_family_glyph(self, family, size * 0.5, Color.WHITE)
+		PatchCard.draw_family_glyph(self, family, size * 0.5 + offset, Color.WHITE)
 
 
+## Máscara de silhueta de inimigo, na configuração VARRIDA (2026-09-12).
+##
+## box=96 raio=0. A varredura mediu as doze combinações contra o ponto de
+## verdade `root`/`boss` (o mesmo glifo desenhado duas vezes) e a margem entre
+## o par idêntico e o segundo colocado cai de forma monótona com a dilatação:
+##
+##   box=96 raio=0 -> idêntico 1.000, 2º 0.336, margem 0.664  <- escolhido
+##   box=96 raio=3 -> idêntico 1.000, 2º 0.728, margem 0.272
+##   box=48 raio=3 -> idêntico 1.000, 2º 0.892, margem 0.108  <- config antiga
+##
+## Ou seja: dilatar não dava sensibilidade, dava BORRÃO. O segundo colocado
+## subindo de 0.336 para 0.892 é a métrica perdendo a capacidade de separar
+## formas diferentes, não ganhando a de detectar formas parecidas.
 func _mask_24(kind: String) -> Array:
-	var box := 48
+	var box := 96
 	var vp := SubViewport.new()
 	vp.size = Vector2i(box, box)
 	vp.transparent_bg = true
 	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	var probe := _GlyphProbe.new()
 	probe.kind = kind
-	probe.radius = 12.0
+	probe.radius = float(box) * 0.25
 	probe.centre = Vector2(box, box) * 0.5
 	vp.add_child(probe)
 	add_child(vp)
@@ -254,11 +417,7 @@ func _mask_24(kind: String) -> Array:
 		for x in box:
 			raw.append(img.get_pixel(x, y).a > 0.35)
 	vp.queue_free()
-	# Dilatada igual à dos patches, para as duas provas ficarem na MESMA escala.
-	# Os glifos de inimigo são a régua: eles já foram aprovados no jogo, então o
-	# maior par deles é o que "aceitável" significa nesta métrica. Comparar um
-	# número dilatado com um limiar de máscara crua é comparar réguas diferentes.
-	return _dilate(raw, box, 3)
+	return raw
 
 
 func _measure(kind: String, radius: float) -> float:

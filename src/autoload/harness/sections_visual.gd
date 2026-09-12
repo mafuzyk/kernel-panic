@@ -671,6 +671,47 @@ func _arena_field_test() -> void:
 		"story keeps the calmer field of the two")
 
 
+## A matemática da prova de silhueta, testada sem GPU.
+##
+## A varredura de calibração de 2026-09-12 descobriu que dilatar a máscara
+## DESTRÓI a capacidade de separar formas: o segundo colocado subiu de 0.336
+## para 0.892 conforme o raio crescia. Este teste prende essa propriedade em
+## duas formas construídas à mão, para que ninguém volte a dilatar a prova de
+## inimigo achando que está ganhando sensibilidade.
+func _silhouette_metric_test() -> void:
+	var proof: Script = load("res://src/ui/design/glyph_proof.gd")
+	h._check(proof != null, "glyph proof script loads for metric checks")
+	if proof == null:
+		return
+	var box := 16
+	var left := []
+	var right := []
+	for y in box:
+		for x in box:
+			# dois quadrados 4x4 que NÃO se tocam: interseção zero, união cheia
+			left.append(x >= 2 and x < 6 and y >= 6 and y < 10)
+			right.append(x >= 10 and x < 14 and y >= 6 and y < 10)
+	var threshold: float = proof.SILHOUETTE_MAX
+	h._check(is_equal_approx(threshold, 0.55), "silhouette proof publishes its validated threshold")
+	var same: float = proof._iou(left, left)
+	h._check(is_equal_approx(same, 1.0), "identical masks score a perfect one")
+	var apart: float = proof._iou(left, right)
+	h._check(is_equal_approx(apart, 0.0), "disjoint masks score zero")
+	var prev: float = proof._iou(left, right)
+	var climbed := false
+	for radius in [1, 2, 3, 4]:
+		var score: float = proof._iou(
+			proof._dilate(left, box, int(radius)),
+			proof._dilate(right, box, int(radius)))
+		if score > prev:
+			climbed = true
+		prev = score
+	h._check(climbed, "dilation drives distinct shapes together, so the silhouette proof compares raw masks")
+	# medido: dois quadrados que não compartilham UM pixel chegam a 0.250 sob
+	# raio 4. A dilatação não revela semelhança, ela fabrica semelhança.
+	h._check(prev >= 0.24, "heavy dilation manufactures overlap between shapes that share no pixel")
+
+
 func _icon_quality_test() -> void:
 	print("AT_STEP icon_quality")
 	var icon_script: Script = load("res://src/ui/tactical_icon.gd")
