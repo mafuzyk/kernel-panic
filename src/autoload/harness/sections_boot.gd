@@ -226,12 +226,16 @@ func _task11_test(menu: Node) -> void:
 	hud.size = Vector2(1280, 720)
 	h.add_child(hud)
 	await h._ticks(1)
-	var tooltip_api_ready := hud.has_method("patch_chip_rect") and hud.has_method("patch_tooltip_visible") and hud.has_method("patch_tooltip_snapshot")
+	var tooltip_api_ready := hud.has_method("patch_chip_rect") and hud.has_method("patch_tooltip_visible") and hud.has_method("patch_tooltip_snapshot") and hud.has_method("patch_tooltip_rect")
 	h._check(tooltip_api_ready, "HUD exposes patch tooltip hit state")
 	if tooltip_api_ready:
 		hud._update_patch_chip_rects()
 		var chip_rect: Rect2 = hud.patch_chip_rect("heavy")
 		h._check(chip_rect.size.x > 0.0 and chip_rect.size.y > 0.0, "active patch chip exposes hit rectangle")
+		for viewport in [Vector2(1280, 720), Vector2(720, 720), Vector2(432, 720)]:
+			var probe_chip := Rect2(viewport.x - 90.0, viewport.y - 70.0, 64.0, 28.0)
+			var tooltip_rect: Rect2 = hud.call("patch_tooltip_rect", viewport, probe_chip)
+			h._check(Rect2(Vector2.ZERO, viewport).encloses(tooltip_rect), "patch tooltip stays inside viewport %dx%d" % [int(viewport.x), int(viewport.y)])
 		var mouse_motion := InputEventMouseMotion.new()
 		mouse_motion.position = chip_rect.get_center()
 		hud._input(mouse_motion)

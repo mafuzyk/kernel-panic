@@ -311,8 +311,6 @@ func _touch_hud_layout_test() -> void:
 	h._check(hud_src.contains("if not touch_layout():"), "combat hud skips desktop-only dash module drawing on touch")
 	h._check(hud_src.contains("label += \"  READY\""), "overclock ready keeps its label without the [E] keyboard hint on touch")
 	h._check(hud_src.contains("\"[SHIFT]\" if not touch_layout()"), "dash charge text gates the [SHIFT] keyboard hint on touch")
-	h._check(hud_src.contains("_banner.text = \"\" if hide_main else text"), "compact wave banner omits the duplicated cycle line")
-	h._check(hud_src.contains("_banner_sub_l.offset_top = 186"), "compact wave banner repositions below the encounter panel")
 	var tc_script: Script = load("res://src/ui/touch_controls.gd")
 	var tc = tc_script.new() if tc_script != null else null
 	h._check(tc != null and tc.has_method("_dash_btn") and tc.has_method("_oc_btn"), "touch controls expose button rects for layout probes")
@@ -348,14 +346,18 @@ func _touch_hud_layout_test() -> void:
 			h._check(touch_patches.size.x >= minf(120.0, plain_patches_vp.size.x) - 0.01, "touch patch dock keeps readable chips at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
 	Sfx.touch_scale = saved_touch_scale
 	var banner_hud = hud_script.new()
-	banner_hud.size = Vector2(432, 720)
-	banner_hud.set("_banner_sub", "PURGE THE DAEMONS")
-	h._check(bool(banner_hud.call("_banner_compact")), "compact viewport suppresses the duplicated wave-banner cycle line")
-	banner_hud.size = Vector2(1366, 768)
-	h._check(not bool(banner_hud.call("_banner_compact")), "desktop viewport keeps the full wave banner")
-	banner_hud.size = Vector2(720, 720)
-	banner_hud.set("_banner_sub", "")
-	h._check(not bool(banner_hud.call("_banner_compact")), "subtitle-less hint banners keep their main line on compact")
+	h._check(banner_hud.has_method("banner_layout_snapshot"), "combat hud exposes live banner layout geometry")
+	if banner_hud.has_method("banner_layout_snapshot"):
+		for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			banner_hud.size = vp
+			var wave_banner: Dictionary = banner_hud.call("banner_layout_snapshot", vp, "CYCLE 01", "PURGE THE DAEMONS")
+			var encounter: Rect2 = banner_hud.call("layout_snapshot", vp)["encounter"]
+			var sub_rect: Rect2 = wave_banner.get("sub_rect", Rect2())
+			h._check(not bool(wave_banner.get("main_visible", true)), "cycle banner does not duplicate the encounter cycle at %dx%d" % [int(vp.x), int(vp.y)])
+			h._check(sub_rect.position.y >= encounter.end.y and Rect2(Vector2.ZERO, vp).encloses(sub_rect),
+				"cycle banner subtitle stays below encounter and inside viewport at %dx%d" % [int(vp.x), int(vp.y)])
+		var hint_banner: Dictionary = banner_hud.call("banner_layout_snapshot", Vector2(432, 720), "MOVE // WASD", "")
+		h._check(bool(hint_banner.get("main_visible", false)), "subtitle-less combat hint keeps its main line on compact")
 	banner_hud.free()
 	var gate_hud = hud_script.new()
 	OS.set_environment("KP_FORCE_TOUCH", "")
