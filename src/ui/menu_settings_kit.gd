@@ -1,12 +1,9 @@
 extends RefCounted
 
-const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
-const TacticalChromeScript = preload("res://src/ui/tactical_chrome.gd")
-
-## Menu settings kit: settings panel build/layout, keybind capture, slider
-## rows. Moved verbatim from src/ui/menu.gd; Menu-owned state and non-moved
-## calls prefixed `m.` (plan G5). Untyped owner reference avoids a preload
-## cycle. No behavior changes.
+## Menu settings kit: settings panel build/layout, keybind capture e controles.
+## A lógica continua separada de `menu.gd`, mas a superfície visual segue agora
+## a direção editorial do MenuShell: grotesca para hierarquia, mono para estado,
+## seleção por rail/underline e sem TacticalChrome decorativo.
 
 var m
 
@@ -22,31 +19,33 @@ func _init(menu) -> void:
 	m = menu
 
 func settings_layout_for_viewport(viewport: Vector2) -> Dictionary:
-	var panel_width := minf(1080.0, maxf(viewport.x - 48.0, 280.0))
-	var panel_height := minf(680.0, maxf(viewport.y - 48.0, 240.0))
-	var workstation := Rect2((viewport.x - panel_width) * 0.5, (viewport.y - panel_height) * 0.5, panel_width, panel_height)
-	var footer := Rect2(workstation.position + Vector2(10.0, workstation.size.y - 68.0), Vector2(workstation.size.x - 20.0, 56.0))
 	var compact: bool = viewport.x < COMPACT_BREAKPOINT
+	var margin_x := float(Design.SPACE_XL if compact else Design.SPACE_4XL)
+	var margin_y := float(Design.SPACE_LG if compact else Design.SPACE_2XL)
+	var workstation := Rect2(
+		Vector2(margin_x, margin_y),
+		Vector2(maxf(viewport.x - margin_x * 2.0, 280.0), maxf(viewport.y - margin_y * 2.0, 240.0))
+	)
+	var footer_h := 56.0
+	var footer := Rect2(
+		Vector2(workstation.position.x, workstation.end.y - footer_h),
+		Vector2(workstation.size.x, footer_h)
+	)
 	var navigation := Rect2()
 	var chips := Rect2()
 	var content := Rect2()
+	var content_top := workstation.position.y + (104.0 if compact else 124.0)
 	if compact:
-		chips = Rect2(workstation.position + Vector2(10.0, 88.0), Vector2(workstation.size.x - 20.0, 40.0))
-		content = Rect2(Vector2(workstation.position.x + 10.0, chips.end.y + 8.0), Vector2(workstation.size.x - 20.0, maxf(footer.position.y - chips.end.y - 16.0, 0.0)))
+		chips = Rect2(Vector2(workstation.position.x, content_top), Vector2(workstation.size.x, 40.0))
+		content = Rect2(Vector2(workstation.position.x, chips.end.y + Design.SPACE_LG), Vector2(workstation.size.x, maxf(footer.position.y - chips.end.y - Design.SPACE_XL, 0.0)))
 	else:
-		var navigation_width := minf(230.0, maxf(132.0, workstation.size.x * 0.27))
-		navigation = Rect2(workstation.position + Vector2(10.0, 88.0), Vector2(navigation_width, maxf(workstation.size.y - 160.0, 0.0)))
-		var content_x := navigation.end.x + 14.0
-		content = Rect2(Vector2(content_x, navigation.position.y), Vector2(maxf(workstation.end.x - content_x - 10.0, 0.0), navigation.size.y))
-	var title_height := 42.0
-	var title_size := 34
-	if viewport.x < 960.0:
-		title_size = 26
-	if viewport.x < 600.0:
-		title_size = 20
-	if viewport.x < 460.0:
-		title_size = 16
-	var title := Rect2(content.position.x, workstation.position.y + 14.0, content.size.x, title_height)
+		var navigation_width := minf(240.0, maxf(180.0, workstation.size.x * 0.20))
+		navigation = Rect2(Vector2(workstation.position.x, content_top), Vector2(navigation_width, maxf(footer.position.y - content_top - Design.SPACE_LG, 0.0)))
+		var content_x := navigation.end.x + Design.SPACE_2XL
+		content = Rect2(Vector2(content_x, content_top), Vector2(maxf(workstation.end.x - content_x, 0.0), navigation.size.y))
+	var title_height := 64.0 if not compact else 48.0
+	var title_size := Design.TEXT_TITLE if not compact else Design.TEXT_HEADING
+	var title := Rect2(workstation.position.x, workstation.position.y + Design.SPACE_SM, workstation.size.x, title_height)
 	return {
 		"workstation": workstation,
 		"navigation": navigation,
@@ -70,14 +69,6 @@ func _layout_settings() -> void:
 	if m._settings_frame != null and is_instance_valid(m._settings_frame):
 		m._settings_frame.position = workstation.position
 		m._settings_frame.size = workstation.size
-	if m._settings_workstation_chrome != null and is_instance_valid(m._settings_workstation_chrome):
-		m._settings_workstation_chrome.position = workstation.position
-		m._settings_workstation_chrome.size = workstation.size
-		m._settings_workstation_chrome.call("configure_panel", Rect2(Vector2.ZERO, workstation.size), TacticalUIHelper.CYAN, 0.025)
-	if m._settings_navigation_chrome != null and is_instance_valid(m._settings_navigation_chrome):
-		m._settings_navigation_chrome.position = navigation.position
-		m._settings_navigation_chrome.size = navigation.size
-		m._settings_navigation_chrome.call("configure_panel", Rect2(Vector2.ZERO, navigation.size), TacticalUIHelper.CYAN, 0.025)
 	if m._settings_scroll != null and is_instance_valid(m._settings_scroll):
 		m._settings_scroll.offset_left = content.position.x
 		m._settings_scroll.offset_right = content.end.x
@@ -95,8 +86,6 @@ func _layout_settings() -> void:
 		m._settings_footer_row.position = footer.position
 		m._settings_footer_row.size = footer.size
 	var compact: bool = bool(settings_layout.get("compact", false))
-	if m._settings_navigation_chrome != null and is_instance_valid(m._settings_navigation_chrome):
-		m._settings_navigation_chrome.visible = not compact
 	if m._settings_nav_hint != null and is_instance_valid(m._settings_nav_hint):
 		m._settings_nav_hint.visible = not compact
 	if m._settings_chips_row != null and is_instance_valid(m._settings_chips_row):
@@ -115,24 +104,44 @@ func _layout_settings() -> void:
 	if m._settings_keybind_grid != null and is_instance_valid(m._settings_keybind_grid):
 		m._settings_keybind_grid.columns = 1 if content.size.x < 600.0 else 2
 
+
+func _nav_style(selected: bool, hover: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Design.SURFACE_RAISED if selected else (Design.alpha(Design.TEXT_PRIMARY, 0.06) if hover else Color(0, 0, 0, 0))
+	style.border_color = Design.ACCENT if selected else Color(0, 0, 0, 0)
+	style.border_width_left = int(Design.STROKE_THICK) if selected else 0
+	style.content_margin_left = Design.SPACE_LG
+	style.content_margin_right = Design.SPACE_MD
+	style.content_margin_top = Design.SPACE_SM
+	style.content_margin_bottom = Design.SPACE_SM
+	return style
+
+
+func _chip_style(selected: bool, hover: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Design.alpha(Design.TEXT_PRIMARY, 0.06) if hover else Color(0, 0, 0, 0)
+	style.border_color = Design.ACCENT if selected else Color(0, 0, 0, 0)
+	style.border_width_bottom = int(Design.STROKE_REGULAR) if selected else 0
+	style.content_margin_left = Design.SPACE_SM
+	style.content_margin_right = Design.SPACE_SM
+	style.content_margin_top = Design.SPACE_SM
+	style.content_margin_bottom = Design.SPACE_SM
+	return style
+
 func _build_settings() -> void:
 	m._settings_panel = Control.new()
-	m._settings_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	m._settings_panel.theme = UiTheme.shared()
+	m._settings_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	m._settings_panel.visible = false
 	m._settings_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var dim := ColorRect.new()
 	dim.name = "SettingsDim"
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	# Opaco por contrato, como os outros overlays. Estava em 0.88 — o mesmo
 	# defeito do painel de conquistas (B1 da auditoria), só que aqui o menu
 	# atrás é o shell novo e o vazamento fica ainda mais evidente.
 	dim.color = Design.SURFACE
 	m._settings_panel.add_child(dim)
-	var outer_chrome: Control = TacticalChromeScript.new()
-	outer_chrome.set_anchors_preset(Control.PRESET_FULL_RECT)
-	outer_chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	outer_chrome.call("configure_shell", TacticalUIHelper.CYAN, 0.0)
-	m._settings_panel.add_child(outer_chrome)
 	var settings_layout := _live_settings_layout()
 	var workstation: Rect2 = settings_layout["workstation"]
 	var navigation: Rect2 = settings_layout["navigation"]
@@ -157,22 +166,8 @@ func _build_settings() -> void:
 	frame.add_theme_stylebox_override("panel", frame_style)
 	m._settings_frame = frame
 	m._settings_panel.add_child(frame)
-	var workstation_chrome: Control = TacticalChromeScript.new()
-	workstation_chrome.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	workstation_chrome.position = workstation.position
-	workstation_chrome.size = workstation.size
-	workstation_chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	workstation_chrome.call("configure_panel", Rect2(Vector2.ZERO, workstation.size), TacticalUIHelper.CYAN, 0.025)
-	m._settings_workstation_chrome = workstation_chrome
-	m._settings_panel.add_child(workstation_chrome)
-	var navigation_chrome: Control = TacticalChromeScript.new()
-	navigation_chrome.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	navigation_chrome.position = navigation.position
-	navigation_chrome.size = navigation.size
-	navigation_chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	navigation_chrome.call("configure_panel", Rect2(Vector2.ZERO, navigation.size), TacticalUIHelper.CYAN, 0.025)
-	m._settings_navigation_chrome = navigation_chrome
-	m._settings_panel.add_child(navigation_chrome)
+	m._settings_workstation_chrome = null
+	m._settings_navigation_chrome = null
 	scroll.offset_left = content.position.x
 	scroll.offset_right = content.end.x
 	scroll.offset_top = content.position.y + 8.0
@@ -203,12 +198,9 @@ func _build_settings() -> void:
 	form_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	form_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	form_wrap.add_child(form_spacer)
-	var title := Label.new()
+	var title := ScreenKit.grot("SETTINGS // AUDIO", Design.TEXT_TITLE, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
 	title.text = "SETTINGS // AUDIO"
-	title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
-	title.add_theme_font_size_override("font_size", 34)
-	title.add_theme_color_override("font_color", Balance.COL_TEXT)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	var title_rect: Rect2 = settings_layout["title"]
 	title.position = title_rect.position
 	title.size = title_rect.size
@@ -232,9 +224,7 @@ func _build_settings() -> void:
 	box.add_child(music_row)
 	var mute := CheckButton.new()
 	mute.text = "MUTE ALL"
-	mute.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	mute.add_theme_font_size_override("font_size", 17)
-	mute.add_theme_color_override("font_color", Balance.COL_TEXT)
+	_style_toggle(mute)
 	mute.button_pressed = Sfx.muted
 	mute.toggled.connect(func(on: bool) -> void:
 		Sfx.set_muted(on)
@@ -251,9 +241,7 @@ func _build_settings() -> void:
 	box.add_child(gameplay_label)
 	var haptics := CheckButton.new()
 	haptics.text = "HAPTICS"
-	haptics.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	haptics.add_theme_font_size_override("font_size", 17)
-	haptics.add_theme_color_override("font_color", Balance.COL_TEXT)
+	_style_toggle(haptics)
 	haptics.button_pressed = Sfx.haptics_enabled
 	haptics.toggled.connect(func(on: bool) -> void:
 		Sfx.haptics_enabled = on
@@ -436,22 +424,12 @@ func _build_settings() -> void:
 	)
 	assign_section(reset, "SAVE DATA")
 	box.add_child(reset)
-	var back := Button.new()
-	back.text = "BACK"
-	back.flat = true
-	back.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	back.add_theme_font_size_override("font_size", 18)
-	back.add_theme_color_override("font_color", Balance.COL_PLAYER)
-	back.add_theme_color_override("font_hover_color", Balance.COL_PLAYER_HOT)
-	back.pressed.connect(_close_settings)
 	var footer_row := HBoxContainer.new()
 	footer_row.position = footer.position
 	footer_row.size = footer.size
-	footer_row.add_theme_constant_override("separation", 12)
-	m._style_settings_footer_button(back, TacticalUIHelper.CYAN)
-	back.custom_minimum_size = Vector2(196.0, 42.0)
-	m._add_button_icon(back, "back", TacticalUIHelper.CYAN, 36.0)
-	footer_row.add_child(back)
+	footer_row.add_theme_constant_override("separation", Design.SPACE_XL)
+	var back_block := ScreenKit.action(tr("UI_BACK"), "[ESC]", "text", _close_settings)
+	footer_row.add_child(back_block)
 	var footer_spacer := Control.new()
 	footer_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	footer_row.add_child(footer_spacer)
@@ -460,19 +438,18 @@ func _build_settings() -> void:
 	m._settings_nav_buttons.clear()
 	for index in SETTINGS_SECTIONS.size():
 		var nav_button := Button.new()
-		nav_button.text = "  %s" % SETTINGS_SECTIONS[index]
+		nav_button.text = SETTINGS_SECTIONS[index]
 		nav_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		nav_button.position = navigation.position + Vector2(10.0, 12.0 + float(index) * 48.0)
 		nav_button.size = Vector2(navigation.size.x - 20.0, 38.0)
-		nav_button.focus_mode = Control.FOCUS_NONE
-		nav_button.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		nav_button.add_theme_font_size_override("font_size", 14)
-		nav_button.add_theme_color_override("font_color", TacticalUIHelper.TEXT)
-		nav_button.add_theme_color_override("font_hover_color", TacticalUIHelper.CYAN)
-		nav_button.add_theme_stylebox_override("normal", m._settings_nav_style(Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.18)))
-		nav_button.add_theme_stylebox_override("hover", m._settings_nav_style(TacticalUIHelper.CYAN))
-		nav_button.add_theme_stylebox_override("pressed", m._settings_nav_style(TacticalUIHelper.CYAN))
-		m._add_button_chrome(nav_button, TacticalUIHelper.CYAN, 0.018)
+		nav_button.focus_mode = Control.FOCUS_ALL
+		nav_button.add_theme_font_override("font", Design.grotesk(Design.WEIGHT_BOLD))
+		nav_button.add_theme_font_size_override("font_size", Design.TEXT_SUBHEAD)
+		nav_button.add_theme_color_override("font_color", Design.TEXT_SECONDARY)
+		nav_button.add_theme_color_override("font_hover_color", Design.TEXT_PRIMARY)
+		nav_button.add_theme_stylebox_override("normal", _nav_style(false, false))
+		nav_button.add_theme_stylebox_override("hover", _nav_style(false, true))
+		nav_button.add_theme_stylebox_override("pressed", _nav_style(true, false))
 		m._settings_nav_buttons.append(nav_button)
 		nav_button.pressed.connect(set_active_section.bind(str(SETTINGS_SECTIONS[index])))
 		m._settings_panel.add_child(nav_button)
@@ -482,7 +459,7 @@ func _build_settings() -> void:
 	nav_hint.size = Vector2(navigation.size.x - 28.0, 18.0)
 	nav_hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	nav_hint.add_theme_font_size_override("font_size", 10)
-	nav_hint.add_theme_color_override("font_color", TacticalUIHelper.MUTED)
+	nav_hint.add_theme_color_override("font_color", Design.TEXT_FAINT)
 	m._settings_nav_hint = nav_hint
 	m._settings_panel.add_child(nav_hint)
 	var chips_row := HBoxContainer.new()
@@ -493,16 +470,16 @@ func _build_settings() -> void:
 	for section in SETTINGS_SECTIONS:
 		var chip := Button.new()
 		chip.text = str(SECTION_CHIP_LABELS[section])
-		chip.focus_mode = Control.FOCUS_NONE
+		chip.focus_mode = Control.FOCUS_ALL
 		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		chip.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		chip.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 		chip.add_theme_font_size_override("font_size", 11)
-		chip.add_theme_color_override("font_color", TacticalUIHelper.TEXT)
-		chip.add_theme_color_override("font_hover_color", TacticalUIHelper.CYAN)
-		chip.add_theme_stylebox_override("normal", m._settings_nav_style(Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.18)))
-		chip.add_theme_stylebox_override("hover", m._settings_nav_style(TacticalUIHelper.CYAN))
-		chip.add_theme_stylebox_override("pressed", m._settings_nav_style(TacticalUIHelper.CYAN))
+		chip.add_theme_color_override("font_color", Design.TEXT_SECONDARY)
+		chip.add_theme_color_override("font_hover_color", Design.TEXT_PRIMARY)
+		chip.add_theme_stylebox_override("normal", _chip_style(false, false))
+		chip.add_theme_stylebox_override("hover", _chip_style(false, true))
+		chip.add_theme_stylebox_override("pressed", _chip_style(true, false))
 		chip.pressed.connect(set_active_section.bind(str(section)))
 		chips_row.add_child(chip)
 		m._settings_chip_buttons.append(chip)
@@ -533,11 +510,31 @@ func _bounded_row(control: Control) -> HBoxContainer:
 func _settings_group_label(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	label.add_theme_font_size_override("font_size", 12)
-	label.add_theme_color_override("font_color", Balance.COL_MOTE)
+	label.add_theme_font_override("font", Design.FONT_MONO)
+	label.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	label.add_theme_color_override("font_color", Design.TEXT_MUTED)
 	label.custom_minimum_size = Vector2(0.0, 22.0)
 	return label
+
+
+func _style_toggle(toggle: CheckButton) -> void:
+	toggle.add_theme_font_override("font", Design.FONT_MONO)
+	toggle.add_theme_font_size_override("font_size", Design.TEXT_BODY)
+	toggle.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
+	toggle.add_theme_color_override("font_hover_color", Design.TEXT_PRIMARY)
+	for state in ["normal", "pressed"]:
+		var empty := StyleBoxFlat.new()
+		empty.bg_color = Color(0, 0, 0, 0)
+		toggle.add_theme_stylebox_override(state, empty)
+	var hover := StyleBoxFlat.new()
+	hover.bg_color = Design.alpha(Design.TEXT_PRIMARY, 0.05)
+	toggle.add_theme_stylebox_override("hover", hover)
+	var focus := StyleBoxFlat.new()
+	focus.bg_color = Color(0, 0, 0, 0)
+	focus.border_color = Design.FOCUS_RING_COLOR
+	focus.set_border_width_all(int(Design.FOCUS_RING_WIDTH))
+	toggle.add_theme_stylebox_override("focus", focus)
+	toggle.focus_mode = Control.FOCUS_ALL
 
 func _build_keybind_settings(parent: VBoxContainer) -> void:
 	m._keybind_box = VBoxContainer.new()
@@ -766,18 +763,18 @@ func _refresh_nav_selection() -> void:
 			if not is_instance_valid(nav_button):
 				continue
 			var selected: bool = i == index
-			nav_button.text = ("▸ %s" % SETTINGS_SECTIONS[i]) if selected else "  %s" % SETTINGS_SECTIONS[i]
-			nav_button.add_theme_color_override("font_color", TacticalUIHelper.LIME if selected else TacticalUIHelper.TEXT)
-			nav_button.add_theme_stylebox_override("normal", m._settings_nav_style(TacticalUIHelper.LIME if selected else Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.18)))
+			nav_button.text = SETTINGS_SECTIONS[i]
+			nav_button.add_theme_color_override("font_color", Design.TEXT_PRIMARY if selected else Design.TEXT_SECONDARY)
+			nav_button.add_theme_stylebox_override("normal", _nav_style(selected, false))
 	if not m._settings_chip_buttons.is_empty():
 		for i in m._settings_chip_buttons.size():
 			var chip: Button = m._settings_chip_buttons[i]
 			if not is_instance_valid(chip):
 				continue
 			var chip_selected: bool = i == index
-			chip.text = ("▸ %s" % str(SECTION_CHIP_LABELS[SETTINGS_SECTIONS[i]])) if chip_selected else str(SECTION_CHIP_LABELS[SETTINGS_SECTIONS[i]])
-			chip.add_theme_color_override("font_color", TacticalUIHelper.LIME if chip_selected else TacticalUIHelper.TEXT)
-			chip.add_theme_stylebox_override("normal", m._settings_nav_style(TacticalUIHelper.LIME if chip_selected else Color(TacticalUIHelper.CYAN.r, TacticalUIHelper.CYAN.g, TacticalUIHelper.CYAN.b, 0.18)))
+			chip.text = str(SECTION_CHIP_LABELS[SETTINGS_SECTIONS[i]])
+			chip.add_theme_color_override("font_color", Design.TEXT_PRIMARY if chip_selected else Design.TEXT_SECONDARY)
+			chip.add_theme_stylebox_override("normal", _chip_style(chip_selected, false))
 
 func settings_section_snapshot() -> Dictionary:
 	var visible_controls := 0
