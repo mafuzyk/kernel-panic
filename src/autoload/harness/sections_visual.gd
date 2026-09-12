@@ -430,6 +430,81 @@ func _editorial_screens_test() -> void:
 	bestiary.queue_free()
 	await h._ticks(2)
 
+	# ── conquistas ────────────────────────────────────────────────────
+	var awards_script: Script = load("res://src/ui/achievements_panel.gd")
+	var awards: Control = awards_script.new()
+	h.get_tree().current_scene.add_child(awards)
+	await h._ticks(2)
+
+	h._check(awards.theme == UiTheme.shared(), "achievements uses the shared design theme")
+	h._check(awards.has_method("title_text") and str(awards.call("title_text")) == tr("AWARDS_TITLE"),
+		"achievements owns its editorial title")
+	h._check(awards.has_method("title_font_size") and int(awards.call("title_font_size")) >= Design.TEXT_HEADING,
+		"achievements title uses the display end of the type scale")
+	h._check(awards.has_signal("back_pressed"), "achievements owns its back action")
+	h._check(awards.has_method("content_rects"), "achievements exposes live content rects")
+	if awards.has_method("content_rects"):
+		for viewport_size in [Vector2(1920, 1080), Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			awards.size = viewport_size
+			await h._ticks(2)
+			var awards_label := "%dx%d" % [int(viewport_size.x), int(viewport_size.y)]
+			var awards_screen := Rect2(Vector2.ZERO, viewport_size)
+			var awards_inside := true
+			for content in awards.call("content_rects"):
+				if not awards_screen.encloses(content):
+					awards_inside = false
+			h._check(awards_inside, "achievements content stays inside the screen at %s" % awards_label)
+
+	h._check(awards.has_method("row_ink"), "achievement rows expose semantic ink roles")
+	if awards.has_method("row_ink"):
+		var saved_awards: Dictionary = Game.achievements.duplicate(true)
+		Game.achievements = {"first_blood": true}
+		var unlocked_ink: Dictionary = awards.call("row_ink", "first_blood")
+		var locked_ink: Dictionary = awards.call("row_ink", "boss_purge")
+		h._check(unlocked_ink.get("title", Color.BLACK) == Design.TEXT_PRIMARY,
+			"unlocked achievement title stays neutral")
+		h._check(unlocked_ink.get("marker", Color.BLACK) == Design.SUCCESS,
+			"unlocked achievement keeps success green as a marker")
+		h._check(locked_ink.get("title", Color.BLACK) in [Design.TEXT_SECONDARY, Design.TEXT_FAINT],
+			"locked achievement title stays neutral instead of cyan")
+		h._check(locked_ink.get("body", Color.BLACK) != Design.ACCENT,
+			"locked achievement hint is not tinted by the global accent")
+		Game.achievements = saved_awards
+
+	var awards_back_events: Array = []
+	awards.back_pressed.connect(func() -> void: awards_back_events.append(true))
+	var awards_back = awards.get("_back_block")
+	var awards_back_hit = awards_back.get_meta("hit") if awards_back is PanelContainer and awards_back.has_meta("hit") else null
+	h._check(awards_back_hit is Button, "achievements back action exposes a real interactive hit target")
+	if awards_back_hit is Button:
+		awards_back_hit.pressed.emit()
+		h._check(awards_back_events.size() == 1, "achievements back action emits back_pressed")
+
+	# Prova o caminho vivo signal -> refresh. `progress_header()` sozinho lê Game
+	# diretamente e passaria mesmo se `_on_achievement_unlocked()` parasse de
+	# reconstruir a tela; aqui verificamos o Label e a linha já montados.
+	var live_saved_awards: Dictionary = Game.achievements.duplicate(true)
+	Game.achievements = {}
+	awards.refresh()
+	Game.achievements["first_blood"] = true
+	Game.achievement_unlocked.emit("first_blood", str(Game.ACHIEVEMENT_DEFS["first_blood"]))
+	await h._ticks(2)
+	var live_header = awards.get("_header")
+	h._check(live_header is Label and (live_header as Label).text.contains("1 / %d" % Game.ACHIEVEMENT_DEFS.size()),
+		"achievement unlock refreshes the live awards progress header")
+	var live_first_row_unlocked := false
+	for raw_row in awards.get("_row_controls"):
+		if raw_row is Control and str(raw_row.get_meta("id", "")) == "first_blood":
+			var status = raw_row.get_meta("status", null)
+			live_first_row_unlocked = status is Label and (status as Label).text == tr("AWARDS_UNLOCKED")
+			break
+	h._check(live_first_row_unlocked, "achievement unlock refreshes the live awards row state")
+	Game.achievements = live_saved_awards
+	awards.refresh()
+
+	awards.queue_free()
+	await h._ticks(2)
+
 	# ── seletor de fase ───────────────────────────────────────────────
 	var story_script: Script = load("res://src/ui/story_panel.gd")
 	var story: Control = story_script.new()

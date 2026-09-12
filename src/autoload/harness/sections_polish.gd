@@ -157,6 +157,13 @@ func _awards_chrome_test(menu: Node) -> void:
 		var rect: Rect2 = panel.call("awards_panel_rect", vp)
 		h._check(Rect2(Vector2.ZERO, vp).encloses(rect.grow(-2.0)), "awards chrome stays inside the viewport at %dx%d" % [int(vp.x), int(vp.y)])
 		h._check(rect.size.x >= 240.0 and rect.size.y >= 220.0, "awards chrome keeps a usable panel size at %dx%d" % [int(vp.x), int(vp.y)])
+	var awards_text_fits: bool = panel.has_method("text_overflow_report")
+	if awards_text_fits:
+		for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			panel.size = vp
+			for entry in panel.call("text_overflow_report"):
+				awards_text_fits = awards_text_fits and bool(entry.get("fits", false))
+	h._check(awards_text_fits, "awards representative text stays inside the editorial rows")
 	panel.free()
 	# O guard antigo era `menu.get("_ach_panel") != null`, mas o painel só nasce
 	# DENTRO de _open_achievements() — a condição nunca era verdadeira e todo o
@@ -166,15 +173,17 @@ func _awards_chrome_test(menu: Node) -> void:
 		menu.call("_open_achievements")
 		await h._ticks(4)
 		var live = menu.get("_ach_panel")
-		var chrome_rect: Rect2 = live.call("awards_panel_rect", live.size)
+		var list_view: Rect2 = live.call("content_viewport_rect")
 		var contained := true
 		var row_found := false
 		for row in live.call("award_row_rects"):
 			row_found = true
-			if not chrome_rect.grow(-4.0).encloses(Rect2(row)):
+			var local_row := Rect2(row)
+			local_row.position -= live.global_position
+			if not list_view.grow(1.0).encloses(local_row):
 				contained = false
 		h._check(row_found, "awards panel exposes live row rects for containment probes")
-		h._check(contained, "awards rows sit inside the chrome at the live viewport")
+		h._check(contained, "awards rows sit inside the live scroll viewport")
 		# Comportamento, não texto-fonte. O fundo deste overlay precisa ser
 		# OPACO: era o único dos quatro com alpha 0.88 e o menu vazava por trás
 		# (B1 da auditoria de 2026-09-11).
@@ -183,13 +192,26 @@ func _awards_chrome_test(menu: Node) -> void:
 		var backdrop: Node = live.get_node_or_null("AwardsDim")
 		h._check(backdrop is ColorRect and (backdrop as ColorRect).anchor_right == 1.0 and (backdrop as ColorRect).anchor_bottom == 1.0,
 			"awards panel draws a full-rect backdrop behind the chrome")
-		# As linhas usam o frame táctico como StyleBox do design system.
-		var framed := true
+		# A direção editorial não depende mais do frame táctico. O contrato aqui é
+		# que cada conquista tenha um corpo vivo/mensurável dentro da lista.
+		var measurable := true
 		for probe in live.call("award_row_rects"):
 			if probe.size.y < 2.0:
-				framed = false
-		h._check(framed, "awards rows render with a measurable framed row body")
-		menu.call("_close_achievements")
+				measurable = false
+		h._check(measurable, "awards rows render with a measurable editorial row body")
+		var live_scroll = live.get("_scroll")
+		var live_hint = live.get("_hint")
+		var live_bar = live_scroll.get_v_scroll_bar() if live_scroll is ScrollContainer else null
+		var should_hint: bool = live_bar != null and live_bar.max_value > live_bar.page \
+			and Design.breakpoint_for(live.size.x) in ["wide", "ultra"]
+		h._check(live_hint is Label and live_hint.visible == should_hint,
+			"awards scroll hint appears only when the live list can scroll")
+		var back_block = live.get("_back_block")
+		var back_hit = back_block.get_meta("hit") if back_block is PanelContainer and back_block.has_meta("hit") else null
+		if back_hit is Button:
+			back_hit.pressed.emit()
+			await h._ticks(2)
+		h._check(back_hit is Button and not live.visible, "menu closes achievements through the panel-owned back action")
 
 func _bestiary_glyph_test() -> void:
 	print("AT_STEP bestiary_glyph")

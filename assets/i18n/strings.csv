@@ -30,6 +30,16 @@ VICTORY_NEXT_STAGE,Next stage,Próxima fase
 VICTORY_RETURN,Return to menu,Voltar ao menu
 VICTORY_STORY_SELECT,Story select,Seleção de fases
 AWARDS_HEADER,ACHIEVEMENTS // {0} / {1} UNLOCKED,CONQUISTAS // {0} / {1} DESBLOQUEADAS
+AWARDS_TITLE,ACHIEVEMENTS,CONQUISTAS
+AWARDS_SUBTITLE,process milestones recorded across every purge,marcos de processo registrados ao longo de cada purga
+AWARDS_PROGRESS,{0} / {1} UNLOCKED,{0} / {1} DESBLOQUEADAS
+AWARDS_UNLOCKED,UNLOCKED,DESBLOQUEADA
+AWARDS_LOCKED,LOCKED,BLOQUEADA
+AWARDS_HINT_FIRST_BLOOD,Terminate your first daemon.,Elimine seu primeiro daemon.
+AWARDS_HINT_BOSS_PURGE,Take down a ROOT-class boss.,Derrube um chefe da classe ROOT.
+AWARDS_HINT_CHAIN_MAX,Push the combo meter to its maximum multiplier.,Leve o medidor de combo ao multiplicador máximo.
+AWARDS_HINT_TERMINAL_OPERATOR,Grant a sudo heal in the terminal.,Conceda uma cura via sudo no terminal.
+AWARDS_HINT_INTEGRITY_RESTORED,Recover integrity after it drops.,Recupere integridade depois que ela cair.
 TAGLINE,last process standing,o último processo de pé
 SCROLL_HINT_TOUCH,SWIPE TO SCROLL,ARRASTE PARA ROLAR
 SCROLL_HINT_POINTER,SCROLL // MOUSE WHEEL,ROLE // RODA DO MOUSE

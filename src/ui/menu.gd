@@ -373,20 +373,9 @@ func _open_achievements() -> void:
 		if panel_script == null:
 			return
 		_ach_panel = panel_script.new()
-		_ach_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-		var back := Button.new()
-		_chrome_kit._style_overlay_back(back)
-		back.text = "BACK  [ESC]"
-		back.anchor_left = 0.0
-		back.anchor_right = 0.0
-		back.anchor_top = 1.0
-		back.anchor_bottom = 1.0
-		back.offset_left = 28.0
-		back.offset_right = 190.0
-		back.offset_top = -72.0
-		back.offset_bottom = -30.0
-		back.pressed.connect(_close_achievements)
-		_ach_panel.add_child(back)
+		_ach_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		if _ach_panel.has_signal("back_pressed"):
+			_ach_panel.connect("back_pressed", _close_achievements)
 		var layer := CanvasLayer.new()
 		layer.layer = 70
 		layer.add_child(_ach_panel)
