@@ -1,6 +1,15 @@
 class_name TacticalIcon
 extends Control
 
+## Insígnia de canto cortado em volta dos chevrons do dash. Desligada.
+##
+## Era o último sobrevivente da linguagem antiga dentro do HUD: moldura por
+## elemento, no mesmo lugar de onde ela foi removida em todo o resto. Os três
+## chevrons já dizem "dash" sozinhos. Fica como ponto de extensão e como o que
+## a asserção mede.
+const DASH_BADGE_ENABLED := false
+
+
 const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
 
 var _kind := "settings"
@@ -209,10 +218,11 @@ func _draw_bestiary(center: Vector2, radius: float) -> void:
 	draw_circle(center, radius * 0.14, _line_color())
 
 func _draw_dash(center: Vector2, radius: float) -> void:
-	var badge := Rect2(center - Vector2(radius * 1.18, radius * 0.90), Vector2(radius * 2.36, radius * 1.80))
-	var badge_points := TacticalUIHelper.angular_points(badge, radius * 0.28)
-	draw_colored_polygon(badge_points, Color(_accent.r, _accent.g, _accent.b, 0.10))
-	_points_closed(badge_points, _line_color(0.72), 1.5)
+	if DASH_BADGE_ENABLED:
+		var badge := Rect2(center - Vector2(radius * 1.18, radius * 0.90), Vector2(radius * 2.36, radius * 1.80))
+		var badge_points := TacticalUIHelper.angular_points(badge, radius * 0.28)
+		draw_colored_polygon(badge_points, Color(_accent.r, _accent.g, _accent.b, 0.10))
+		_points_closed(badge_points, _line_color(0.72), 1.5)
 	for index in 3:
 		var x := center.x - radius * 0.62 + float(index) * radius * 0.62
 		var points := PackedVector2Array([
