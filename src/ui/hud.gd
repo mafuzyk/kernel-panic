@@ -248,8 +248,16 @@ func status_surface_points(rect: Rect2) -> PackedVector2Array:
 func primary_surface_points(rect: Rect2) -> PackedVector2Array:
 	return status_surface_points(rect)
 
+## Chão dos módulos de combate.
+##
+## Opaco por contrato. A versão anterior usava alpha 0.055 para "o campo
+## continuar visível através do módulo" — regra escrita para um fundo parado.
+## O fundo não está parado: a câmera segue o jogador, então a parede da arena,
+## as réguas da grade e os setores corrompidos passam por baixo de cada módulo
+## o tempo todo, e o texto de status ficava sobre o que calhasse de passar.
+## HUD é leitura periférica; tem que ser lido sem foco e sem sorte.
 func primary_surface_fill() -> Color:
-	return Color(0.015, 0.035, 0.07, 0.055)
+	return Color(0.012, 0.020, 0.045, 0.92)
 
 func outer_frame_segments(_viewport: Vector2 = size) -> Array[PackedVector2Array]:
 	return []
@@ -573,6 +581,7 @@ func _draw_primary_surface(rect: Rect2, color: Color, tint_alpha: float = 0.025)
 
 func _draw_status_surface(rect: Rect2, color: Color, fill_alpha: float = 0.025) -> void:
 	var points := status_surface_points(rect)
+	draw_colored_polygon(points, primary_surface_fill())
 	draw_colored_polygon(points, Color(Design.SURFACE_SUNKEN.r, Design.SURFACE_SUNKEN.g, Design.SURFACE_SUNKEN.b, 0.46))
 	draw_colored_polygon(points, Color(color.r, color.g, color.b, fill_alpha))
 	draw_line(rect.position, Vector2(rect.end.x, rect.position.y), Color(color.r, color.g, color.b, 0.46), 1.0, true)
