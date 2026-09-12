@@ -21,6 +21,26 @@ func _settings_tabs_test(menu: Node) -> void:
 	h._check(sections == ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"], "settings kit declares the five sections in order")
 	menu.call("_open_settings")
 	await h._ticks(2)
+	var settings_panel: Control = menu.get("_settings_panel")
+	var settings_title: Label = menu.get("_settings_title")
+	h._check(settings_panel != null and settings_panel.theme == UiTheme.shared(),
+		"settings overlay uses the shared design theme")
+	h._check(settings_title != null and settings_title.get_theme_font("font") == Design.grotesk(Design.WEIGHT_BLACK),
+		"settings title uses the editorial grotesk instead of Orbitron")
+	h._check(settings_title != null and settings_title.horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT,
+		"settings title follows the left-aligned editorial hierarchy")
+	var tactical_chrome_nodes: Array[Node] = []
+	if settings_panel != null:
+		for child in settings_panel.find_children("*", "TacticalChrome", true, false):
+			if child is CanvasItem and (child as CanvasItem).visible:
+				tactical_chrome_nodes.append(child)
+	h._check(tactical_chrome_nodes.is_empty(),
+		"settings no longer renders legacy TacticalChrome frames")
+	var settings_nav_focusable := true
+	for raw_button in menu.get("_settings_nav_buttons"):
+		if raw_button is Button and (raw_button as Button).focus_mode != Control.FOCUS_ALL:
+			settings_nav_focusable = false
+	h._check(settings_nav_focusable, "settings navigation remains keyboard-focusable in the editorial shell")
 	for section in sections:
 		kit.call("set_active_section", str(section))
 		await h._ticks(1)
@@ -46,9 +66,11 @@ func _settings_tabs_test(menu: Node) -> void:
 		var selected_ok: bool = nav_buttons.size() == sections.size()
 		for i in nav_buttons.size():
 			var btn: Button = nav_buttons[i]
-			if (i == selected_index) != str(btn.text).begins_with("▸"):
+			var nav_style := btn.get_theme_stylebox("normal")
+			var has_marker := nav_style is StyleBoxFlat and (nav_style as StyleBoxFlat).border_width_left > 0
+			if (i == selected_index) != has_marker:
 				selected_ok = false
-		h._check(selected_ok, "exactly one nav button carries the selected marker (%s)" % str(section))
+		h._check(selected_ok, "exactly one nav button carries the editorial selection rail (%s)" % str(section))
 	kit.call("set_active_section", "AUDIO")
 	h.get_viewport().push_input(h._key_event(KEY_ESCAPE))
 	h._check(not bool(menu.get("_settings_panel").visible), "ESC still closes the whole settings panel")
@@ -78,9 +100,11 @@ func _settings_chips_test(menu: Node) -> void:
 	var chips: Array = menu.get("_settings_chip_buttons")
 	var chip_selected: bool = chips.size() == 5
 	for i in chips.size():
-		if (i == 4) != str(chips[i].text).begins_with("▸"):
+		var chip_style := (chips[i] as Button).get_theme_stylebox("normal")
+		var has_underline := chip_style is StyleBoxFlat and (chip_style as StyleBoxFlat).border_width_bottom > 0
+		if (i == 4) != has_underline:
 			chip_selected = false
-	h._check(chip_selected, "chips share the active section state with the sidebar")
+	h._check(chip_selected, "chips share the editorial active-section marker with the sidebar")
 	kit.call("apply_viewport", Vector2.ZERO)
 	kit.call("set_active_section", "AUDIO")
 	menu.call("_close_settings")
