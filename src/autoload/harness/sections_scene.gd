@@ -298,6 +298,13 @@ func _touch_hud_layout_test() -> void:
 	var tc_script: Script = load("res://src/ui/touch_controls.gd")
 	var tc = tc_script.new() if tc_script != null else null
 	h._check(tc != null and tc.has_method("_dash_btn") and tc.has_method("_oc_btn"), "touch controls expose button rects for layout probes")
+	h._check(tc != null and tc.has_method("visual_state"), "touch controls expose their live visual state")
+	if tc != null and tc.has_method("visual_state"):
+		tc.set("_aim_active", false)
+		var idle_visual: Dictionary = tc.call("visual_state")
+		h._check(bool(idle_visual.get("dash", false)) and bool(idle_visual.get("boost", false)),
+			"touch dash and boost remain visible without an active aim gesture")
+		h._check(not bool(idle_visual.get("aim", true)), "touch aim overlay stays hidden until aim is active")
 	var saved_touch_scale := Sfx.touch_scale
 	var saved_force := OS.get_environment("KP_FORCE_TOUCH")
 	for scale in [0.85, 1.0, 1.2]:
@@ -400,4 +407,3 @@ func _charm_save_transfer_test(menu: Node) -> void:
 	Game.achievements = saved_achievements
 	Game.story_cleared = saved_story_cleared
 	Game.story_best = saved_story_best
-
