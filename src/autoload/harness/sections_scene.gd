@@ -27,7 +27,12 @@ func _story_menu_test(menu: Node) -> void:
 	print("AT_STEP story_menu")
 	var story_panel_script: Script = load("res://src/ui/story_panel.gd")
 	h._check(story_panel_script != null, "story selector script loads")
-	h._check(menu.has_method("_open_story_selector") and menu.get("_story_btn") != null, "menu exposes a separate Story entry")
+	# Era `menu.get("_story_btn") != null` — prendia o contrato a um WIDGET da
+	# barra antiga, que é construída e escondida. A rota é o contrato; por onde
+	# ela é oferecida é decisão da casca.
+	var menu_routes: Array = menu.main_shell_snapshot().get("routes", [])
+	h._check(menu.has_method("_open_story_selector") and menu_routes.has("STORY"),
+		"menu exposes a separate Story entry")
 	if story_panel_script == null or not menu.has_method("_open_story_selector"):
 		return
 	menu.call("_open_story_selector")
