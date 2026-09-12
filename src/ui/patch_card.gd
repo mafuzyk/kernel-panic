@@ -13,6 +13,7 @@ signal selected(index: int)
 const CARD_PAD := Design.SPACE_LG
 const ICON_SLOT := 64.0
 const ICON_DRAW_SIZE := 52.0
+const LONG_TITLE_SIZE := 28
 
 var _def: Dictionary = {}
 var _index := 0
@@ -196,6 +197,7 @@ func _refresh() -> void:
 	_rarity.text = rarity_label()
 	_rarity.add_theme_color_override("font_color", marker)
 	_title.text = card_title()
+	_title.add_theme_font_size_override("font_size", _title_font_size(_title.text))
 	_title.add_theme_color_override("font_color", ink.get("title", Design.TEXT_PRIMARY))
 	_desc.text = str(_def.get("desc", ""))
 	_desc.add_theme_color_override("font_color", ink.get("body", Design.TEXT_SECONDARY))
@@ -208,6 +210,10 @@ func _refresh() -> void:
 	_level_marks.text = " ".join(marks)
 	_level_marks.add_theme_color_override("font_color", Design.alpha(marker, 0.82))
 	_icon_slot.queue_redraw()
+
+
+func _title_font_size(text: String) -> int:
+	return LONG_TITLE_SIZE if text.length() >= 12 else Design.TEXT_HEADING
 
 
 ## Patch icon family table: every Game.PATCH_CODES id maps to one of six visual

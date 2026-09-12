@@ -48,6 +48,9 @@ var _intro_quote: Label
 var touch: TouchControls
 var reticle: Reticle
 var _patch_panel: Control
+var _patch_header: VBoxContainer
+var _patch_title_label: Label
+var _patch_sub_label: Label
 var _patch_box: HBoxContainer
 var _patch_offers: Array = []
 var _patch_open := false
@@ -64,6 +67,8 @@ const PANEL_CONTENT_HEIGHT := 500.0
 const PANEL_SAFE_MARGIN := 16.0
 const PATCH_MAX_WIDTH := 930.0
 const PATCH_BOX_HEIGHT := 295.0
+const PATCH_HEADER_HEIGHT := 72.0
+const PATCH_HEADER_GAP := Design.SPACE_XL
 var _abandon_armed := false
 var _abandon_t := 0.0
 var _abandon_timer: SceneTreeTimer
@@ -335,10 +340,21 @@ func patch_card_rects_for_viewport(viewport_size: Vector2) -> Array[Rect2]:
 		rects.append(Rect2(box.position.x + i * (card_width + separation), box.position.y, card_width, box.size.y))
 	return rects
 
+func patch_header_rect_for_viewport(viewport_size: Vector2) -> Rect2:
+	var box := patch_box_rect_for_viewport(viewport_size)
+	var height := PATCH_HEADER_HEIGHT
+	var top := maxf(PANEL_SAFE_MARGIN, box.position.y - PATCH_HEADER_HEIGHT - PATCH_HEADER_GAP)
+	return Rect2(box.position.x, top, box.size.x, minf(height, maxf(box.position.y - top, 0.0)))
+
 func _layout_patch_box() -> void:
 	if _patch_box == null or not is_instance_valid(_patch_box):
 		return
-	var box := patch_box_rect_for_viewport(get_viewport_rect().size)
+	var viewport_size := get_viewport_rect().size
+	var box := patch_box_rect_for_viewport(viewport_size)
+	if is_instance_valid(_patch_header):
+		var header := patch_header_rect_for_viewport(viewport_size)
+		_patch_header.position = header.position
+		_patch_header.size = header.size
 	_patch_box.anchor_left = 0.5
 	_patch_box.anchor_right = 0.5
 	_patch_box.anchor_top = 0.0
@@ -557,33 +573,24 @@ func _show_tip() -> void:
 
 func _build_patch_ui() -> void:
 	_patch_panel = Control.new()
-	_patch_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_patch_panel.theme = UiTheme.shared()
+	_patch_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_patch_panel.visible = false
 	_patch_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.01, 0.012, 0.03, 0.86)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Design.SCRIM
 	_patch_panel.add_child(dim)
-	var title := Label.new()
-	title.text = "KERNEL PATCH DETECTED"
-	title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
-	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", Balance.COL_MOTE)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.anchor_left = 0.0
-	title.anchor_right = 1.0
-	_panel_kit._center_panel_control(title, 130.0, 50.0)
-	_patch_panel.add_child(title)
-	var sub := Label.new()
-	sub.text = "SELECT ONE // [1] [2] [3]"
-	sub.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	sub.add_theme_font_size_override("font_size", 13)
-	sub.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.anchor_left = 0.0
-	sub.anchor_right = 1.0
-	_panel_kit._center_panel_control(sub, 182.0, 24.0)
-	_patch_panel.add_child(sub)
+	_patch_header = VBoxContainer.new()
+	_patch_header.add_theme_constant_override("separation", Design.SPACE_XS)
+	_patch_panel.add_child(_patch_header)
+	_patch_title_label = ScreenKit.grot("KERNEL PATCH DETECTED", Design.TEXT_HEADING, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
+	_patch_title_label.name = "PatchOfferTitle"
+	_patch_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_patch_header.add_child(_patch_title_label)
+	_patch_sub_label = ScreenKit.mono("SELECT ONE // [1] [2] [3]", Design.TEXT_CAPTION, Design.TEXT_MUTED)
+	_patch_header.add_child(_patch_sub_label)
+	ScreenKit.rule(_patch_header, 0.22)
 	_patch_box = HBoxContainer.new()
 	_patch_box.anchor_left = 0.5
 	_patch_box.anchor_right = 0.5
