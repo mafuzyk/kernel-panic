@@ -265,7 +265,14 @@ func _draw_icon_on(canvas: Control, accent: Color) -> void:
 			var side := ICON_DRAW_SIZE - pad * 2.0
 			canvas.draw_texture_rect(tex, Rect2(center - Vector2(side, side) * 0.5, Vector2(side, side)), false)
 			return
-	match patch_icon_family(id):
+	draw_family_glyph(canvas, patch_icon_family(id), center, accent)
+
+
+## Ponto de entrada único do símbolo de família. Estático para a folha de prova
+## poder medir o MESMO desenho que o card usa — medir uma cópia seria medir
+## ficção.
+static func draw_family_glyph(canvas: CanvasItem, family: String, center: Vector2, accent: Color) -> void:
+	match family:
 		"damage":
 			_draw_damage_glyph(canvas, center, accent)
 		"fire":
@@ -280,7 +287,7 @@ func _draw_icon_on(canvas: Control, accent: Color) -> void:
 			_draw_economy_glyph(canvas, center, accent)
 
 
-func _draw_damage_glyph(canvas: Control, center: Vector2, accent: Color) -> void:
+static func _draw_damage_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
 	for i in 3:
 		var a := -PI * 0.5 + TAU * float(i) / 3.0
 		var tip := center + Vector2.from_angle(a) * 22.0
@@ -290,14 +297,14 @@ func _draw_damage_glyph(canvas: Control, center: Vector2, accent: Color) -> void
 	canvas.draw_arc(center, 7.0, 0.0, TAU, 16, accent, 2.0, true)
 
 
-func _draw_fire_glyph(canvas: Control, center: Vector2, accent: Color) -> void:
+static func _draw_fire_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
 	for i in 3:
 		var x := center.x - 14.0 + float(i) * 10.0
 		var pts := PackedVector2Array([Vector2(x, center.y - 10.0), Vector2(x + 8.0, center.y), Vector2(x, center.y + 10.0)])
 		canvas.draw_polyline(pts, accent, 2.2, true)
 
 
-func _draw_defense_glyph(canvas: Control, center: Vector2, accent: Color) -> void:
+static func _draw_defense_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
 	var pts := PackedVector2Array([
 		center + Vector2(0.0, -20.0), center + Vector2(15.0, -12.0), center + Vector2(15.0, 4.0),
 		center + Vector2(0.0, 20.0), center + Vector2(-15.0, 4.0), center + Vector2(-15.0, -12.0),
@@ -307,7 +314,7 @@ func _draw_defense_glyph(canvas: Control, center: Vector2, accent: Color) -> voi
 	canvas.draw_line(center + Vector2(0.0, -12.0), center + Vector2(0.0, 12.0), accent, 2.0)
 
 
-func _draw_utility_glyph(canvas: Control, center: Vector2, accent: Color) -> void:
+static func _draw_utility_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
 	var nut := PackedVector2Array()
 	for i in 6:
 		nut.append(center + Vector2.from_angle(TAU * float(i) / 6.0) * 15.0)
@@ -315,13 +322,13 @@ func _draw_utility_glyph(canvas: Control, center: Vector2, accent: Color) -> voi
 	canvas.draw_circle(center, 5.0, accent)
 
 
-func _draw_movement_glyph(canvas: Control, center: Vector2, accent: Color) -> void:
+static func _draw_movement_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
 	canvas.draw_line(center + Vector2(-16.0, 6.0), center + Vector2(2.0, 6.0), Design.alpha(accent, 0.6), 2.0)
 	canvas.draw_line(center + Vector2(-10.0, -2.0), center + Vector2(8.0, -2.0), accent, 2.2)
 	canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(8.0, -8.0), center + Vector2(16.0, -2.0), center + Vector2(8.0, 4.0)]), accent)
 
 
-func _draw_economy_glyph(canvas: Control, center: Vector2, accent: Color) -> void:
+static func _draw_economy_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
 	for offset in [Vector2(-12.0, -8.0), Vector2(-4.0, 2.0), Vector2(6.0, -4.0)]:
 		canvas.draw_circle(center + offset, 4.0, accent)
 	canvas.draw_line(center + Vector2(-14.0, 12.0), center + Vector2(14.0, 12.0), accent, 2.0)

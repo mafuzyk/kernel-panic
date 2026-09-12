@@ -8,7 +8,29 @@ extends RefCounted
 var m
 
 const SETTINGS_SECTIONS := ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"]
-const SECTION_CHIP_LABELS := {"AUDIO": "AUDIO", "GAMEPLAY": "GAME", "CONTROLS": "KEYS", "ACCESSIBILITY": "ACCESS", "SAVE DATA": "DATA"}
+const SECTION_CHIP_KEYS := {
+	"AUDIO": "SET_CHIP_AUDIO", "GAMEPLAY": "SET_CHIP_GAMEPLAY", "CONTROLS": "SET_CHIP_CONTROLS",
+	"ACCESSIBILITY": "SET_CHIP_ACCESSIBILITY", "SAVE DATA": "SET_CHIP_SAVEDATA",
+}
+
+
+static func section_chip_label(section: String) -> String:
+	return TranslationServer.translate(str(SECTION_CHIP_KEYS.get(section, section)))
+
+## As strings de `SETTINGS_SECTIONS` são IDENTIFICADORES — `assign_section()` e
+## `set_active_section()` casam por elas. O que o jogador lê sai daqui, pelas
+## chaves do CSV. Traduzir o identificador quebraria a navegação inteira.
+const SECTION_KEYS := {
+	"AUDIO": "SET_NAV_AUDIO",
+	"GAMEPLAY": "SET_NAV_GAMEPLAY",
+	"CONTROLS": "SET_NAV_CONTROLS",
+	"ACCESSIBILITY": "SET_NAV_ACCESSIBILITY",
+	"SAVE DATA": "SET_NAV_SAVEDATA",
+}
+
+
+static func section_label(section: String) -> String:
+	return TranslationServer.translate(str(SECTION_KEYS.get(section, section)))
 const COMPACT_BREAKPOINT := 760.0
 var _active_section := "AUDIO"
 var _section_members := {}
@@ -198,8 +220,8 @@ func _build_settings() -> void:
 	form_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	form_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	form_wrap.add_child(form_spacer)
-	var title := ScreenKit.grot("SETTINGS // AUDIO", Design.TEXT_TITLE, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
-	title.text = "SETTINGS // AUDIO"
+	var title := ScreenKit.grot(tr("SET_TITLE") % section_label("AUDIO"), Design.TEXT_TITLE,
+		Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	var title_rect: Rect2 = settings_layout["title"]
 	title.position = title_rect.position
@@ -208,22 +230,22 @@ func _build_settings() -> void:
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m._settings_title = title
 	m._settings_panel.add_child(title)
-	var audio_label := _settings_group_label("AUDIO // MIX")
+	var audio_label := _settings_group_label(tr("SET_HEAD_AUDIO"))
 	assign_section(audio_label, "AUDIO")
 	box.add_child(audio_label)
-	var sfx_row := _make_slider_row("SFX", Sfx.sfx_vol, func(v: float) -> void:
+	var sfx_row := _make_slider_row(tr("SET_SFX"), Sfx.sfx_vol, func(v: float) -> void:
 		Sfx.set_sfx_vol(v)
 		Sfx.play("ui", 1.0, -6.0)
 	)
 	assign_section(sfx_row, "AUDIO")
 	box.add_child(sfx_row)
-	var music_row := _make_slider_row("MUSIC", Sfx.music_vol, func(v: float) -> void:
+	var music_row := _make_slider_row(tr("SET_MUSIC"), Sfx.music_vol, func(v: float) -> void:
 		Sfx.set_music_vol(v)
 	)
 	assign_section(music_row, "AUDIO")
 	box.add_child(music_row)
 	var mute := CheckButton.new()
-	mute.text = "MUTE ALL"
+	mute.text = tr("SET_MUTE_ALL")
 	_style_toggle(mute)
 	mute.button_pressed = Sfx.muted
 	mute.toggled.connect(func(on: bool) -> void:
@@ -231,16 +253,16 @@ func _build_settings() -> void:
 	)
 	assign_section(mute, "AUDIO")
 	box.add_child(_bounded_row(mute))
-	var mute_hint := _settings_group_label("M = MUTE IN GAME")
+	var mute_hint := _settings_group_label(tr("SET_MUTE_HINT"))
 	mute_hint.add_theme_font_size_override("font_size", 12)
 	mute_hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.4))
 	assign_section(mute_hint, "AUDIO")
 	box.add_child(mute_hint)
-	var gameplay_label := _settings_group_label("GAMEPLAY // FEEL")
+	var gameplay_label := _settings_group_label(tr("SET_HEAD_GAMEPLAY"))
 	assign_section(gameplay_label, "GAMEPLAY")
 	box.add_child(gameplay_label)
 	var haptics := CheckButton.new()
-	haptics.text = "HAPTICS"
+	haptics.text = tr("SET_HAPTICS")
 	_style_toggle(haptics)
 	haptics.button_pressed = Sfx.haptics_enabled
 	haptics.toggled.connect(func(on: bool) -> void:
@@ -251,7 +273,7 @@ func _build_settings() -> void:
 	box.add_child(haptics)
 	var aim_btn := Button.new()
 	aim_btn.flat = true
-	aim_btn.text = "AIM MODE: %s" % Sfx.aim_mode.to_upper()
+	aim_btn.text = tr("SET_AIM") % Sfx.aim_mode.to_upper()
 	aim_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	aim_btn.add_theme_font_size_override("font_size", 17)
 	aim_btn.add_theme_color_override("font_color", Balance.COL_TEXT)
@@ -269,7 +291,7 @@ func _build_settings() -> void:
 	box.add_child(aim_btn)
 	var touch_sz := Button.new()
 	touch_sz.flat = true
-	touch_sz.text = "TOUCH SIZE: %s" % ["SMALL", "NORMAL", "BIG"][m._touch_scale_idx(Sfx.touch_scale)]
+	touch_sz.text = tr("SET_TOUCH_SIZE") % [tr("SET_VAL_SMALL"), tr("SET_VAL_NORMAL"), tr("SET_VAL_BIG")][m._touch_scale_idx(Sfx.touch_scale)]
 	touch_sz.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	touch_sz.add_theme_font_size_override("font_size", 17)
 	touch_sz.add_theme_color_override("font_color", Balance.COL_TEXT)
@@ -278,7 +300,7 @@ func _build_settings() -> void:
 	touch_sz.pressed.connect(func() -> void:
 		var idx: int = m._next_touch_scale_idx(Sfx.touch_scale)
 		Sfx.touch_scale = [0.85, 1.0, 1.2][idx]
-		touch_sz.text = "TOUCH SIZE: %s" % ["SMALL", "NORMAL", "BIG"][idx]
+		touch_sz.text = tr("SET_TOUCH_SIZE") % [tr("SET_VAL_SMALL"), tr("SET_VAL_NORMAL"), tr("SET_VAL_BIG")][idx]
 		Sfx.save_settings()
 	)
 	touch_sz.set_meta("touch_only", true)
@@ -286,7 +308,7 @@ func _build_settings() -> void:
 	box.add_child(touch_sz)
 	var shake_btn := Button.new()
 	shake_btn.flat = true
-	shake_btn.text = "SCREEN SHAKE: %s" % ["OFF", "LOW", "FULL"][clampi(Sfx.shake_level, 0, 2)]
+	shake_btn.text = tr("SET_SHAKE") % [tr("SET_VAL_OFF"), tr("SET_VAL_LOW"), tr("SET_VAL_FULL")][clampi(Sfx.shake_level, 0, 2)]
 	shake_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	shake_btn.add_theme_font_size_override("font_size", 17)
 	shake_btn.add_theme_color_override("font_color", Balance.COL_TEXT)
@@ -294,14 +316,14 @@ func _build_settings() -> void:
 	shake_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	shake_btn.pressed.connect(func() -> void:
 		Sfx.shake_level = (Sfx.shake_level + 1) % 3
-		shake_btn.text = "SCREEN SHAKE: %s" % ["OFF", "LOW", "FULL"][Sfx.shake_level]
+		shake_btn.text = tr("SET_SHAKE") % [tr("SET_VAL_OFF"), tr("SET_VAL_LOW"), tr("SET_VAL_FULL")][Sfx.shake_level]
 		Sfx.save_settings()
 	)
 	assign_section(shake_btn, "GAMEPLAY")
 	box.add_child(shake_btn)
 	var run_info := Button.new()
 	run_info.flat = true
-	run_info.text = "SPEEDRUN HUD: %s" % ("ON" if Sfx.show_run_info else "OFF")
+	run_info.text = tr("SET_SPEEDRUN") % (tr("SET_VAL_ON") if Sfx.show_run_info else tr("SET_VAL_OFF"))
 	run_info.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	run_info.add_theme_font_size_override("font_size", 17)
 	run_info.add_theme_color_override("font_color", Balance.COL_TEXT)
@@ -309,12 +331,12 @@ func _build_settings() -> void:
 	run_info.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	run_info.pressed.connect(func() -> void:
 		Sfx.show_run_info = not Sfx.show_run_info
-		run_info.text = "SPEEDRUN HUD: %s" % ("ON" if Sfx.show_run_info else "OFF")
+		run_info.text = tr("SET_SPEEDRUN") % (tr("SET_VAL_ON") if Sfx.show_run_info else tr("SET_VAL_OFF"))
 		Sfx.save_settings()
 	)
 	assign_section(run_info, "GAMEPLAY")
 	box.add_child(run_info)
-	var access_label := _settings_group_label("ACCESSIBILITY // VISION")
+	var access_label := _settings_group_label(tr("SET_HEAD_VISION"))
 	assign_section(access_label, "ACCESSIBILITY")
 	box.add_child(access_label)
 	m._color_assist_btn = Button.new()
@@ -335,14 +357,14 @@ func _build_settings() -> void:
 	assign_section(save_label, "SAVE DATA")
 	box.add_child(save_label)
 	var transfer_title := Label.new()
-	transfer_title.text = "ENCODED PROGRESS // COPY OR PASTE"
+	transfer_title.text = tr("SET_EXPORT_HEAD")
 	transfer_title.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	transfer_title.add_theme_font_size_override("font_size", 14)
 	transfer_title.add_theme_color_override("font_color", Balance.COL_MOTE)
 	assign_section(transfer_title, "SAVE DATA")
 	box.add_child(transfer_title)
 	m._save_transfer_field = LineEdit.new()
-	m._save_transfer_field.placeholder_text = "BASE64 SAVE STRING // PASTE HERE"
+	m._save_transfer_field.placeholder_text = tr("SET_IMPORT_PLACEHOLDER")
 	m._save_transfer_field.custom_minimum_size = Vector2(0.0, 38.0)
 	m._save_transfer_field.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	m._save_transfer_field.add_theme_font_size_override("font_size", 11)
@@ -352,7 +374,7 @@ func _build_settings() -> void:
 	var transfer_row := HBoxContainer.new()
 	transfer_row.add_theme_constant_override("separation", 8)
 	var export_btn := Button.new()
-	export_btn.text = "COPY EXPORT"
+	export_btn.text = tr("SET_COPY_EXPORT")
 	export_btn.flat = true
 	export_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	export_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
@@ -362,7 +384,7 @@ func _build_settings() -> void:
 	export_btn.pressed.connect(m._export_save_to_clipboard)
 	transfer_row.add_child(export_btn)
 	var import_btn := Button.new()
-	import_btn.text = "IMPORT PASTE"
+	import_btn.text = tr("SET_IMPORT_PASTE")
 	import_btn.flat = true
 	import_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	import_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
@@ -374,7 +396,7 @@ func _build_settings() -> void:
 	assign_section(transfer_row, "SAVE DATA")
 	box.add_child(transfer_row)
 	m._save_transfer_status = Label.new()
-	m._save_transfer_status.text = "EXPORT INCLUDES RECORDS, BESTIARY, PROGRAMS, ACHIEVEMENTS"
+	m._save_transfer_status.text = tr("SET_EXPORT_NOTE")
 	m._save_transfer_status.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	m._save_transfer_status.add_theme_font_size_override("font_size", 10)
 	m._save_transfer_status.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
@@ -392,35 +414,35 @@ func _build_settings() -> void:
 	var kills := int(cf2.get_value("lifetime", "kills", 0))
 	var chain := int(cf2.get_value("lifetime", "best_chain", 0))
 	var kd: Dictionary = cf2.get_value("lifetime", "killers", {})
-	var top := "NONE"
+	var top := tr("SET_VAL_NONE")
 	var tk := 0
 	for k in kd:
 		if int(kd[k]) > tk:
 			tk = int(kd[k])
 			top = str(k)
-	stats.text = "LIFETIME  RUNS %d  KILLS %d  BEST CHAIN x%d  TOP THREAT %s" % [runs, kills, chain, top]
+	stats.text = tr("SET_LIFETIME") % [runs, kills, chain, top]
 	assign_section(stats, "SAVE DATA")
 	box.add_child(stats)
 	if m._desktop_keybinds_enabled():
 		_build_keybind_settings(box)
 	else:
-		var controls_note := _settings_group_label("DESKTOP ONLY // KEYBINDS ARE EDITABLE ON DESKTOP BUILDS")
+		var controls_note := _settings_group_label(tr("SET_KEYBINDS_DESKTOP_ONLY"))
 		assign_section(controls_note, "CONTROLS")
 		box.add_child(controls_note)
 	var reset := Button.new()
 	reset.flat = true
-	reset.text = "RESET HIGH SCORE"
+	reset.text = tr("SET_RESET_SCORE")
 	reset.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	reset.add_theme_font_size_override("font_size", 14)
 	reset.add_theme_color_override("font_color", Color(Balance.COL_DANGER.r, Balance.COL_DANGER.g, Balance.COL_DANGER.b, 0.8))
 	reset.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	reset.pressed.connect(func() -> void:
-		if reset.text == "RESET HIGH SCORE":
-			reset.text = "TAP AGAIN TO CONFIRM"
+		if reset.text == tr("SET_RESET_SCORE"):
+			reset.text = tr("SET_TAP_CONFIRM")
 			return
 		m._reset_scores()
 		m._update_best()
-		reset.text = "CLEARED"
+		reset.text = tr("SET_CLEARED")
 	)
 	assign_section(reset, "SAVE DATA")
 	box.add_child(reset)
@@ -438,7 +460,7 @@ func _build_settings() -> void:
 	m._settings_nav_buttons.clear()
 	for index in SETTINGS_SECTIONS.size():
 		var nav_button := Button.new()
-		nav_button.text = SETTINGS_SECTIONS[index]
+		nav_button.text = section_label(str(SETTINGS_SECTIONS[index]))
 		nav_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		nav_button.position = navigation.position + Vector2(10.0, 12.0 + float(index) * 48.0)
 		nav_button.size = Vector2(navigation.size.x - 20.0, 38.0)
@@ -454,7 +476,7 @@ func _build_settings() -> void:
 		nav_button.pressed.connect(set_active_section.bind(str(SETTINGS_SECTIONS[index])))
 		m._settings_panel.add_child(nav_button)
 	var nav_hint := Label.new()
-	nav_hint.text = "SYSTEM / CONFIG"
+	nav_hint.text = tr("SET_FOOTER")
 	nav_hint.position = navigation.position + Vector2(14.0, navigation.size.y - 28.0)
 	nav_hint.size = Vector2(navigation.size.x - 28.0, 18.0)
 	nav_hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
@@ -469,7 +491,7 @@ func _build_settings() -> void:
 	m._settings_panel.add_child(chips_row)
 	for section in SETTINGS_SECTIONS:
 		var chip := Button.new()
-		chip.text = str(SECTION_CHIP_LABELS[section])
+		chip.text = section_chip_label(str(section))
 		chip.focus_mode = Control.FOCUS_ALL
 		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		chip.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -540,7 +562,7 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 	m._keybind_box = VBoxContainer.new()
 	m._keybind_box.add_theme_constant_override("separation", 7)
 	var title := Label.new()
-	title.text = "DESKTOP KEYBINDS"
+	title.text = tr("SET_KEYBINDS")
 	title.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	title.add_theme_font_size_override("font_size", 14)
 	title.add_theme_color_override("font_color", Balance.COL_MOTE)
@@ -574,14 +596,14 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 		grid.add_child(row)
 	m._keybind_box.add_child(grid)
 	m._keybind_status = Label.new()
-	m._keybind_status.text = "SELECT A BIND TO CHANGE IT"
+	m._keybind_status.text = tr("SET_BIND_HINT")
 	m._keybind_status.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	m._keybind_status.add_theme_font_size_override("font_size", 11)
 	m._keybind_status.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
 	m._keybind_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	m._keybind_box.add_child(m._keybind_status)
 	var reset := Button.new()
-	reset.text = "RESET KEYBINDS"
+	reset.text = tr("SET_BIND_RESET")
 	reset.flat = true
 	reset.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	reset.custom_minimum_size = Vector2(160.0, 28.0)
@@ -593,27 +615,29 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 		Game.reset_keybinds()
 		_refresh_keybind_buttons()
 		m._capture_action = ""
-		m._keybind_status.text = "KEYBINDS RESET TO DEFAULTS"
+		m._keybind_status.text = tr("SET_BIND_RESET_DONE")
 	)
 	m._keybind_box.add_child(reset)
 	_refresh_keybind_buttons()
 	parent.add_child(m._keybind_box)
 	assign_section(m._keybind_box, "CONTROLS")
 
+## O nome da AÇÃO é identificador do InputMap; o rótulo é o que o jogador lê.
 func _keybind_action_label(action: String) -> String:
-	return {
-		"move_up": "MOVE UP",
-		"move_down": "MOVE DOWN",
-		"move_left": "MOVE LEFT",
-		"move_right": "MOVE RIGHT",
-		"dash": "DASH",
-		"overclock": "OVERCLOCK",
-		"pause": "PAUSE",
-		"abandon": "ABANDON",
-		"mute": "MUTE",
-		"restart": "RESTART",
-		"confirm": "CONFIRM",
-	}.get(action, action.to_upper())
+	var key: String = {
+		"move_up": "SET_BIND_UP",
+		"move_down": "SET_BIND_DOWN",
+		"move_left": "SET_BIND_LEFT",
+		"move_right": "SET_BIND_RIGHT",
+		"dash": "SET_BIND_DASH",
+		"overclock": "SET_BIND_OVERCLOCK",
+		"pause": "SET_BIND_PAUSE",
+		"abandon": "SET_BIND_ABANDON",
+		"mute": "SET_BIND_MUTE",
+		"restart": "SET_BIND_RESTART",
+		"confirm": "SET_BIND_CONFIRM",
+	}.get(action, "")
+	return tr(key) if key != "" else action.to_upper()
 
 func _keybind_key_name(physical_key: int) -> String:
 	var key_name := OS.get_keycode_string(physical_key)
@@ -628,7 +652,7 @@ func _begin_keybind_capture(action: String) -> void:
 	if not m._desktop_keybinds_enabled() or not Game.KEYBIND_DEFAULTS.has(action):
 		return
 	m._capture_action = action
-	m._keybind_status.text = "PRESS A KEY FOR %s // ESC CANCELS" % _keybind_action_label(action)
+	m._keybind_status.text = tr("SET_BIND_CAPTURE") % _keybind_action_label(action)
 
 func _handle_keybind_capture(event: InputEventKey) -> bool:
 	if m._capture_action.is_empty():
@@ -640,15 +664,15 @@ func _handle_keybind_capture(event: InputEventKey) -> bool:
 		return true
 	if physical_key == KEY_ESCAPE or int(event.keycode) == KEY_ESCAPE:
 		m._capture_action = ""
-		m._keybind_status.text = "KEYBIND CAPTURE CANCELLED"
+		m._keybind_status.text = tr("SET_BIND_CANCELLED")
 		return true
 	var conflict := Game.keybind_conflict(physical_key, m._capture_action)
 	if conflict != "":
-		m._keybind_status.text = "CONFLICT: %s IS ALREADY %s" % [_keybind_key_name(physical_key), _keybind_action_label(conflict)]
+		m._keybind_status.text = tr("SET_BIND_CONFLICT") % [_keybind_key_name(physical_key), _keybind_action_label(conflict)]
 		return true
 	var action: String = m._capture_action
 	if not Game.set_keybind(action, physical_key):
-		m._keybind_status.text = "KEYBIND REJECTED"
+		m._keybind_status.text = tr("SET_BIND_REJECTED")
 		return true
 	m._capture_action = ""
 	_refresh_keybind_buttons()
@@ -712,7 +736,7 @@ func _close_settings() -> void:
 
 func _refresh_color_assist_label() -> void:
 	if m._color_assist_btn != null:
-		m._color_assist_btn.text = "COLOR ASSIST: %s" % ("ON" if Sfx.color_assist else "OFF")
+		m._color_assist_btn.text = tr("SET_COLOR_ASSIST") % (tr("SET_VAL_ON") if Sfx.color_assist else tr("SET_VAL_OFF"))
 
 func assign_section(control: Control, section: String) -> void:
 	if control == null or not SETTINGS_SECTIONS.has(section):
@@ -737,7 +761,7 @@ func set_active_section(section: String) -> void:
 	_apply_section_visibility()
 	_refresh_nav_selection()
 	if m._settings_title != null and is_instance_valid(m._settings_title):
-		m._settings_title.text = "SETTINGS // %s" % section
+		m._settings_title.text = tr("SET_TITLE") % section_label(section)
 	Sfx.play("ui", 1.0, -10.0)
 
 func _touch_only_controls_ok() -> bool:
@@ -763,7 +787,7 @@ func _refresh_nav_selection() -> void:
 			if not is_instance_valid(nav_button):
 				continue
 			var selected: bool = i == index
-			nav_button.text = SETTINGS_SECTIONS[i]
+			nav_button.text = section_label(str(SETTINGS_SECTIONS[i]))
 			nav_button.add_theme_color_override("font_color", Design.TEXT_PRIMARY if selected else Design.TEXT_SECONDARY)
 			nav_button.add_theme_stylebox_override("normal", _nav_style(selected, false))
 	if not m._settings_chip_buttons.is_empty():
@@ -772,7 +796,7 @@ func _refresh_nav_selection() -> void:
 			if not is_instance_valid(chip):
 				continue
 			var chip_selected: bool = i == index
-			chip.text = str(SECTION_CHIP_LABELS[SETTINGS_SECTIONS[i]])
+			chip.text = section_chip_label(str(SETTINGS_SECTIONS[i]))
 			chip.add_theme_color_override("font_color", Design.TEXT_PRIMARY if chip_selected else Design.TEXT_SECONDARY)
 			chip.add_theme_stylebox_override("normal", _chip_style(chip_selected, false))
 

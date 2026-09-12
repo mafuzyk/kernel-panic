@@ -105,6 +105,7 @@ func _report() -> void:
 		print("GLYPH_METRIC %s size=%d coverage=%.3f %s"
 			% [kind, int(radius * 2.0), cov, verdict])
 	await _report_similarity()
+	await _report_patch_similarity()
 	_capture_if_requested()
 
 
@@ -136,6 +137,69 @@ func _report_similarity() -> void:
 	for k in mini(12, pairs.size()):
 		var pr: Array = pairs[k]
 		print("GLYPH_SIMILAR %.3f %s <-> %s" % [pr[0], pr[1], pr[2]])
+
+
+## Mesma prova, aplicada às famílias de ícone dos patches.
+##
+## São 26 patches e SEIS símbolos: cada família é compartilhada por até oito
+## cartas. Isso já é pouca distinção; se as seis famílias ainda se parecerem
+## entre si, a coluna do ícone deixa de informar qualquer coisa e vira ruído
+## decorativo ao lado do título.
+func _report_patch_similarity() -> void:
+	var families := ["damage", "fire", "defense", "utility", "movement", "economy"]
+	var masks := {}
+	for family in families:
+		masks[str(family)] = await _patch_mask(str(family))
+	var pairs := []
+	for i in families.size():
+		for j in range(i + 1, families.size()):
+			var a: Array = masks[families[i]]
+			var b: Array = masks[families[j]]
+			var inter := 0
+			var uni := 0
+			for n in a.size():
+				var pa: bool = a[n]
+				var pb: bool = b[n]
+				if pa and pb:
+					inter += 1
+				if pa or pb:
+					uni += 1
+			if uni > 0:
+				pairs.append([float(inter) / float(uni), families[i], families[j]])
+	pairs.sort_custom(func(x, y): return x[0] > y[0])
+	for pr in pairs:
+		var pair: Array = pr
+		print("PATCH_SIMILAR %.3f %s <-> %s" % [pair[0], pair[1], pair[2]])
+
+
+func _patch_mask(family: String) -> Array:
+	var box := 48
+	var vp := SubViewport.new()
+	vp.size = Vector2i(box, box)
+	vp.transparent_bg = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var probe := _PatchProbe.new()
+	probe.family = family
+	probe.size = Vector2(box, box)
+	vp.add_child(probe)
+	add_child(vp)
+	await RenderingServer.frame_post_draw
+	var img := vp.get_texture().get_image()
+	var out := []
+	for y in box:
+		for x in box:
+			out.append(img.get_pixel(x, y).a > 0.35)
+	vp.queue_free()
+	return out
+
+
+## Nó mínimo que desenha um ícone de família isolado, para medição. Reusa o
+## desenho real do card — medir uma cópia seria medir ficção.
+class _PatchProbe extends Control:
+	var family := "damage"
+
+	func _draw() -> void:
+		PatchCard.draw_family_glyph(self, family, size * 0.5, Color.WHITE)
 
 
 func _mask_24(kind: String) -> Array:
