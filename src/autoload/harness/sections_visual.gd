@@ -11,7 +11,7 @@ var h: Node
 func _init(harness: Node) -> void:
 	h = harness
 
-func _hud_style_test(_arena: Arena) -> void:
+func _hud_style_test(arena: Arena) -> void:
 	print("AT_STEP hud_style")
 	var tui_script: Script = load("res://src/ui/tactical_ui.gd")
 	var tui = tui_script.new() if tui_script != null else null
@@ -23,8 +23,21 @@ func _hud_style_test(_arena: Arena) -> void:
 	h._check(combat_fill.a <= 0.08, "combat panel fill stays faint (alpha <= 0.08)")
 	h._check(combat_fill.a >= 0.04, "combat panel fill keeps a visible tint (alpha >= 0.04)")
 	h._check(menu_fill.is_equal_approx(TacticalUI.PANEL), "non-combat surfaces keep the opaque PANEL fill")
-	var hud_script: Script = load("res://src/ui/hud.gd")
-	h._check(str(hud_script.source_code).contains("panel_fill_color(combat)"), "combat hud panels draw with the faint combat fill")
+	var hud_ref: Hud = arena.hud
+	h._check(hud_ref != null and hud_ref.has_method("primary_surface_points") and hud_ref.has_method("primary_surface_fill"),
+		"combat HUD exposes live primary-surface geometry and fill")
+	if hud_ref != null and hud_ref.has_method("primary_surface_points") and hud_ref.has_method("primary_surface_fill"):
+		var probe := Rect2(24.0, 32.0, 220.0, 96.0)
+		var points: PackedVector2Array = hud_ref.call("primary_surface_points", probe)
+		var fill: Color = hud_ref.call("primary_surface_fill")
+		h._check(points.size() == 4 and points[0] == probe.position and points[2] == probe.end,
+			"primary combat modules use rectangular editorial geometry instead of cut corners")
+		h._check(fill.a >= 0.04 and fill.a <= 0.08, "primary combat module fill stays faint but visible")
+	h._check(hud_ref != null and hud_ref.has_method("outer_frame_segments"), "combat HUD exposes outer-frame geometry")
+	if hud_ref != null and hud_ref.has_method("outer_frame_segments"):
+		h._check(hud_ref.call("outer_frame_segments", Vector2(1366, 768)).is_empty(), "combat HUD no longer encloses the arena in a decorative outer frame")
+	h._check(hud_ref != null and hud_ref.get("_score_font") == Design.grotesk(Design.WEIGHT_BLACK),
+		"combat HUD display hierarchy uses the shared grotesk instead of Orbitron")
 
 func _era_accent_test(arena: Arena) -> void:
 	print("AT_STEP era_accent")
@@ -539,6 +552,32 @@ func _editorial_screens_test() -> void:
 
 	story.queue_free()
 	await h._ticks(2)
+
+
+## Dois avisos flutuantes simultâneos não podem cair um sobre o outro.
+##
+## Capturado em 2026-09-12 com `KP_SHOT=game KP_WAVE=7`: "NEW DATA: X LOGGED" e
+## "NEW DATA: Y LOGGED" desenhados no mesmo pixel, nenhum dos dois legível.
+## A causa é `Fx.text`, que posiciona tudo em `player.global_position` com
+## apenas `randf_range(-8, 8)` de dispersão — e uma onda que estreia dois tipos
+## de inimigo ao mesmo tempo é o caso NORMAL, não a exceção.
+func _float_text_collision_test() -> void:
+	print("AT_STEP float_text_collision")
+	h._check(Fx.has_method("live_text_rects"), "fx exposes the live floating-text rects")
+	if not Fx.has_method("live_text_rects"):
+		return
+	var origin := Vector2(480.0, 300.0)
+	for label in ["NEW DATA: DRONE LOGGED", "NEW DATA: LANCER LOGGED", "NEW DATA: SPEWER LOGGED"]:
+		Fx.text(origin, str(label), Color.WHITE, 12)
+	await h._ticks(1)
+	var rects: Array[Rect2] = Fx.live_text_rects()
+	h._check(rects.size() >= 3, "three simultaneous notices all spawn")
+	var disjoint := true
+	for i in rects.size():
+		for j in range(i + 1, rects.size()):
+			if rects[i].intersects(rects[j]):
+				disjoint = false
+	h._check(disjoint, "simultaneous floating notices never overlap each other")
 
 
 func _icon_quality_test() -> void:
