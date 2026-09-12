@@ -1,5 +1,7 @@
 extends RefCounted
 
+const StoryIntroPanelScript = preload("res://src/ui/story_intro_panel.gd")
+
 ## Arena intro/story kit: wave-intro bars, story intro card, boss intro, event
 ## banner. Functions are moved verbatim from src/arena/arena.gd; Arena-owned
 ## state and non-moved calls are prefixed with `a.` (plan G5). Untyped owner
@@ -36,36 +38,32 @@ func _build_intro() -> void:
 	a.add_child(il_layer)
 
 func _build_story_intro() -> void:
-	a._story_intro_panel = a._panel_kit._make_panel()
-	a._story_intro_path = a._panel_kit._make_label("", 16, Balance.COL_PLAYER)
-	a._panel_kit._center_panel_control(a._story_intro_path, 238.0, 30.0)
-	a._story_intro_panel.add_child(a._story_intro_path)
-	a._story_intro_title = a._panel_kit._make_label("", 34, Balance.COL_TEXT)
-	a._panel_kit._center_panel_control(a._story_intro_title, 278.0, 52.0)
-	a._story_intro_panel.add_child(a._story_intro_title)
-	a._story_intro_text = a._panel_kit._make_label("", 15, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.75))
-	a._panel_kit._center_panel_control(a._story_intro_text, 344.0, 54.0)
-	a._story_intro_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	a._story_intro_panel.add_child(a._story_intro_text)
-	a._story_intro_hint = a._panel_kit._make_label("PRESS ANY KEY", 12, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	a._panel_kit._center_panel_control(a._story_intro_hint, 392.0, 20.0)
-	a._story_intro_hint.modulate.a = 0.0
-	a._story_intro_panel.add_child(a._story_intro_hint)
+	a._story_intro_panel = StoryIntroPanelScript.new()
+	a._story_intro_panel.visible = false
+	var layer := CanvasLayer.new()
+	layer.layer = 60
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	layer.add_child(a._story_intro_panel)
+	a.add_child(layer)
+	a._story_intro_path = a._story_intro_panel.path_label
+	a._story_intro_title = a._story_intro_panel.title_label
+	a._story_intro_text = a._story_intro_panel.body_label
+	a._story_intro_hint = a._story_intro_panel.hint_label
+
+func _show_story_intro() -> void:
+	if a._story_intro_panel == null or a._story_stage.is_empty():
+		return
 	var act_label := "ACT 1 // UNIX RECOVERY LOG"
 	if str(a._story_stage.get("act", "")) == "windows":
 		act_label = "ACT 2 // WINDOWS RECOVERY LOG"
 	elif str(a._story_stage.get("act", "")) == "templeos":
 		act_label = "BONUS ACT // TEMPLEOS ORACLE LOG"
-	var footer: Label = a._panel_kit._make_label(act_label, 12, Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.7))
-	a._panel_kit._center_panel_control(footer, 418.0, 24.0)
-	a._story_intro_panel.add_child(footer)
-
-func _show_story_intro() -> void:
-	if a._story_intro_panel == null or a._story_stage.is_empty():
-		return
-	a._story_intro_path.text = str(a._story_stage.get("path", ""))
-	a._story_intro_title.text = str(a._story_stage.get("title", "STORY STAGE"))
-	a._story_intro_text.text = str(a._story_stage.get("intro", ""))
+	a._story_intro_panel.set_story(
+		str(a._story_stage.get("path", "")),
+		str(a._story_stage.get("title", "STORY STAGE")),
+		str(a._story_stage.get("intro", "")),
+		act_label
+	)
 	_fit_story_intro_text()
 	a._story_intro_panel.modulate.a = 0.0
 	a._story_intro_panel.visible = true
@@ -73,17 +71,9 @@ func _show_story_intro() -> void:
 	a._story_intro_t = 0.0
 
 func _fit_story_intro_text() -> void:
-	var font: Font = a._story_intro_text.get_theme_font("font")
-	var text: String = a._story_intro_text.text
 	var cap := minf(a.STORY_INTRO_MAX_HEIGHT, a.get_viewport_rect().size.y * 0.3)
-	var chosen: int = a.STORY_INTRO_FONT_FLOOR
-	for fs in [15, 13, 12]:
-		if TacticalUI.wrapped_height(font, text, 344.0, fs) <= cap:
-			chosen = fs
-			break
-	a._story_intro_text.add_theme_font_size_override("font_size", chosen)
-	a._story_intro_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	a._story_intro_text.offset_bottom = a._story_intro_text.offset_top + TacticalUI.wrapped_height(font, text, 344.0, chosen) + 8.0
+	if a._story_intro_panel != null and a._story_intro_panel.has_method("fit_body"):
+		a._story_intro_panel.fit_body(cap, a.STORY_INTRO_FONT_FLOOR)
 
 func story_intro_active() -> bool:
 	return a._story_intro_state != 0
@@ -176,4 +166,3 @@ func _run_boss_intro() -> void:
 func show_event_banner(txt: String) -> void:
 	a.hud.show_banner("CYCLE %02d // %s" % [Game.wave, txt], "", 1.8)
 	Sfx.play("charge", 0.8, -8.0)
-
