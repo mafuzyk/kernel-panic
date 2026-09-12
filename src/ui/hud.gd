@@ -262,6 +262,35 @@ func primary_surface_fill() -> Color:
 func outer_frame_segments(_viewport: Vector2 = size) -> Array[PackedVector2Array]:
 	return []
 
+
+## Tinta única de rótulo de módulo.
+##
+## `SCORE` e `EVENT LOG` usavam o acento de era — âmbar no endless — enquanto
+## `INTEGRITY` e todos os valores eram ciano. Duas paletas dentro do mesmo
+## bloco. O acento de era pertence ao CAMPO, que é o que ele identifica;
+## rótulo de HUD é tipografia de status e usa a escala de texto.
+func status_label_ink() -> Color:
+	return Design.TEXT_MUTED
+
+
+## Onde ficam o rótulo e o medidor de cada par do módulo de integridade.
+##
+## O rótulo vem SEMPRE acima do que ele nomeia. `INTEGRITY` ficava acima dos
+## pips e `OVERCLOCK` abaixo da barra, no mesmo bloco — o olho tinha que
+## descobrir a regra duas vezes.
+func meter_label_baselines(viewport: Vector2 = size) -> Dictionary:
+	var integrity_rect: Rect2 = layout_snapshot(viewport)["integrity"]
+	return {
+		"integrity": {
+			"label": integrity_rect.position.y + 22.0,
+			"meter": integrity_rect.position.y + 48.0,
+		},
+		"overclock": {
+			"label": integrity_rect.position.y + integrity_rect.size.y - 40.0,
+			"meter": integrity_rect.position.y + integrity_rect.size.y - 26.0,
+		},
+	}
+
 func visible_event_lines(limit: int = 4) -> Array[String]:
 	var result: Array[String] = []
 	var start := maxi(Game.event_log.size() - maxi(limit, 1), 0)
@@ -604,18 +633,19 @@ func _draw_combat_shell(f: Font) -> void:
 	if not touch_layout():
 		_draw_primary_surface(dash_rect, _era_accent, 0.022)
 	_draw_status_surface(patch_rect, _era_accent, 0.028)
-	draw_string(f, integrity_rect.position + Vector2(16.0, 22.0), "INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, Design.TEXT_SECONDARY)
+	draw_string(f, Vector2(integrity_rect.position.x + 16.0, float(meter_label_baselines()["integrity"]["label"])),
+		"INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, status_label_ink())
 	var cycle_label := "CYCLE %02d" % Game.wave
 	draw_string(_score_font, encounter_rect.position + Vector2(0.0, 30.0 if compact else 38.0), cycle_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 24 if compact else 32, TacticalUIHelper.TEXT)
 	var encounter_label := _boss_name if not _boss_name.is_empty() else "PROCESS PURGE"
 	draw_string(f, encounter_rect.position + Vector2(0.0, 50.0 if compact else 62.0), encounter_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 11 if compact else 12, TacticalUIHelper.MUTED)
-	draw_string(f, score_rect.position + Vector2(14.0, 22.0), "SCORE", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, _era_accent)
+	draw_string(f, score_rect.position + Vector2(14.0, 22.0), "SCORE", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, status_label_ink())
 	draw_string(_score_font, score_rect.position + Vector2(14.0, 52.0), "%07d" % _score, HORIZONTAL_ALIGNMENT_RIGHT, score_rect.size.x - 28.0, 24 if compact else 28, Design.TEXT_PRIMARY)
 	if event_log_visible():
 		var event_rect := event_log_rect(size)
 		_draw_status_surface(event_rect, _era_accent, 0.018)
 		var event_y := event_rect.position.y + 18.0
-		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, _era_accent)
+		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, status_label_ink())
 		for line in visible_event_lines():
 			event_y += 15.0
 			draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), line, HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 11, TacticalUIHelper.MUTED)
@@ -641,7 +671,7 @@ func _hp_pips(f: Font) -> void:
 func _oc_bar(f: Font) -> void:
 	var integrity_rect: Rect2 = layout_snapshot()["integrity"]
 	var x := integrity_rect.position.x + 16.0
-	var y := integrity_rect.position.y + integrity_rect.size.y - 34.0
+	var y: float = float(meter_label_baselines()["overclock"]["meter"])
 	var r := Rect2(x, y, maxf(integrity_rect.size.x - 32.0, 80.0), 8.0)
 	var shield_mode := player != null and is_instance_valid(player) and bool(player.prog.get("shield_mode", false))
 	var col := TacticalUIHelper.LIME if shield_mode else (Balance.COL_PLAYER_HOT if _oc_active else Balance.COL_PLAYER)
@@ -661,7 +691,8 @@ func _oc_bar(f: Font) -> void:
 			label += " [E]"
 	if _oc_active:
 		label += " ACTIVE"
-	draw_string(f, Vector2(x, y + 24.0), label, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 11, Color(txt_col.r, txt_col.g, txt_col.b, 0.85))
+	draw_string(f, Vector2(x, float(meter_label_baselines()["overclock"]["label"])), label,
+		HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 11, status_label_ink())
 	if Game.patch_level("scrapdiet") > 0 and player != null and is_instance_valid(player):
 		var thr: int = player._scrap_threshold()
 		var sc := Color(1.0, 0.75, 0.4, 0.9)

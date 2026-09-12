@@ -55,6 +55,35 @@ func _hud_style_test(arena: Arena) -> void:
 	# de 2026-09-12 uma delas atravessa "DASH READY" e outra atravessa o placar.
 	h._check(ArenaWalls.CORNER_MARK_LENGTH == 0.0,
 		"arena walls stop drawing decorative corner marks over the HUD")
+
+	# Uma tinta só para rótulo de módulo. `SCORE` e `EVENT LOG` usavam o acento
+	# de era (âmbar no endless) enquanto `INTEGRITY` e os valores eram ciano —
+	# duas paletas dentro do mesmo bloco. O acento de era pertence ao CAMPO, que
+	# é o que ele identifica; rótulo de HUD é tipografia de status.
+	h._check(hud_ref != null and hud_ref.has_method("status_label_ink"),
+		"combat HUD owns one ink for module labels")
+	if hud_ref != null and hud_ref.has_method("status_label_ink"):
+		var label_ink: Color = hud_ref.call("status_label_ink")
+		h._check(label_ink == Design.TEXT_MUTED, "module labels use the shared muted ink")
+		h._check(not label_ink.is_equal_approx(hud_ref.get("_era_accent")),
+			"module labels do not borrow the era accent")
+
+	# Rótulo SEMPRE acima do medidor que ele nomeia. `INTEGRITY` ficava acima dos
+	# pips e `OVERCLOCK` abaixo da barra, no mesmo módulo.
+	h._check(hud_ref != null and hud_ref.has_method("meter_label_baselines"),
+		"combat HUD exposes where its meter labels sit")
+	if hud_ref != null and hud_ref.has_method("meter_label_baselines"):
+		var baselines: Dictionary = hud_ref.call("meter_label_baselines")
+		for key in ["integrity", "overclock"]:
+			var pair: Dictionary = baselines.get(key, {})
+			h._check(float(pair.get("label", 1.0)) < float(pair.get("meter", 0.0)),
+				"%s label sits above its meter" % key)
+
+	# A insígnia de canto cortado em volta dos chevrons do dash era o último
+	# sobrevivente da linguagem antiga dentro do HUD. Os três chevrons já dizem
+	# "dash"; a caixa em volta era moldura por elemento.
+	h._check(TacticalIcon.DASH_BADGE_ENABLED == false,
+		"the dash glyph drops its cut-corner badge")
 	h._check(hud_ref != null and hud_ref.get("_score_font") == Design.grotesk(Design.WEIGHT_BLACK),
 		"combat HUD display hierarchy uses the shared grotesk instead of Orbitron")
 
