@@ -843,11 +843,16 @@ func _charm_speedrun_test(arena: Arena) -> void:
 	Game.stats = {"time": 42.25, "kills": 1, "shots": 8, "hits": 4, "damage": 2, "wave": 4, "boss_kills": 0, "heals": {}}
 	Game.event_log = []
 	Game.run_seed = 123456
-	var toast_before := float(arena.hud.get("_achievement_t"))
+	# `_achievement_t` era comparado com o valor de ANTES e exigido maior. O
+	# contador satura em 4.0 e decai com o tempo: se um aviso anterior ainda não
+	# tinha decaído, reiniciá-lo dava 4.0 > 4.0 = falso, e a asserção acusava
+	# regressão por causa do relógio. O contrato real é que o aviso fique ARMADO
+	# no topo e carregue o rótulo certo.
+	arena.hud.set("_achievement_t", 0.0)
 	var unlocked := bool(Game.unlock_achievement("first_blood"))
 	h._check(unlocked and Game.achievements.has("first_blood"), "first achievement unlocks once")
 	var live_toast: Label = arena.hud.get("_achievement_label")
-	h._check(float(arena.hud.get("_achievement_t")) > toast_before and live_toast != null and live_toast.text.contains("FIRST_BLOOD"),
+	h._check(float(arena.hud.get("_achievement_t")) >= 4.0 and live_toast != null and live_toast.text.contains("FIRST_BLOOD"),
 		"live achievement signal immediately surfaces the unlocked label in the HUD")
 	h._check(not bool(Game.unlock_achievement("first_blood")), "duplicate achievement stays silent")
 	h._check(str(Game.dmesg_lines(8)).contains("achievement: FIRST_BLOOD enabled"), "achievement is recorded in dmesg")

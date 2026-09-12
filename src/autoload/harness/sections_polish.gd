@@ -166,9 +166,22 @@ func _menu_reflow_test(menu: Node) -> void:
 		h._check(form_box != null and form_box.size.x <= Design.CONTENT_MAX_FORM + 1.0,
 			"settings form column respects the max width (%d)" % int(form_box.size.x if form_box != null else -1))
 	menu.call("_close_settings")
-	var src := str(load("res://src/ui/menu_chrome_kit.gd").source_code)
-	h._check(src.contains("apply_menu_layout"), "menu chrome kit applies the layout dict on resize")
-	h._check(not src.contains("m.size.y * 0.44"), "draw_shell derives its decorative anchors from the shared dict")
+	# Era texto-fonte procurando `apply_menu_layout` no arquivo. Essa função
+	# posicionava a fileira de botões que nascia escondida, e foi removida com
+	# ela — 305 linhas. O contrato que sobra é o que sempre importou: o kit
+	# devolve uma geometria que ACOMPANHA o viewport.
+	var chrome_kit = load("res://src/ui/menu_chrome_kit.gd").new(menu)
+	var narrow: Dictionary = chrome_kit.menu_layout_for_viewport(Vector2(1280, 720))
+	var wide: Dictionary = chrome_kit.menu_layout_for_viewport(Vector2(1920, 1080))
+	h._check(narrow.has("purge") and wide.has("purge"), "menu chrome kit returns a layout dict")
+	h._check(not (narrow["purge"] as Rect2).is_equal_approx(wide["purge"] as Rect2),
+		"menu chrome kit layout follows the viewport")
+	# Também era texto-fonte — procurava a ausência de um número mágico. O que
+	# ela queria garantir é que a decoração do fundo sai da MESMA geometria que
+	# o resto, e não de uma fração recalculada à parte.
+	h._check(narrow.has("title") and narrow.has("subtitle"),
+		"draw_shell derives its decorative anchors from the shared dict")
+	chrome_kit = null
 
 func _awards_chrome_test(menu: Node) -> void:
 	print("AT_STEP awards_chrome")

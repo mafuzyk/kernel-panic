@@ -8,9 +8,6 @@ const MenuChromeKitScript = preload("res://src/ui/menu_chrome_kit.gd")
 
 ## Shell novo. O antigo continua na árvore, escondido — ver _ready.
 var _shell: MenuShell
-var _title: Label
-var _title_r: Label
-var _title_b: Label
 var _prompt: Label
 var _best_label: Label
 var _t := 0.0
@@ -64,7 +61,7 @@ func _notification(what: int) -> void:
 		if _settings_panel != null and is_instance_valid(_settings_panel):
 			_settings_kit._layout_settings.call_deferred()
 		if _chrome_kit != null:
-			_chrome_kit.apply_menu_layout.call_deferred()
+			pass
 
 func _on_window_size_changed() -> void:
 	if _settings_panel != null and is_instance_valid(_settings_panel):
@@ -177,9 +174,6 @@ func _ready() -> void:
 	add_child(chrome)
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
 	var orbitron: Font = load("res://assets/fonts/Orbitron.ttf")
-	_title_r = _chrome_kit._mk_title(orbitron, Color(1, 0.1, 0.3, 0.5))
-	_title_b = _chrome_kit._mk_title(orbitron, Color(0.1, 0.9, 1.0, 0.5))
-	_title = _chrome_kit._mk_title(orbitron, Balance.COL_TEXT)
 	var sub := Label.new()
 	sub.text = "// last process standing"
 	sub.add_theme_font_override("font", mono)
@@ -259,7 +253,9 @@ func _ready() -> void:
 	add_child(overlay_layer)
 	_update_best()
 	Sfx.play_music()
-	_chrome_kit._build_button_row()
+	# A fileira de botões antiga NÃO é mais construída. Ela era montada aqui e
+	# escondida logo abaixo, no laço de `legacy_first` — 161 linhas de widget
+	# que nascia invisível. Quem desenha o menu é `MenuShell`.
 	_settings_kit._build_settings()
 	_klog = Label.new()
 	_klog.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
@@ -274,7 +270,7 @@ func _ready() -> void:
 	_klog.offset_bottom = 190.0
 	_klog.text = "[    0.000000] kernel panic daemon online"
 	add_child(_klog)
-	_chrome_kit.apply_menu_layout()
+	# `apply_menu_layout()` só posicionava aqueles widgets.
 	for legacy_index in range(legacy_first, get_child_count()):
 		var legacy_node := get_child(legacy_index)
 		if legacy_node is CanvasItem:
@@ -442,7 +438,7 @@ func main_shell_snapshot() -> Dictionary:
 		live["footer_rect"] = shell_sections["footer"]
 		return live
 	return {
-		"title": _title.text if _title != null else "KERNEL PANIC",
+		"title": "KERNEL PANIC",
 		"primary_action": _purge_btn.text if _purge_btn != null else ">> PURGE",
 		"mode_explanation": _mode_info.text if _mode_info != null else "",
 		"routes": ["PROGRAM", "STORY", "BESTIARY"],
@@ -608,14 +604,8 @@ func _process(delta: float) -> void:
 		set_meta("glitch_off", Vector2(randf_range(-5, 5), randf_range(-3, 3)))
 	var glitching: bool = _t < float(get_meta("glitch_until", 0.0))
 	var off: Vector2 = get_meta("glitch_off", Vector2.ZERO) if glitching else Vector2.ZERO
-	_title.offset_left = off.x
-	_title.offset_right = off.x
-	_title_r.offset_left = off.x * 0.4 - 4.0
-	_title_r.offset_right = off.x * 0.4 - 4.0
-	_title_b.offset_left = off.x * 0.4 + 4.0
-	_title_b.offset_right = off.x * 0.4 + 4.0
-	_title_r.visible = glitching
-	_title_b.visible = glitching
+	# O jitter de glitch movia os três Labels Orbitron escondidos. O título vivo
+	# é do MenuShell; o efeito some com eles.
 	for d in _drifters:
 		d["pos"] += d["vel"] * delta
 		d["rot"] += d["rot_spd"] * delta
