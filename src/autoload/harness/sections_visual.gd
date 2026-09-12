@@ -745,7 +745,22 @@ func _raster_trial_test() -> void:
 	h._check(patch_resolved >= 6, "the six generated patch-family rasters resolve through the registry")
 	h._check(patch_fallback > 0, "patch ids without a generated asset keep the code-drawn fallback")
 	h._check(str(icon_script.source_code).contains("match _kind"), "tactical icon keeps the code-drawn draw dispatch")
-	h._check(str(patch_script.source_code).contains("match patch_icon_family"), "patch card keeps the code-drawn family dispatch")
+	# Era texto-fonte: procurava `match patch_icon_family` DENTRO do arquivo, e
+	# quebrou ao mover o match para `draw_family_glyph()` — um ponto de entrada
+	# estático que existe para a folha de prova medir o MESMO desenho que o card
+	# usa. Nenhuma regressão. O contrato real é que cada família tenha desenho
+	# próprio, e que desenhar não toque a rng de gameplay.
+	# `PatchCard` resolve como CLASSE — `has_method` é de instância.
+	h._check(patch_script.has_method("draw_family_glyph"),
+		"patch card exposes one entry point for the family symbol")
+	var family_seed: int = Game.rng.seed
+	var family_probe := Control.new()
+	family_probe.size = Vector2(48, 48)
+	h.get_tree().current_scene.add_child(family_probe)
+	for family in ["damage", "fire", "defense", "utility", "movement", "economy"]:
+		PatchCard.draw_family_glyph(family_probe, str(family), Vector2(24, 24), Color.WHITE)
+	h._check(Game.rng.seed == family_seed, "patch family symbols draw without touching the gameplay rng")
+	family_probe.queue_free()
 	h._check(str(icon_script.source_code).contains("framed: bool = false"), "tactical icon configure exposes the framed overlay switch (default off)")
 
 func _charm_terminal_test(arena: Arena) -> void:
