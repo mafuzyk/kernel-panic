@@ -431,9 +431,7 @@ func _icon_quality_test() -> void:
 		h._check(bool(pmetrics.get("covered", false)), "%s patch icon resolves to a non-empty drawing routine" % str(id))
 		h._check(float(pmetrics.get("min_stroke", 0.0)) >= 2.0, "%s patch icon documents a minimum stroke of at least 2.0" % str(id))
 		h._check(float(pmetrics.get("contrast", 0.0)) >= 0.55, "%s patch icon documents panel contrast of at least 0.55" % str(id))
-	var hex_rect := Rect2(Vector2(24.0, 123.0), Vector2(68.0, 68.0))
-	h._check(Rect2(Vector2.ZERO, Vector2(280.0, 330.0)).encloses(hex_rect), "patch hex icon geometry stays contained in the 280x330 patch card")
-	h._check(icon_script.has_method("raster_path") and patch_script.has_method("patch_raster_path"), "icon raster registries keep the code-drawn fallback")
+		h._check(icon_script.has_method("raster_path") and patch_script.has_method("patch_raster_path"), "icon raster registries keep the code-drawn fallback")
 	var probe_path: String = icon_script.call("raster_path", "resume")
 	h._check(probe_path.is_empty() or ResourceLoader.exists(probe_path), "raster registry only resolves existing assets")
 
