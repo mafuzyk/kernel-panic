@@ -32,10 +32,29 @@ func _hud_style_test(arena: Arena) -> void:
 		var fill: Color = hud_ref.call("primary_surface_fill")
 		h._check(points.size() == 4 and points[0] == probe.position and points[2] == probe.end,
 			"primary combat modules use rectangular editorial geometry instead of cut corners")
-		h._check(fill.a >= 0.04 and fill.a <= 0.08, "primary combat module fill stays faint but visible")
+		# Regra revista em 2026-09-12 depois de medir o capture.
+		#
+		# A regra anterior era "fundo fraco (alpha <= 0.08) para o campo
+		# continuar visível através do módulo". Ela foi escrita para um fundo
+		# parado. O fundo NÃO está parado: a câmera segue o jogador, então a
+		# parede da arena, as réguas da grade e os setores corrompidos passam
+		# por baixo de cada módulo o tempo todo. Com alpha 0.055 o texto de
+		# status fica sobre o que passar — e o capture mostra "DASH READY"
+		# cortado pela marca de canto da parede.
+		#
+		# HUD é leitura periférica: tem que ser lido sem foco e sem sorte. O
+		# fundo passa a ser chão de verdade.
+		h._check(fill.a >= 0.85, "combat modules carry a real ground, not a tint")
+		h._check(fill.get_luminance() < 0.08, "that ground stays dark enough for the status ink")
 	h._check(hud_ref != null and hud_ref.has_method("outer_frame_segments"), "combat HUD exposes outer-frame geometry")
 	if hud_ref != null and hud_ref.has_method("outer_frame_segments"):
 		h._check(hud_ref.call("outer_frame_segments", Vector2(1366, 768)).is_empty(), "combat HUD no longer encloses the arena in a decorative outer frame")
+	# A parede da arena desenhava marcas de canto em L de 26px por 3px de
+	# espessura. Elas são decoração — a polilinha do retângulo já mostra o
+	# limite — e, como a câmera se move, caem sobre o texto do HUD. No capture
+	# de 2026-09-12 uma delas atravessa "DASH READY" e outra atravessa o placar.
+	h._check(ArenaWalls.CORNER_MARK_LENGTH == 0.0,
+		"arena walls stop drawing decorative corner marks over the HUD")
 	h._check(hud_ref != null and hud_ref.get("_score_font") == Design.grotesk(Design.WEIGHT_BLACK),
 		"combat HUD display hierarchy uses the shared grotesk instead of Orbitron")
 
