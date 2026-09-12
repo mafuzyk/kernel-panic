@@ -269,6 +269,23 @@ func outer_frame_segments(_viewport: Vector2 = size) -> Array[PackedVector2Array
 ## `INTEGRITY` e todos os valores eram ciano. Duas paletas dentro do mesmo
 ## bloco. O acento de era pertence ao CAMPO, que é o que ele identifica;
 ## rótulo de HUD é tipografia de status e usa a escala de texto.
+## Rótulo do medidor de overclock, como função PURA dos quatro estados.
+##
+## Existe separado do desenho para o autotest poder afirmar a regra — a dica de
+## teclado `[E]` não aparece em toque — sem ter de forçar um dispositivo. Antes
+## isso era verificado procurando a string `label += "  READY"` dentro do
+## arquivo, o que travava a frase na forma literal e quebrou na tradução.
+func overclock_label(shield: bool, ready: bool, active: bool, touch: bool) -> String:
+	var label := tr("HUD_SHIELD") if shield else tr("HUD_OVERCLOCK")
+	if ready and not active and not shield:
+		label += "  " + tr("HUD_READY")
+		if not touch:
+			label += " [E]"
+	if active:
+		label += " " + tr("HUD_ACTIVE")
+	return label
+
+
 func status_label_ink() -> Color:
 	return Design.TEXT_MUTED
 
@@ -346,7 +363,7 @@ func _on_score(score: int, mult: int) -> void:
 	_score = score
 	_mult = mult
 	_score_label.text = "%07d" % score
-	_best_label.text = ("WEEK " + Game.week_id() + "  BEST %07d" % Game.best_for_mode()) if Game.mode == "weekly" else ("BEST %07d" % Game.best_for_mode())
+	_best_label.text = ("WEEK " + Game.week_id() + "  BEST %07d" % Game.best_for_mode()) if Game.mode == "weekly" else (tr("HUD_BEST") % Game.best_for_mode())
 	queue_redraw()
 
 func _on_combo(mult: int, frac: float) -> void:
@@ -358,13 +375,13 @@ func run_info_text() -> String:
 	var minutes := int(total_seconds / 60.0)
 	var seconds := int(total_seconds) % 60
 	var deciseconds := int(total_seconds * 10.0) % 10
-	return "TIME %02d:%02d.%d // %s // HOLD R" % [minutes, seconds, deciseconds, Game.run_seed_text()]
+	return tr("HUD_TIME") % [minutes, seconds, deciseconds, Game.run_seed_text()]
 
 func _on_achievement_unlocked(_id: String, label: String) -> void:
 	show_achievement(label)
 
 func achievement_toast_text(label: String) -> String:
-	return "ACHIEVEMENT // %s" % label
+	return tr("HUD_ACHIEVEMENT") % label
 
 func show_achievement(label: String) -> void:
 	if _achievement_label == null or not is_instance_valid(_achievement_label):
@@ -634,18 +651,18 @@ func _draw_combat_shell(f: Font) -> void:
 		_draw_primary_surface(dash_rect, _era_accent, 0.022)
 	_draw_status_surface(patch_rect, _era_accent, 0.028)
 	draw_string(f, Vector2(integrity_rect.position.x + 16.0, float(meter_label_baselines()["integrity"]["label"])),
-		"INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, status_label_ink())
-	var cycle_label := "CYCLE %02d" % Game.wave
+		tr("HUD_INTEGRITY"), HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, status_label_ink())
+	var cycle_label := tr("ARENA_CYCLE") % Game.wave
 	draw_string(_score_font, encounter_rect.position + Vector2(0.0, 30.0 if compact else 38.0), cycle_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 24 if compact else 32, TacticalUIHelper.TEXT)
-	var encounter_label := _boss_name if not _boss_name.is_empty() else "PROCESS PURGE"
+	var encounter_label := _boss_name if not _boss_name.is_empty() else tr("HUD_PROCESS_PURGE")
 	draw_string(f, encounter_rect.position + Vector2(0.0, 50.0 if compact else 62.0), encounter_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 11 if compact else 12, TacticalUIHelper.MUTED)
-	draw_string(f, score_rect.position + Vector2(14.0, 22.0), "SCORE", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, status_label_ink())
+	draw_string(f, score_rect.position + Vector2(14.0, 22.0), tr("HUD_SCORE"), HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, status_label_ink())
 	draw_string(_score_font, score_rect.position + Vector2(14.0, 52.0), "%07d" % _score, HORIZONTAL_ALIGNMENT_RIGHT, score_rect.size.x - 28.0, 24 if compact else 28, Design.TEXT_PRIMARY)
 	if event_log_visible():
 		var event_rect := event_log_rect(size)
 		_draw_status_surface(event_rect, _era_accent, 0.018)
 		var event_y := event_rect.position.y + 18.0
-		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, status_label_ink())
+		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), tr("HUD_EVENT_LOG"), HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, status_label_ink())
 		for line in visible_event_lines():
 			event_y += 15.0
 			draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), line, HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 11, TacticalUIHelper.MUTED)
@@ -683,14 +700,7 @@ func _oc_bar(f: Font) -> void:
 	var frac := clampf(_meter / Balance.OC_METER_MAX, 0.0, 1.0)
 	draw_rect(Rect2(r.position, Vector2(r.size.x * frac, r.size.y)), Color(col.r, col.g, col.b, 0.85))
 	draw_rect(r, Color(col.r, col.g, col.b, 0.5), false, 1.2)
-	var label := "SHIELD" if shield_mode else "OVERCLOCK"
-	var txt_col := col
-	if _oc_ready and not _oc_active and not shield_mode:
-		label += "  READY"
-		if not touch_layout():
-			label += " [E]"
-	if _oc_active:
-		label += " ACTIVE"
+	var label := overclock_label(shield_mode, _oc_ready, _oc_active, touch_layout())
 	draw_string(f, Vector2(x, float(meter_label_baselines()["overclock"]["label"])), label,
 		HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 11, status_label_ink())
 	if Game.patch_level("scrapdiet") > 0 and player != null and is_instance_valid(player):
@@ -700,15 +710,15 @@ func _oc_bar(f: Font) -> void:
 		draw_rect(Rect2(sx, y, 86, 8), Color(sc.r, sc.g, sc.b, 0.14))
 		var sfrac: float = clampf(float(player.scrap_count) / float(thr), 0.0, 1.0)
 		draw_rect(Rect2(sx, y, 86.0 * sfrac, 8), Color(sc.r, sc.g, sc.b, 0.8))
-		draw_string(f, Vector2(sx, hud_top_y(60.0)), "SCRAP %d/%d" % [player.scrap_count, thr], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, sc)
+		draw_string(f, Vector2(sx, hud_top_y(60.0)), tr("HUD_SCRAP") % [player.scrap_count, thr], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, sc)
 	_patch_chips(f)
 
 func _patch_chips(f: Font) -> void:
 	_update_patch_chip_rects()
 	var patch_rect: Rect2 = layout_snapshot()["patches"]
-	draw_string(f, patch_rect.position + Vector2(14.0, 20.0), "PATCH STACK", HORIZONTAL_ALIGNMENT_LEFT, patch_rect.size.x - 28.0, 11, _era_accent)
+	draw_string(f, patch_rect.position + Vector2(14.0, 20.0), tr("HUD_PATCH_STACK"), HORIZONTAL_ALIGNMENT_LEFT, patch_rect.size.x - 28.0, 11, _era_accent)
 	if _patch_chip_rects.is_empty():
-		draw_string(f, patch_rect.position + Vector2(14.0, 48.0), "NO ACTIVE PATCHES", HORIZONTAL_ALIGNMENT_LEFT, patch_rect.size.x - 28.0, 11, TacticalUIHelper.MUTED)
+		draw_string(f, patch_rect.position + Vector2(14.0, 48.0), tr("HUD_NO_PATCHES"), HORIZONTAL_ALIGNMENT_LEFT, patch_rect.size.x - 28.0, 11, TacticalUIHelper.MUTED)
 		return
 	for id in Game.patch_levels:
 		var code: String = Game.PATCH_CODES.get(id, id.substr(0, 2).to_upper())
@@ -752,7 +762,7 @@ func _draw_patch_tooltip(f: Font) -> void:
 	var width := panel.size.x
 	_draw_status_surface(panel, Balance.COL_PLAYER, 0.035)
 	draw_string(f, pos + Vector2(10, 18), str(_tooltip_data.get("title", "PATCH")), HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 13, Balance.COL_TEXT)
-	draw_string(f, pos + Vector2(10, 36), "LEVEL %d // %s" % [int(_tooltip_data.get("level", 0)), str(_tooltip_data.get("description", ""))], HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 11, Balance.COL_TEXT)
+	draw_string(f, pos + Vector2(10, 36), tr("HUD_LEVEL") % [int(_tooltip_data.get("level", 0)), str(_tooltip_data.get("description", ""))], HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 11, Balance.COL_TEXT)
 	draw_string(f, pos + Vector2(10, 57), str(_tooltip_data.get("relation", "NO DIRECT INTERACTION")), HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 10, Balance.COL_MOTE)
 
 func _mult_chip(f: Font) -> void:
@@ -762,7 +772,7 @@ func _mult_chip(f: Font) -> void:
 	var pop := 1.0 + 0.25 * _score_pop
 	var rx := size.x - _safe_side_margin()
 	var combo_y := hud_top_y(78.0)
-	draw_string(f, Vector2(rx - 140.0, combo_y), "COMBO x%d" % _mult, HORIZONTAL_ALIGNMENT_LEFT, -1, int(16 * pop), c)
+	draw_string(f, Vector2(rx - 140.0, combo_y), tr("HUD_COMBO") % _mult, HORIZONTAL_ALIGNMENT_LEFT, -1, int(16 * pop), c)
 	var bar := Rect2(rx - 140.0, combo_y + 6.0, 140, 4)
 	draw_rect(bar, Color(c.r, c.g, c.b, 0.15))
 	var hot := Color(Balance.COL_DANGER.r, Balance.COL_DANGER.g, Balance.COL_DANGER.b).lerp(c, _combo_frac)
@@ -773,7 +783,7 @@ func _dash_pip(f: Font) -> void:
 		return
 	var col := Balance.COL_PLAYER if _dash_frac >= 1.0 else Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.35)
 	var dash_rect: Rect2 = layout_snapshot()["dash"]
-	var dash_text := "DASH READY" if _dash_frac >= 1.0 else "DASH CHARGING"
+	var dash_text := tr("HUD_DASH_READY") if _dash_frac >= 1.0 else tr("HUD_DASH_CHARGING")
 	draw_string(f, dash_rect.position + Vector2(16.0, 28.0), dash_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 13, Color(col.r, col.g, col.b, 0.82))
 	var charge_text := ("x%d" % _dash_max) if _dash_max > 1 else ("[SHIFT]" if not touch_layout() else "x1")
 	draw_string(f, dash_rect.position + Vector2(16.0, 52.0), charge_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 11, Color(col.r, col.g, col.b, 0.68))

@@ -309,7 +309,17 @@ func _touch_hud_layout_test() -> void:
 	var hud_script: Script = load("res://src/ui/hud.gd")
 	var hud_src := str(hud_script.source_code)
 	h._check(hud_src.contains("if not touch_layout():"), "combat hud skips desktop-only dash module drawing on touch")
-	h._check(hud_src.contains("label += \"  READY\""), "overclock ready keeps its label without the [E] keyboard hint on touch")
+	# Era texto-fonte e travava a frase na forma literal — quebrou na tradução,
+	# sem regressão nenhuma. `overclock_label()` é função pura dos quatro
+	# estados, então a REGRA dá para afirmar direto.
+	var hud_probe: Hud = hud_script.new()
+	h._check(not hud_probe.overclock_label(false, true, false, true).contains("[E]"),
+		"overclock ready keeps its label without the [E] keyboard hint on touch")
+	h._check(hud_probe.overclock_label(false, true, false, false).contains("[E]"),
+		"desktop keeps the [E] hint when overclock is ready")
+	h._check(not hud_probe.overclock_label(true, true, false, false).contains("[E]"),
+		"shield programs never advertise the overclock key")
+	hud_probe.queue_free()
 	h._check(hud_src.contains("\"[SHIFT]\" if not touch_layout()"), "dash charge text gates the [SHIFT] keyboard hint on touch")
 	var tc_script: Script = load("res://src/ui/touch_controls.gd")
 	var tc = tc_script.new() if tc_script != null else null

@@ -205,8 +205,8 @@ func _ready() -> void:
 	Game.bestiary_unlocked.connect(_on_bestiary_unlocked)
 	Sfx.play_music()
 	Fx.flash(Color(0, 0, 0), 1.0, 0.6)
-	_queue_hint("move", "MOVE // WASD OR TOUCH")
-	_queue_hint("dash", "DASH // SPACE / SHIFT")
+	_queue_hint("move", tr("CTRL_MOVE"))
+	_queue_hint("dash", tr("CTRL_DASH"))
 	if touch != null:
 		_maybe_show_touch_hints()
 
@@ -222,8 +222,8 @@ func _maybe_show_touch_hints() -> void:
 	add_child(hint_layer)
 	var hint_y := maxf(90.0, get_viewport_rect().size.y - 160.0)
 	var texts := [
-		["LEFT THUMB // MOVE", Vector2(0, 560)],
-		["RIGHT THUMB // AIM + FIRE", Vector2(640, 560)],
+		[tr("CTRL_LEFT_THUMB"), Vector2(0, 560)],
+		[tr("CTRL_RIGHT_THUMB"), Vector2(640, 560)],
 	]
 	for h in texts:
 		var l := Label.new()
@@ -256,15 +256,15 @@ func _queue_hint(id: String, text: String) -> void:
 
 func _route_enemy_hint(enemy: EnemyBase) -> void:
 	if enemy is LancerEnemy:
-		_queue_hint("lancer", "SIDESTEP THE LINE")
+		_queue_hint("lancer", tr("HINT_SIDESTEP"))
 	elif enemy is SpewerEnemy:
-		_queue_hint("spewer", "SHOOT THE ORBS DOWN")
+		_queue_hint("spewer", tr("HINT_SHOOT_ORBS"))
 	elif enemy is SplitterEnemy:
-		_queue_hint("splitter", "KILL IT AWAY FROM YOU")
+		_queue_hint("splitter", tr("HINT_KILL_AWAY"))
 	elif enemy is BulwarkEnemy:
-		_queue_hint("dash", "DASH // SPACE / SHIFT")
+		_queue_hint("dash", tr("CTRL_DASH"))
 	elif enemy_list.size() == 1:
-		_queue_hint("move", "MOVE // WASD OR TOUCH")
+		_queue_hint("move", tr("CTRL_MOVE"))
 
 func _on_enemy_exit(n: Node) -> void:
 	enemy_list.erase(n)
@@ -472,16 +472,16 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 		_bg_mat.set_shader_parameter("corruption", _stage_kit.background_corruption_for_wave(wave))
 	Game.log_event("CYCLE %02d START" % wave)
 	if is_boss:
-		Game.log_event("ANOMALY INBOUND // %s" % RootBoss.title_for_index(int(Game.wave / float(Balance.BOSS_EVERY))))
-		hud.show_banner("CYCLE %02d // ANOMALY" % wave, "ROOT DAEMON INBOUND", 2.2)
+		Game.log_event(tr("ARENA_ANOMALY_INBOUND") % RootBoss.title_for_index(int(Game.wave / float(Balance.BOSS_EVERY))))
+		hud.show_banner(tr("ARENA_CYCLE_ANOMALY") % wave, tr("ARENA_ROOT_INBOUND"), 2.2)
 		Sfx.play("boss", 1.0, 0.0)
 		_intro_kit._run_boss_intro()
 	else:
-		hud.show_banner("CYCLE %02d" % wave, "PURGE THE DAEMONS", 1.8)
+		hud.show_banner(tr("ARENA_CYCLE") % wave, tr("ARENA_PURGE_SUB"), 1.8)
 		Sfx.play("wave", 1.0 + wave * 0.01, -6.0)
 	if wave >= 5 and not Game.unlocked_programs.has("daemon"):
 		Game.unlock_program("daemon")
-		hud.show_banner("PROGRAM UNLOCKED", "DAEMON AVAILABLE IN SETTINGS", 2.4)
+		hud.show_banner(tr("ARENA_PROGRAM_UNLOCKED"), tr("ARENA_DAEMON_AVAILABLE"), 2.4)
 		Sfx.play("ready", 1.2, -4.0)
 	if wave > 1 and (wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
 		player.heal(1)
@@ -500,24 +500,18 @@ func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 		hud.show_banner("%s // FINAL WAVE" % _story_stage.get("path", ""), str(_story_stage.get("boss", "ROOT DAEMON")), 2.2)
 		Sfx.play("boss", 1.0, 0.0)
 	else:
-		hud.show_banner("%s // WAVE %02d" % [_story_stage.get("path", ""), current_wave], "PURGE THE DAEMONS", 1.8)
+		hud.show_banner("%s // WAVE %02d" % [_story_stage.get("path", ""), current_wave], tr("ARENA_PURGE_SUB"), 1.8)
 		Sfx.play("wave", 1.0 + current_wave * 0.01, -6.0)
 	if current_wave > 1 and (current_wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
 		player.heal(1)
 		Game.register_heal("story")
 		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
 
-const TIPS := [
-		"DASHING GRANTS INVULNERABILITY FRAMES",
-		"CHAIN KILLS FAST FOR UP TO x8 SCORE",
-		"MOTES CHARGE YOUR OVERCLOCK",
-		"THE DAEMONS DO NOT ACCEPT COMPLAINTS",
-		"ELITES HAVE NEW TRICKS. WATCH THE WHITE RING",
-		"DASHING THROUGH ENEMIES BEATS APOLOGIZING",
-		"OVERCLOCK LASTS LONGER IF YOU KEEP KILLING",
-		"CORRUPTION POOLS ARE NOT POOLS",
-		"OOM_KILLER WANTS YOUR MOTES. RUDE",
-		"THE GRID REMEMBERS YOUR SCORES",
+## Chaves, não texto: `const` só aceita expressão constante, e `tr()` resolve
+## em tempo de execução — o idioma pode mudar depois que a arena carregou.
+const TIP_KEYS := [
+		"TIP_DASH_IFRAMES", "TIP_CHAIN", "TIP_MOTES", "TIP_COMPLAINTS", "TIP_ELITES",
+		"TIP_DASH_THROUGH", "TIP_OVERCLOCK", "TIP_POOLS", "TIP_OOM", "TIP_GRID",
 	]
 
 var _tip_label: Label
@@ -563,8 +557,8 @@ func _show_tip() -> void:
 		tl.layer = 45
 		tl.add_child(_tip_label)
 		add_child(tl)
-	_tip_index = randi() % TIPS.size()
-	_tip_label.text = "TIP // " + TIPS[_tip_index]
+	_tip_index = randi() % TIP_KEYS.size()
+	_tip_label.text = tr("ARENA_TIP_PREFIX") + tr(str(TIP_KEYS[_tip_index]))
 	_tip_label.modulate.a = 0.0
 	var tw := create_tween()
 	tw.tween_property(_tip_label, "modulate:a", 0.85, 0.4)
@@ -584,7 +578,7 @@ func _build_patch_ui() -> void:
 	_patch_header = VBoxContainer.new()
 	_patch_header.add_theme_constant_override("separation", Design.SPACE_XS)
 	_patch_panel.add_child(_patch_header)
-	_patch_title_label = ScreenKit.grot("KERNEL PATCH DETECTED", Design.TEXT_HEADING, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
+	_patch_title_label = ScreenKit.grot(tr("ARENA_PATCH_TITLE"), Design.TEXT_HEADING, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
 	_patch_title_label.name = "PatchOfferTitle"
 	_patch_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_patch_header.add_child(_patch_title_label)
@@ -785,9 +779,9 @@ func _show_story_victory(stage_id: String) -> void:
 	var index := Game.story_stage_index
 	_story_next_stage = index + 1 if index + 1 < Game.story_stage_count() and Game.story_stage_unlocked(index + 1) else -1
 	_story_victory = true
-	var next_line := "NEXT // %s" % Game.story_stage_def(_story_next_stage).get("path", "") if _story_next_stage >= 0 else "ACT 1 // UNIX RECOVERY COMPLETE"
+	var next_line := tr("ARENA_NEXT") % Game.story_stage_def(_story_next_stage).get("path", "") if _story_next_stage >= 0 else tr("STORY_ACT1_DONE")
 	if _story_next_stage < 0:
-		next_line = "BONUS ACT // TEMPLEOS COMPLETE" if stage_id == "temple_god" else "STORY // ALL MOUNTED PATHS COMPLETE"
+		next_line = tr("STORY_BONUS_DONE") if stage_id == "temple_god" else tr("STORY_ALL_DONE")
 		if stage_id == "temple_god":
 			next_line += "  //  RAINBOW GRID UNLOCKED FOR ENDLESS"
 	var st := Game.stats
@@ -803,7 +797,7 @@ func _show_story_victory(stage_id: String) -> void:
 			[tr("STAT_UPTIME"), "%02d:%02d" % [int(float(st.get("time", 0.0)) / 60.0), int(float(st.get("time", 0.0))) % 60]],
 			[tr("STAT_STAGE_BEST"), "%07d" % Game.story_stage_best(index)],
 		],
-		"meta": str(_story_stage.get("title", "STAGE CLEARED")),
+		"meta": str(_story_stage.get("title", tr("ARENA_STAGE_CLEARED"))),
 		"primary": tr("VICTORY_NEXT_STAGE") if _story_next_stage >= 0 else tr("VICTORY_RETURN"),
 		"secondary": tr("VICTORY_STORY_SELECT"),
 	})
@@ -817,11 +811,11 @@ func _heals_line(s: Dictionary) -> String:
 	for k in heals:
 		total += int(heals[k])
 	if total == 0:
-		return "HEALS +0"
+		return tr("ARENA_HEALS_NONE")
 	var parts: Array = []
 	for k in heals:
 		parts.append("%s x%d" % [str(k).to_upper(), int(heals[k])])
-	return "HEALS +%d (%s)" % [total, ", ".join(parts)]
+	return tr("ARENA_HEALS") % [total, ", ".join(parts)]
 
 func _on_enemy_died(e: EnemyBase) -> void:
 	var was_split: bool = e is RootBoss and e.get("_split_silent") == true
@@ -874,11 +868,11 @@ func _on_enemy_died(e: EnemyBase) -> void:
 			_spawn_recover(e.global_position)
 		if not Game.unlocked_programs.has("rootlet") and int(Game.stats.get("damage", 0)) == _boss_dmg_snapshot:
 			Game.unlock_program("rootlet")
-			hud.show_banner("PROGRAM UNLOCKED", "ROOTLET AVAILABLE IN SETTINGS", 2.4)
+			hud.show_banner(tr("ARENA_PROGRAM_UNLOCKED"), tr("ARENA_ROOTLET_AVAILABLE"), 2.4)
 			Sfx.play("ready", 1.2, -4.0)
 		hud.clear_boss_encounter()
 		overlay.aberrate(1.2)
-		hud.show_banner("ROOT PURGED", "INTEGRITY +1  SCORE +250", 2.0)
+		hud.show_banner(tr("ARENA_ROOT_PURGED"), tr("ARENA_RECOVER"), 2.0)
 		Game.add_score(250)
 		Sfx.haptic(90)
 		if e.boss_index >= 2:
@@ -921,7 +915,7 @@ func _on_combo_milestone(m: int) -> void:
 		player.heal(1)
 		Game.register_heal("vampic")
 		Fx.text(player.global_position + Vector2(0, -52), "+1", Balance.COL_PLAYER, 13)
-	Fx.text(player.global_position + Vector2(0, -40), "CHAIN x%d" % m, Balance.COL_MOTE, 18 if m < Balance.COMBO_MAX else 22)
+	Fx.text(player.global_position + Vector2(0, -40), tr("ARENA_CHAIN") % m, Balance.COL_MOTE, 18 if m < Balance.COMBO_MAX else 22)
 	Fx.ring(player.global_position, Balance.COL_MOTE, 10.0, 60.0, 0.35, 2.5)
 	Sfx.play("ready", 1.3 if m < Balance.COMBO_MAX else 1.6, -8.0)
 	Sfx.haptic(15)
@@ -1175,7 +1169,7 @@ func _process(delta: float) -> void:
 			_restart_hold_t += delta
 			if _restart_hold_t >= RESTART_HOLD_DURATION and not _restart_triggered:
 				_restart_triggered = true
-				Game.log_event("SPEEDRUN RESTART // HOLD R")
+				Game.log_event(tr("CTRL_SPEEDRUN_RESTART"))
 				Game.start_run()
 		else:
 			_restart_hold_t = 0.0
