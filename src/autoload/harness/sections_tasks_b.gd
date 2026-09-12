@@ -244,7 +244,7 @@ func _task9_test(arena: Arena) -> void:
 	h._check(arena.game_over_action_labels() == [tr("OVER_REBOOT"), tr("OVER_ABANDON")], "game-over actions preserve retry first")
 	var terminal: Control = arena._terminal_panel
 	var terminal_ready := terminal != null and terminal.has_method("workstation_rect") and terminal.has_method("status_snapshot")
-	h._check(terminal_ready, "terminal exposes tactical workstation geometry")
+	h._check(terminal_ready, "terminal exposes responsive workstation geometry")
 	if terminal_ready:
 		for viewport_size in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
 			var terminal_rect: Rect2 = terminal.workstation_rect(viewport_size)
@@ -252,6 +252,13 @@ func _task9_test(arena: Arena) -> void:
 		var terminal_status: Dictionary = terminal.status_snapshot()
 		h._check(str(terminal_status.get("tty", "")) == "TTY0" and bool(terminal_status.get("paused", false)), "terminal status identifies frozen TTY")
 		h._check(int(terminal_status.get("command_count", -1)) >= 0 and bool(terminal_status.get("prompt_visible", false)), "terminal status exposes command count and prompt")
+		h._check(terminal.theme == UiTheme.shared(), "terminal uses the shared design theme")
+		h._check(terminal.has_method("content_rects"), "terminal exposes live editorial content geometry")
+		var terminal_title: Label = terminal.find_child("TerminalTitle", true, false)
+		h._check(terminal_title != null and terminal_title.get_theme_font("font") == Design.grotesk(Design.WEIGHT_BLACK),
+			"terminal uses grotesk hierarchy without losing its mono workstation voice")
+		var terminal_tactical_surfaces: Array[Node] = terminal.find_children("*", "TacticalStateSurface", true, false)
+		h._check(terminal_tactical_surfaces.is_empty(), "terminal no longer renders a TacticalStateSurface shell")
 	var saved_hud_size := hud.size
 	hud.size = Vector2(1280, 720)
 	var layout_helpers_ready := hud.has_method("boss_bar_baseline") and hud.has_method("dash_baseline")
