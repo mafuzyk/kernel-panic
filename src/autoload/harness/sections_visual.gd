@@ -688,8 +688,12 @@ func _charm_speedrun_test(arena: Arena) -> void:
 	Game.stats = {"time": 42.25, "kills": 1, "shots": 8, "hits": 4, "damage": 2, "wave": 4, "boss_kills": 0, "heals": {}}
 	Game.event_log = []
 	Game.run_seed = 123456
+	var toast_before := float(arena.hud.get("_achievement_t"))
 	var unlocked := bool(Game.unlock_achievement("first_blood"))
 	h._check(unlocked and Game.achievements.has("first_blood"), "first achievement unlocks once")
+	var live_toast: Label = arena.hud.get("_achievement_label")
+	h._check(float(arena.hud.get("_achievement_t")) > toast_before and live_toast != null and live_toast.text.contains("FIRST_BLOOD"),
+		"live achievement signal immediately surfaces the unlocked label in the HUD")
 	h._check(not bool(Game.unlock_achievement("first_blood")), "duplicate achievement stays silent")
 	h._check(str(Game.dmesg_lines(8)).contains("achievement: FIRST_BLOOD enabled"), "achievement is recorded in dmesg")
 	h._check(str(Game.core_dump_text()).contains("SEGFAULT AT player.hp=0") and str(Game.core_dump_text()).contains("123456"), "core dump includes death marker and build seed")

@@ -35,6 +35,7 @@ var _banner_sub_l: Label
 var _score_pop := 0.0
 var _build_label: Label
 var _run_info_label: Label
+var _achievement_rail: ColorRect
 var _achievement_label: Label
 var _achievement_t := 0.0
 const PATCH_TOOLTIP_HOLD_TIME := 0.45
@@ -47,10 +48,10 @@ var _tooltip_hold_t := 0.0
 var _dash_icon: Control
 var _era_accent: Color = TacticalUIHelper.CYAN
 var _surface_scale := 1.0
-var _banner_base_y := 120.0
 var _aux_size := Vector2.ZERO
 
 func _ready() -> void:
+	theme = UiTheme.shared()
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_apply_surface_transform()
 	if is_inside_tree():
@@ -66,6 +67,8 @@ func _ready() -> void:
 	_best_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_best_label.visible = false
 	_banner = _mk_label(40, Balance.COL_TEXT, Vector2(0, 120))
+	_banner.add_theme_font_override("font", Design.grotesk(Design.WEIGHT_BLACK))
+	_banner.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner.modulate.a = 0.0
 	_banner_sub_l = _mk_label(15, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.7), Vector2(0, 172))
@@ -101,6 +104,11 @@ func _ready() -> void:
 	_dash_icon.z_index = 2
 	_dash_icon.call("configure", "dash", Balance.COL_PLAYER)
 	add_child(_dash_icon)
+	_achievement_rail = ColorRect.new()
+	_achievement_rail.color = Design.SUCCESS
+	_achievement_rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_achievement_rail.modulate.a = 0.0
+	add_child(_achievement_rail)
 	_achievement_label = Label.new()
 	_achievement_label.anchor_left = 0.0
 	_achievement_label.anchor_right = 0.0
@@ -110,7 +118,7 @@ func _ready() -> void:
 	_achievement_label.offset_bottom = 136.0
 	_achievement_label.add_theme_font_override("font", _mono)
 	_achievement_label.add_theme_font_size_override("font_size", 12)
-	_achievement_label.add_theme_color_override("font_color", Balance.COL_MOTE)
+	_achievement_label.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
 	_achievement_label.modulate.a = 0.0
 	add_child(_achievement_label)
 	Game.score_changed.connect(_on_score)
@@ -178,19 +186,24 @@ func _refresh_aux_anchors() -> void:
 	var dash: Rect2 = lay["dash"]
 	var side := _safe_side_margin()
 	var vert := _safe_top_margin()
-	_banner_base_y = encounter.end.y + 16.0
+	var banner_layout := banner_layout_snapshot(size, _banner_text, _banner_sub)
 	if _banner != null and is_instance_valid(_banner):
-		_banner.offset_top = _banner_base_y
-		_banner.offset_bottom = _banner_base_y + 52.0
+		var main_rect: Rect2 = banner_layout["main_rect"]
+		_banner.offset_top = main_rect.position.y
+		_banner.offset_bottom = main_rect.end.y
 	if _banner_sub_l != null and is_instance_valid(_banner_sub_l):
-		_banner_sub_l.offset_top = _banner_base_y + 60.0
-		_banner_sub_l.offset_bottom = _banner_base_y + 82.0
+		var sub_rect: Rect2 = banner_layout["sub_rect"]
+		_banner_sub_l.offset_top = sub_rect.position.y
+		_banner_sub_l.offset_bottom = sub_rect.end.y
 	if _achievement_label != null and is_instance_valid(_achievement_label):
-		var toast_y := maxf(integrity.end.y, encounter.end.y) + 8.0
-		_achievement_label.offset_left = side
-		_achievement_label.offset_right = side + 430.0
-		_achievement_label.offset_top = toast_y
-		_achievement_label.offset_bottom = toast_y + 24.0
+		var toast_rect := achievement_toast_rect(size)
+		_achievement_label.offset_left = toast_rect.position.x + 10.0
+		_achievement_label.offset_right = toast_rect.end.x
+		_achievement_label.offset_top = toast_rect.position.y
+		_achievement_label.offset_bottom = toast_rect.end.y
+		if _achievement_rail != null and is_instance_valid(_achievement_rail):
+			_achievement_rail.position = toast_rect.position + Vector2(0.0, 2.0)
+			_achievement_rail.size = Vector2(3.0, maxf(toast_rect.size.y - 4.0, 0.0))
 	if _run_info_label != null and is_instance_valid(_run_info_label):
 		var stack_end := score.end.y + 92.0
 		_run_info_label.offset_right = -side
@@ -220,6 +233,18 @@ func touch_layout() -> bool:
 func event_log_visible(viewport: Vector2 = size) -> bool:
 	return not bool(layout_snapshot(viewport)["compact"])
 
+func event_log_rect(viewport: Vector2 = size) -> Rect2:
+	var score_rect: Rect2 = layout_snapshot(viewport)["score"]
+	return Rect2(score_rect.position.x, score_rect.end.y + 8.0, score_rect.size.x, 84.0)
+
+func status_surface_points(rect: Rect2) -> PackedVector2Array:
+	return PackedVector2Array([
+		rect.position,
+		Vector2(rect.end.x, rect.position.y),
+		rect.end,
+		Vector2(rect.position.x, rect.end.y),
+	])
+
 func visible_event_lines(limit: int = 4) -> Array[String]:
 	var result: Array[String] = []
 	var start := maxi(Game.event_log.size() - maxi(limit, 1), 0)
@@ -227,6 +252,21 @@ func visible_event_lines(limit: int = 4) -> Array[String]:
 		var entry: Dictionary = Game.event_log[index]
 		result.append("[%05.1f] %s" % [float(entry.get("time", 0.0)), str(entry.get("text", ""))])
 	return result
+
+func achievement_toast_rect(viewport: Vector2 = size) -> Rect2:
+	var layout := TacticalUIHelper.layout(viewport, touch_layout(), Sfx.touch_scale)
+	var integrity: Rect2 = layout["integrity"]
+	var encounter: Rect2 = layout["encounter"]
+	var side := TacticalUIHelper.frame_margins(viewport).x
+	var width := maxf(minf(430.0, viewport.x - side * 2.0), 0.0)
+	var toast_y := maxf(integrity.end.y, encounter.end.y) + 8.0
+	if bool(layout["compact"]) and _banner_t > 0.0:
+		var active_banner := banner_layout_snapshot(viewport, _banner_text, _banner_sub)
+		var visible_bottom := float(active_banner["main_rect"].end.y)
+		if not _banner_sub.is_empty():
+			visible_bottom = maxf(visible_bottom if bool(active_banner["main_visible"]) else 0.0, float(active_banner["sub_rect"].end.y))
+		toast_y = maxf(toast_y, visible_bottom + 8.0)
+	return Rect2(side, toast_y, width, 24.0)
 
 func dash_baseline() -> float:
 	return hud_bottom_y(14.0)
@@ -277,25 +317,47 @@ func run_info_text() -> String:
 func _on_achievement_unlocked(_id: String, label: String) -> void:
 	show_achievement(label)
 
+func achievement_toast_text(label: String) -> String:
+	return "ACHIEVEMENT // %s" % label
+
 func show_achievement(label: String) -> void:
 	if _achievement_label == null or not is_instance_valid(_achievement_label):
 		return
-	_achievement_label.text = "[ %07.3f ] achievement: %s enabled" % [float(Game.stats.get("time", 0.0)), label]
+	_achievement_label.text = achievement_toast_text(label)
 	_achievement_t = 4.0
 	_achievement_label.modulate.a = 1.0
+	if _achievement_rail != null and is_instance_valid(_achievement_rail):
+		_achievement_rail.modulate.a = 1.0
+
+func banner_layout_snapshot(viewport: Vector2, text: String = _banner_text, sub: String = _banner_sub) -> Dictionary:
+	var layout := layout_snapshot(viewport)
+	var encounter: Rect2 = layout["encounter"]
+	var compact := bool(layout["compact"])
+	var has_sub := not sub.is_empty()
+	var main_visible := not has_sub or (not compact and not text.begins_with("CYCLE "))
+	var main_y := encounter.end.y + 16.0
+	var sub_y := main_y + (60.0 if main_visible else 0.0)
+	var main_rect := Rect2(0.0, main_y, viewport.x, 52.0)
+	var sub_rect := Rect2(0.0, sub_y, viewport.x, 22.0)
+	return {
+		"main_visible": main_visible,
+		"main_rect": main_rect,
+		"sub_rect": sub_rect,
+	}
 
 func show_banner(text: String, sub: String, dur := 2.0) -> void:
 	_banner_text = text
 	_banner_sub = sub
 	_banner_t = dur
-	var hide_main := _banner_compact()
+	var layout := banner_layout_snapshot(size, text, sub)
 	if _banner != null and is_instance_valid(_banner):
-		_banner.text = "" if hide_main else text
+		_banner.text = text if bool(layout.get("main_visible", true)) else ""
 	if _banner_sub_l != null and is_instance_valid(_banner_sub_l):
 		_banner_sub_l.text = sub
+	_refresh_aux_anchors()
 
 func _banner_compact() -> bool:
-	return bool(layout_snapshot()["compact"]) and not _banner_sub.is_empty()
+	return not bool(banner_layout_snapshot(size, _banner_text, _banner_sub).get("main_visible", true))
 
 func queue_hint(id: String, text: String, dur := 1.35) -> void:
 	if id.is_empty() or _hint_queue_ids.has(id):
@@ -344,7 +406,10 @@ func _process(delta: float) -> void:
 	_score_pop = maxf(_score_pop - delta * 4.0, 0.0)
 	if _achievement_t > 0.0:
 		_achievement_t = maxf(_achievement_t - delta, 0.0)
-		_achievement_label.modulate.a = clampf(minf(_achievement_t, 1.0) * 2.0, 0.0, 1.0)
+		var achievement_alpha := clampf(minf(_achievement_t, 1.0) * 2.0, 0.0, 1.0)
+		_achievement_label.modulate.a = achievement_alpha
+		if _achievement_rail != null and is_instance_valid(_achievement_rail):
+			_achievement_rail.modulate.a = achievement_alpha
 	if _tooltip_touch_index >= 0:
 		_tooltip_hold_t += delta
 		if _tooltip_hold_t >= PATCH_TOOLTIP_HOLD_TIME and not _tooltip_visible:
@@ -354,14 +419,16 @@ func _process(delta: float) -> void:
 		var k := _banner_t
 		var a_in := clampf((2.0 - k) * 6.0, 0.0, 1.0) if k > 1.7 else 1.0
 		var a_out := clampf(k * 2.5, 0.0, 1.0)
+		var banner_layout := banner_layout_snapshot(size, _banner_text, _banner_sub)
+		var slide_y := (1.0 - minf(a_in, 1.0)) * -14.0
 		_banner.modulate.a = minf(a_in, a_out)
 		_banner_sub_l.modulate.a = _banner.modulate.a * 0.8
-		if _banner_compact():
-			_banner_sub_l.offset_top = 186 + (1.0 - minf(a_in, 1.0)) * -14.0
-			_banner_sub_l.offset_bottom = _banner_sub_l.offset_top + 22
-		else:
-			_banner.offset_top = _banner_base_y + (1.0 - minf(a_in, 1.0)) * -14.0
-			_banner.offset_bottom = _banner.offset_top + 52
+		var main_rect: Rect2 = banner_layout["main_rect"]
+		var sub_rect: Rect2 = banner_layout["sub_rect"]
+		_banner.offset_top = main_rect.position.y + slide_y
+		_banner.offset_bottom = _banner.offset_top + main_rect.size.y
+		_banner_sub_l.offset_top = sub_rect.position.y + slide_y
+		_banner_sub_l.offset_bottom = _banner_sub_l.offset_top + sub_rect.size.y
 	else:
 		_banner.modulate.a = 0.0
 		_banner_sub_l.modulate.a = 0.0
@@ -445,6 +512,19 @@ func patch_tooltip_visible() -> bool:
 func patch_tooltip_snapshot() -> Dictionary:
 	return _tooltip_data.duplicate(true)
 
+func patch_tooltip_rect(viewport: Vector2, chip_rect: Rect2) -> Rect2:
+	var side := TacticalUIHelper.frame_margins(viewport).x
+	var vertical := TacticalUIHelper.frame_margins(viewport).y
+	var width := minf(390.0, maxf(viewport.x - side * 2.0, 220.0))
+	width = minf(width, maxf(viewport.x - side * 2.0, 0.0))
+	var height := minf(76.0, maxf(viewport.y - vertical * 2.0, 0.0))
+	var pos := chip_rect.position + Vector2(0.0, chip_rect.size.y + 8.0)
+	if pos.y + height > viewport.y - vertical:
+		pos.y = chip_rect.position.y - height - 8.0
+	pos.x = clampf(pos.x, side, maxf(side, viewport.x - width - side))
+	pos.y = clampf(pos.y, vertical, maxf(vertical, viewport.y - height - vertical))
+	return Rect2(pos, Vector2(width, height))
+
 func _show_patch_tooltip(id: String) -> void:
 	if id.is_empty() or not Game.patch_levels.has(id):
 		_dismiss_patch_tooltip()
@@ -483,6 +563,13 @@ func _draw_angular_panel(rect: Rect2, color: Color, fill_alpha: float = 0.08, co
 	outline.append(points[0])
 	draw_polyline(outline, Color(color.r, color.g, color.b, 0.72), 1.4, true)
 
+func _draw_status_surface(rect: Rect2, color: Color, fill_alpha: float = 0.025) -> void:
+	var points := status_surface_points(rect)
+	draw_colored_polygon(points, Color(Design.SURFACE_SUNKEN.r, Design.SURFACE_SUNKEN.g, Design.SURFACE_SUNKEN.b, 0.46))
+	draw_colored_polygon(points, Color(color.r, color.g, color.b, fill_alpha))
+	draw_line(rect.position, Vector2(rect.end.x, rect.position.y), Color(color.r, color.g, color.b, 0.46), 1.0, true)
+	draw_line(rect.position, Vector2(rect.position.x, rect.end.y), Color(color.r, color.g, color.b, 0.28), 1.0, true)
+
 func _draw_tactical_shell(f: Font) -> void:
 	var layout := layout_snapshot()
 	var compact := bool(layout["compact"])
@@ -505,7 +592,7 @@ func _draw_tactical_shell(f: Font) -> void:
 	_draw_angular_panel(score_rect, _era_accent, 0.055, true)
 	if not touch_layout():
 		_draw_angular_panel(dash_rect, _era_accent, 0.045, true)
-	_draw_angular_panel(patch_rect, _era_accent, 0.045, true)
+	_draw_status_surface(patch_rect, _era_accent, 0.028)
 	draw_string(f, integrity_rect.position + Vector2(16.0, 22.0), "INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, TacticalUIHelper.TEXT)
 	var cycle_label := "CYCLE %02d" % Game.wave
 	draw_string(_score_font, encounter_rect.position + Vector2(0.0, 30.0 if compact else 38.0), cycle_label, HORIZONTAL_ALIGNMENT_CENTER, encounter_rect.size.x, 24 if compact else 32, TacticalUIHelper.TEXT)
@@ -514,8 +601,8 @@ func _draw_tactical_shell(f: Font) -> void:
 	draw_string(f, score_rect.position + Vector2(14.0, 22.0), "SCORE", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, _era_accent)
 	draw_string(_score_font, score_rect.position + Vector2(14.0, 52.0), "%07d" % _score, HORIZONTAL_ALIGNMENT_RIGHT, score_rect.size.x - 28.0, 24 if compact else 28, TacticalUIHelper.TEXT)
 	if event_log_visible():
-		var event_rect := Rect2(score_rect.position.x, score_rect.end.y + 8.0, score_rect.size.x, 84.0)
-		_draw_angular_panel(event_rect, _era_accent, 0.025, true)
+		var event_rect := event_log_rect(size)
+		_draw_status_surface(event_rect, _era_accent, 0.018)
 		var event_y := event_rect.position.y + 18.0
 		draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), "EVENT LOG", HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 12, _era_accent)
 		for line in visible_event_lines():
@@ -586,9 +673,9 @@ func _patch_chips(f: Font) -> void:
 		var lvl := int(Game.patch_levels[id])
 		var txt := "%s%d" % [code, lvl]
 		var chip_rect: Rect2 = _patch_chip_rects[id]
-		var chip_points := TacticalUIHelper.angular_points(chip_rect, minf(4.0, chip_rect.size.y * 0.25))
-		draw_colored_polygon(chip_points, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.10))
-		draw_polyline(chip_points + PackedVector2Array([chip_points[0]]), Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.35), 1.0, true)
+		draw_rect(chip_rect, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.07))
+		draw_line(Vector2(chip_rect.position.x, chip_rect.end.y), chip_rect.end,
+			Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.42), 1.0, true)
 		draw_string(f, chip_rect.position + Vector2(0.0, chip_rect.size.y * 0.68), txt, HORIZONTAL_ALIGNMENT_CENTER, chip_rect.size.x, 10, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.82))
 
 func _update_patch_chip_rects() -> void:
@@ -617,16 +704,11 @@ func patch_dock_rects(viewport: Vector2 = size) -> Dictionary:
 func _draw_patch_tooltip(f: Font) -> void:
 	if not _tooltip_visible or _tooltip_data.is_empty() or not _patch_chip_rects.has(_tooltip_patch_id):
 		return
-	var width := minf(390.0, maxf(size.x - 24.0, 220.0))
-	var height := 76.0
 	var chip_rect: Rect2 = _patch_chip_rects[_tooltip_patch_id]
-	var pos := chip_rect.position + Vector2(0, chip_rect.size.y + 8.0)
-	if pos.y + height > size.y - 8.0:
-		pos.y = chip_rect.position.y - height - 8.0
-	pos.x = clampf(pos.x, _safe_side_margin(), maxf(_safe_side_margin(), size.x - width - _safe_side_margin()))
-	var panel := Rect2(pos, Vector2(width, height))
-	draw_rect(panel, Color(0.01, 0.02, 0.05, 0.96))
-	draw_rect(panel, Color(Balance.COL_PLAYER.r, Balance.COL_PLAYER.g, Balance.COL_PLAYER.b, 0.8), false, 1.5)
+	var panel := patch_tooltip_rect(size, chip_rect)
+	var pos := panel.position
+	var width := panel.size.x
+	_draw_status_surface(panel, Balance.COL_PLAYER, 0.035)
 	draw_string(f, pos + Vector2(10, 18), str(_tooltip_data.get("title", "PATCH")), HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 13, Balance.COL_TEXT)
 	draw_string(f, pos + Vector2(10, 36), "LEVEL %d // %s" % [int(_tooltip_data.get("level", 0)), str(_tooltip_data.get("description", ""))], HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 11, Balance.COL_TEXT)
 	draw_string(f, pos + Vector2(10, 57), str(_tooltip_data.get("relation", "NO DIRECT INTERACTION")), HORIZONTAL_ALIGNMENT_LEFT, width - 20.0, 10, Balance.COL_MOTE)
@@ -661,7 +743,7 @@ func _boss_bar(f: Font) -> void:
 	var region: Rect2 = layout_snapshot()["boss"]
 	var r: Rect2 = boss_bar_rects(size, false)[0]
 	var col := Balance.COL_DANGER
-	_draw_angular_panel(region, col, 0.045)
+	_draw_status_surface(region, col, 0.035)
 	draw_rect(r, Color(col.r, col.g, col.b, 0.15))
 	var segs := 20
 	var filled := int(ceil(_boss_frac * segs))
@@ -677,7 +759,7 @@ func _boss_split_bar(f: Font) -> void:
 	var region: Rect2 = layout_snapshot()["boss"]
 	var rows := boss_bar_rects(size, true)
 	var col := Balance.COL_DANGER
-	_draw_angular_panel(region, col, 0.045)
+	_draw_status_surface(region, col, 0.035)
 	for slot in 2:
 		var row: Rect2 = rows[slot]
 		var label := "MINI-A" if slot == 0 else "MINI-B"

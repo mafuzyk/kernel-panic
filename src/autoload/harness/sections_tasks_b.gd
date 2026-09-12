@@ -68,6 +68,7 @@ func _task9_test(arena: Arena) -> void:
 			h._check(music_bounds.size.x >= 12.0 and music_bounds.size.y >= 16.0, "music icon remains legible at compact pause size")
 		icon.queue_free()
 	var hud: Hud = arena.hud
+	h._check(hud.theme == UiTheme.shared(), "combat HUD inherits the shared design tokens")
 	var hud_layout_ready := hud.has_method("layout_snapshot") and hud.has_method("visible_event_lines") and hud.has_method("event_log_visible")
 	h._check(hud_layout_ready, "HUD exposes tactical layout and event log APIs")
 	if hud_layout_ready:
@@ -81,7 +82,47 @@ func _task9_test(arena: Arena) -> void:
 		h._check(lines.size() == 4 and lines[0].contains("TWO") and lines[3].contains("FIVE"), "HUD event log keeps the newest four entries")
 		h._check(hud.event_log_visible(Vector2(1366, 768)), "event log is visible in full layout")
 		h._check(not hud.event_log_visible(Vector2(540, 720)), "event log collapses in compact layout")
+		h._check(hud.has_method("event_log_rect"), "HUD exposes live event-log geometry")
+		if hud.has_method("event_log_rect"):
+			for viewport in [Vector2(1366, 768), Vector2(1920, 1080)]:
+				var event_rect: Rect2 = hud.call("event_log_rect", viewport)
+				var score_rect: Rect2 = hud.call("layout_snapshot", viewport)["score"]
+				h._check(Rect2(Vector2.ZERO, viewport).encloses(event_rect) and event_rect.position.y >= score_rect.end.y,
+					"event log stays below score and inside viewport %dx%d" % [int(viewport.x), int(viewport.y)])
 		Game.event_log = saved_event_log
+	h._check(hud.has_method("status_surface_points"), "HUD exposes combat-editorial status surface geometry")
+	if hud.has_method("status_surface_points"):
+		var status_rect := Rect2(20.0, 30.0, 180.0, 72.0)
+		var status_points: PackedVector2Array = hud.call("status_surface_points", status_rect)
+		h._check(status_points.size() == 4 and status_points[0] == status_rect.position and status_points[2] == status_rect.end,
+			"secondary HUD surfaces use a rectangular editorial silhouette instead of cut corners")
+	h._check(hud.has_method("achievement_toast_text"), "HUD exposes semantic achievement toast copy")
+	if hud.has_method("achievement_toast_text"):
+		var toast_copy := str(hud.call("achievement_toast_text", "FIRST BLOOD"))
+		h._check(toast_copy.contains("FIRST BLOOD") and not toast_copy.contains("[ 000"),
+			"achievement toast preserves the label without exposing raw log timestamp syntax")
+	h._check(hud.has_method("achievement_toast_rect"), "HUD exposes responsive achievement toast geometry")
+	if hud.has_method("achievement_toast_rect"):
+		for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			var toast_rect: Rect2 = hud.call("achievement_toast_rect", vp)
+			h._check(Rect2(Vector2.ZERO, vp).encloses(toast_rect), "achievement toast stays inside viewport %dx%d" % [int(vp.x), int(vp.y)])
+		var saved_banner_t := float(hud.get("_banner_t"))
+		var saved_banner_text := str(hud.get("_banner_text"))
+		var saved_banner_sub := str(hud.get("_banner_sub"))
+		hud.set("_banner_t", 1.0)
+		hud.set("_banner_text", "CYCLE 01")
+		hud.set("_banner_sub", "PURGE THE DAEMONS")
+		for vp in [Vector2(720, 720), Vector2(432, 720)]:
+			var compact_toast: Rect2 = hud.call("achievement_toast_rect", vp)
+			var compact_banner: Dictionary = hud.call("banner_layout_snapshot", vp, "CYCLE 01", "PURGE THE DAEMONS")
+			var compact_sub: Rect2 = compact_banner.get("sub_rect", Rect2())
+			h._check(not compact_toast.intersects(compact_sub), "achievement toast clears an active compact banner at %dx%d" % [int(vp.x), int(vp.y)])
+		hud.set("_banner_t", saved_banner_t)
+		hud.set("_banner_text", saved_banner_text)
+		hud.set("_banner_sub", saved_banner_sub)
+	var live_banner: Label = hud.get("_banner")
+	h._check(live_banner != null and live_banner.get_theme_font("font") == Design.grotesk(Design.WEIGHT_BLACK),
+		"combat banner uses the shared grotesk hierarchy instead of Orbitron")
 	var dock_ready := hud.has_method("patch_dock_rects")
 	h._check(dock_ready, "HUD exposes responsive patch dock geometry")
 	if dock_ready:
