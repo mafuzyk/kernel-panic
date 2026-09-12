@@ -197,10 +197,21 @@ func _glyph_lib_test() -> void:
 	# ponto de entrada para draw_portrait — sem regressão nenhuma. O que o
 	# teste quer garantir é que os painéis reusam a biblioteca em vez de
 	# reimplementar desenho, e que os dois pontos de entrada funcionam.
-	var bestiary_source := str(load("res://src/ui/bestiary_panel.gd").source_code)
-	var program_source := str(load("res://src/ui/program_panel.gd").source_code)
-	h._check(bestiary_source.contains("GlyphLib.draw_"), "bestiary detail views reuse glyph_lib")
-	h._check(program_source.contains("GlyphLib.draw_"), "program cards reuse glyph_lib")
+	# Era texto-fonte: procurava "GlyphLib.draw_" nos dois arquivos. Quebrou
+	# assim que o desenho saiu do painel para um construtor compartilhado
+	# (`ScreenKit.glyph`), sem nenhuma regressão. O contrato real é que cada
+	# silhueta que a tela mostra seja um tipo que a biblioteca sabe desenhar.
+	for panel_path in ["res://src/ui/bestiary_panel.gd", "res://src/ui/program_panel.gd"]:
+		var kinds_probe = load(panel_path).new()
+		var shown: Array = kinds_probe.call("glyph_kinds") if kinds_probe.has_method("glyph_kinds") else []
+		h._check(not shown.is_empty(), "%s lists the silhouettes it shows" % panel_path.get_file())
+		var kinds_seed: int = Game.rng.seed
+		for kind in shown:
+			glyph.call("draw_glyph", null, str(kind), Vector2.ZERO, 16.0, Color.CYAN, 0.0)
+			glyph.call("draw_portrait", null, str(kind), Vector2.ZERO, 48.0, Color.CYAN, 0.0)
+		h._check(Game.rng.seed == kinds_seed,
+			"%s silhouettes draw without touching the gameplay rng" % panel_path.get_file())
+		kinds_probe.free()
 	var portrait_seed := Game.rng.seed
 	var portrait_ok := true
 	for kind in required:
@@ -287,6 +298,100 @@ func _i18n_test() -> void:
 			"setting the language moves the TranslationServer locale")
 		Game.set_language("en")
 	TranslationServer.set_locale(previous)
+
+
+## As telas de SELEÇÃO falam a mesma língua das telas de estado.
+##
+## A autora apontou em 2026-09-12 que story/program/bestiary/patch_card eram um
+## segundo design system rodando ao lado do primeiro: Orbitron 13-21 contra
+## grotesca 26-76, moldura por elemento contra régua e ar, seis acentos
+## simultâneos contra um, e offset absoluto de um palco de 1280x720 contra
+## container. Zero das quatro usavam um token de `Design` além de scroll_hint.
+##
+## Estas asserções fixam o CONTRATO do porte, não a aparência: o painel usa o
+## tema compartilhado, é dono do próprio cabeçalho (antes o título vinha
+## injetado por menu.gd com Orbitron cru e offset fixo), cabe no viewport nos
+## quatro degraus, e a cor de identidade fica restrita ao marcador.
+func _editorial_screens_test() -> void:
+	print("AT_STEP editorial_screens")
+	var script: Script = load("res://src/ui/program_panel.gd")
+	var panel: Control = script.new()
+	h.get_tree().current_scene.add_child(panel)
+	await h._ticks(2)
+
+	h._check(panel.theme == UiTheme.shared(), "program selector uses the shared design theme")
+	h._check(panel.has_method("title_text") and str(panel.call("title_text")) == tr("PROGRAM_TITLE"),
+		"program selector owns its masthead title")
+	h._check(panel.has_method("content_rects"), "program selector exposes its content rects")
+
+	if panel.has_method("content_rects"):
+		for viewport_size in [Vector2(1920, 1080), Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			panel.size = viewport_size
+			await h._ticks(2)
+			var label := "%dx%d" % [int(viewport_size.x), int(viewport_size.y)]
+			var screen_rect := Rect2(Vector2.ZERO, viewport_size)
+			var inside := true
+			for content in panel.call("content_rects"):
+				if not screen_rect.encloses(content):
+					inside = false
+			h._check(inside, "program selector content stays inside the screen at %s" % label)
+
+	# Decisão de 2026-09-12: a cor de identidade É informação — o ciano do
+	# KERNEL no seletor é o ciano do KERNEL na arena — então ela não some, ela
+	# desce a MARCADOR. O texto do card fica em tinta neutra; apagar a cor
+	# quebraria o reconhecimento, mantê-la no texto traz o arco-íris de volta.
+	h._check(panel.has_method("card_ink"), "program cards expose their ink roles")
+	if panel.has_method("card_ink"):
+		var ink: Dictionary = panel.call("card_ink", "kernel")
+		var identity: Color = Game.PROGRAM_DEFS["kernel"]["visual"]["color"]
+		h._check(ink.get("title", Color.BLACK) == Design.TEXT_PRIMARY,
+			"program card title uses neutral ink, not the identity colour")
+		h._check(ink.get("marker", Color.BLACK) == identity,
+			"program card keeps the identity colour as a marker")
+		h._check(ink.get("body", Color.BLACK) != identity,
+			"program card body text is not tinted by identity")
+
+	# Sem Orbitron: a grotesca editorial é o que separa as duas linguagens.
+	h._check(panel.has_method("title_font_size") and int(panel.call("title_font_size")) >= Design.TEXT_HEADING,
+		"program selector title uses the display end of the type scale")
+
+	panel.queue_free()
+	await h._ticks(2)
+
+	# ── seletor de fase ───────────────────────────────────────────────
+	var story_script: Script = load("res://src/ui/story_panel.gd")
+	var story: Control = story_script.new()
+	h.get_tree().current_scene.add_child(story)
+	await h._ticks(2)
+
+	h._check(story.theme == UiTheme.shared(), "story selector uses the shared design theme")
+	h._check(story.has_method("title_text") and str(story.call("title_text")) == tr("STORY_TITLE"),
+		"story selector owns its masthead title")
+
+	if story.has_method("content_rects"):
+		for viewport_size in [Vector2(1920, 1080), Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+				story.size = viewport_size
+				await h._ticks(2)
+				var story_label := "%dx%d" % [int(viewport_size.x), int(viewport_size.y)]
+				var story_screen := Rect2(Vector2.ZERO, viewport_size)
+				var story_inside := true
+				for content in story.call("content_rects"):
+					if not story_screen.encloses(content):
+						story_inside = false
+				h._check(story_inside, "story selector content stays inside the screen at %s" % story_label)
+
+	# Selecionar DESTACA; montar é o segundo passo. Antes `stage_selected` ia
+	# direto em `_start_story`, então o painel de detalhe era inalcançável: o
+	# clique que o preencheria já iniciava a fase.
+	var mounted: Array = []
+	story.connect("stage_mounted", func(index: int) -> void: mounted.append(index))
+	h._check(bool(story.call("select_stage", 0)), "story selector selects the first stage")
+	h._check(mounted.is_empty(), "selecting a stage does not start the run")
+	story.call("_mount")
+	h._check(mounted == [0], "mounting the highlighted stage starts it")
+
+	story.queue_free()
+	await h._ticks(2)
 
 
 func _icon_quality_test() -> void:
@@ -456,4 +561,3 @@ func _charm_speedrun_test(arena: Arena) -> void:
 	Game.event_log = saved_events
 	Game.run_seed = saved_seed
 	h._restore_config_section("achievements", achievement_disk)
-
