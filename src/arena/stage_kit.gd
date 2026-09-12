@@ -25,6 +25,8 @@ func _build_background() -> void:
 	a._bg_mat.set_shader_parameter("corruption_mix", Balance.BG_CORRUPTION_MIX)
 	a._bg_mat.set_shader_parameter("corruption_coverage", Balance.BG_CORRUPTION_COVERAGE)
 	a._bg_mat.set_shader_parameter("subgrid_weight", Balance.BG_SUBGRID_WEIGHT)
+	a._bg_mat.set_shader_parameter("era_gain_grid", Balance.ERA_TINT_GAIN_GRID)
+	a._bg_mat.set_shader_parameter("era_gain_glow", Balance.ERA_TINT_GAIN_GLOW)
 	rect.material = a._bg_mat
 	layer.add_child(rect)
 	a.add_child(layer)

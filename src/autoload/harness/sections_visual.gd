@@ -657,6 +657,19 @@ func _arena_field_test() -> void:
 	h._check(Balance.BG_SUBGRID_WEIGHT <= 0.12,
 		"the secondary grid stays a texture instead of a second ruling")
 
+	# A mesma regra vale para a GRADE, não só para os setores corrompidos.
+	# Três das cinco cores de era são literalmente cores de inimigo (`ff9a3d` é
+	# o LANCER, `b46bff` o SPEWER, `ff2a4d` o DANGER), então com mistura alta o
+	# campo passava cinco ondas inteiras vestido de ameaça.
+	var dimmest_entity: float = Balance.dimmest_entity_luminance()
+	for era in Balance.ERA_TINTS:
+		var era_tint: Color = era
+		var peak: Color = Balance.field_peak_color(era_tint, Balance.ERA_MIX_ENDLESS)
+		h._check(peak.get_luminance() < dimmest_entity,
+			"the %s era field stays darker than the dimmest entity" % era_tint.to_html(false))
+	h._check(Balance.ERA_MIX_STORY <= Balance.ERA_MIX_ENDLESS,
+		"story keeps the calmer field of the two")
+
 
 func _icon_quality_test() -> void:
 	print("AT_STEP icon_quality")

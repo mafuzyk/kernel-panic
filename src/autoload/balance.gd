@@ -116,6 +116,50 @@ const ERA_TINTS := [
 	Color("ff2a4d"),
 ]
 
+## Quanto o acento de era tinge a grade do campo.
+##
+## Era 0.75 no endless. Três das cinco cores de era SÃO cores de inimigo —
+## `ff9a3d` é o LANCER, `b46bff` é o SPEWER, `ff2a4d` é o DANGER — então a
+## 0.75 o campo inteiro passava cinco ondas com a cor de uma ameaça, e a mesma
+## regra que tirou o brilho dos setores corrompidos estava sendo violada pela
+## grade. A identidade de era sobrevive; ela só para de gritar.
+## A era muda a COR da grade, não a luz dela. Baixar só a mistura apagaria a
+## identidade de era junto com o brilho; rebaixar o ganho do acento mantém o
+## deslocamento de matiz (ciano → laranja → azul → roxo → vermelho) e tira a
+## luminância que competia com as entidades.
+const ERA_MIX_ENDLESS := 0.45
+const ERA_MIX_STORY := 0.28
+const ERA_TINT_GAIN_GRID := 0.45
+const ERA_TINT_GAIN_GLOW := 0.32
+
+## Pico de cor do campo: o que o shader produz no centro, onde a grade cheia e
+## o brilho central somam. É sobre isto que a asserção de legibilidade mede.
+static func field_peak_color(era_tint: Color, era_mix: float) -> Color:
+	var grid_base := Color(0.075, 0.13, 0.24)
+	var glow_base := Color(0.05, 0.13, 0.2)
+	var grid_ink := grid_base.lerp(shade(era_tint, ERA_TINT_GAIN_GRID), era_mix * 0.7)
+	var glow_ink := glow_base.lerp(shade(era_tint, ERA_TINT_GAIN_GLOW), era_mix * 0.9)
+	# grade primária (0.55) + secundária, e o brilho central a 0.9.
+	var g: float = 0.55 + BG_SUBGRID_WEIGHT
+	return Color(
+		0.012 + grid_ink.r * g + glow_ink.r * 0.9,
+		0.014 + grid_ink.g * g + glow_ink.g * 0.9,
+		0.033 + grid_ink.b * g + glow_ink.b * 0.9)
+
+
+static func shade(base: Color, mult: float) -> Color:
+	return Color(base.r * mult, base.g * mult, base.b * mult, base.a)
+
+
+static func dimmest_entity_luminance() -> float:
+	var dimmest := 1.0
+	for entity in [COL_DRONE, COL_LANCER, COL_SPEWER, COL_SPLITTER, COL_BULWARK,
+		COL_MOTE, COL_PLAYER, COL_DANGER]:
+		var entity_color: Color = entity
+		dimmest = minf(dimmest, entity_color.get_luminance())
+	return dimmest
+
+
 static func era_color(wave: int) -> Color:
 	return ERA_TINTS[clampi((wave - 1) / 5, 0, ERA_TINTS.size() - 1)]
 

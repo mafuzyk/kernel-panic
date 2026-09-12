@@ -13,6 +13,8 @@ uniform vec3 corruption_col : source_color = vec3(0.075, 0.012, 0.030);
 uniform float corruption_mix = 0.72;
 uniform float corruption_coverage = 0.14;
 uniform float subgrid_weight = 0.10;
+uniform float era_gain_grid = 0.45;
+uniform float era_gain_glow = 0.32;
 
 float grid(vec2 c) {
 	vec2 f = abs(fract(c) - 0.5);
@@ -28,8 +30,8 @@ void fragment() {
 	uv1 += vec2(TIME * 0.12, TIME * 0.045);
 	uv2 -= vec2(TIME * 0.05, -TIME * 0.02);
 	float g = grid(uv1) * 0.55 + grid(uv2) * subgrid_weight;
-	vec3 ecol = mix(grid_col, era_tint * 0.85, era_mix * 0.7);
-	vec3 eglo = mix(glow_col, era_tint * 0.6, era_mix * 0.9);
+	vec3 ecol = mix(grid_col, era_tint * era_gain_grid, era_mix * 0.7);
+	vec3 eglo = mix(glow_col, era_tint * era_gain_glow, era_mix * 0.9);
 	vec3 col = base_col + ecol * g;
 	col += eglo * exp(-r * 3.2) * 0.9;
 	col *= 1.0 - r * r * 0.85;

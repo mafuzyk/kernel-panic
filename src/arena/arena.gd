@@ -1187,7 +1187,8 @@ func _process(delta: float) -> void:
 		var c := _era_color
 		if OS.get_environment("KP_NOTINT") == "":
 			_bg_mat.set_shader_parameter("era_tint", Vector3(c.r, c.g, c.b))
-		_bg_mat.set_shader_parameter("era_mix", 0.28 if Game.mode == "story" else 0.75)
+		_bg_mat.set_shader_parameter("era_mix",
+			Balance.ERA_MIX_STORY if Game.mode == "story" else Balance.ERA_MIX_ENDLESS)
 		_bg_mat.set_shader_parameter("corruption", 0.0 if Game.mode == "story" else _stage_kit.background_corruption_for_wave(Game.wave))
 	if _state == "play":
 		Game.stats["time"] += delta
