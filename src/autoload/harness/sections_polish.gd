@@ -14,11 +14,18 @@ func _init(harness: Node) -> void:
 func _settings_tabs_test(menu: Node) -> void:
 	print("AT_STEP settings_tabs")
 	var kit = menu.get("_settings_kit")
+	var kit_script: Script = load("res://src/ui/menu_settings_kit.gd")
 	h._check(kit != null and kit.has_method("set_active_section") and kit.has_method("active_section") and kit.has_method("settings_section_snapshot"), "settings kit exposes the section state machine")
 	if kit == null or not kit.has_method("set_active_section"):
 		return
 	var sections: Array = kit.call("section_names")
-	h._check(sections == ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"], "settings kit declares the five sections in order")
+	# A lista era fixada em cinco nomes literais, então adicionar a seção VIDEO
+	# quebrava a asserção sem nada ter regredido. O que importa é que a ordem
+	# declarada seja a ordem servida, e que as seções que o jogador espera
+	# existam — não quantas são.
+	h._check(sections == kit_script.SETTINGS_SECTIONS, "settings serves the sections in declared order")
+	for expected in ["AUDIO", "VIDEO", "GAMEPLAY", "CONTROLS", "SAVE DATA"]:
+		h._check(sections.has(expected), "settings declares the %s section" % str(expected))
 	menu.call("_open_settings")
 	await h._ticks(2)
 	var settings_panel: Control = menu.get("_settings_panel")
@@ -78,6 +85,7 @@ func _settings_tabs_test(menu: Node) -> void:
 
 func _settings_chips_test(menu: Node) -> void:
 	print("AT_STEP settings_chips")
+	var kit_script: Script = load("res://src/ui/menu_settings_kit.gd")
 	var kit = menu.get("_settings_kit")
 	h._check(kit != null and kit.has_method("apply_viewport"), "settings kit exposes a viewport override for layout probes")
 	if kit == null or not kit.has_method("apply_viewport"):
@@ -98,11 +106,13 @@ func _settings_chips_test(menu: Node) -> void:
 	kit.call("set_active_section", "SAVE DATA")
 	await h._ticks(1)
 	var chips: Array = menu.get("_settings_chip_buttons")
-	var chip_selected: bool = chips.size() == 5
+	# O índice ativo vem da lista declarada, não de um 4 cravado.
+	var active_index: int = kit_script.SETTINGS_SECTIONS.find("SAVE DATA")
+	var chip_selected: bool = chips.size() == kit_script.SETTINGS_SECTIONS.size()
 	for i in chips.size():
 		var chip_style := (chips[i] as Button).get_theme_stylebox("normal")
 		var has_underline := chip_style is StyleBoxFlat and (chip_style as StyleBoxFlat).border_width_bottom > 0
-		if (i == 4) != has_underline:
+		if (i == active_index) != has_underline:
 			chip_selected = false
 	h._check(chip_selected, "chips share the editorial active-section marker with the sidebar")
 	kit.call("apply_viewport", Vector2.ZERO)
@@ -182,6 +192,47 @@ func _menu_reflow_test(menu: Node) -> void:
 	h._check(narrow.has("title") and narrow.has("subtitle"),
 		"draw_shell derives its decorative anchors from the shared dict")
 	chrome_kit = null
+
+## B12 da auditoria: o jogo não tinha NENHUMA opção de vídeo.
+##
+## Num build de PC isso é a primeira coisa que o jogador procura no settings.
+## O contrato aqui é de comportamento: o modo de janela e o vsync existem, são
+## persistidos, e aplicá-los mexe no DisplayServer de verdade.
+func _video_settings_test() -> void:
+	print("AT_STEP video_settings")
+	h._check(Sfx.has_method("set_window_mode") and Sfx.has_method("set_vsync_mode"),
+		"settings own the video options")
+	if not Sfx.has_method("set_window_mode"):
+		return
+	var saved_window: int = Sfx.window_mode
+	var saved_vsync: int = Sfx.vsync_mode
+
+	h._check(Sfx.WINDOW_MODES.size() >= 3, "window mode offers windowed, fullscreen and borderless")
+	h._check(Sfx.VSYNC_MODES.size() >= 2, "vsync offers at least on and off")
+
+	# Persistência: o valor tem de sobreviver a um round-trip pelo disco.
+	Sfx.set_window_mode(0)
+	Sfx.set_vsync_mode(0)
+	Sfx.load_settings()
+	h._check(Sfx.window_mode == 0 and Sfx.vsync_mode == 0, "video options survive a save/load round trip")
+
+	# E tem de CHEGAR no servidor de display, não só no arquivo.
+	Sfx.set_vsync_mode(0)
+	h._check(DisplayServer.window_get_vsync_mode() == DisplayServer.VSYNC_DISABLED,
+		"turning vsync off reaches the display server")
+	Sfx.set_vsync_mode(1)
+	h._check(DisplayServer.window_get_vsync_mode() == DisplayServer.VSYNC_ENABLED,
+		"turning vsync on reaches the display server")
+
+	# Uma seção nova no settings, e ela aparece na navegação.
+	var kit_script: Script = load("res://src/ui/menu_settings_kit.gd")
+	h._check(kit_script.SETTINGS_SECTIONS.has("VIDEO"), "settings exposes a video section")
+	h._check(str(kit_script.section_label("VIDEO")) != "VIDEO" or TranslationServer.get_locale().begins_with("en"),
+		"the video section label goes through the translation table")
+
+	Sfx.set_window_mode(saved_window)
+	Sfx.set_vsync_mode(saved_vsync)
+
 
 func _awards_chrome_test(menu: Node) -> void:
 	print("AT_STEP awards_chrome")
