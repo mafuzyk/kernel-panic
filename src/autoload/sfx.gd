@@ -16,6 +16,18 @@ var sfx_vol := 0.9
 var music_vol := 0.75
 var haptics_enabled := true
 var shake_level := 2
+
+## ── vídeo ─────────────────────────────────────────────────────────────
+##
+## B12 da auditoria: o jogo não tinha opção de vídeo nenhuma. Num build de PC é
+## a primeira coisa que o jogador procura.
+##
+## Os índices são o contrato persistido — a ORDEM não muda sem migrar o save.
+const WINDOW_MODES := ["windowed", "fullscreen", "borderless"]
+const VSYNC_MODES := ["off", "on", "adaptive"]
+
+var window_mode := 0
+var vsync_mode := 1
 var target_fps := 60
 var touch_scale := 1.0
 var aim_mode := "drag"
@@ -200,6 +212,9 @@ func _load_settings() -> void:
 	aim_mode = cf.get_value("feel", "aim_mode", "drag")
 	color_assist = bool(cf.get_value("feel", "color_assist", false))
 	show_run_info = bool(cf.get_value("feel", "show_run_info", false))
+	window_mode = clampi(int(cf.get_value("video", "window_mode", 0)), 0, WINDOW_MODES.size() - 1)
+	vsync_mode = clampi(int(cf.get_value("video", "vsync", 1)), 0, VSYNC_MODES.size() - 1)
+	apply_video_settings()
 
 func save_settings() -> void:
 	var cf := ConfigFile.new()
@@ -214,7 +229,49 @@ func save_settings() -> void:
 	cf.set_value("feel", "aim_mode", aim_mode)
 	cf.set_value("feel", "color_assist", color_assist)
 	cf.set_value("feel", "show_run_info", show_run_info)
+	cf.set_value("video", "window_mode", window_mode)
+	cf.set_value("video", "vsync", vsync_mode)
 	cf.save(SAVE_PATH)
+
+
+## Aplica o que está guardado ao DisplayServer.
+##
+## Silencioso em headless: o autotest roda sem janela, e mexer no modo de
+## janela ali não faz sentido — mas o VSYNC continua sendo aplicado, porque é
+## o que a asserção mede e o que o servidor aceita nos dois casos.
+func apply_video_settings() -> void:
+	DisplayServer.window_set_vsync_mode(_vsync_enum(vsync_mode))
+	if DisplayServer.get_name() == "headless":
+		return
+	match WINDOW_MODES[window_mode]:
+		"fullscreen":
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
+			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
+		"borderless":
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
+		_:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
+
+
+static func _vsync_enum(mode: int) -> int:
+	match mode:
+		0: return DisplayServer.VSYNC_DISABLED
+		2: return DisplayServer.VSYNC_ADAPTIVE
+		_: return DisplayServer.VSYNC_ENABLED
+
+
+func set_window_mode(mode: int) -> void:
+	window_mode = clampi(mode, 0, WINDOW_MODES.size() - 1)
+	apply_video_settings()
+	save_settings()
+
+
+func set_vsync_mode(mode: int) -> void:
+	vsync_mode = clampi(mode, 0, VSYNC_MODES.size() - 1)
+	apply_video_settings()
+	save_settings()
 
 func set_aim_mode(v: String) -> void:
 	aim_mode = v

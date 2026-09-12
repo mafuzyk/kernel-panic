@@ -7,9 +7,9 @@ extends RefCounted
 
 var m
 
-const SETTINGS_SECTIONS := ["AUDIO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"]
+const SETTINGS_SECTIONS := ["AUDIO", "VIDEO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"]
 const SECTION_CHIP_KEYS := {
-	"AUDIO": "SET_CHIP_AUDIO", "GAMEPLAY": "SET_CHIP_GAMEPLAY", "CONTROLS": "SET_CHIP_CONTROLS",
+	"AUDIO": "SET_CHIP_AUDIO", "VIDEO": "SET_CHIP_VIDEO", "GAMEPLAY": "SET_CHIP_GAMEPLAY", "CONTROLS": "SET_CHIP_CONTROLS",
 	"ACCESSIBILITY": "SET_CHIP_ACCESSIBILITY", "SAVE DATA": "SET_CHIP_SAVEDATA",
 }
 
@@ -22,6 +22,7 @@ static func section_chip_label(section: String) -> String:
 ## chaves do CSV. Traduzir o identificador quebraria a navegação inteira.
 const SECTION_KEYS := {
 	"AUDIO": "SET_NAV_AUDIO",
+	"VIDEO": "SET_NAV_VIDEO",
 	"GAMEPLAY": "SET_NAV_GAMEPLAY",
 	"CONTROLS": "SET_NAV_CONTROLS",
 	"ACCESSIBILITY": "SET_NAV_ACCESSIBILITY",
@@ -258,6 +259,7 @@ func _build_settings() -> void:
 	mute_hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.4))
 	assign_section(mute_hint, "AUDIO")
 	box.add_child(mute_hint)
+	_build_video_section(box)
 	var gameplay_label := _settings_group_label(tr("SET_HEAD_GAMEPLAY"))
 	assign_section(gameplay_label, "GAMEPLAY")
 	box.add_child(gameplay_label)
@@ -623,6 +625,66 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 	assign_section(m._keybind_box, "CONTROLS")
 
 ## O nome da AÇÃO é identificador do InputMap; o rótulo é o que o jogador lê.
+## B12: modo de janela e vsync. O jogo não tinha opção de vídeo nenhuma.
+##
+## Os dois são botões de ciclo, o mesmo idioma dos outros ajustes desta tela —
+## um clique avança, o rótulo mostra o estado atual. `Sfx` é quem aplica e
+## persiste; aqui só se troca o índice.
+func _build_video_section(box: Node) -> void:
+	var head := _settings_group_label(tr("SET_HEAD_VIDEO"))
+	assign_section(head, "VIDEO")
+	box.add_child(head)
+
+	var window_btn := _cycle_button(_window_label())
+	window_btn.pressed.connect(func() -> void:
+		Sfx.set_window_mode((Sfx.window_mode + 1) % Sfx.WINDOW_MODES.size())
+		window_btn.text = _window_label()
+	)
+	assign_section(window_btn, "VIDEO")
+	box.add_child(window_btn)
+
+	var vsync_btn := _cycle_button(_vsync_label())
+	vsync_btn.pressed.connect(func() -> void:
+		Sfx.set_vsync_mode((Sfx.vsync_mode + 1) % Sfx.VSYNC_MODES.size())
+		vsync_btn.text = _vsync_label()
+	)
+	assign_section(vsync_btn, "VIDEO")
+	box.add_child(vsync_btn)
+
+	var note := _settings_group_label(tr("SET_VIDEO_NOTE"))
+	note.add_theme_font_size_override("font_size", 12)
+	note.add_theme_color_override("font_color", Design.TEXT_FAINT)
+	assign_section(note, "VIDEO")
+	box.add_child(note)
+
+
+## Botão de ciclo no estilo desta tela. Extraído porque três ajustes já
+## repetiam as mesmas oito linhas de tema.
+func _cycle_button(label: String) -> Button:
+	var button := Button.new()
+	button.flat = true
+	button.text = label
+	button.focus_mode = Control.FOCUS_ALL
+	button.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	button.add_theme_font_size_override("font_size", 17)
+	button.add_theme_color_override("font_color", Balance.COL_TEXT)
+	button.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	return button
+
+
+static func _window_label() -> String:
+	var keys := ["SET_WINDOW_WINDOWED", "SET_WINDOW_FULLSCREEN", "SET_WINDOW_BORDERLESS"]
+	var index: int = clampi(Sfx.window_mode, 0, keys.size() - 1)
+	return TranslationServer.translate("SET_WINDOW_MODE") % TranslationServer.translate(keys[index])
+
+
+static func _vsync_label() -> String:
+	var keys := ["SET_VSYNC_OFF", "SET_VSYNC_ON", "SET_VSYNC_ADAPTIVE"]
+	var index: int = clampi(Sfx.vsync_mode, 0, keys.size() - 1)
+	return TranslationServer.translate("SET_VSYNC") % TranslationServer.translate(keys[index])
+
+
 func _keybind_action_label(action: String) -> String:
 	var key: String = {
 		"move_up": "SET_BIND_UP",
