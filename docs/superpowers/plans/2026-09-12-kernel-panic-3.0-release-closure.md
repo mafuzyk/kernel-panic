@@ -775,20 +775,20 @@ Do not tag/publish automatically. Present this frozen candidate to the user for 
 3.0.0 is ready only when all of the following are true:
 
 - [x] GOD cadence escalates monotonically and literal oracle RNG behavior is preserved.
-- [ ] Custom reticle is absent on patch/pause/terminal/summary and returns correctly on gameplay resume.
+- [x] Custom reticle is absent on patch/pause/terminal/summary and returns correctly on gameplay resume.
 - [x] PURGE focus ring is bounded and keyboard navigation remains complete.
 - [x] EN/PT-BR Settings selector works, persists, and refreshes visible UI.
 - [x] Runtime Story intro/title/act/klog/wave/victory/watermark/hint follow the selected locale.
 - [x] Bounded player-facing PC localization sweep is green; intentional commands/identifiers are the only approved untranslated literals.
 - [x] Full isolated source harness is green with `AUTOTEST_ALL_PASS`, zero `AT_FAIL`, and no unexplained production script/engine errors.
-- [ ] EN and PT-BR visual matrices pass at physical 1280×720 and 1920×1080.
-- [ ] Linux artifact is freshly built from the final source tree and passes smoke.
+- [x] EN and PT-BR visual matrices pass at physical 1280×720 and 1920×1080.
+- [x] Linux artifact is freshly built from the final source tree and passes smoke.
 - [ ] Windows artifact is freshly built from the same tree and passes the Windows tester smoke.
 - [x] Android forced-touch input/layout gates are green, including three-finger move+aim+DASH/BOOST and safe-area handling.
 - [ ] Android APK is freshly built from the same tree and passes the real-device Android tester checklist.
-- [ ] README/roadmap promise only the platforms/features actually validated.
+- [x] README/roadmap promise only the platforms/features actually validated.
 - [ ] Final AUR PKGBUILD/.SRCINFO/hash correspond to the final Linux binary and package checks pass.
-- [ ] No source/translation change occurred after final builds.
+- [x] No source/translation change occurred after final builds.
 - [x] macOS Story, Photo Mode, and other deferred expansion remain explicitly outside this ship rather than being half-implemented.
 
 SHOULD items may remain open without blocking the release if every MUST/gate above is green and the omission is documented truthfully.
