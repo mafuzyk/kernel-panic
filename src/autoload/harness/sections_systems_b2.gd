@@ -178,3 +178,13 @@ func _systems_test_b2(arena: Arena) -> void:
 	Sfx.set_intensity(0)
 	await h._ticks(2)
 
+func _event_banner_test(arena: Arena) -> void:
+	print("AT_STEP event_banner")
+	h._check(arena.has_method("show_event_banner"), "arena exposes the event banner contract")
+	if not arena.has_method("show_event_banner"):
+		return
+	arena.spawner.wave = 6
+	arena.show_event_banner("SURGE INCOMING")
+	await h._ticks(3)
+	h._check(str(arena.hud._banner_text).contains("SURGE"), "wave event banner reaches the HUD")
+

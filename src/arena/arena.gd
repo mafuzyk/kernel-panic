@@ -484,9 +484,15 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 		hud.show_banner(tr("ARENA_PROGRAM_UNLOCKED"), tr("ARENA_DAEMON_AVAILABLE"), 2.4)
 		Sfx.play("ready", 1.2, -4.0)
 	if wave > 1 and (wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
-		player.heal(1)
-		Game.register_heal("cycle")
+		player.heal(1, "cycle")
 		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
+
+## Contrato do Spawner: banners de evento (SURGE/SWARM/...) chegam via
+## IntroKit. Sem este delegate, o call_deferred do Spawner caía em
+## "Method not found" e o banner se perdia com ERROR no log.
+func show_event_banner(txt: String) -> void:
+	if _intro_kit != null:
+		_intro_kit.show_event_banner(txt)
 
 func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 	wave_signal_count += 1
@@ -497,14 +503,13 @@ func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 	Game.log_event("STORY // %s // WAVE %02d START" % [_story_stage.get("path", ""), current_wave])
 	if is_boss:
 		Game.log_event("STORY BOSS INBOUND // %s" % _story_stage.get("boss", "ROOT DAEMON"))
-		hud.show_banner("%s // FINAL WAVE" % _story_stage.get("path", ""), str(_story_stage.get("boss", "ROOT DAEMON")), 2.2)
+		hud.show_banner("%s // %s" % [_story_stage.get("path", ""), tr("STORY_CHROME_FINAL_WAVE")], str(_story_stage.get("boss", "ROOT DAEMON")), 2.2)
 		Sfx.play("boss", 1.0, 0.0)
 	else:
-		hud.show_banner("%s // WAVE %02d" % [_story_stage.get("path", ""), current_wave], tr("ARENA_PURGE_SUB"), 1.8)
+		hud.show_banner("%s // %s" % [_story_stage.get("path", ""), tr("STORY_CHROME_WAVE") % current_wave], tr("ARENA_PURGE_SUB"), 1.8)
 		Sfx.play("wave", 1.0 + current_wave * 0.01, -6.0)
 	if current_wave > 1 and (current_wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
-		player.heal(1)
-		Game.register_heal("story")
+		player.heal(1, "story")
 		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
 
 ## Chaves, não texto: `const` só aceita expressão constante, e `tr()` resolve
@@ -532,8 +537,9 @@ func _on_wave_cleared(wave: int) -> void:
 
 func _on_story_wave_cleared(current_wave: int) -> void:
 	var klog: Array = _story_stage.get("klog", [])
-	var line := str(klog[(current_wave - 1) % klog.size()]) if not klog.is_empty() else "wave complete"
-	hud.show_banner("%s // WAVE %02d CLEAR" % [_story_stage.get("path", ""), current_wave], "KLOG // " + line, 2.2)
+	var stage_id := str(_story_stage.get("id", ""))
+	var line := StoryData.localized_klog(stage_id, current_wave - 1) if not klog.is_empty() else tr("STORY_CHROME_FALLBACK")
+	hud.show_banner("%s // %s" % [_story_stage.get("path", ""), tr("STORY_CHROME_CLEAR") % current_wave], "%s // %s" % [tr("STORY_CHROME_KLOG"), line], 2.2)
 	Game.log_event("KLOG // " + line)
 	Game.add_score(current_wave * 50)
 	Sfx.play("ui", 1.3, -6.0)
@@ -582,7 +588,7 @@ func _build_patch_ui() -> void:
 	_patch_title_label.name = "PatchOfferTitle"
 	_patch_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_patch_header.add_child(_patch_title_label)
-	_patch_sub_label = ScreenKit.mono("SELECT ONE // [1] [2] [3]", Design.TEXT_CAPTION, Design.TEXT_MUTED)
+	_patch_sub_label = ScreenKit.mono(tr("PATCH_SELECT_TOUCH") if Design.touch_input() else tr("PATCH_SELECT_ONE"), Design.TEXT_CAPTION, Design.TEXT_MUTED)
 	_patch_header.add_child(_patch_sub_label)
 	ScreenKit.rule(_patch_header, 0.22)
 	_patch_box = HBoxContainer.new()
@@ -654,7 +660,7 @@ func _make_patch_card(def: Dictionary, idx: int) -> Control:
 func _apply_patch_effects(id: String) -> void:
 	match id:
 		"hp":
-			player.add_max_hp(1)
+			player.add_max_hp(1, "reintegration")
 		"shield":
 			player.add_shield_charge()
 		"absorb":
@@ -663,7 +669,7 @@ func _apply_patch_effects(id: String) -> void:
 			for o in get_tree().get_nodes_in_group("enemy_orbs"):
 				o.pop()
 			player.invuln = maxf(player.invuln, 2.0)
-			player.heal(1)
+			player.heal(1, "restore")
 
 func _pick_patch(idx: int) -> void:
 	if not _patch_open or idx >= _patch_offers.size():
@@ -735,9 +741,9 @@ func _show_game_over() -> void:
 			[tr("STAT_UPTIME"), "%02d:%02d" % [int(s["time"] / 60.0), int(s["time"]) % 60]],
 			[tr("STAT_ACCURACY"), "%d%%" % int(acc)],
 		],
-		"meta": "%s / %s / BEST %07d / SEED %d / %s" % [
+		"meta": "%s / %s / %s / %s / %s" % [
 			Game.program_def()["name"], Game.build_string(),
-			Game.best_for_mode(), Game.run_seed, _heals_line(s),
+			tr("SUMMARY_BEST") % Game.best_for_mode(), tr("SUMMARY_SEED") % Game.run_seed, _heals_line(s),
 		],
 		"primary": tr("OVER_REBOOT"),
 		"secondary": tr("OVER_ABANDON"),
@@ -785,12 +791,13 @@ func _show_story_victory(stage_id: String) -> void:
 	if _story_next_stage < 0:
 		next_line = tr("STORY_BONUS_DONE") if stage_id == "temple_god" else tr("STORY_ALL_DONE")
 		if stage_id == "temple_god":
-			next_line += "  //  RAINBOW GRID UNLOCKED FOR ENDLESS"
+			next_line += "  //  " + tr("STORY_RAINBOW_UNLOCKED")
+	var victory_title := StoryData.localized_title(stage_id)
 	var st := Game.stats
 	_run_summary.show_summary({
 		"title": tr("VICTORY_TITLE"),
 		"accent": _story_stage.get("theme", {}).get("accent", Balance.COL_PLAYER),
-		"subtitle": "%s // %s" % [_story_stage.get("path", ""), _story_stage.get("title", "")],
+		"subtitle": "%s // %s" % [_story_stage.get("path", ""), victory_title],
 		"score_caption": tr("STAT_STAGE_SCORE"),
 		"score_value": "%07d" % Game.score,
 		"badge": next_line,
@@ -799,7 +806,7 @@ func _show_story_victory(stage_id: String) -> void:
 			[tr("STAT_UPTIME"), "%02d:%02d" % [int(float(st.get("time", 0.0)) / 60.0), int(float(st.get("time", 0.0))) % 60]],
 			[tr("STAT_STAGE_BEST"), "%07d" % Game.story_stage_best(index)],
 		],
-		"meta": str(_story_stage.get("title", tr("ARENA_STAGE_CLEARED"))),
+		"meta": victory_title if victory_title != "" else tr("ARENA_STAGE_CLEARED"),
 		"primary": tr("VICTORY_NEXT_STAGE") if _story_next_stage >= 0 else tr("VICTORY_RETURN"),
 		"secondary": tr("VICTORY_STORY_SELECT"),
 	})
@@ -864,8 +871,7 @@ func _on_enemy_died(e: EnemyBase) -> void:
 		_spawn_recover(e.global_position)
 	if boss_reward:
 		if player.hp < player.max_hp:
-			player.heal(1)
-			Game.register_heal("boss")
+			player.heal(1, "boss")
 		if not is_fragment and Game.mode != "onehp":
 			_spawn_recover(e.global_position)
 		if not Game.unlocked_programs.has("rootlet") and int(Game.stats.get("damage", 0)) == _boss_dmg_snapshot:
@@ -914,8 +920,7 @@ func _on_combo_milestone(m: int) -> void:
 		return
 	if m == 4 and Game.patch_level("vampic") > 0 and Game.vampic_cd <= 0.0 and player.hp < player.max_hp:
 		Game.vampic_cd = Game.VAMPIC_COOLDOWN
-		player.heal(1)
-		Game.register_heal("vampic")
+		player.heal(1, "vampic")
 		Fx.text(player.global_position + Vector2(0, -52), "+1", Balance.COL_PLAYER, 13)
 	Fx.text(player.global_position + Vector2(0, -40), tr("ARENA_CHAIN") % m, Balance.COL_MOTE, 18 if m < Balance.COMBO_MAX else 22)
 	Fx.ring(player.global_position, Balance.COL_MOTE, 10.0, 60.0, 0.35, 2.5)
@@ -1071,8 +1076,18 @@ func _terminal_man(query: String) -> String:
 		needle = "root"
 	for entry in BestiaryPanel.ENTRIES:
 		if str(entry["id"]).to_lower() == needle or str(entry["name"]).to_lower() == needle:
-			return "%s\n%s\nBUGS: %s\nTHREAT %d" % [entry["name"], entry["desc"], entry["bugs"], int(entry["threat"])]
+			var man_desc := _localized_entry_text(entry, "DESC")
+			var man_bugs := _localized_entry_text(entry, "BUGS")
+			return "%s\n%s\n%s: %s\n%s" % [entry["name"], man_desc, tr("TERM_MAN_BUGS"), man_bugs, tr("TERM_MAN_THREAT") % int(entry["threat"])]
 	return "man: no entry for %s" % query.strip_edges()
+
+## Mesma regra do painel: inglês do ENTRIES como fallback, nunca chave crua.
+func _localized_entry_text(entry: Dictionary, field: String) -> String:
+	var key := "BEST_%s_%s" % [field.to_upper(), str(entry.get("id", "")).to_upper()]
+	var translated := TranslationServer.translate(key)
+	if translated == key:
+		return str(entry.get(field.to_lower(), ""))
+	return translated
 
 func _terminal_heal() -> String:
 	if Game.mode == "onehp":
@@ -1085,8 +1100,7 @@ func _terminal_heal() -> String:
 		return "sudo: heal not needed"
 	if not Game.consume_terminal_heal():
 		return "sudo: PERMISSION DENIED"
-	player.heal(1)
-	Game.register_heal("sudo")
+	player.heal(1, "sudo")
 	Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY // SUDO", Balance.COL_PLAYER, 14)
 	return "sudo: heal granted // integrity +1"
 
@@ -1169,8 +1183,7 @@ func _process(delta: float) -> void:
 			walls.set_tint(rainbow)
 		if _dust != null:
 			_dust.color = Color(rainbow.r, rainbow.g, rainbow.b, 0.22)
-	var debug_open: bool = _debug_panel != null and _debug_panel.visible
-	var want_hidden: bool = _state == "play" and not get_tree().paused and reticle != null and not debug_open
+	var want_hidden: bool = _wants_hidden_cursor()
 	var target_mouse := Input.MOUSE_MODE_HIDDEN if want_hidden else Input.MOUSE_MODE_VISIBLE
 	if Input.mouse_mode != target_mouse:
 		Input.mouse_mode = target_mouse
@@ -1180,7 +1193,7 @@ func _process(delta: float) -> void:
 			if _restart_hold_t >= RESTART_HOLD_DURATION and not _restart_triggered:
 				_restart_triggered = true
 				Game.log_event(tr("CTRL_SPEEDRUN_RESTART"))
-				Game.start_run()
+				_restart_current_run()
 		else:
 			_restart_hold_t = 0.0
 			_restart_triggered = false
@@ -1210,6 +1223,13 @@ func _update_debug_cursor() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif _state == "play" and not get_tree().paused and reticle != null:
 		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+
+## Predicado puro do cursor: gameplay com reticle pede cursor oculto; qualquer
+## modal (pausa/patch/terminal/summary), debug aberto ou reticle ausente pede
+## cursor visível. O _process só aplica; o teste cobre o contrato aqui.
+func _wants_hidden_cursor() -> bool:
+	var debug_open: bool = _debug_panel != null and _debug_panel.visible
+	return _state == "play" and not get_tree().paused and reticle != null and not debug_open
 
 func _exit_tree() -> void:
 	_clear_abandon_confirmation()

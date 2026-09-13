@@ -96,6 +96,14 @@ func _debug_controls_test(arena: Arena) -> void:
 		if is_instance_valid(candidate) and candidate.get("mini") == true:
 			mini_count += 1
 	h._check(split_ok and mini_count == 2, "debug root split creates two mini bosses")
+	var kinds: Array = debug_panel_script.ENEMY_KINDS
+	var all_spawn := true
+	for entry in kinds:
+		var probe = sp.call("debug_spawn_enemy", str(entry[0]))
+		if probe == null or not is_instance_valid(probe):
+			all_spawn = false
+		await h._ticks(1)
+	h._check(all_spawn and kinds.size() >= 11, "debug panel offers every regular enemy kind (%d)" % kinds.size())
 	for child in arena.enemy_container.get_children():
 		child.queue_free()
 	await h._ticks(3)
