@@ -68,6 +68,7 @@ func _task9_test(arena: Arena) -> void:
 			h._check(music_bounds.size.x >= 12.0 and music_bounds.size.y >= 16.0, "music icon remains legible at compact pause size")
 		icon.queue_free()
 	var hud: Hud = arena.hud
+	h._check(hud.theme == UiTheme.shared(), "combat HUD inherits the shared design tokens")
 	var hud_layout_ready := hud.has_method("layout_snapshot") and hud.has_method("visible_event_lines") and hud.has_method("event_log_visible")
 	h._check(hud_layout_ready, "HUD exposes tactical layout and event log APIs")
 	if hud_layout_ready:
@@ -81,7 +82,47 @@ func _task9_test(arena: Arena) -> void:
 		h._check(lines.size() == 4 and lines[0].contains("TWO") and lines[3].contains("FIVE"), "HUD event log keeps the newest four entries")
 		h._check(hud.event_log_visible(Vector2(1366, 768)), "event log is visible in full layout")
 		h._check(not hud.event_log_visible(Vector2(540, 720)), "event log collapses in compact layout")
+		h._check(hud.has_method("event_log_rect"), "HUD exposes live event-log geometry")
+		if hud.has_method("event_log_rect"):
+			for viewport in [Vector2(1366, 768), Vector2(1920, 1080)]:
+				var event_rect: Rect2 = hud.call("event_log_rect", viewport)
+				var score_rect: Rect2 = hud.call("layout_snapshot", viewport)["score"]
+				h._check(Rect2(Vector2.ZERO, viewport).encloses(event_rect) and event_rect.position.y >= score_rect.end.y,
+					"event log stays below score and inside viewport %dx%d" % [int(viewport.x), int(viewport.y)])
 		Game.event_log = saved_event_log
+	h._check(hud.has_method("status_surface_points"), "HUD exposes combat-editorial status surface geometry")
+	if hud.has_method("status_surface_points"):
+		var status_rect := Rect2(20.0, 30.0, 180.0, 72.0)
+		var status_points: PackedVector2Array = hud.call("status_surface_points", status_rect)
+		h._check(status_points.size() == 4 and status_points[0] == status_rect.position and status_points[2] == status_rect.end,
+			"secondary HUD surfaces use a rectangular editorial silhouette instead of cut corners")
+	h._check(hud.has_method("achievement_toast_text"), "HUD exposes semantic achievement toast copy")
+	if hud.has_method("achievement_toast_text"):
+		var toast_copy := str(hud.call("achievement_toast_text", "FIRST BLOOD"))
+		h._check(toast_copy.contains("FIRST BLOOD") and not toast_copy.contains("[ 000"),
+			"achievement toast preserves the label without exposing raw log timestamp syntax")
+	h._check(hud.has_method("achievement_toast_rect"), "HUD exposes responsive achievement toast geometry")
+	if hud.has_method("achievement_toast_rect"):
+		for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			var toast_rect: Rect2 = hud.call("achievement_toast_rect", vp)
+			h._check(Rect2(Vector2.ZERO, vp).encloses(toast_rect), "achievement toast stays inside viewport %dx%d" % [int(vp.x), int(vp.y)])
+		var saved_banner_t := float(hud.get("_banner_t"))
+		var saved_banner_text := str(hud.get("_banner_text"))
+		var saved_banner_sub := str(hud.get("_banner_sub"))
+		hud.set("_banner_t", 1.0)
+		hud.set("_banner_text", "CYCLE 01")
+		hud.set("_banner_sub", "PURGE THE DAEMONS")
+		for vp in [Vector2(720, 720), Vector2(432, 720)]:
+			var compact_toast: Rect2 = hud.call("achievement_toast_rect", vp)
+			var compact_banner: Dictionary = hud.call("banner_layout_snapshot", vp, "CYCLE 01", "PURGE THE DAEMONS")
+			var compact_sub: Rect2 = compact_banner.get("sub_rect", Rect2())
+			h._check(not compact_toast.intersects(compact_sub), "achievement toast clears an active compact banner at %dx%d" % [int(vp.x), int(vp.y)])
+		hud.set("_banner_t", saved_banner_t)
+		hud.set("_banner_text", saved_banner_text)
+		hud.set("_banner_sub", saved_banner_sub)
+	var live_banner: Label = hud.get("_banner")
+	h._check(live_banner != null and live_banner.get_theme_font("font") == Design.grotesk(Design.WEIGHT_BLACK),
+		"combat banner uses the shared grotesk hierarchy instead of Orbitron")
 	var dock_ready := hud.has_method("patch_dock_rects")
 	h._check(dock_ready, "HUD exposes responsive patch dock geometry")
 	if dock_ready:
@@ -103,62 +144,148 @@ func _task9_test(arena: Arena) -> void:
 	if patch_card_script != null:
 		var patch_card: Control = patch_card_script.new()
 		patch_card.configure({"id": "staticf", "title": "STATIC FIELD", "desc": "BURNS ENEMIES WITHIN 70PX", "rare": true, "legend": true}, 0)
-		h._check(patch_card.has_method("frame_points") and patch_card.frame_points().size() == 8, "patch card exposes clipped angular frame")
-		h._check(patch_card.has_method("rarity_label") and patch_card.rarity_label() == "LEGENDARY", "patch card exposes semantic rarity label")
-		h._check(patch_card.has_method("card_title") and patch_card.card_title() == "STATIC FIELD", "patch card preserves readable title")
-		patch_card.queue_free()
-	var patch_box_visual := arena.patch_box_rect_for_viewport(Vector2(1366, 768))
-	var patch_cards_visual: Array[Rect2] = arena.patch_card_rects_for_viewport(Vector2(1366, 768))
-	h._check(patch_box_visual.position.y > 230.0 and patch_box_visual.position.y < 270.0 and patch_box_visual.size.y > 280.0 and patch_box_visual.size.y < 315.0 and patch_box_visual.end.y < 570.0, "patch cards match the approved compact overlay proportion")
-	var patch_cards_aligned := patch_cards_visual.size() == 3
-	if patch_cards_aligned:
-		for card in patch_cards_visual:
-			patch_cards_aligned = patch_cards_aligned and absf(card.position.y - patch_cards_visual[0].position.y) < 0.01 and absf(card.size.y - patch_cards_visual[0].size.y) < 0.01
-	h._check(patch_cards_aligned, "patch cards share one straight baseline and height")
+		patch_card.size = Vector2(280.0, 330.0)
+		h.get_tree().current_scene.add_child(patch_card)
+		await h._ticks(2)
+		h._check(patch_card.theme == UiTheme.shared(), "patch card uses the shared editorial theme")
+		h._check(patch_card.has_method("card_ink"), "patch card exposes semantic ink roles")
+		if patch_card.has_method("card_ink"):
+			var patch_ink: Dictionary = patch_card.call("card_ink")
+			h._check(patch_ink.get("title", Color.BLACK) == Design.TEXT_PRIMARY,
+				"patch card title stays neutral instead of inheriting rarity colour")
+			h._check(patch_ink.get("body", Color.BLACK) == Design.TEXT_SECONDARY,
+				"patch card body stays neutral instead of inheriting rarity colour")
+			h._check(patch_ink.get("marker", Color.BLACK) == Design.WARNING,
+				"legendary patch keeps rarity colour as a marker")
+		h._check(patch_card.has_method("content_rects"), "patch card exposes live content geometry")
+		if patch_card.has_method("content_rects"):
+			var patch_bounds := Rect2(Vector2.ZERO, patch_card.size)
+			var patch_content_inside := true
+			var patch_content_measurable := true
+			for raw_rect in patch_card.call("content_rects"):
+				patch_content_inside = patch_content_inside and patch_bounds.encloses(raw_rect)
+				patch_content_measurable = patch_content_measurable and raw_rect.size.x > 0.0 and raw_rect.size.y > 0.0
+			h._check(patch_content_inside, "patch card content stays inside the 280x330 card")
+			h._check(patch_content_measurable, "patch card editorial content keeps measurable layout boxes")
+			h._check(patch_card.has_method("rarity_label") and patch_card.rarity_label() == tr("PATCH_RARITY_LEGENDARY"), "patch card exposes semantic rarity label")
+			h._check(patch_card.has_method("card_title") and patch_card.card_title() == "STATIC FIELD", "patch card preserves readable title")
+			var patch_title_node = patch_card.get("_title")
+			h._check(patch_title_node is Label and patch_title_node.text == "STATIC FIELD" \
+				and patch_title_node.size.y >= float(Design.TEXT_HEADING),
+				"patch card renders its title as a visible editorial heading")
+			var patch_icon_slot = patch_card.get("_icon_slot")
+			var icon_inside := false
+			if patch_icon_slot is Control:
+				var icon_rect := Rect2(patch_icon_slot.global_position - patch_card.global_position, patch_icon_slot.size)
+				icon_inside = Rect2(Vector2.ZERO, patch_card.size).encloses(icon_rect) \
+					and icon_rect.size.x >= 52.0 and icon_rect.size.y >= 52.0
+			h._check(icon_inside, "patch card keeps its live icon slot contained and large enough for the 52px glyph")
+			var selected_indices: Array[int] = []
+			patch_card.selected.connect(func(selected_index: int) -> void: selected_indices.append(selected_index))
+			var patch_hit: Button = null
+			for child in patch_card.get_children():
+				if child is Button:
+					patch_hit = child
+					break
+			h._check(patch_hit != null, "patch card exposes a full-card interactive hit target")
+			if patch_hit != null:
+				patch_hit.emit_signal("pressed")
+			h._check(selected_indices == [0], "patch card click emits its configured selection index")
+			patch_card.queue_free()
+			await h._ticks(2)
+			var long_card: Control = patch_card_script.new()
+			long_card.configure({"id": "restore", "title": "REINTEGRATION", "desc": "RECOVER LOST INTEGRITY", "rare": false, "legend": false}, 1)
+			long_card.size = Vector2(294.0, 295.0)
+			h.get_tree().current_scene.add_child(long_card)
+			await h._ticks(2)
+			var long_title = long_card.get("_title")
+			var long_title_fits := false
+			if long_title is Label:
+				var title_font: Font = long_title.get_theme_font("font")
+				var title_size: int = long_title.get_theme_font_size("font_size")
+				var measured := title_font.get_string_size("REINTEGRATION", HORIZONTAL_ALIGNMENT_LEFT, -1, title_size).x
+				long_title_fits = measured <= long_title.size.x + 0.5
+			h._check(long_title_fits, "long patch titles stay on one editorial heading line")
+			long_card.queue_free()
+			await h._ticks(2)
+		var patch_box_visual := arena.patch_box_rect_for_viewport(Vector2(1366, 768))
+		var patch_cards_visual: Array[Rect2] = arena.patch_card_rects_for_viewport(Vector2(1366, 768))
+		h._check(patch_box_visual.position.y > 230.0 and patch_box_visual.position.y < 270.0 and patch_box_visual.size.y > 280.0 and patch_box_visual.size.y < 315.0 and patch_box_visual.end.y < 570.0, "patch cards match the approved compact overlay proportion")
+		var patch_cards_aligned := patch_cards_visual.size() == 3
+		if patch_cards_aligned:
+			for card in patch_cards_visual:
+				patch_cards_aligned = patch_cards_aligned and absf(card.position.y - patch_cards_visual[0].position.y) < 0.01 and absf(card.size.y - patch_cards_visual[0].size.y) < 0.01
+		h._check(patch_cards_aligned, "patch cards share one straight baseline and height")
+		h._check(arena.has_method("patch_header_rect_for_viewport"), "patch offer exposes responsive editorial header geometry")
+		if arena.has_method("patch_header_rect_for_viewport"):
+			for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+				var header: Rect2 = arena.patch_header_rect_for_viewport(vp)
+				var box: Rect2 = arena.patch_box_rect_for_viewport(vp)
+				h._check(Rect2(Vector2.ZERO, vp).encloses(header) and header.end.y <= box.position.y,
+					"patch editorial header stays above the cards at %dx%d" % [int(vp.x), int(vp.y)])
+		var live_patch_panel = arena.get("_patch_panel")
+		var live_patch_title: Label = live_patch_panel.find_child("PatchOfferTitle", true, false) if live_patch_panel is Control else null
+		h._check(live_patch_panel is Control and live_patch_panel.theme == UiTheme.shared(), "patch offer wrapper uses the shared design theme")
+		h._check(live_patch_title != null and live_patch_title.get_theme_font("font") == Design.grotesk(Design.WEIGHT_BLACK),
+			"patch offer title uses the editorial grotesk instead of Orbitron")
+		h._check(live_patch_title != null and live_patch_title.horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT,
+			"patch offer title follows the left-aligned editorial hierarchy")
 	var tactical_surface_script: Script = load("res://src/ui/tactical_state_surface.gd")
 	var state_surface_ready := arena.has_method("state_panel_rect") and arena.has_method("state_action_rects") and arena.has_method("pause_action_labels") and arena.has_method("game_over_action_labels")
 	h._check(state_surface_ready, "state panels expose tactical geometry and action labels")
-	h._check(tactical_surface_script.has_method("pause_layout"), "pause surface exposes one shared responsive layout")
+	# A pausa virou PausePanel (containers), então a geometria não vem mais de
+	# um dicionário de retângulos absolutos. Estas asserções medem o painel
+	# VIVO e guardam os invariantes do desenho aprovado.
 	h._check(tactical_surface_script.has_method("terminal_layout"), "terminal surface exposes one shared responsive layout")
-	if tactical_surface_script.has_method("pause_layout"):
-		for viewport_size in [Vector2(525, 521), Vector2(720, 720), Vector2(1366, 768)]:
-			var pause_layout: Dictionary = tactical_surface_script.pause_layout(viewport_size)
-			var pause_panel: Rect2 = pause_layout["panel"]
-			var pause_actions: Array = pause_layout["actions"]
-			h._check(pause_actions.size() == 4, "pause layout exposes four aligned actions at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			for pause_key in ["info", "title", "stats", "volume", "warning", "shortcuts"]:
-				h._check(pause_panel.encloses(pause_layout[pause_key]), "pause %s stays inside panel at %dx%d" % [pause_key, int(viewport_size.x), int(viewport_size.y)])
-			for action_rect in pause_actions:
-				h._check(pause_panel.encloses(action_rect), "pause action stays inside panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(not Rect2(pause_layout["stats"]).intersects(Rect2(pause_actions[0])), "pause stats clear first action at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(not Rect2(pause_layout["volume"]).intersects(Rect2(pause_layout["warning"])), "pause audio clears warning at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			var warning_inner := Rect2(pause_layout["warning"]).grow(-6.0 * float(pause_layout["scale"]))
-			h._check(warning_inner.encloses(Rect2(pause_actions[3])), "pause abandon action clears warning frame at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(Rect2(pause_actions[3]).end.y + 6.0 * float(pause_layout["scale"]) <= Rect2(pause_layout["shortcuts"]).position.y, "pause abandon action clears shortcut row at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-	if tactical_surface_script.has_method("terminal_layout"):
-		for viewport_size in [Vector2(720, 521), Vector2(1096, 631), Vector2(1366, 768)]:
-			var terminal_layout: Dictionary = tactical_surface_script.terminal_layout(viewport_size)
-			var terminal_panel: Rect2 = terminal_layout["panel"]
-			for terminal_key in ["header", "history", "command_index", "system_status", "prompt", "shortcuts"]:
-				h._check(terminal_panel.encloses(terminal_layout[terminal_key]), "terminal %s stays inside panel at %dx%d" % [terminal_key, int(viewport_size.x), int(viewport_size.y)])
-			h._check(not Rect2(terminal_layout["history"]).intersects(Rect2(terminal_layout["command_index"])), "terminal history clears command index at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(not Rect2(terminal_layout["history"]).intersects(Rect2(terminal_layout["prompt"])), "terminal history clears prompt at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(not Rect2(terminal_layout["prompt"]).intersects(Rect2(terminal_layout["shortcuts"])), "terminal prompt clears shortcuts at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-	if state_surface_ready:
-		for viewport_size in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
-			var state_bounds := Rect2(Vector2.ZERO, viewport_size)
-			var panel_rect: Rect2 = arena.state_panel_rect(viewport_size)
-			h._check(state_bounds.encloses(panel_rect), "state panel fits viewport %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			for action_rect in arena.state_action_rects(viewport_size, 4):
-				h._check(state_bounds.encloses(action_rect) and panel_rect.encloses(action_rect), "state action stays in panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-		h._check(arena.pause_action_labels() == ["RESUME", "RESTART", "OPEN TERMINAL", "ABANDON PROCESS"], "pause actions preserve safe order")
-		h._check(arena.has_method("pause_action_icon_kinds"), "pause actions expose semantic icons")
-		if arena.has_method("pause_action_icon_kinds"):
-			h._check(arena.pause_action_icon_kinds() == ["resume", "restart", "terminal", "warning"], "pause icons preserve action semantics")
-		h._check(arena.game_over_action_labels() == ["REBOOT", "ABANDON PROCESS"], "game-over actions preserve retry first")
+	if is_instance_valid(arena._pause_screen):
+		arena._set_paused(true)
+		await h._ticks(3)
+		var screen = arena._pause_screen
+		# Mesma cobertura de resolução que as asserções aposentadas tinham, MAIS
+		# 1920x1080 — que a matriz antiga nunca cobria (B5 da auditoria: nada
+		# acima de 1366 de largura era testado, e é por isso que tudo quebrava lá).
+		for viewport_size in [Vector2(1920, 1080), Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			screen.size = viewport_size
+			await h._ticks(2)
+			var label := "%dx%d" % [int(viewport_size.x), int(viewport_size.y)]
+			var screen_rect := Rect2(Vector2.ZERO, viewport_size)
+			var all_inside := true
+			var slider_ok := true
+			for content in screen.content_rects():
+				if not screen_rect.encloses(content):
+					all_inside = false
+				if content.size.x > Design.CONTENT_MAX_PROSE:
+					slider_ok = false
+			h._check(all_inside, "pause content stays inside the screen at %s" % label)
+			# Os sliders pararam de esticar: antes um valor 0-100% ocupava
+			# ~1000px em 1920 e o rótulo ficava a 1200px do controle.
+			h._check(slider_ok, "pause controls respect the content max width at %s" % label)
+
+			# B6 por estrutura: o abandono fica no extremo oposto das ações
+			# seguras. A distância é o aviso — não existe mais moldura de perigo
+			# onde uma dica de teclado possa cair dentro por engano.
+			var abandon_block = screen.get("_abandon_block")
+			var first_action: Button = h._first_button(screen)
+			if abandon_block != null and first_action != null:
+				# Em tela larga a separação é horizontal; em janela estreita a
+				# fileira vira coluna e a separação passa a ser vertical. O
+				# invariante é o mesmo: o abandono nunca encosta nas ações seguras.
+				var safe := Rect2(first_action.global_position, first_action.size)
+				var danger := Rect2(abandon_block.global_position, abandon_block.size)
+				h._check(not safe.intersects(danger), "pause abandon stays clear of the safe actions at %s" % label)
+		screen.size = arena.get_viewport_rect().size
+		arena._set_paused(false)
+	h._check(arena.pause_action_labels() == [tr("PAUSE_RESUME"), tr("PAUSE_RESTART"), tr("PAUSE_TERMINAL"), tr("PAUSE_ABANDON")], "pause actions preserve safe order")
+	h._check(arena.has_method("pause_action_icon_kinds"), "pause actions expose semantic icons")
+	if arena.has_method("pause_action_icon_kinds"):
+		h._check(arena.pause_action_icon_kinds() == ["resume", "restart", "terminal", "warning"], "pause icons preserve action semantics")
+	# Locale-independente: a direção editorial aprovada usa caixa de frase
+	# ("Reboot"), então fixar a string em CAIXA ALTA passou a ser errado.
+	# O que importa é a ordem — repetir vem antes de abandonar.
+	h._check(arena.game_over_action_labels() == [tr("OVER_REBOOT"), tr("OVER_ABANDON")], "game-over actions preserve retry first")
 	var terminal: Control = arena._terminal_panel
 	var terminal_ready := terminal != null and terminal.has_method("workstation_rect") and terminal.has_method("status_snapshot")
-	h._check(terminal_ready, "terminal exposes tactical workstation geometry")
+	h._check(terminal_ready, "terminal exposes responsive workstation geometry")
 	if terminal_ready:
 		for viewport_size in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
 			var terminal_rect: Rect2 = terminal.workstation_rect(viewport_size)
@@ -166,6 +293,13 @@ func _task9_test(arena: Arena) -> void:
 		var terminal_status: Dictionary = terminal.status_snapshot()
 		h._check(str(terminal_status.get("tty", "")) == "TTY0" and bool(terminal_status.get("paused", false)), "terminal status identifies frozen TTY")
 		h._check(int(terminal_status.get("command_count", -1)) >= 0 and bool(terminal_status.get("prompt_visible", false)), "terminal status exposes command count and prompt")
+		h._check(terminal.theme == UiTheme.shared(), "terminal uses the shared design theme")
+		h._check(terminal.has_method("content_rects"), "terminal exposes live editorial content geometry")
+		var terminal_title: Label = terminal.find_child("TerminalTitle", true, false)
+		h._check(terminal_title != null and terminal_title.get_theme_font("font") == Design.grotesk(Design.WEIGHT_BLACK),
+			"terminal uses grotesk hierarchy without losing its mono workstation voice")
+		var terminal_tactical_surfaces: Array[Node] = terminal.find_children("*", "TacticalStateSurface", true, false)
+		h._check(terminal_tactical_surfaces.is_empty(), "terminal no longer renders a TacticalStateSurface shell")
 	var saved_hud_size := hud.size
 	hud.size = Vector2(1280, 720)
 	var layout_helpers_ready := hud.has_method("boss_bar_baseline") and hud.has_method("dash_baseline")
@@ -201,7 +335,7 @@ func _task9_test(arena: Arena) -> void:
 				continue
 			arena._refresh_responsive_layout_for_height(viewport_height)
 			var real_controls_fit := true
-			for panel in [arena._pause_panel, arena._over_panel, arena._patch_panel]:
+			for panel in [arena._pause_screen, arena._run_summary, arena._patch_panel]:
 				if panel == null or not is_instance_valid(panel):
 					continue
 				for control in panel.get_children():
@@ -312,4 +446,3 @@ func _task6_test(arena: Arena) -> void:
 	split_parent.queue_free()
 	EnemyBase.shared_list = arena.enemy_list
 	await h._ticks(2)
-

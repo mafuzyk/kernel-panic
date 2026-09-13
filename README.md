@@ -28,7 +28,16 @@ Somehow, it worked.
 
 ## Play it
 
-Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v2.5.0`.
+Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v3.0.0`.
+
+### What's new in 3.0.0
+
+- **Run setup that works:** MODE (CLASSIC / WEEKLY / ONE-HP) and DIFFICULTY rows right in the menu, with mouse and keyboard, saved locally. Story keeps its own fixed curve.
+- **Two languages:** full EN/PT-BR switch in Settings, applied instantly, including Story stages, bestiary, terminal, and patch descriptions.
+- **A terminal that remembers:** command history (↑↓) and TAB autocomplete in the pause terminal.
+- **Fairer fights:** GOD presses harder every phase, bosses telegraph cleanly, overclock arms exactly when the meter fills, and Story restarts stay in Story.
+- **Mobile that plays like mobile:** three-finger move + aim + dash/boost, safe-area aware HUD, touch-sized buttons, no keyboard hints, single-pane selectors.
+- **TempleOS sounds holy now**, boss intro quotes actually show up, and the menu focus ring finally hugs the PURGE button instead of the whole column.
 
 ### What's new in 2.5.0
 
@@ -43,7 +52,11 @@ Grab the Android, Linux, or Windows build from the [latest release](https://gith
 
 ### Android
 
-1. Download `KERNEL-PANIC-v2.5.0-release.apk` from the latest release and open it from your browser or file manager.
+1. Download `KERNEL-PANIC-v3.0.0-release.apk` from the latest release and open it from your browser or file manager.
+> **Updating from 2.5.0?** The original release key was lost, so 3.0.0 is
+> signed with a new key: Android will NOT install it as an update. Export
+> your progress first (Settings → Save transfer → Export), uninstall 2.5.0,
+> install 3.0.0, then import the transfer string.
 2. If Android blocks the installation, allow that app to **Install unknown apps** in the system settings, then open the APK again.
 3. Confirm **Install**. The current export targets 64-bit ARM devices (`arm64-v8a`).
 
@@ -58,57 +71,14 @@ chmod +x kernel-panic
 ./kernel-panic
 ```
 
-For a local export from this repository, the executable is generated at `build/linux-x86_64/kernel-panic`.
-
 To update an installed release, download the newer `kernel-panic` executable,
-replace the old file in the same directory, and keep its execute permission:
+replace the old file in the same directory, and keep its execute permission.
+Your local save data is kept separately by Godot, so replacing the executable
+does not remove the save. The game has no in-game updater yet.
 
-```sh
-cp ~/Downloads/kernel-panic ./kernel-panic
-chmod +x ./kernel-panic
-```
+### Windows x86_64
 
-The game has no in-game updater yet. Your local save data is kept separately
-by Godot, so replacing the executable does not remove the save.
-
-### Desktop debug console
-
-Run the project from the Godot editor or use the Linux debug export to open
-the QA console with `F1`. It is available only in debug desktop builds and is
-disabled on release builds and touch devices:
-
-- `F1`: open or close the console
-- `F2`: skip to the next wave
-- `F3`: spawn the ROOT split state
-- `F4`: clear current combatants
-
-The console also has buttons for each regular enemy and all four boss
-variants. It is intended for movement, AI, boss, and HUD observation without
-waiting through a full run.
-
-### Pause terminal and speedrun tools
-
-Open **OPEN TERMINAL** from the pause screen. It accepts:
-
-```text
-help                 list commands
-top                  show current run stats
-man <enemy>          inspect a bestiary entry
-dmesg                show the current run event log
-sudo heal            restore one integrity per run (not in One-HP)
-rm -rf /             intentionally trigger a kernel panic
-```
-
-Enable **SPEEDRUN HUD** in settings to show the timer, deterministic run seed,
-and the hold-to-restart hint. Achievements appear as terminal-style toasts
-and are recorded in `dmesg`; deaths include a short core-dump recap.
-
-### Move a save between phone and PC
-
-In **SETTINGS**, use **COPY EXPORT** on the old device, then paste the string
-into the save field on the new device and choose **IMPORT PASTE**. The transfer
-contains records, Story stage progress, bestiary progress, playable programs,
-and achievements while leaving audio, controls, and other local settings alone.
+Download `kernel-panic.exe` from the latest release and double-click it to run the game. The project data is embedded in the executable.
 
 ### Arch Linux / Artix Linux (AUR)
 
@@ -127,10 +97,6 @@ paru -S kernel-panic-git
 Update an installed AUR package with your normal system upgrade command, for
 example `paru -Syu`. The package manager replaces the executable and keeps the
 game's separate local save data.
-
-### Windows x86_64
-
-Download `kernel-panic.exe` from the latest release and double-click it to run the game. The project data is embedded in the executable. The Windows debug build is `kernel-panic-debug.exe` and is intended for testing.
 
 ## How it plays
 
@@ -173,9 +139,10 @@ chosen by the run RNG, so the encounter is intentionally unpredictable.
 
 ### Android
 
-- Left side: move
-- Right side: aim and fire
-- On-screen buttons: dash, overclock, pause, and settings
+- Left thumb: move.
+- Right thumb: aim and fire.
+- A third finger taps the on-screen buttons: dash, overclock/boost, pause.
+- All three can be held at once — dash and boost never steal the aim channel.
 
 ### Desktop
 
@@ -191,6 +158,45 @@ On desktop, open **SETTINGS** to remap movement, dash, overclock, pause,
 abandon, mute, restart, and confirm keys. Select an action and press the new
 physical key; **Escape** cancels, duplicate keys are rejected, and
 **RESET KEYBINDS** restores the defaults. Mouse aim/fire is not remapped.
+
+### Desktop debug console
+
+Run the project from the Godot editor or use the Linux debug export to open
+the QA console with `F1`. It is available only in debug desktop builds and is
+disabled on release builds and touch devices:
+
+- `F1`: open or close the console
+- `F2`: skip to the next wave
+- `F3`: spawn the ROOT split state
+- `F4`: clear current combatants
+
+The console also has buttons for each regular enemy and all four boss
+variants. It is intended for movement, AI, boss, and HUD observation without
+waiting through a full run.
+
+### Pause terminal and speedrun tools
+
+Open the terminal from the pause screen (desktop only). It accepts:
+
+```text
+help                 list commands
+top                  show current run stats
+man <enemy>          inspect a bestiary entry
+dmesg                show the current run event log
+sudo heal            restore one integrity per run (not in One-HP)
+rm -rf /             intentionally trigger a kernel panic
+```
+
+Enable **SPEEDRUN HUD** in settings to show the timer, deterministic run seed,
+and the hold-to-restart hint. Achievements appear as terminal-style toasts
+and are recorded in `dmesg`; deaths include a short core-dump recap.
+
+### Move a save between phone and PC
+
+In **SETTINGS**, use the export action on the old device, then paste the string
+into the save field on the new device and import. The transfer
+contains records, Story stage progress, bestiary progress, playable programs,
+and achievements while leaving audio, controls, and other local settings alone.
 
 ## Run and build from source on Linux
 
@@ -213,11 +219,12 @@ The project data is embedded in the exported Linux executable. The project inclu
 godot --headless --path . -- --autotest
 ```
 
+A green run ends with `AUTOTEST_ALL_PASS` and zero failures; the exported
+artifact runs the same gate with source-only checks skipped.
+
 ## A small technical note
 
 Most of the game's look is drawn in code instead of being assembled from a large sprite library. The neon grid, ships, enemies, projectiles, hit effects, UI, and boss telegraphs all come from a deliberately small set of assets and GDScript systems. Audio is generated locally and imported through Godot's normal audio pipeline.
-
-The project includes an automated gameplay harness covering core combat, upgrades, bosses, touch controls, and run flow. It is still a small game, though. If you find something strange, opening an issue is welcome.
 
 ## License
 

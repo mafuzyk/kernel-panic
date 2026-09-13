@@ -115,7 +115,9 @@ func _build_terminal_panel() -> void:
 func _open_terminal() -> void:
 	if a._terminal_panel == null or a._state != "play" or not a.get_tree().paused:
 		return
-	a._pause_panel.visible = false
+	ScreenKit.open_focus(a._terminal_panel, a._terminal_panel.get("_input"))
+	if is_instance_valid(a._pause_screen):
+		a._pause_screen.visible = false
 	a._terminal_panel.call("open_terminal")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Sfx.play("ui", 1.1, -6.0)
@@ -123,8 +125,9 @@ func _open_terminal() -> void:
 func _close_terminal() -> void:
 	if a._terminal_panel != null and is_instance_valid(a._terminal_panel):
 		a._terminal_panel.visible = false
-	if a._pause_panel != null and is_instance_valid(a._pause_panel) and a._state == "play" and a.get_tree().paused:
-		a._pause_panel.visible = true
+	if is_instance_valid(a._pause_screen) and a._state == "play" and a.get_tree().paused:
+		a._pause_screen.visible = true
+		ScreenKit.close_focus(a._terminal_panel)
 
 func _make_volume_row(label_text: String, value: float, y: float, on_change: Callable) -> Control:
 	var row := HBoxContainer.new()
@@ -170,34 +173,6 @@ func _make_volume_row(label_text: String, value: float, y: float, on_change: Cal
 	)
 	row.add_child(s)
 	return row
-
-func _build_game_over_panel() -> void:
-	a._over_panel = _make_panel("game_over")
-	a._over_title = _make_label("PROCESS TERMINATED", 44, Balance.COL_DANGER)
-	_center_panel_control(a._over_title, 132.0, 62.0)
-	a._over_panel.add_child(a._over_title)
-	a._over_sub = _make_label("", 14, Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	_center_panel_control(a._over_sub, 186.0, 26.0)
-	a._over_panel.add_child(a._over_sub)
-	a._over_stats = _make_label("", 17, Balance.COL_TEXT)
-	a._over_stats.visible = false
-	a._over_panel.add_child(a._over_stats)
-	a._over_core_stats = _make_label("", 13, Balance.COL_TEXT)
-	a._over_core_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_position_game_over_stat(a._over_core_stats, false)
-	a._over_panel.add_child(a._over_core_stats)
-	a._over_run_stats = _make_label("", 13, Balance.COL_TEXT)
-	a._over_run_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_position_game_over_stat(a._over_run_stats, true)
-	a._over_panel.add_child(a._over_run_stats)
-	a._over_primary = _make_button("REBOOT  [ENTER]", 500)
-	_position_game_over_button(a._over_primary, false)
-	a._over_primary.pressed.connect(a._handle_over_primary)
-	a._over_panel.add_child(a._over_primary)
-	a._over_menu = _make_button("ABANDON PROCESS  [ESC]", 500)
-	_position_game_over_button(a._over_menu, true)
-	a._over_menu.pressed.connect(Game.to_menu)
-	a._over_panel.add_child(a._over_menu)
 
 func _make_panel(kind: String = "pause") -> Control:
 	var p := Control.new()
@@ -272,23 +247,6 @@ func _make_button(txt: String, y: float) -> Button:
 	icon.call("configure", icon_kind, accent)
 	return b
 
-func _position_game_over_button(button: Button, right_side: bool) -> void:
-	var viewport: Vector2 = a.get_viewport_rect().size
-	var panel: Rect2 = a.TacticalStateSurfaceHelper.panel_rect_for_viewport(viewport, "game_over")
-	var gap := 18.0
-	var button_width := maxf((panel.size.x - 56.0 - gap) * 0.5, 120.0)
-	var x := panel.position.x + 28.0 + (button_width + gap if right_side else 0.0)
-	button.offset_left = x - viewport.x * 0.5
-	button.offset_right = button.offset_left + button_width
-
-func _position_game_over_stat(label: Label, right_side: bool) -> void:
-	var side_offset := 408.0 if right_side else 0.0
-	label.anchor_left = 0.5
-	label.anchor_right = 0.5
-	label.offset_left = -375.0 + side_offset
-	label.offset_right = -35.0 + side_offset
-	_center_panel_control(label, 320.0, 180.0)
-
 func state_panel_rect(viewport: Vector2, design_top: float = 0.0, control_size: Vector2 = Vector2.ZERO) -> Rect2:
 	var kind := "game_over" if control_size.x > 700.0 else "pause"
 	return a.TacticalStateSurfaceHelper.panel_rect_for_viewport(viewport, kind)
@@ -326,6 +284,8 @@ func handle_pause_input(event: InputEvent) -> bool:
 		return true
 	return false
 
+## Fallback: a tela de fim de run virou `RunSummaryPanel` e é ela quem
+## responde por isto. Mantido para o caso do componente ainda não existir.
 func game_over_action_labels() -> Array[String]:
 	return ["REBOOT", "ABANDON PROCESS"]
 
@@ -355,4 +315,3 @@ func _center_panel_control(control: Control, design_top: float, control_height: 
 	control.scale = Vector2(scale, scale)
 	control.set_meta("panel_design_top", design_top)
 	control.set_meta("panel_control_height", control_height)
-

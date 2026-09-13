@@ -28,6 +28,8 @@ func _on_ready() -> void:
 	add_to_group("firewall")
 
 func die() -> void:
+	if dead:
+		return
 	for orb in get_tree().get_nodes_in_group("enemy_orbs"):
 		if is_instance_valid(orb) and orb.get_meta("fw_owner", -1) == get_instance_id():
 			orb.pop()
@@ -71,7 +73,7 @@ func _refresh_wall() -> void:
 		orb.setup(pos, dir * 0.15, ORB_SPEED, col)
 		orb.set_meta("fw_owner", get_instance_id())
 		orb.set_meta("fw_arm", i)
-		get_parent().call_deferred("add_child", orb)
+		get_parent().add_child(orb)
 
 func _draw() -> void:
 	var c := _flash_col(col)

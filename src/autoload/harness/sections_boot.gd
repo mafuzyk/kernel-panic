@@ -182,6 +182,8 @@ func _task10_test(menu: Node) -> void:
 	var capture_api_ready := menu != null and menu.has_method("_desktop_keybinds_enabled") and menu.has_method("keybind_capture_visible")
 	h._check(capture_api_ready, "menu exposes desktop-only keybind capture state")
 	if capture_api_ready:
+		menu._open_settings()
+		menu.get("_settings_kit").set_active_section("CONTROLS")
 		var desktop_keybinds := Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
 		h._check(bool(menu._desktop_keybinds_enabled()) == desktop_keybinds, "keybind capture is desktop-only and touch-gated")
 		h._check(bool(menu.keybind_capture_visible()) == desktop_keybinds, "keybind capture panel visibility follows desktop gate")
@@ -191,7 +193,7 @@ func _task10_test(menu: Node) -> void:
 			h._check(str(menu.get("_capture_action")) == "", "Escape cancels keybind capture")
 			menu._begin_keybind_capture("dash")
 			menu._handle_keybind_capture(h._key_event(KEY_E))
-			h._check(str(menu.get("_capture_action")) == "dash" and str(menu.get("_keybind_status").text).contains("CONFLICT"), "capture shows duplicate conflict without assigning")
+			h._check(str(menu.get("_capture_action")) == "dash" and str(menu.get("_keybind_status").text) == tr("SET_BIND_CONFLICT") % ["E", tr("SET_BIND_OVERCLOCK")], "capture shows duplicate conflict without assigning")
 			menu._handle_keybind_capture(h._key_event(KEY_G, true))
 			h._check(str(menu.get("_capture_action")) == "dash", "echo key does not capture")
 			menu._handle_keybind_capture(h._key_event(KEY_H))
@@ -205,7 +207,7 @@ func _task10_test(menu: Node) -> void:
 			var settings_scroll: ScrollContainer = settings_scrolls[0]
 			var reset_button: Button = null
 			for node in settings_scroll.find_children("*", "Button", true, false):
-				if node is Button and node.text == "RESET KEYBINDS":
+				if node is Button and node.text == tr("SET_BIND_RESET"):
 					reset_button = node
 					break
 			h._check(reset_button != null, "keybind reset remains reachable inside settings scroll")
@@ -226,14 +228,19 @@ func _task11_test(menu: Node) -> void:
 	hud.size = Vector2(1280, 720)
 	h.add_child(hud)
 	await h._ticks(1)
-	var tooltip_api_ready := hud.has_method("patch_chip_rect") and hud.has_method("patch_tooltip_visible") and hud.has_method("patch_tooltip_snapshot")
+	var tooltip_api_ready := hud.has_method("patch_chip_rect") and hud.has_method("patch_tooltip_visible") and hud.has_method("patch_tooltip_snapshot") and hud.has_method("patch_tooltip_rect")
 	h._check(tooltip_api_ready, "HUD exposes patch tooltip hit state")
 	if tooltip_api_ready:
 		hud._update_patch_chip_rects()
 		var chip_rect: Rect2 = hud.patch_chip_rect("heavy")
 		h._check(chip_rect.size.x > 0.0 and chip_rect.size.y > 0.0, "active patch chip exposes hit rectangle")
+		for viewport in [Vector2(1280, 720), Vector2(720, 720), Vector2(432, 720)]:
+			var probe_chip := Rect2(viewport.x - 90.0, viewport.y - 70.0, 64.0, 28.0)
+			var tooltip_rect: Rect2 = hud.call("patch_tooltip_rect", viewport, probe_chip)
+			h._check(Rect2(Vector2.ZERO, viewport).encloses(tooltip_rect), "patch tooltip stays inside viewport %dx%d" % [int(viewport.x), int(viewport.y)])
 		var mouse_motion := InputEventMouseMotion.new()
-		mouse_motion.position = chip_rect.get_center()
+		var chip_position: Vector2 = hud.get_global_transform_with_canvas() * chip_rect.get_center()
+		mouse_motion.position = chip_position
 		hud._input(mouse_motion)
 		h._check(hud.patch_tooltip_visible(), "desktop hover shows patch tooltip")
 		var tooltip_snapshot: Dictionary = hud.patch_tooltip_snapshot()
@@ -241,7 +248,7 @@ func _task11_test(menu: Node) -> void:
 		var touch_down := InputEventScreenTouch.new()
 		touch_down.index = 41
 		touch_down.pressed = true
-		touch_down.position = chip_rect.get_center()
+		touch_down.position = chip_position
 		hud._input(touch_down)
 		hud._process(0.44)
 		h._check(not hud.patch_tooltip_visible(), "touch hold below threshold stays hidden")
@@ -249,17 +256,17 @@ func _task11_test(menu: Node) -> void:
 		h._check(hud.patch_tooltip_visible(), "touch hold at threshold shows patch tooltip")
 		var touch_drag := InputEventScreenDrag.new()
 		touch_drag.index = 41
-		touch_drag.position = chip_rect.get_center() + Vector2(20, 0)
+		touch_drag.position = chip_position + Vector2(20, 0)
 		hud._input(touch_drag)
 		h._check(not hud.patch_tooltip_visible(), "touch movement dismisses patch tooltip")
-		touch_down.position = chip_rect.get_center()
+		touch_down.position = chip_position
 		hud._input(touch_down)
 		hud._process(0.5)
 		var paused_before := h.get_tree().paused
 		var touch_up := InputEventScreenTouch.new()
 		touch_up.index = 41
 		touch_up.pressed = false
-		touch_up.position = chip_rect.get_center()
+		touch_up.position = chip_position
 		hud._input(touch_up)
 		h._check(not hud.patch_tooltip_visible() and h.get_tree().paused == paused_before, "touch release dismisses tooltip without pausing")
 	Game.patch_levels = {}
@@ -270,13 +277,70 @@ func _task11_test(menu: Node) -> void:
 	Game.mode = "weekly"
 	Sfx.aim_mode = "lockon"
 	h._check(Game.effective_aim_mode() == "lockon", "weekly keeps saved local lock-on mode")
-	if menu != null and menu.has_method("_refresh_mode_ui") and menu.has_method("_refresh_aim_label"):
-		menu._refresh_mode_ui()
+	# A barra antiga foi removida; verificar o shell vivo e o controle de mira
+	# das settings. Ler _mode_info abortava este teste antes da restauração.
+	if menu != null and menu.has_method("refresh_shell") and menu.has_method("_refresh_aim_label"):
+		menu.refresh_shell()
 		menu._refresh_aim_label(menu.get("_aim_btn_ref"))
-		h._check(not str(menu.get("_mode_info").text).contains("BLOCKED") and str(menu.get("_mode_info").text).contains("LOCAL"), "weekly menu explains local deterministic play")
+		h._check(str(menu.main_shell_snapshot().get("mode_explanation", "")).contains(tr("MODE_WEEKLY")), "weekly mode appears in the live menu shell")
 		h._check(not str(menu.get("_aim_btn_ref").text).contains("BLOCKED"), "weekly menu does not block lock-on")
 	Game.mode = saved_mode
 	Sfx.aim_mode = saved_aim
+	if menu != null:
+		menu.refresh_shell()
+
+func _settings_focus_test(menu: Node) -> void:
+	print("AT_STEP settings_focus")
+	menu.call("_open_settings")
+	await h._ticks(3)
+	var panel: Control = menu.get("_settings_panel")
+	var owner: Control = h.get_viewport().gui_get_focus_owner()
+	print("AT_DEBUG settings focus=", owner.get_class() if owner != null else "null")
+	h._check(owner != null and panel != null and panel.is_ancestor_of(owner), "opening settings takes keyboard focus inside the panel")
+	menu.call("_close_settings")
+	await h._ticks(1)
+
+func _language_selector_test(menu: Node) -> void:
+	print("AT_STEP language_selector")
+	var saved_lang := Game.language()
+	var kit: RefCounted = menu.get("_settings_kit")
+	h._check(kit != null and kit.has_method("language_button"), "settings exposes a language control")
+	if kit == null or not kit.has_method("language_button"):
+		return
+	menu.call("_open_settings")
+	await h._ticks(2)
+	kit.call("set_active_section", "ACCESSIBILITY")
+	await h._ticks(1)
+	var lang_btn: Button = kit.call("language_button")
+	h._check(is_instance_valid(lang_btn) and lang_btn.visible, "language control is visible in settings")
+	if not is_instance_valid(lang_btn):
+		menu.call("_close_settings")
+		return
+	var before := Game.language()
+	lang_btn.pressed.emit()
+	await h._ticks(2)
+	var after := Game.language()
+	h._check(after != before, "pressing the language control switches language")
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	h._check(str(cf.get_value("feel", "language", "")) == after, "language selection persists")
+	h._check(str(menu.main_shell_snapshot().get("mode_explanation", "")) != "", "shell survives the language rebuild")
+	lang_btn = kit.call("language_button")
+	h._check(is_instance_valid(lang_btn), "language control exists after rebuild")
+	menu.call("_close_settings")
+	await h._ticks(1)
+	var post_close: Control = h.get_viewport().gui_get_focus_owner()
+	# O teste possui a própria higiene de foco: restaura o PURGE de forma
+	# síncrona para não vazar estado para o desktop_focus.
+	var shell_fix: Control = menu.get("_shell")
+	if shell_fix != null and shell_fix.has_method("focus_primary"):
+		shell_fix.call("focus_primary")
+		await h._ticks(1)
+		post_close = h.get_viewport().gui_get_focus_owner()
+	Game.set_language(saved_lang)
+	if menu.has_method("refresh_shell"):
+		menu.refresh_shell()
+	await h._ticks(1)
 
 func _color_assist_test() -> void:
 	print("AT_STEP color_assist")
@@ -317,28 +381,34 @@ func _color_assist_test() -> void:
 		if menu.has_method("_open_settings"):
 			menu._open_settings()
 		for node in menu.find_children("*", "Button", true, false):
-			if node is Button and str(node.text).begins_with("COLOR ASSIST:"):
+			if node is Button and node == menu.get("_color_assist_btn"):
 				color_button = node
 				break
 	h._check(color_button != null, "settings expose color assist toggle")
 	if color_button != null:
-		h._check(color_button.text == "COLOR ASSIST: OFF", "color assist toggle shows OFF by default")
+		h._check(color_button.text == tr("SET_COLOR_ASSIST") % tr("SET_VAL_OFF"), "color assist toggle shows OFF by default")
 		color_button.pressed.emit()
-		h._check(bool(Sfx.get("color_assist")) and color_button.text == "COLOR ASSIST: ON", "color assist toggle enables assist mode")
+		h._check(bool(Sfx.get("color_assist")) and color_button.text == tr("SET_COLOR_ASSIST") % tr("SET_VAL_ON"), "color assist toggle enables assist mode")
 		color_button.pressed.emit()
-		h._check(not bool(Sfx.get("color_assist")) and color_button.text == "COLOR ASSIST: OFF", "color assist toggle disables assist mode")
+		h._check(not bool(Sfx.get("color_assist")) and color_button.text == tr("SET_COLOR_ASSIST") % tr("SET_VAL_OFF"), "color assist toggle disables assist mode")
 	if menu != null and menu.has_method("_close_settings"):
 		menu._close_settings()
 
 	var splitter := SplitterEnemy.new()
 	var bulwark := BulwarkEnemy.new()
-	var splitter_source := FileAccess.get_file_as_string("res://src/enemies/splitter.gd")
-	var bulwark_source := FileAccess.get_file_as_string("res://src/enemies/bulwark.gd")
+	# load(), não FileAccess: no artefato o .gd não existe como texto, mas o
+	# script compilado carrega e `source_code` vem vazio — sem ERROR no log.
+	var splitter_source := str((load("res://src/enemies/splitter.gd") as Script).source_code)
+	var bulwark_source := str((load("res://src/enemies/bulwark.gd") as Script).source_code)
 	h._check(splitter.has_method("color_assist_marker") and splitter.color_assist_marker() == "SPLIT", "Splitter exposes code-drawn assist marker")
 	h._check(bulwark.has_method("color_assist_marker") and bulwark.color_assist_marker() == "BULW", "Bulwark exposes code-drawn assist marker")
-	h._check(splitter_source.contains("draw_string") and bulwark_source.contains("draw_string") and not splitter_source.contains(".png") and not bulwark_source.contains(".png"), "threat markers use code drawing without images")
-	var bestiary_source := FileAccess.get_file_as_string("res://src/ui/bestiary_panel.gd")
-	h._check(bestiary_source.contains("_draw_color_assist_marker") and bestiary_source.contains("SPLIT") and bestiary_source.contains("BULW") and bestiary_source.contains("Sfx.color_assist"), "bestiary draws assist markers beside Splitter and Bulwark glyphs")
+	h._check_source(splitter_source.contains("draw_string") and bulwark_source.contains("draw_string") and not splitter_source.contains(".png") and not bulwark_source.contains(".png"), "threat markers use code drawing without images")
+	var bestiary_probe := BestiaryPanel.new()
+	h._check(bestiary_probe.has_method("assist_marker_text") \
+		and bestiary_probe.call("assist_marker_text", "splitter") == ("SPLIT" if Sfx.color_assist else "") \
+		and bestiary_probe.call("assist_marker_text", "bulwark") == ("BULW" if Sfx.color_assist else ""),
+		"bestiary exposes the same color-assist markers as the arena threats")
+	bestiary_probe.free()
 	splitter.free()
 	bulwark.free()
 
@@ -348,3 +418,87 @@ func _color_assist_test() -> void:
 	if menu != null and menu.has_method("_refresh_color_assist_label"):
 		menu._refresh_color_assist_label()
 
+func _run_config_test(menu: Node) -> void:
+	print("AT_STEP run_config_interaction")
+	var saved_mode := Game.mode
+	var saved_diff := Game.difficulty
+	var saved_onehp := Game.onehp_unlocked
+	var saved_mode_disk: Dictionary = h._config_snapshot("game", "mode", "classic")
+	var saved_diff_disk: Dictionary = h._config_snapshot("game", "difficulty", "normal")
+	var saved_onehp_disk: Dictionary = h._config_snapshot("run", "onehp_unlocked", false)
+	var shell: Control = menu.get("_shell")
+	h._check(shell != null and is_instance_valid(shell), "live menu shell exists for run config")
+	if shell == null or not is_instance_valid(shell) or not menu.has_method("refresh_shell"):
+		_restore_run_config_fixture(saved_mode, saved_diff, saved_onehp, saved_mode_disk, saved_diff_disk, saved_onehp_disk, menu)
+		return
+	h._check(shell.has_method("run_config_hits"), "shell exposes run-config controls")
+	if not shell.has_method("run_config_hits"):
+		_restore_run_config_fixture(saved_mode, saved_diff, saved_onehp, saved_mode_disk, saved_diff_disk, saved_onehp_disk, menu)
+		return
+	Game.onehp_unlocked = false
+	Game.mode = "classic"
+	Game.set_difficulty("normal")
+	menu.refresh_shell()
+	await h._ticks(1)
+	var hits: Dictionary = shell.run_config_hits()
+	var mode_hit: Button = hits.get("mode")
+	var diff_hit: Button = hits.get("difficulty")
+	h._check(is_instance_valid(mode_hit) and is_instance_valid(diff_hit), "mode and difficulty controls exist in the live shell")
+	if not is_instance_valid(mode_hit) or not is_instance_valid(diff_hit):
+		_restore_run_config_fixture(saved_mode, saved_diff, saved_onehp, saved_mode_disk, saved_diff_disk, saved_onehp_disk, menu)
+		return
+	h._check(mode_hit.focus_mode == Control.FOCUS_ALL and diff_hit.focus_mode == Control.FOCUS_ALL, "mode and difficulty controls are keyboard reachable")
+	mode_hit.grab_focus()
+	h._check(mode_hit.has_focus(), "mode control takes keyboard focus")
+	h._check(mode_hit.get_global_rect().size.x > 0.0 and mode_hit.get_global_rect().size.y > 0.0, "mode control has a clickable rect")
+	mode_hit.pressed.emit()
+	await h._ticks(1)
+	h._check(Game.mode == "weekly", "pressing the MODE control selects weekly")
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	h._check(str(cf.get_value("game", "mode", "")) == "weekly", "mode selection persists to ConfigFile")
+	h._check(str(menu.main_shell_snapshot().get("mode_explanation", "")).contains(tr("MODE_WEEKLY")), "shell shows weekly immediately")
+	mode_hit.pressed.emit()
+	await h._ticks(1)
+	h._check(Game.mode == "classic", "locked one-hp is skipped when cycling modes")
+	Game.unlock_onehp()
+	Game.mode = "classic"
+	menu.refresh_shell()
+	await h._ticks(1)
+	mode_hit.pressed.emit()
+	mode_hit.pressed.emit()
+	await h._ticks(1)
+	h._check(Game.mode == "onehp", "unlocked one-hp is selectable from the shell")
+	Game.mode = "classic"
+	Game.set_difficulty("normal")
+	menu.refresh_shell()
+	await h._ticks(1)
+	diff_hit.pressed.emit()
+	await h._ticks(1)
+	h._check(Game.difficulty == "hard", "pressing the DIFFICULTY control cycles normal to hard")
+	cf.load(Sfx.SAVE_PATH)
+	h._check(str(cf.get_value("game", "difficulty", "")) == "hard", "difficulty selection persists to ConfigFile")
+	h._check(str(menu.main_shell_snapshot().get("mode_explanation", "")).contains(tr("DIFF_HARD")), "shell shows hard immediately")
+	Game.mode = "story"
+	menu.refresh_shell()
+	await h._ticks(1)
+	var story_diff := Game.difficulty
+	diff_hit.pressed.emit()
+	await h._ticks(1)
+	h._check(Game.difficulty == story_diff, "story keeps its fixed difficulty curve")
+	var diff_text := ""
+	var diff_block: Control = shell.get("_diff_block")
+	if diff_block != null and diff_block.has_meta("label_node"):
+		diff_text = str(diff_block.get_meta("label_node").text)
+	h._check(diff_text == tr("MENU_DIFFICULTY_FIXED"), "shell shows fixed difficulty in story")
+	_restore_run_config_fixture(saved_mode, saved_diff, saved_onehp, saved_mode_disk, saved_diff_disk, saved_onehp_disk, menu)
+
+func _restore_run_config_fixture(saved_mode: String, saved_diff: String, saved_onehp: bool, saved_mode_disk: Dictionary, saved_diff_disk: Dictionary, saved_onehp_disk: Dictionary, menu: Node) -> void:
+	Game.mode = saved_mode
+	Game.difficulty = saved_diff
+	Game.onehp_unlocked = saved_onehp
+	h._restore_config_snapshot("game", "mode", saved_mode_disk)
+	h._restore_config_snapshot("game", "difficulty", saved_diff_disk)
+	h._restore_config_snapshot("run", "onehp_unlocked", saved_onehp_disk)
+	if menu != null and menu.has_method("refresh_shell"):
+		menu.refresh_shell()

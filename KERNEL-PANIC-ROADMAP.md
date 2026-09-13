@@ -107,7 +107,9 @@ Comedic arc: the newer the Windows, the prettier and more bloated.
   assets, keeps APK small). One variant per era.
 - Klog jokes: "your PC ran into a problem", "update scheduled during boss
   fight", blinking "Activate Windows — Go to Settings" corner watermark.
-- Cross-reward: clearing the Act unlocks DAEMON program.
+- Cross-reward: clearing the Act unlocks DAEMON program. [SUPERSEDED — DAEMON
+  ships unlocked at wave 5 in endless modes (arena.gd); README documents no
+  Windows program reward.]
 
 ### v2.6.0 — TempleOS (bonus act, 2 stages)
 - Arena shrinks to 640x640. Rainbow cycling palette, angelic glow.
@@ -115,13 +117,17 @@ Comedic arc: the newer the Windows, the prettier and more bloated.
 - Boss "GOD": oracle boss whose attacks are literal RNG.
 - 100% act clear → rainbow grid tint cosmetic for endless modes.
 
-### v2.7.0+ — macOS act + i18n + photo mode
+### v2.7.0+ — macOS act + i18n + photo mode [POST-3.0 — DEFERRED, not 3.0 scope]
 - macOS: BEACHBALL (spewer that freezes area), GENIUS (arrogant lancer),
-  light-mode inversion, literal kernel panic boss.
+  light-mode inversion, literal kernel panic boss. No macOS tester exists;
+  there is intentionally NO macOS export or support claim in 3.0.0.
 - **PT-BR + EN localization**: texts are hardcoded across ~8 files today.
   Do the i18n refactor BEFORE or WITH the story mode so story text is
   translated once. High value (author + partner + BR players), real effort.
+  (3.0.0 status: player-facing sweep + runtime Story + Settings selector done;
+  machine noise stays English by design.)
 - Photo mode: pause + free camera + hide UI, for shareable screenshots.
+  DEFERRED past 3.0.0.
 
 ## Approved design decisions (do not relitigate)
 

@@ -60,8 +60,7 @@ func _register_scrap_overflow() -> void:
 	scrap_count += 1
 	if scrap_count >= _scrap_threshold():
 		scrap_count = 0
-		heal(1)
-		Game.register_heal("scrap")
+		heal(1, "scrap")
 		Fx.text(global_position + Vector2(0, -30), "SCRAP +1", Color(1.0, 0.75, 0.4), 14)
 		Sfx.play("ready", 1.1, -6.0)
 
@@ -183,8 +182,15 @@ func _physics_process(delta: float) -> void:
 		dash_cd -= delta
 	if dash_charges > 1 and dash_recharge_t > 0.0:
 		dash_recharge_t -= delta
-		if dash_recharge_t <= 0.0 and dash_available < dash_charges:
-			dash_available += 1
+		if dash_recharge_t <= 0.0:
+			if dash_available < dash_charges:
+				dash_available += 1
+			# Sem reiniciar aqui, 0/2 voltava a 1/2 e parava: a segunda carga
+			# nunca recarregava ficando idle.
+			if dash_available < dash_charges:
+				dash_recharge_t = dash_cooldown_duration()
+			else:
+				dash_recharge_t = 0.0
 	if thorns_cd > 0.0:
 		thorns_cd -= delta
 	if invuln > 0.0:
@@ -312,7 +318,7 @@ func request_dash(input_vec: Vector2) -> void:
 	invuln = maxf(invuln, Balance.DASH_IFRAMES)
 	if dash_charges > 1:
 		dash_available = maxi(dash_available - 1, 0)
-		dash_recharge_t = Balance.DASH_CD
+		dash_recharge_t = dash_cooldown_duration()
 	Sfx.play("dash", 1.0, -6.0)
 	Fx.ring(global_position, Balance.COL_PLAYER, 6.0, 30.0, 0.25, 2.0)
 	Fx.shake(0.08)
@@ -357,7 +363,7 @@ func try_overclock() -> void:
 func collect_mote() -> void:
 	if dead:
 		return
-	if shield_ready:
+	if bool(prog.get("shield_mode", false)):
 		if not shield_ready_full():
 			shield_meter = minf(shield_meter + Balance.MOTE_VALUE, Balance.OC_METER_MAX)
 			if shield_meter >= Balance.OC_METER_MAX:
@@ -396,13 +402,20 @@ func apply_freeze(dur: float) -> void:
 	_freeze_t = maxf(_freeze_t, dur)
 	slow_factor = 0.45
 
-func heal(n: int) -> void:
+## Único conceito de "HP realmente aumentou": retorna o ganho efetivo e só
+## registra telemetria quando gained > 0. Curar com HP cheio não é cura.
+func heal(n: int, source := "") -> int:
+	var before := hp
 	hp = mini(hp + n, max_hp)
+	var gained := hp - before
 	hp_changed.emit(hp, max_hp)
+	if gained > 0 and source != "":
+		Game.register_heal(source)
+	return gained
 
-func add_max_hp(n: int) -> void:
+func add_max_hp(n: int, source := "") -> void:
 	max_hp += n
-	heal(n)
+	heal(n, source)
 
 func add_shield_charge() -> void:
 	shield_charges += 1
@@ -411,7 +424,7 @@ func add_absorb_charge() -> void:
 	absorb_charges += 1
 
 func add_kill_mote_bonus() -> void:
-	if shield_ready:
+	if bool(prog.get("shield_mode", false)):
 		if not shield_ready_full():
 			shield_meter = minf(shield_meter + Balance.MOTE_KILL_VALUE, Balance.OC_METER_MAX)
 			meter_changed.emit(shield_meter, false)
@@ -469,14 +482,19 @@ func take_damage(from: Vector2, killer := "DAEMON") -> void:
 	if absorb_charges > 0:
 		absorb_charges -= 1
 		meter = minf(meter + Balance.MOTE_VALUE, Balance.OC_METER_MAX)
+		if meter >= Balance.OC_METER_MAX and not oc_ready:
+			oc_ready = true
+			Sfx.play("ready", 1.0, -4.0)
+			Sfx.haptic(25)
 		invuln = maxf(invuln, Balance.HURT_IFRAMES)
-		meter_changed.emit(meter, meter >= Balance.OC_METER_MAX)
+		meter_changed.emit(meter, oc_ready)
 		Sfx.play("hit", 1.1, -5.0)
 		Fx.ring(global_position, Color(0.6, 0.85, 1.0), 8.0, 58.0, 0.35, 3.0)
 		Fx.text(global_position + Vector2(0, -26), "DAMAGE ABSORBED", Color(0.6, 0.85, 1.0), 13)
 		Sfx.haptic(30)
 		return
 	hp -= 1
+	Game.note_hp_loss()
 	Game.stats["damage"] += 1
 	Game.stats["killer"] = killer
 	Game.log_event("HIT // %s" % killer)
@@ -495,14 +513,13 @@ func take_damage(from: Vector2, killer := "DAEMON") -> void:
 	if hp <= 0:
 		if Game.patch_level("secondwind") > 0 and not second_wind_used and Game.mode != "onehp":
 			second_wind_used = true
-			hp = 1
+			heal(1, "secondwind")
 			invuln = maxf(invuln, 2.0)
 			Sfx.play("ready", 0.9, -2.0)
 			Fx.flash(Color(0.6, 1.0, 0.8), 0.3, 0.5)
 			Fx.ring(global_position, Color(0.6, 1.0, 0.8), 10.0, 140.0, 0.5, 4.0)
 			Fx.text(global_position + Vector2(0, -30), "SECOND WIND", Color(0.6, 1.0, 0.8), 16)
 			Sfx.haptic(60)
-			hp_changed.emit(hp, max_hp)
 			return
 		_die()
 

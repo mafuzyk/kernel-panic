@@ -18,6 +18,19 @@ func _difficulty_test() -> void:
 	h._check(has_helpers, "balance exposes difficulty-aware read helpers")
 	if not has_helpers:
 		return
+
+	# As constantes da curva precisam ser LIDAS pelas funções. Elas existiam
+	# mas ninguém as consultava: wave_scale() e wave_budget() traziam os
+	# valores no corpo, e diferentes dos declarados (1.7 vs 1.65, base 8 vs 6).
+	# Quatro documentos de planejamento tratavam WAVE_SCALE_CAP como knob vivo
+	# e o handoff v2.3 propunha ajustá-lo — o ajuste não teria efeito nenhum.
+	# Ver R4b em docs/superpowers/reports/2026-09-11-auditoria-desktop.md.
+	h._check(is_equal_approx(Balance.wave_scale(999), Balance.WAVE_SCALE_CAP),
+		"wave_scale tops out at WAVE_SCALE_CAP (%.2f, got %.2f)" % [Balance.WAVE_SCALE_CAP, Balance.wave_scale(999)])
+	h._check(Balance.wave_budget(1) == Balance.WAVE_BUDGET_BASE,
+		"wave_budget starts at WAVE_BUDGET_BASE (%d, got %d)" % [Balance.WAVE_BUDGET_BASE, Balance.wave_budget(1)])
+	h._check(Balance.wave_budget(2) - Balance.wave_budget(1) == Balance.WAVE_BUDGET_GROWTH,
+		"wave_budget grows by WAVE_BUDGET_GROWTH (%d, got %d)" % [Balance.WAVE_BUDGET_GROWTH, Balance.wave_budget(2) - Balance.wave_budget(1)])
 	var saved_mode := Game.mode
 	var saved_difficulty := str(Game.get("difficulty"))
 	var alive_caps := {"easy": 7, "normal": 10, "hard": 13}
@@ -57,7 +70,8 @@ func _debug_controls_test(arena: Arena) -> void:
 	h._check(debug_panel_script != null, "debug panel script loads")
 	h._check(arena.has_method("debug_controls_enabled"), "arena exposes debug controls gate")
 	if arena.has_method("debug_controls_enabled"):
-		h._check(not bool(arena.call("debug_controls_enabled")), "headless run keeps debug controls disabled")
+		var desktop_debug: bool = OS.is_debug_build() and Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
+		h._check(bool(arena.call("debug_controls_enabled")) == desktop_debug, "debug controls follow the desktop debug-build gate")
 	var sp: Spawner = arena.spawner
 	var debug_api_ready := sp.has_method("debug_skip_to_wave") and sp.has_method("debug_spawn_enemy") and sp.has_method("debug_spawn_boss") and sp.has_method("debug_spawn_root_split")
 	h._check(debug_api_ready, "spawner exposes debug wave and spawn controls")
@@ -82,6 +96,14 @@ func _debug_controls_test(arena: Arena) -> void:
 		if is_instance_valid(candidate) and candidate.get("mini") == true:
 			mini_count += 1
 	h._check(split_ok and mini_count == 2, "debug root split creates two mini bosses")
+	var kinds: Array = debug_panel_script.ENEMY_KINDS
+	var all_spawn := true
+	for entry in kinds:
+		var probe = sp.call("debug_spawn_enemy", str(entry[0]))
+		if probe == null or not is_instance_valid(probe):
+			all_spawn = false
+		await h._ticks(1)
+	h._check(all_spawn and kinds.size() >= 11, "debug panel offers every regular enemy kind (%d)" % kinds.size())
 	for child in arena.enemy_container.get_children():
 		child.queue_free()
 	await h._ticks(3)
@@ -154,4 +176,3 @@ func _oom_steal_identity_test(arena: Arena) -> void:
 	mf.free_all_stolen()
 	oom.queue_free()
 	await h._ticks(2)
-

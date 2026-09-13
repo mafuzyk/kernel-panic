@@ -1,135 +1,224 @@
 class_name PatchCard
 extends Control
 
+## Card de patch na direção editorial.
+##
+## O card antigo era uma pilha de molduras angulares desenhadas em `_draw()`:
+## frame externo, frame interno, tag angular e hexágono, todos competindo com o
+## conteúdo. Aqui a hierarquia vem de tipo, espaço e uma única régua de raridade.
+## A cor fica no papel de marcador; título e descrição voltam para tinta neutra.
+
 signal selected(index: int)
 
-const TacticalUIHelper = preload("res://src/ui/tactical_ui.gd")
+const CARD_PAD := Design.SPACE_LG
+const ICON_SLOT := 64.0
+const ICON_DRAW_SIZE := 52.0
+const LONG_TITLE_SIZE := 28
 
 var _def: Dictionary = {}
 var _index := 0
 var _level := 0
-var _hovered := false
-var _mono: Font
-var _orbitron: Font
+
+var _surface: PanelContainer
+var _index_label: Label
+var _rarity: Label
+var _title: Label
+var _desc: Label
+var _icon_slot: Control
+var _marker_rule: ColorRect
+var _level_label: Label
+var _level_marks: Label
+
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_mono = load("res://assets/fonts/ShareTechMono.ttf")
-	_orbitron = load("res://assets/fonts/Orbitron.ttf")
-	mouse_entered.connect(func() -> void:
-		_hovered = true
-		queue_redraw()
-	)
-	mouse_exited.connect(func() -> void:
-		_hovered = false
-		queue_redraw()
-	)
+	theme = UiTheme.shared()
+	mouse_filter = Control.MOUSE_FILTER_PASS
+	_build()
+	_refresh()
 
+
+## Arena chama `configure()` antes de o card entrar na árvore. Mantenha esse
+## contrato: os dados são guardados imediatamente e a árvore visual só é tocada
+## depois de `_ready()` existir.
 func configure(definition: Dictionary, index: int) -> void:
 	_def = definition.duplicate(true)
 	_index = index
 	_level = Game.patch_level(str(_def.get("id", "")))
-	queue_redraw()
+	if is_node_ready():
+		_refresh()
 
-func frame_points() -> PackedVector2Array:
-	return TacticalUIHelper.angular_points(Rect2(Vector2.ZERO, size), 14.0)
 
 func rarity_label() -> String:
 	if bool(_def.get("legend", false)):
-		return "LEGENDARY"
+		return tr("PATCH_RARITY_LEGENDARY")
 	if bool(_def.get("rare", false)):
-		return "RARE"
-	return "STANDARD"
+		return tr("PATCH_RARITY_RARE")
+	return tr("PATCH_RARITY_STANDARD")
+
 
 func card_title() -> String:
 	return str(_def.get("title", "PATCH"))
 
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_RESIZED:
-		queue_redraw()
 
-func _gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		selected.emit(_index)
-		accept_event()
-	elif event is InputEventScreenTouch and event.pressed:
-		selected.emit(_index)
-		accept_event()
+## Papéis de tinta. Raridade é informação, mas não deve tingir o conteúdo todo.
+func card_ink() -> Dictionary:
+	return {
+		"title": Design.TEXT_PRIMARY,
+		"body": Design.TEXT_SECONDARY,
+		"meta": Design.TEXT_MUTED,
+		"marker": _accent(),
+	}
+
 
 func _accent() -> Color:
 	if bool(_def.get("legend", false)):
-		return TacticalUIHelper.AMBER
+		return Design.WARNING
 	if bool(_def.get("rare", false)):
 		return Color("b46bff")
-	return TacticalUIHelper.CYAN
+	return Design.ACCENT
 
-func _draw() -> void:
-	if size.x <= 1.0 or size.y <= 1.0:
+
+## Retângulos reais do conteúdo. O harness usa isso em vez de depender das
+## coordenadas da antiga rotina `_draw()`.
+func content_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for node in [_index_label, _rarity, _title, _desc, _icon_slot, _marker_rule, _level_label, _level_marks]:
+		if node != null and is_instance_valid(node) and node.is_visible_in_tree():
+			out.append(Rect2(node.global_position - global_position, node.size))
+	return out
+
+
+func _build() -> void:
+	_surface = PanelContainer.new()
+	_surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var surface_box := StyleBoxFlat.new()
+	surface_box.bg_color = Design.SURFACE_SUNKEN
+	_surface.add_theme_stylebox_override("panel", surface_box)
+	add_child(_surface)
+
+	var pad := MarginContainer.new()
+	for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+		pad.add_theme_constant_override(side, CARD_PAD)
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_surface.add_child(pad)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 0)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pad.add_child(col)
+
+	var eyebrow := HBoxContainer.new()
+	eyebrow.add_theme_constant_override("separation", Design.SPACE_SM)
+	eyebrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(eyebrow)
+	_index_label = ScreenKit.mono("", Design.TEXT_MICRO, Design.ACCENT)
+	eyebrow.add_child(_index_label)
+	ScreenKit.grow_h(eyebrow)
+	_rarity = ScreenKit.mono("", Design.TEXT_MICRO, Design.ACCENT)
+	eyebrow.add_child(_rarity)
+
+	ScreenKit.gap(col, Design.SPACE_SM)
+	_title = ScreenKit.grot("", Design.TEXT_HEADING, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
+	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Label vazio nasce com mínimo vertical quase nulo quando o card é construído
+	# antes de `configure()` propagar o texto. Reserve uma linha editorial real;
+	# títulos longos ainda podem crescer por autowrap.
+	_title.custom_minimum_size.y = Design.TEXT_HEADING
+	col.add_child(_title)
+
+	ScreenKit.gap(col, Design.SPACE_MD)
+	_marker_rule = ColorRect.new()
+	_marker_rule.custom_minimum_size = Vector2(0, 1)
+	_marker_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(_marker_rule)
+	ScreenKit.gap(col, Design.SPACE_LG)
+
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", Design.SPACE_LG)
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(body)
+
+	_icon_slot = Control.new()
+	_icon_slot.custom_minimum_size = Vector2(ICON_SLOT, ICON_SLOT)
+	_icon_slot.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_icon_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_icon_slot.draw.connect(func() -> void: _draw_icon_on(_icon_slot, _accent()))
+	body.add_child(_icon_slot)
+
+	_desc = ScreenKit.mono("", Design.TEXT_CAPTION, Design.TEXT_SECONDARY)
+	_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(_desc)
+
+	ScreenKit.grow_v(col)
+	ScreenKit.gap(col, Design.SPACE_MD)
+	ScreenKit.rule(col, 0.18)
+	ScreenKit.gap(col, Design.SPACE_SM)
+
+	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override("separation", Design.SPACE_MD)
+	footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(footer)
+	_level_label = ScreenKit.mono("", Design.TEXT_CAPTION, Design.TEXT_MUTED)
+	footer.add_child(_level_label)
+	ScreenKit.grow_h(footer)
+	_level_marks = ScreenKit.mono("", Design.TEXT_CAPTION, Design.TEXT_MUTED)
+	footer.add_child(_level_marks)
+
+	# Interação é uma camada transparente sobre o layout. Button não dispõe os
+	# filhos; o PanelContainer continua sendo quem mede o conteúdo.
+	var hit := Button.new()
+	hit.flat = true
+	hit.focus_mode = Control.FOCUS_ALL
+	hit.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var ring := StyleBoxFlat.new()
+	ring.bg_color = Color(0, 0, 0, 0)
+	for side in ["border_width_left", "border_width_right", "border_width_top", "border_width_bottom"]:
+		ring.set(side, int(Design.FOCUS_RING_WIDTH))
+	ring.border_color = Design.FOCUS_RING_COLOR
+	hit.add_theme_stylebox_override("focus", ring)
+	var glow := StyleBoxFlat.new()
+	glow.bg_color = Design.alpha(Design.TEXT_PRIMARY, 0.08)
+	hit.add_theme_stylebox_override("hover", glow)
+	hit.pressed.connect(func() -> void: selected.emit(_index))
+	add_child(hit)
+	ScreenKit.bind_feedback(hit, _title)
+
+
+func _refresh() -> void:
+	if not is_instance_valid(_title):
 		return
-	var accent := _accent()
-	var points := frame_points()
-	var closed := points.duplicate()
-	closed.append(points[0])
-	draw_colored_polygon(points, Color(accent.r, accent.g, accent.b, 0.12 if _hovered else 0.07))
-	draw_colored_polygon(TacticalUIHelper.angular_points(Rect2(2, 2, size.x - 4, size.y - 4), 12.0), Color(TacticalUIHelper.PANEL.r, TacticalUIHelper.PANEL.g, TacticalUIHelper.PANEL.b, 0.84))
-	draw_polyline(closed, Color(accent.r, accent.g, accent.b, 1.0 if _hovered else 0.82), 2.4 if _hovered else 1.6, true)
-	var top_tag := Rect2(20.0, 22.0, 42.0, 32.0)
-	var tag_points := TacticalUIHelper.angular_points(top_tag, 7.0)
-	var tag_closed := tag_points.duplicate()
-	tag_closed.append(tag_points[0])
-	draw_colored_polygon(tag_points, Color(accent.r, accent.g, accent.b, 0.08))
-	draw_polyline(tag_closed, Color(accent.r, accent.g, accent.b, 0.85), 1.2, true)
-	draw_string(_mono, top_tag.position + Vector2(0.0, 22.0), "%d" % (_index + 1), HORIZONTAL_ALIGNMENT_CENTER, top_tag.size.x, 15, accent)
-	draw_string(_mono, Vector2(76.0, 43.0), rarity_label(), HORIZONTAL_ALIGNMENT_RIGHT, size.x - 96.0, 12, accent)
-	draw_string(_orbitron, Vector2(22.0, 94.0), card_title(), HORIZONTAL_ALIGNMENT_LEFT, size.x - 44.0, 21, TacticalUIHelper.TEXT)
-	_draw_icon(Vector2(58.0, 157.0), accent)
-	var desc_size: int = TacticalUI.fit_block(_mono, str(_def.get("desc", "")), size.x - 148.0, 54.0, 13, 10)["font_size"]
-	draw_multiline_string(_mono, Vector2(126.0, 143.0), str(_def.get("desc", "")), HORIZONTAL_ALIGNMENT_LEFT, size.x - 148.0, desc_size, 4, TacticalUIHelper.TEXT)
-	var line_y := size.y - 66.0
-	draw_line(Vector2(20.0, line_y), Vector2(size.x - 20.0, line_y), Color(accent.r, accent.g, accent.b, 0.46), 1.0)
-	var level_text := "LEVEL %d > %d" % [_level, _level + 1] if _level > 0 else "NEW PATCH"
-	draw_string(_mono, Vector2(22.0, line_y + 25.0), level_text, HORIZONTAL_ALIGNMENT_LEFT, size.x - 44.0, 13, accent)
+	var ink := card_ink()
+	var marker: Color = ink.get("marker", Design.ACCENT)
+	_index_label.text = "%02d" % (_index + 1)
+	_index_label.add_theme_color_override("font_color", marker)
+	_rarity.text = rarity_label()
+	_rarity.add_theme_color_override("font_color", marker)
+	_title.text = card_title()
+	_title.add_theme_font_size_override("font_size", _title_font_size(_title.text))
+	_title.add_theme_color_override("font_color", ink.get("title", Design.TEXT_PRIMARY))
+	_desc.text = patch_desc(_def)
+	_desc.add_theme_color_override("font_color", ink.get("body", Design.TEXT_SECONDARY))
+	_marker_rule.color = Design.alpha(marker, 0.58)
+	_level_label.text = tr("PATCH_LEVEL_UP") % [_level, _level + 1] if _level > 0 else tr("PATCH_NEW")
+	_level_label.add_theme_color_override("font_color", marker)
+	var marks: Array[String] = []
 	for dot in 4:
-		var dot_col := accent if dot <= _level else Color(accent.r, accent.g, accent.b, 0.35)
-		draw_circle(Vector2(28.0 + dot * 18.0, size.y - 18.0), 4.0, dot_col)
+		marks.append("●" if dot <= _level else "○")
+	_level_marks.text = " ".join(marks)
+	_level_marks.add_theme_color_override("font_color", Design.alpha(marker, 0.82))
+	_icon_slot.queue_redraw()
 
-func _draw_icon(center: Vector2, accent: Color) -> void:
-	var points := PackedVector2Array()
-	for i in 6:
-		var angle := -PI * 0.5 + TAU * float(i) / 6.0
-		points.append(center + Vector2(cos(angle), sin(angle)) * 34.0)
-	var closed := points.duplicate()
-	closed.append(points[0])
-	draw_colored_polygon(points, Color(accent.r, accent.g, accent.b, 0.08))
-	draw_polyline(closed, accent, 2.0, true)
-	var id := str(_def.get("id", ""))
-	var raster := patch_raster_path(id)
-	if raster != "":
-		if not _raster_tex_cache.has(raster):
-			_raster_tex_cache[raster] = load(raster)
-			queue_redraw()
-		var tex: Texture2D = _raster_tex_cache[raster]
-		if tex != null:
-			var pad: float = PATCH_RASTER_PAD * 52.0
-			draw_texture_rect(tex, Rect2(center - Vector2(26.0 - pad, 26.0 - pad), Vector2(52.0 - pad * 2.0, 52.0 - pad * 2.0)), false)
-			return
-	match patch_icon_family(id):
-		"damage":
-			_draw_damage_glyph(center, accent)
-		"fire":
-			_draw_fire_glyph(center, accent)
-		"defense":
-			_draw_defense_glyph(center, accent)
-		"utility":
-			_draw_utility_glyph(center, accent)
-		"movement":
-			_draw_movement_glyph(center, accent)
-		"economy":
-			_draw_economy_glyph(center, accent)
+
+func _title_font_size(text: String) -> int:
+	return LONG_TITLE_SIZE if text.length() >= 12 else Design.TEXT_HEADING
+
 
 ## Patch icon family table: every Game.PATCH_CODES id maps to one of six visual
-## families so hex icons share a silhouette language per effect type.
+## families so icons share a silhouette language per effect type.
 const PATCH_ICON_FAMILIES := {
 	"heavy": "damage", "core": "damage", "splitshot": "damage", "ricochet": "damage", "pdash": "damage", "thorns": "damage", "staticf": "damage",
 	"rapid": "fire", "threads": "fire", "chain": "fire",
@@ -141,76 +230,179 @@ const PATCH_ICON_FAMILIES := {
 
 const RASTER_DIR := "res://assets/icons/generated/"
 
-## Optical pad fraction for patch rasters inside the 52px hex slot; matches the
+## Caminho de raster dos ícones de patch. Desligado.
+##
+## Existem rasters para SEIS dos 26 patches. Os seis desenhavam uma insígnia
+## hexagonal chapada em cinza; os outros vinte desenhavam o símbolo de família
+## em código, tingido pelo acento da carta. Duas linguagens visuais na MESMA
+## fileira de três cartas, e o jogador escolhendo entre elas.
+##
+## Mesma decisão que `GlyphLib.USE_RASTER_PORTRAITS`: o caminho em código é o
+## que é mantido, é o que acompanha a cor da carta, e é o que a folha de prova
+## mede. Os arquivos ficam no repositório — ligar isto de novo é mudar uma
+## constante, não recriar arte.
+const USE_RASTER_PATCH_ICONS := false
+
+## Optical pad fraction for patch rasters inside the 52px slot; matches the
 ## tactical_icon optical pass so rasters and code glyphs share stroke weight.
 const PATCH_RASTER_PAD := 0.08
 
-## Textures must finish loading before the frame that draws them: a load() first
-## issued inside _draw() records the command before the GPU upload exists and
-## samples the engine's white placeholder for that pass (same quirk as
-## tactical_icon; the cache primes + queues one healing redraw instead).
 static var _raster_tex_cache := {}
+
+
+## Descrição localizada de um patch, com queda para o texto em inglês de
+## `Game.PATCH_DEFS`. O TÍTULO fica como está: nomes de patch são substantivos
+## próprios do mundo, como os nomes de inimigo.
+static func patch_desc(definition: Dictionary) -> String:
+	var fallback := str(definition.get("desc", ""))
+	var key := "PATCH_DESC_%s" % str(definition.get("id", "")).to_upper()
+	var translated := TranslationServer.translate(key)
+	return fallback if translated == key else translated
+
 
 static func patch_icon_family(id: String) -> String:
 	return str(PATCH_ICON_FAMILIES.get(id, "utility"))
 
+
 static func patch_icon_metrics(id: String) -> Dictionary:
 	return {"covered": PATCH_ICON_FAMILIES.has(id), "min_stroke": 2.0, "contrast": 0.55}
 
+
 static func patch_raster_path(id: String) -> String:
+	if not USE_RASTER_PATCH_ICONS:
+		return ""
 	var path := RASTER_DIR + "patch_" + id + ".png"
 	return path if ResourceLoader.exists(path) else ""
 
-func _draw_damage_glyph(center: Vector2, accent: Color) -> void:
+
+## Onde o raster VIVE, independente de estar em uso. Separado de
+## `patch_raster_path()` para o autotest continuar afirmando que os arquivos
+## existem e carregam, sem reabrir o caminho de desenho.
+static func patch_raster_asset(id: String) -> String:
+	var path := RASTER_DIR + "patch_" + id + ".png"
+	return path if ResourceLoader.exists(path) else ""
+
+
+func _draw_icon_on(canvas: Control, accent: Color) -> void:
+	if canvas == null or not is_instance_valid(canvas):
+		return
+	var center := canvas.size * 0.5
+	var id := str(_def.get("id", ""))
+	var raster := patch_raster_path(id)
+	if raster != "":
+		if not _raster_tex_cache.has(raster):
+			_raster_tex_cache[raster] = load(raster)
+			canvas.queue_redraw()
+		var tex: Texture2D = _raster_tex_cache[raster]
+		if tex != null:
+			var pad: float = PATCH_RASTER_PAD * ICON_DRAW_SIZE
+			var side := ICON_DRAW_SIZE - pad * 2.0
+			canvas.draw_texture_rect(tex, Rect2(center - Vector2(side, side) * 0.5, Vector2(side, side)), false)
+			return
+	draw_family_glyph(canvas, patch_icon_family(id), center, accent)
+
+
+## Ponto de entrada único do símbolo de família. Estático para a folha de prova
+## poder medir o MESMO desenho que o card usa — medir uma cópia seria medir
+## ficção.
+static func draw_family_glyph(canvas: CanvasItem, family: String, center: Vector2, accent: Color) -> void:
+	match family:
+		"damage":
+			_draw_damage_glyph(canvas, center, accent)
+		"fire":
+			_draw_fire_glyph(canvas, center, accent)
+		"defense":
+			_draw_defense_glyph(canvas, center, accent)
+		"utility":
+			_draw_utility_glyph(canvas, center, accent)
+		"movement":
+			_draw_movement_glyph(canvas, center, accent)
+		"economy":
+			_draw_economy_glyph(canvas, center, accent)
+
+
+## ── símbolos de família ───────────────────────────────────────────────
+##
+## Seis famílias, e a prova de silhueta com máscara dilatada mostrou que as
+## anteriores colidiam: `fire` x `utility` batia 0.733 de interseção-sobre-união
+## — muito acima do limiar de ~0.55 em que duas formas se confundem de relance.
+## `fire` aparecia em quatro dos seis piores pares e `utility` em quatro.
+##
+## O redesenho dá a cada família uma GESTALT diferente, não um detalhe interno
+## diferente. Detalhe interno some na distância de leitura; o que resta é a
+## mancha. As seis manchas agora são: radial, faixa horizontal, vertical,
+## anel vazado, diagonal e escada.
+
+## DANO — estrela de três pontas. Radial, espinhosa, centro vazio.
+static func _draw_damage_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
 	for i in 3:
 		var a := -PI * 0.5 + TAU * float(i) / 3.0
-		var tip := center + Vector2.from_angle(a) * 22.0
-		var left := center + Vector2.from_angle(a - 0.42) * 8.0
-		var right := center + Vector2.from_angle(a + 0.42) * 8.0
-		draw_colored_polygon(PackedVector2Array([tip, left, right]), accent)
-	draw_arc(center, 7.0, 0.0, TAU, 16, accent, 2.0, true)
+		var tip := center + Vector2.from_angle(a) * 23.0
+		var left := center + Vector2.from_angle(a - 0.30) * 7.0
+		var right := center + Vector2.from_angle(a + 0.30) * 7.0
+		canvas.draw_colored_polygon(PackedVector2Array([tip, left, right]), accent)
 
-func _draw_fire_glyph(center: Vector2, accent: Color) -> void:
-	for i in 3:
-		var x := center.x - 14.0 + float(i) * 10.0
-		var pts := PackedVector2Array([Vector2(x, center.y - 10.0), Vector2(x + 8.0, center.y), Vector2(x, center.y + 10.0)])
-		draw_polyline(pts, accent, 2.2, true)
 
-func _draw_defense_glyph(center: Vector2, accent: Color) -> void:
-	var pts := PackedVector2Array([
-		center + Vector2(0.0, -20.0), center + Vector2(15.0, -12.0), center + Vector2(15.0, 4.0),
-		center + Vector2(0.0, 20.0), center + Vector2(-15.0, 4.0), center + Vector2(-15.0, -12.0),
+## TIRO — faixa horizontal. Larga e baixa: a única de proporção deitada.
+static func _draw_fire_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
+	var dart := PackedVector2Array([
+		center + Vector2(-22.0, -6.0), center + Vector2(10.0, -9.0), center + Vector2(23.0, 0.0),
+		center + Vector2(10.0, 9.0), center + Vector2(-22.0, 6.0), center + Vector2(-15.0, 0.0),
 	])
-	draw_colored_polygon(pts, Color(accent.r, accent.g, accent.b, 0.14))
-	draw_polyline(pts + PackedVector2Array([pts[0]]), accent, 2.2, true)
-	draw_line(center + Vector2(0.0, -12.0), center + Vector2(0.0, 12.0), accent, 2.0)
+	canvas.draw_colored_polygon(dart, accent)
 
-func _draw_utility_glyph(center: Vector2, accent: Color) -> void:
-	var nut := PackedVector2Array()
-	for i in 6:
-		nut.append(center + Vector2.from_angle(TAU * float(i) / 6.0) * 15.0)
-	draw_polyline(nut + PackedVector2Array([nut[0]]), accent, 2.2, true)
-	draw_circle(center, 5.0, accent)
 
-func _draw_movement_glyph(center: Vector2, accent: Color) -> void:
-	draw_line(center + Vector2(-16.0, 6.0), center + Vector2(2.0, 6.0), Color(accent.r, accent.g, accent.b, 0.6), 2.0)
-	draw_line(center + Vector2(-10.0, -2.0), center + Vector2(8.0, -2.0), accent, 2.2)
-	draw_colored_polygon(PackedVector2Array([center + Vector2(8.0, -8.0), center + Vector2(16.0, -2.0), center + Vector2(8.0, 4.0)]), accent)
+## DEFESA — escudo. Alto e estreito: a única de proporção em pé.
+static func _draw_defense_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
+	var pts := PackedVector2Array([
+		center + Vector2(0.0, -22.0), center + Vector2(13.0, -14.0), center + Vector2(13.0, 5.0),
+		center + Vector2(0.0, 22.0), center + Vector2(-13.0, 5.0), center + Vector2(-13.0, -14.0),
+	])
+	canvas.draw_colored_polygon(pts, Design.alpha(accent, 0.22))
+	canvas.draw_polyline(pts + PackedVector2Array([pts[0]]), accent, 3.0, true)
 
-func _draw_economy_glyph(center: Vector2, accent: Color) -> void:
-	for offset in [Vector2(-12.0, -8.0), Vector2(-4.0, 2.0), Vector2(6.0, -4.0)]:
-		draw_circle(center + offset, 4.0, accent)
-	draw_line(center + Vector2(-14.0, 12.0), center + Vector2(14.0, 12.0), accent, 2.0)
+
+## UTILIDADE — anel aberto. A única com o centro VAZIO: onde as outras têm
+## mancha, esta tem buraco, e é isso que a separa do escudo.
+static func _draw_utility_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
+	# Meia-lua, não anel quase fechado. Com 259° de arco e um pino no topo ela
+	# ainda media 0.563 contra o escudo — as duas eram mancha redonda centrada.
+	# Cortada pela metade e empurrada para o perímetro, vira crescente: massa
+	# só de um lado, e o miolo onde o escudo é sólido fica vazio.
+	canvas.draw_arc(center + Vector2(4.0, 0.0), 20.0, PI * 0.42, PI * 1.58, 28, accent, 5.0, true)
+
+
+## MOVIMENTO — seta diagonal. O único eixo inclinado das seis.
+static func _draw_movement_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
+	var tail := center + Vector2(-17.0, 15.0)
+	var head := center + Vector2(11.0, -13.0)
+	canvas.draw_line(tail, head, accent, 4.0)
+	var dir := (head - tail).normalized()
+	var side := Vector2(-dir.y, dir.x)
+	canvas.draw_colored_polygon(PackedVector2Array([
+		head + dir * 8.0, head + side * 8.0 - dir * 3.0, head - side * 8.0 - dir * 3.0,
+	]), accent)
+
+
+## ECONOMIA — escada ascendente, ancorada embaixo. Massa fora do centro.
+static func _draw_economy_glyph(canvas: CanvasItem, center: Vector2, accent: Color) -> void:
+	var base := center.y + 17.0
+	for i in 3:
+		var h := 10.0 + float(i) * 11.0
+		var x := center.x - 20.0 + float(i) * 13.0
+		canvas.draw_rect(Rect2(Vector2(x, base - h), Vector2(9.0, h)), accent)
+
 
 func text_overflow_report() -> Array:
-	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
-	var out: Array = []
 	var longest_desc := ""
 	for definition in Game.PATCH_DEFS:
-		if str(definition.get("desc", "")).length() > longest_desc.length():
-			longest_desc = str(definition.get("desc", ""))
-	out.append({"id": "patch_desc", "fits": TacticalUI.wrapped_height(mono, longest_desc, size.x - 148.0, 13) <= 54.0 or TacticalUI.wrapped_height(mono, longest_desc, size.x - 148.0, 10) <= 54.0})
-	return out
+		if patch_desc(definition).length() > longest_desc.length():
+			longest_desc = patch_desc(definition)
+	var body_w := maxf(size.x - float(CARD_PAD * 2) - ICON_SLOT - float(Design.SPACE_LG), 120.0)
+	var fits := TacticalUI.wrapped_height(Design.FONT_MONO, longest_desc, body_w, Design.TEXT_CAPTION) <= 96.0 \
+		or TacticalUI.wrapped_height(Design.FONT_MONO, longest_desc, body_w, Design.TEXT_MICRO) <= 96.0
+	return [{"id": "patch_desc", "fits": fits}]
+
 
 static func clear_raster_cache() -> void:
 	_raster_tex_cache.clear()

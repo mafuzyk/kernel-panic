@@ -38,7 +38,7 @@ func _move(delta: float) -> void:
 		if player != null and is_instance_valid(player) and EnemyOrb.can_spawn(self):
 			var orb := EnemyOrb.new()
 			orb.setup(global_position, aim_at_player(), 250.0, col)
-			get_parent().call_deferred("add_child", orb)
+			get_parent().add_child(orb)
 			Sfx.play("shoot", 0.7, -10.0)
 
 func vel() -> Vector2:

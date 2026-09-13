@@ -163,7 +163,7 @@ func _systems_test_b1(arena: Arena) -> void:
 		h.get_tree().current_scene.add_child(bestiary_geometry)
 		await h._ticks(2)
 		h._check(bestiary_geometry.has_method("content_viewport_rect") and bestiary_geometry.has_method("visible_card_rects"), "bestiary exposes content geometry")
-		h._check(bestiary_geometry.has_method("entry_status") and str(bestiary_geometry.entry_status("root")).contains("LOCKED"), "bestiary keeps locked entries explicit")
+		h._check(bestiary_geometry.has_method("entry_status") and str(bestiary_geometry.entry_status("root")) == tr("BESTIARY_STATUS_LOCKED"), "bestiary keeps locked entries explicit")
 		if bestiary_geometry.has_method("visible_card_rects") and bestiary_geometry.has_method("content_viewport_rect"):
 			var bestiary_viewport: Rect2 = bestiary_geometry.content_viewport_rect()
 			var bestiary_cards_contained := true
@@ -244,12 +244,25 @@ func _systems_test_b1(arena: Arena) -> void:
 	# assertion. Drain both mote systems and wait until they are actually
 	# empty instead of trusting a fixed tick count; the assertion itself
 	# stays strict.
-	for mote in h.get_tree().get_nodes_in_group("motes"):
-		mote.queue_free()
+	# O laço sobre o grupo "motes" saiu junto com a classe Mote: o grupo nunca
+	# teve membros desde a reescrita MultiMesh, então ele drenava nada.
 	for slot in range(arena.mote_field.count() - 1, -1, -1):
 		arena.mote_field.kill_slot(slot)
 	await h._until(func() -> bool:
-		return arena.mote_field.count() == 0 and h.get_tree().get_nodes_in_group("motes").is_empty(), 5.0, "mote drain before rootlet probe")
+		return arena.mote_field.count() == 0, 5.0, "mote drain before rootlet probe")
+
+	# Teto de motes na tela. Era lido de get_nodes_in_group("motes"), grupo que
+	# a reescrita MultiMesh esvaziou — a contagem virava sempre 0 e o teto de
+	# 90 deixou de valer, deixando o MoteField.MAX (128) como limite real.
+	# Decisão da autora 2026-09-11: o teto é 90.
+	for burst in 40:
+		arena.mote_field.spawn_burst(Vector2.ZERO, 6)
+	h._check(arena.mote_field.count() <= Balance.MOTE_CAP,
+		"mote field respects the on-screen cap of %d (got %d)" % [Balance.MOTE_CAP, arena.mote_field.count()])
+	for slot2 in range(arena.mote_field.count() - 1, -1, -1):
+		arena.mote_field.kill_slot(slot2)
+	await h._until(func() -> bool:
+		return arena.mote_field.count() == 0, 5.0, "mote drain after cap probe")
 	await h._ticks(2)
 	var p3 := Player.new()
 	p3.position = arena.player.global_position + Vector2(200, 0) if is_instance_valid(arena.player) else Vector2(200, 0)
@@ -444,4 +457,3 @@ func _systems_test_b1(arena: Arena) -> void:
 		h._check(left == 0, "firewall wall dies with owner")
 	player.invuln = 9999.0
 	player.hp = player.max_hp
-

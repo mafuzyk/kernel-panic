@@ -6,9 +6,8 @@ const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 const MenuSettingsKitScript = preload("res://src/ui/menu_settings_kit.gd")
 const MenuChromeKitScript = preload("res://src/ui/menu_chrome_kit.gd")
 
-var _title: Label
-var _title_r: Label
-var _title_b: Label
+## Shell novo. O antigo continua na árvore, escondido — ver _ready.
+var _shell: MenuShell
 var _prompt: Label
 var _best_label: Label
 var _t := 0.0
@@ -35,6 +34,7 @@ var _program_btn: Button
 var _story_btn: Button
 var _aim_btn_ref: Button
 var _color_assist_btn: Button
+var _language_btn: Button
 var _boot: BootOverlay
 var _keybind_box: VBoxContainer
 var _keybind_status: Label
@@ -62,7 +62,7 @@ func _notification(what: int) -> void:
 		if _settings_panel != null and is_instance_valid(_settings_panel):
 			_settings_kit._layout_settings.call_deferred()
 		if _chrome_kit != null:
-			_chrome_kit.apply_menu_layout.call_deferred()
+			pass
 
 func _on_window_size_changed() -> void:
 	if _settings_panel != null and is_instance_valid(_settings_panel):
@@ -103,6 +103,32 @@ func _open_settings() -> void:
 
 func _close_settings() -> void:
 	_settings_kit._close_settings()
+	# Devolve o foco ao menu: fechar overlay sem dono de foco deixava a
+	# navegação por teclado órfã. Diferido um frame — o grab imediato cai no
+	# vazio quando a visibilidade ainda está assentando.
+	if _shell != null and _shell.has_method("focus_primary"):
+		_shell.call_deferred("focus_primary")
+
+## Troca de idioma com refresh imediato: persiste, invalida painéis lazy
+## (nascem no idioma novo na próxima abertura) e reconstrói shell+settings.
+func _apply_language(code: String) -> void:
+	var section := "AUDIO"
+	if _settings_kit != null:
+		section = _settings_kit.active_section()
+	Game.set_language(code)
+	_invalidate_lazy_panels()
+	refresh_shell()
+	if _settings_kit != null:
+		_settings_kit.rebuild_settings()
+		_settings_kit.set_active_section(section)
+		_settings_kit.focus_language_control()
+
+func _invalidate_lazy_panels() -> void:
+	for key in ["_program_panel", "_story_panel", "_bestiary_panel", "_ach_panel"]:
+		var panel: Control = get(key)
+		if panel != null and is_instance_valid(panel):
+			panel.queue_free()
+		set(key, null)
 
 func _handle_keybind_capture(event: InputEventKey) -> bool:
 	return _settings_kit._handle_keybind_capture(event)
@@ -114,7 +140,7 @@ func _refresh_color_assist_label() -> void:
 	_settings_kit._refresh_color_assist_label()
 
 func _refresh_aim_label(btn: Button) -> void:
-	btn.text = "AIM MODE: %s" % Game.effective_aim_mode().to_upper()
+	btn.text = tr("MENU_AIM") % Game.effective_aim_mode().to_upper()
 
 func _ready() -> void:
 	_settings_kit = MenuSettingsKitScript.new(self)
@@ -141,6 +167,12 @@ func _ready() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/bg_grid.gdshader")
+	mat.set_shader_parameter("corruption_col", Balance.BG_CORRUPTION_COL)
+	mat.set_shader_parameter("corruption_mix", Balance.BG_CORRUPTION_MIX)
+	mat.set_shader_parameter("corruption_coverage", Balance.BG_CORRUPTION_COVERAGE)
+	mat.set_shader_parameter("subgrid_weight", Balance.BG_SUBGRID_WEIGHT)
+	mat.set_shader_parameter("era_gain_grid", Balance.ERA_TINT_GAIN_GRID)
+	mat.set_shader_parameter("era_gain_glow", Balance.ERA_TINT_GAIN_GLOW)
 	bg.material = mat
 	add_child(bg)
 	var dust := CPUParticles2D.new()
@@ -157,6 +189,11 @@ func _ready() -> void:
 	dust.scale_amount_max = 2.2
 	dust.color = Color(1.0, 0.85, 0.35, 0.14)
 	add_child(dust)
+	# O shell antigo (pilha centralizada posicionada por retângulo absoluto em
+	# MenuChromeKit.apply_menu_layout) continua sendo construído porque muita
+	# lógica de refresh ainda referencia seus widgets — mas fica ESCONDIDO: quem
+	# desenha é o MenuShell. Remover menu_chrome_kit é o passo seguinte.
+	var legacy_first := get_child_count()
 	var chrome: Control = TacticalChromeScript.new()
 	chrome.set_anchors_preset(Control.PRESET_FULL_RECT)
 	chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -164,9 +201,6 @@ func _ready() -> void:
 	add_child(chrome)
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
 	var orbitron: Font = load("res://assets/fonts/Orbitron.ttf")
-	_title_r = _chrome_kit._mk_title(orbitron, Color(1, 0.1, 0.3, 0.5))
-	_title_b = _chrome_kit._mk_title(orbitron, Color(0.1, 0.9, 1.0, 0.5))
-	_title = _chrome_kit._mk_title(orbitron, Balance.COL_TEXT)
 	var sub := Label.new()
 	sub.text = "// last process standing"
 	sub.add_theme_font_override("font", mono)
@@ -221,7 +255,7 @@ func _ready() -> void:
 	_best_label.offset_bottom = 289.0
 	add_child(_best_label)
 	var tag := Label.new()
-	tag.text = "KERNEL PANIC v%s // purge loop online" % ProjectSettings.get_setting("application/config/version", "dev")
+	tag.text = tr("MENU_TAGLINE") % ProjectSettings.get_setting("application/config/version", "dev")
 	tag.add_theme_font_override("font", mono)
 	tag.add_theme_font_size_override("font_size", 11)
 	tag.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.3))
@@ -246,7 +280,9 @@ func _ready() -> void:
 	add_child(overlay_layer)
 	_update_best()
 	Sfx.play_music()
-	_chrome_kit._build_button_row()
+	# A fileira de botões antiga NÃO é mais construída. Ela era montada aqui e
+	# escondida logo abaixo, no laço de `legacy_first` — 161 linhas de widget
+	# que nascia invisível. Quem desenha o menu é `MenuShell`.
 	_settings_kit._build_settings()
 	_klog = Label.new()
 	_klog.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
@@ -261,7 +297,14 @@ func _ready() -> void:
 	_klog.offset_bottom = 190.0
 	_klog.text = "[    0.000000] kernel panic daemon online"
 	add_child(_klog)
-	_chrome_kit.apply_menu_layout()
+	# `apply_menu_layout()` só posicionava aqueles widgets.
+	for legacy_index in range(legacy_first, get_child_count()):
+		var legacy_node := get_child(legacy_index)
+		if legacy_node is CanvasItem:
+			(legacy_node as CanvasItem).visible = false
+		if legacy_node is Control:
+			(legacy_node as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_build_shell()
 	if not DevHarness.active and DisplayServer.get_name() != "headless":
 		_boot = BootOverlay.new()
 		var bl := CanvasLayer.new()
@@ -271,54 +314,36 @@ func _ready() -> void:
 
 func _refresh_program_label() -> void:
 	if _program_btn != null:
-		_program_btn.text = "PROGRAM: %s" % Game.program_def()["name"]
+		_program_btn.text = tr("MENU_PROGRAM") % Game.program_def()["name"]
 
 func _open_program_selector() -> void:
 	if _program_panel == null:
 		_program_panel = ProgramPanel.new()
-		_program_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+		# `set_anchors_preset` deixa os offsets como estavam; sob um CanvasLayer
+		# isso dá tamanho zero e a tela inteira colapsa.
+		_program_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		_program_panel.selection_changed.connect(func(_id: String) -> void:
 			_refresh_program_label()
 		)
-		var title := Label.new()
-		title.text = "SELECT PROGRAM"
-		title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
-		title.add_theme_font_size_override("font_size", 28)
-		title.add_theme_color_override("font_color", Balance.COL_TEXT)
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		title.anchor_left = 0.0
-		title.anchor_right = 1.0
-		title.offset_top = 60.0
-		title.offset_bottom = 110.0
-		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_program_panel.add_child(title)
-		var hint := Label.new()
-		hint.text = "Choose the process that survives the purge."
-		hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		hint.add_theme_font_size_override("font_size", 13)
-		hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.anchor_left = 0.0
-		hint.anchor_right = 1.0
-		hint.offset_top = 112.0
-		hint.offset_bottom = 136.0
-		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_program_panel.add_child(hint)
-		var back := Button.new()
-		_chrome_kit._style_overlay_back(back)
-		back.pressed.connect(_close_program_selector)
-		_program_panel.add_child(back)
+		_program_panel.back_pressed.connect(_close_program_selector)
+		# O rodapé anterior desenhava ">> BOOT KERNEL [ENTER]" e não fazia nada:
+		# era rótulo sem ação. Agora ele faz o que diz.
+		_program_panel.boot_pressed.connect(func() -> void:
+			_close_program_selector()
+			_start()
+		)
 		var layer := CanvasLayer.new()
 		layer.layer = 70
 		layer.add_child(_program_panel)
 		add_child(layer)
+	ScreenKit.open_focus(_program_panel)
 	_program_panel.visible = true
 	_program_panel.scroll_y = 0.0
-	_program_panel.queue_redraw()
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_program_selector() -> void:
 	_program_panel.visible = false
+	ScreenKit.close_focus(_program_panel)
 	Sfx.play("ui", 0.9, -8.0)
 
 func _open_story_selector() -> void:
@@ -327,49 +352,26 @@ func _open_story_selector() -> void:
 		if story_script == null:
 			return
 		_story_panel = story_script.new()
-		_story_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-		_story_panel.stage_selected.connect(_start_story)
-		var title := Label.new()
-		title.text = "SELECT MOUNT POINT"
-		title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
-		title.add_theme_font_size_override("font_size", 28)
-		title.add_theme_color_override("font_color", Balance.COL_TEXT)
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		title.anchor_left = 0.0
-		title.anchor_right = 1.0
-		title.offset_top = 60.0
-		title.offset_bottom = 110.0
-		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_story_panel.add_child(title)
-		var hint := Label.new()
-		hint.text = "Trace the infection across three operating systems."
-		hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		hint.add_theme_font_size_override("font_size", 13)
-		hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.anchor_left = 0.0
-		hint.anchor_right = 1.0
-		hint.offset_top = 112.0
-		hint.offset_bottom = 136.0
-		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_story_panel.add_child(hint)
-		var back := Button.new()
-		_chrome_kit._style_overlay_back(back)
-		back.pressed.connect(_close_story_selector)
-		_story_panel.add_child(back)
+		_story_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		# `stage_selected` passou a significar DESTACAR, não entrar. Antes ele
+		# ia direto em `_start_story`, então clicar num card já iniciava a fase
+		# e o painel de detalhe — a metade direita da tela — nunca era lido.
+		_story_panel.stage_mounted.connect(_start_story)
+		_story_panel.back_pressed.connect(_close_story_selector)
 		var layer := CanvasLayer.new()
 		layer.layer = 70
 		layer.process_mode = Node.PROCESS_MODE_ALWAYS
 		layer.add_child(_story_panel)
 		add_child(layer)
+	ScreenKit.open_focus(_story_panel)
 	_story_panel.visible = true
 	_story_panel.scroll_y = 0.0
-	_story_panel.queue_redraw()
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_story_selector() -> void:
 	if _story_panel != null:
 		_story_panel.visible = false
+		ScreenKit.close_focus(_story_panel)
 	Sfx.play("ui", 0.9, -8.0)
 
 func _start_story(index: int) -> void:
@@ -384,53 +386,20 @@ func _open_bestiary() -> void:
 	if _bestiary_panel == null:
 		_bestiary_panel = BestiaryPanel.new()
 		_bestiary_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-		var title := Label.new()
-		title.text = "BESTIARY // FIELD DATA"
-		title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
-		title.add_theme_font_size_override("font_size", 28)
-		title.add_theme_color_override("font_color", Balance.COL_TEXT)
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		title.anchor_left = 0.0
-		title.anchor_right = 1.0
-		title.offset_top = 60.0
-		title.offset_bottom = 110.0
-		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_bestiary_panel.add_child(title)
-		var hint := Label.new()
-		hint.text = "%d / %d LOGGED  //  SELECT A PROCESS FOR FIELD DATA" % [Game.bestiary.size(), BestiaryPanel.ENTRIES.size()]
-		hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		hint.add_theme_font_size_override("font_size", 13)
-		hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.anchor_left = 0.0
-		hint.anchor_right = 1.0
-		hint.offset_top = 112.0
-		hint.offset_bottom = 136.0
-		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_bestiary_panel.add_child(hint)
-		var back := Button.new()
-		_chrome_kit._style_overlay_back(back)
-		back.text = "BACK  [ESC]"
-		back.anchor_left = 0.0
-		back.anchor_right = 0.0
-		back.anchor_top = 1.0
-		back.anchor_bottom = 1.0
-		back.offset_left = 28.0
-		back.offset_right = 190.0
-		back.offset_top = -72.0
-		back.offset_bottom = -30.0
-		back.pressed.connect(_close_bestiary)
-		_bestiary_panel.add_child(back)
+		_bestiary_panel.back_pressed.connect(_close_bestiary)
 		var layer := CanvasLayer.new()
 		layer.layer = 70
+		layer.process_mode = Node.PROCESS_MODE_ALWAYS
 		layer.add_child(_bestiary_panel)
 		add_child(layer)
+	ScreenKit.open_focus(_bestiary_panel)
 	_bestiary_panel.visible = true
-	_bestiary_panel.scroll_y = 0.0
+	_bestiary_panel.refresh(true)
 	Sfx.play("ui", 1.1, -8.0)
 
 func _close_bestiary() -> void:
 	_bestiary_panel.visible = false
+	ScreenKit.close_focus(_bestiary_panel)
 	Sfx.play("ui", 0.9, -8.0)
 
 func _open_achievements() -> void:
@@ -439,24 +408,14 @@ func _open_achievements() -> void:
 		if panel_script == null:
 			return
 		_ach_panel = panel_script.new()
-		_ach_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-		var back := Button.new()
-		_chrome_kit._style_overlay_back(back)
-		back.text = "BACK  [ESC]"
-		back.anchor_left = 0.0
-		back.anchor_right = 0.0
-		back.anchor_top = 1.0
-		back.anchor_bottom = 1.0
-		back.offset_left = 28.0
-		back.offset_right = 190.0
-		back.offset_top = -72.0
-		back.offset_bottom = -30.0
-		back.pressed.connect(_close_achievements)
-		_ach_panel.add_child(back)
+		_ach_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		if _ach_panel.has_signal("back_pressed"):
+			_ach_panel.connect("back_pressed", _close_achievements)
 		var layer := CanvasLayer.new()
 		layer.layer = 70
 		layer.add_child(_ach_panel)
 		add_child(layer)
+	ScreenKit.open_focus(_ach_panel)
 	_ach_panel.visible = true
 	if _ach_panel.has_method("refresh"):
 		_ach_panel.call("refresh")
@@ -465,12 +424,62 @@ func _open_achievements() -> void:
 func _close_achievements() -> void:
 	if _ach_panel != null:
 		_ach_panel.visible = false
+		ScreenKit.close_focus(_ach_panel)
 	Sfx.play("ui", 0.9, -8.0)
+
+## Constrói o shell novo e liga seus sinais aos fluxos que já existiam.
+func _build_shell() -> void:
+	_shell = MenuShell.new()
+	_shell.purge_pressed.connect(_start)
+	_shell.story_pressed.connect(_open_story_selector)
+	_shell.archives_pressed.connect(_open_bestiary)
+	_shell.configure_pressed.connect(_open_program_selector)
+	_shell.mode_cycled.connect(_cycle_mode)
+	_shell.difficulty_cycled.connect(_cycle_difficulty)
+	_shell.settings_pressed.connect(_open_settings)
+	_shell.awards_pressed.connect(_open_achievements)
+	_shell.quit_pressed.connect(func() -> void: get_tree().quit())
+	var layer := CanvasLayer.new()
+	layer.layer = 5
+	layer.add_child(_shell)
+	add_child(layer)
+	_shell.set_version("v%s" % ProjectSettings.get_setting("application/config/version", "2.5.0"))
+	refresh_shell()
+
+
+## Reflete o estado corrente (modo, dificuldade, recorde, programa) no shell.
+func refresh_shell() -> void:
+	if not is_instance_valid(_shell):
+		return
+	# Tipo explícito: Dictionary.get() devolve Variant e o projeto trata
+	# inferência a partir de Variant como erro.
+	var mode_keys := {
+		"classic": "MODE_CLASSIC", "weekly": "MODE_WEEKLY",
+		"onehp": "MODE_ONEHP", "story": "MODE_STORY",
+	}
+	var mode_key: String = str(mode_keys.get(Game.mode, "MODE_CLASSIC"))
+	var mode_text := tr(mode_key)
+	if Game.mode in ["classic", "weekly", "onehp"]:
+		mode_text += "  /  " + tr("DIFF_%s" % Game.difficulty.to_upper())
+	var best := Game.best_for_mode()
+	var best_text := "%s %07d" % [tr("MENU_BEST"), best] if best > 0 else tr("MENU_NO_RECORD")
+	_shell.set_run_config(mode_text, best_text, str(Game.program_def()["name"]))
+	var cycle_modes := {"classic": "MENU_MODE_CLASSIC", "weekly": "MENU_MODE_WEEKLY", "onehp": "MENU_MODE_ONEHP", "story": "MENU_MODE_STORY"}
+	var cycle_mode_text := tr(str(cycle_modes.get(Game.mode, "MENU_MODE_CLASSIC")))
+	var cycle_diff_text := tr("MENU_DIFFICULTY_FIXED") if Game.mode == "story" else tr("MENU_DIFFICULTY") % Game.difficulty.to_upper()
+	_shell.set_cycle_labels(cycle_mode_text, cycle_diff_text)
+	_shell.set_hero(str(Game.program), Balance.COL_PLAYER)
+
 
 func main_shell_snapshot() -> Dictionary:
 	var shell_sections := TacticalUIHelper.shell_sections(size)
+	if is_instance_valid(_shell):
+		var live := _shell.shell_snapshot()
+		live["shell_rect"] = TacticalUIHelper.shell_rect(size)
+		live["footer_rect"] = shell_sections["footer"]
+		return live
 	return {
-		"title": _title.text if _title != null else "KERNEL PANIC",
+		"title": "KERNEL PANIC",
 		"primary_action": _purge_btn.text if _purge_btn != null else ">> PURGE",
 		"mode_explanation": _mode_info.text if _mode_info != null else "",
 		"routes": ["PROGRAM", "STORY", "BESTIARY"],
@@ -508,6 +517,7 @@ func _cycle_mode() -> void:
 	cf.set_value("game", "mode", Game.mode)
 	cf.save(Sfx.SAVE_PATH)
 	_refresh_mode_ui()
+	refresh_shell()
 	if _aim_btn_ref != null:
 		_refresh_aim_label(_aim_btn_ref)
 
@@ -521,36 +531,42 @@ func _cycle_difficulty() -> void:
 	Game.set_difficulty(str(order[(idx + 1) % order.size()]))
 	Sfx.play("ui", 1.1, -8.0)
 	_refresh_difficulty_label()
+	refresh_shell()
 
 func _refresh_difficulty_label() -> void:
 	if _diff_btn == null:
 		return
 	if Game.mode == "story":
-		_diff_btn.text = "DIFFICULTY: FIXED CURVE"
+		_diff_btn.text = tr("MENU_DIFFICULTY_FIXED")
 	else:
-		_diff_btn.text = "DIFFICULTY: %s" % Game.difficulty.to_upper()
+		_diff_btn.text = tr("MENU_DIFFICULTY") % Game.difficulty.to_upper()
 
 func _refresh_mode_ui() -> void:
+	# A UI legacy não é mais construída; só o shell novo reflete estado.
+	# Sem este guard, ciclar modo logava SCRIPT ERROR em _mode_btn nulo.
+	if _mode_btn == null or _mode_info == null:
+		_update_best()
+		return
 	var cf := ConfigFile.new()
 	cf.load(Sfx.SAVE_PATH)
 	match Game.mode:
 		"story":
-			_mode_btn.text = "MODE: STORY"
+			_mode_btn.text = tr("MENU_MODE_STORY")
 			var story_path: String = str(Game.story_stage_def(Game.story_stage_index).get("path", "/boot"))
-			_mode_info.text = "UNIX ACT 1 // CURRENT %s // %d/%d STAGES CLEAR" % [story_path, Game.story_cleared.size(), Game.story_stage_count()]
+			_mode_info.text = tr("MENU_STORY_PROGRESS") % [story_path, Game.story_cleared.size(), Game.story_stage_count()]
 		"weekly":
-			_mode_btn.text = "MODE: WEEKLY RUN"
+			_mode_btn.text = tr("MENU_MODE_WEEKLY")
 			var cur := int(cf.get_value("weekly", "best", 0)) if cf.get_value("weekly", "id", "") == Game.week_id() else 0
 			var last := int(cf.get_value("weekly", "last_best", 0))
-			_mode_info.text = "WEEK %s // LOCAL DETERMINISTIC // BEST %d // LAST %d" % [Game.week_id(), cur, last]
+			_mode_info.text = tr("MENU_WEEKLY_INFO") % [Game.week_id(), cur, last]
 		"onehp":
-			_mode_btn.text = "MODE: ONE-HP"
+			_mode_btn.text = tr("MENU_MODE_ONEHP")
 			_mode_info.text = "1 INTEGRITY // SCORE x3 // BEST %d" % int(cf.get_value("run", "best_onehp", 0))
 		_:
-			_mode_btn.text = "MODE: CLASSIC"
-			_mode_info.text = "CLASSIC // ENDLESS WAVES // HIGH SCORE %07d" % Game.best
+			_mode_btn.text = tr("MENU_MODE_CLASSIC")
+			_mode_info.text = tr("MENU_CLASSIC_INFO") % Game.best
 	if Game.mode == "story":
-		_mode_info.text = "STORY // FIXED DIFFICULTY CURVE // " + _mode_info.text
+		_mode_info.text = tr("MENU_STORY_INFO") + _mode_info.text
 	_update_best()
 	_refresh_difficulty_label()
 
@@ -567,7 +583,7 @@ func _export_save_to_clipboard() -> void:
 	var encoded := Game.export_save_string()
 	_save_transfer_field.text = encoded
 	DisplayServer.clipboard_set(encoded)
-	_save_transfer_status.text = "SAVE EXPORTED // COPIED TO CLIPBOARD"
+	_save_transfer_status.text = tr("MENU_SAVE_EXPORTED")
 
 func _import_save_from_clipboard() -> void:
 	if _save_transfer_field == null or not is_instance_valid(_save_transfer_field):
@@ -577,11 +593,11 @@ func _import_save_from_clipboard() -> void:
 		encoded = DisplayServer.clipboard_get().strip_edges()
 	if Game.import_save_string(encoded):
 		_save_transfer_field.text = encoded
-		_save_transfer_status.text = "SAVE IMPORTED // PROGRESS RESTORED"
+		_save_transfer_status.text = tr("MENU_SAVE_IMPORTED")
 		_refresh_mode_ui()
 		_refresh_program_label()
 	else:
-		_save_transfer_status.text = "IMPORT REJECTED // INVALID SAVE STRING"
+		_save_transfer_status.text = tr("MENU_SAVE_REJECTED")
 
 func _reset_scores() -> void:
 	Game.best = 0
@@ -598,8 +614,10 @@ static func _next_touch_scale_idx(v: float) -> int:
 	return (_touch_scale_idx(v) + 1) % 3
 
 func _update_best() -> void:
+	if _best_label == null:
+		return
 	var b := Game.best_for_mode()
-	_best_label.text = ("HIGH SCORE  %07d" % b) if b > 0 else "NO RECORD YET"
+	_best_label.text = (tr("MENU_HIGH_SCORE") % b) if b > 0 else "NO RECORD YET"
 
 const KLOG_POOL := [
 	"daemon[666]: segfault at 0 ip 0xdeadbeef sp 0xffffd0 error 6",
@@ -617,7 +635,7 @@ func _process(delta: float) -> void:
 	if _esc_armed > 0.0:
 		_esc_armed -= delta
 		if _esc_armed <= 0.0 and not _starting:
-			_prompt.text = "PRESS [ENTER] OR HIT >> PURGE" if not DisplayServer.is_touchscreen_available() else "HIT PURGE TO BEGIN"
+			_prompt.text = "PRESS [ENTER] OR HIT >> PURGE" if not DisplayServer.is_touchscreen_available() else tr("MENU_HIT_PURGE")
 			_prompt.add_theme_color_override("font_color", Balance.COL_PLAYER)
 	_klog_t -= delta
 	if _klog_t <= 0.0 and _klog != null:
@@ -636,14 +654,8 @@ func _process(delta: float) -> void:
 		set_meta("glitch_off", Vector2(randf_range(-5, 5), randf_range(-3, 3)))
 	var glitching: bool = _t < float(get_meta("glitch_until", 0.0))
 	var off: Vector2 = get_meta("glitch_off", Vector2.ZERO) if glitching else Vector2.ZERO
-	_title.offset_left = off.x
-	_title.offset_right = off.x
-	_title_r.offset_left = off.x * 0.4 - 4.0
-	_title_r.offset_right = off.x * 0.4 - 4.0
-	_title_b.offset_left = off.x * 0.4 + 4.0
-	_title_b.offset_right = off.x * 0.4 + 4.0
-	_title_r.visible = glitching
-	_title_b.visible = glitching
+	# O jitter de glitch movia os três Labels Orbitron escondidos. O título vivo
+	# é do MenuShell; o efeito some com eles.
 	for d in _drifters:
 		d["pos"] += d["vel"] * delta
 		d["rot"] += d["rot_spd"] * delta
@@ -731,12 +743,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_tree().quit()
 		else:
 			_esc_armed = 2.0
-			_prompt.text = "PRESS ESC AGAIN TO QUIT"
+			_prompt.text = tr("MENU_QUIT_CONFIRM")
 			_prompt.add_theme_color_override("font_color", Balance.COL_DANGER)
 			Sfx.play("ui", 0.8, -8.0)
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("confirm"):
+	# BaseButton aciona no release, mas o press ainda pode chegar aqui.
+	# O atalho global só serve quando não há um controle tratando o teclado.
+	if event.is_action_pressed("confirm") and get_viewport().gui_get_focus_owner() == null:
 		_start()
 
 func text_overflow_report() -> Array:

@@ -35,6 +35,7 @@ const EVENT_LOG_MAX := 64
 var event_log: Array[Dictionary] = []
 var run_seed := 0
 var terminal_heal_used := false
+var _hp_lost_since_heal := false
 var achievements: Dictionary = {}
 
 const ACHIEVEMENT_DEFS := {
@@ -88,6 +89,7 @@ func _enter_tree() -> void:
 	_setup_input()
 
 func _ready() -> void:
+	load_language()
 	_load_run_config()
 
 func _exit_tree() -> void:
@@ -145,31 +147,58 @@ func set_difficulty(value: String) -> void:
 func _load_run_config() -> void:
 	var cf := ConfigFile.new()
 	if cf.load(Sfx.SAVE_PATH) == OK:
-		best = cf.get_value("run", "best_classic", cf.get_value("run", "best", 0))
-		onehp_unlocked = cf.get_value("run", "onehp_unlocked", false)
-		bestiary = cf.get_value("bestiary", "seen", {})
-		tutorial = cf.get_value("tutorial", "hints", {})
-		achievements = cf.get_value("achievements", "unlocked", {})
-		mode = cf.get_value("game", "mode", "classic")
+		best = _cfg_int(cf, "run", "best_classic", _cfg_int(cf, "run", "best", 0))
+		onehp_unlocked = _cfg_bool(cf, "run", "onehp_unlocked", false)
+		bestiary = _cfg_dict(cf, "bestiary", "seen", {})
+		tutorial = _cfg_dict(cf, "tutorial", "hints", {})
+		achievements = _cfg_dict(cf, "achievements", "unlocked", {})
+		mode = _cfg_str(cf, "game", "mode", "classic")
+		if mode not in ["classic", "weekly", "onehp", "story"]:
+			mode = "classic"
 		if mode == "onehp" and not onehp_unlocked:
 			mode = "classic"
-		difficulty = str(cf.get_value("game", "difficulty", "normal"))
+		difficulty = _cfg_str(cf, "game", "difficulty", "normal")
 		if difficulty not in Balance.DIFFICULTY_ORDER:
 			difficulty = "normal"
-		unlocked_programs = cf.get_value("programs", "unlocked", {"kernel": true})
+		unlocked_programs = _cfg_dict(cf, "programs", "unlocked", {"kernel": true})
 		if not unlocked_programs.has("kernel"):
 			unlocked_programs["kernel"] = true
-		var saved_prog: String = cf.get_value("run", "program", "kernel")
+		var saved_prog := _cfg_str(cf, "run", "program", "kernel")
 		if unlocked_programs.has(saved_prog):
 			program = saved_prog
-		story_cleared = cf.get_value("story", "cleared", {})
-		story_best = cf.get_value("story", "best", {})
-		temple_rainbow_unlocked = bool(cf.get_value("story", "temple_rainbow_unlocked", false))
-		if not story_cleared is Dictionary:
-			story_cleared = {}
-		if not story_best is Dictionary:
-			story_best = {}
+		story_cleared = _cfg_dict(cf, "story", "cleared", {})
+		story_best = _cfg_dict(cf, "story", "best", {})
+		temple_rainbow_unlocked = _cfg_bool(cf, "story", "temple_rainbow_unlocked", false)
 	rng.randomize()
+
+## Sanitizadores de ConfigFile: o Variant vem do disco sem tipo garantido e
+## atribuir errado num `var` tipado loga SCRIPT ERROR. Validar antes, nunca
+## depois.
+func _cfg_int(cf: ConfigFile, section: String, key: String, fallback: int) -> int:
+	var v = cf.get_value(section, key, fallback)
+	if v is int:
+		return v
+	if v is float:
+		return int(v)
+	return fallback
+
+func _cfg_bool(cf: ConfigFile, section: String, key: String, fallback: bool) -> bool:
+	var v = cf.get_value(section, key, fallback)
+	if v is bool:
+		return v
+	return fallback
+
+func _cfg_str(cf: ConfigFile, section: String, key: String, fallback: String) -> String:
+	var v = cf.get_value(section, key, fallback)
+	if v is String:
+		return v
+	return fallback
+
+func _cfg_dict(cf: ConfigFile, section: String, key: String, fallback: Dictionary) -> Dictionary:
+	var v = cf.get_value(section, key, fallback)
+	if v is Dictionary:
+		return v
+	return fallback
 
 func week_number() -> int:
 	var days := int(Time.get_unix_time_from_system() / 86400.0)
@@ -247,6 +276,8 @@ func start_story(index: int = 0) -> bool:
 	_max_chain_seen = 1
 	event_log.clear()
 	terminal_heal_used = false
+	_hp_lost_since_heal = false
+	vampic_cd = 0.0
 	rng.randomize()
 	run_seed = int(rng.seed)
 	new_best = false
@@ -354,7 +385,7 @@ func patch_tooltip_data(id: String, active_ids: Array = []) -> Dictionary:
 
 func build_string() -> String:
 	if patch_levels.is_empty():
-		return "NO PATCHES"
+		return tr("BUILD_NO_PATCHES")
 	var parts: Array = []
 	for id in patch_levels:
 		parts.append("%s%d" % [PATCH_CODES.get(id, id.substr(0, 2).to_upper()), int(patch_levels[id])])
@@ -426,6 +457,8 @@ func start_run() -> void:
 	_max_chain_seen = 1
 	event_log.clear()
 	terminal_heal_used = false
+	_hp_lost_since_heal = false
+	vampic_cd = 0.0
 	Sfx.set_intensity(0)
 	match mode:
 		"weekly":
@@ -475,6 +508,16 @@ func register_heal(source: String) -> void:
 		stats["heals"] = {}
 	stats["heals"][source] = int(stats["heals"].get(source, 0)) + 1
 	log_event("INTEGRITY +1 // %s" % source.to_upper())
+	# A achievement só dispara quando integridade realmente caiu e depois
+	# aumentou: curar com HP cheio (ou sem dano prévio) conta telemetria,
+	# mas não é "restored".
+	if _hp_lost_since_heal:
+		_hp_lost_since_heal = false
+		unlock_achievement("integrity_restored")
+
+## O player avisa quando HP realmente diminui (dano, não escudo/absorvido).
+func note_hp_loss() -> void:
+	_hp_lost_since_heal = true
 
 func log_event(message: String) -> void:
 	var clean := message.strip_edges()
@@ -512,6 +555,41 @@ func unlock_achievement(id: String) -> bool:
 	log_event("achievement: %s enabled" % label)
 	achievement_unlocked.emit(id, label)
 	return true
+
+## Idioma. Decisão da autora 2026-09-11: PT-BR e EN, com as strings sendo
+## extraídas conforme cada tela é reconstruída (ver R9 na auditoria — fazer a
+## extração depois significaria varrer a UI inteira duas vezes).
+const LANGUAGES := ["en", "pt_BR"]
+
+var _language := ""
+
+
+func language() -> String:
+	return _language if _language != "" else "en"
+
+
+func set_language(code: String) -> void:
+	if code not in LANGUAGES:
+		code = "en"
+	_language = code
+	TranslationServer.set_locale(code)
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("feel", "language", code)
+	cf.save(Sfx.SAVE_PATH)
+
+
+## Carrega o idioma salvo; na primeira execução segue o do sistema.
+func load_language() -> void:
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	var saved := str(cf.get_value("feel", "language", ""))
+	if saved in LANGUAGES:
+		_language = saved
+	else:
+		_language = "pt_BR" if OS.get_locale().begins_with("pt") else "en"
+	TranslationServer.set_locale(_language)
+
 
 func run_seed_text() -> String:
 	return "SEED %d" % run_seed
@@ -569,33 +647,37 @@ func import_save_string(encoded: String) -> bool:
 	if raw.is_empty():
 		return false
 	var parsed = JSON.parse_string(raw.get_string_from_utf8())
-	if typeof(parsed) != TYPE_DICTIONARY or parsed.get("format", "") != SAVE_TRANSFER_FORMAT or int(parsed.get("version", 0)) != SAVE_TRANSFER_VERSION:
+	if typeof(parsed) != TYPE_DICTIONARY or parsed.get("format", "") != SAVE_TRANSFER_FORMAT or _save_int(parsed.get("version", 0)) != SAVE_TRANSFER_VERSION:
 		return false
-	var run_data: Dictionary = parsed.get("run", {})
-	var weekly_data: Dictionary = parsed.get("weekly", {})
-	if not run_data is Dictionary or not weekly_data is Dictionary:
+	var raw_run = parsed.get("run", {})
+	var raw_weekly = parsed.get("weekly", {})
+	if not raw_run is Dictionary or not raw_weekly is Dictionary:
 		return false
+	var run_data: Dictionary = raw_run
+	var weekly_data: Dictionary = raw_weekly
 	var cf := ConfigFile.new()
 	cf.load(Sfx.SAVE_PATH)
-	cf.set_value("run", "best_classic", maxi(int(run_data.get("best_classic", 0)), 0))
-	cf.set_value("run", "best_onehp", maxi(int(run_data.get("best_onehp", 0)), 0))
-	cf.set_value("run", "onehp_unlocked", bool(run_data.get("onehp_unlocked", false)))
+	cf.set_value("run", "best_classic", maxi(_save_int(run_data.get("best_classic", 0)), 0))
+	cf.set_value("run", "best_onehp", maxi(_save_int(run_data.get("best_onehp", 0)), 0))
+	cf.set_value("run", "onehp_unlocked", _save_bool(run_data.get("onehp_unlocked", false)))
 	var imported_program := str(run_data.get("program", "kernel"))
 	cf.set_value("run", "program", imported_program if PROGRAM_DEFS.has(imported_program) else "kernel")
 	cf.set_value("weekly", "id", str(weekly_data.get("id", "")))
-	cf.set_value("weekly", "best", maxi(int(weekly_data.get("best", 0)), 0))
+	cf.set_value("weekly", "best", maxi(_save_int(weekly_data.get("best", 0)), 0))
 	cf.set_value("weekly", "last_id", str(weekly_data.get("last_id", "")))
-	cf.set_value("weekly", "last_best", maxi(int(weekly_data.get("last_best", 0)), 0))
-	var imported_story: Dictionary = parsed.get("story", {})
-	if imported_story is Dictionary:
+	cf.set_value("weekly", "last_best", maxi(_save_int(weekly_data.get("last_best", 0)), 0))
+	var raw_story = parsed.get("story", {})
+	if raw_story is Dictionary:
+		var imported_story: Dictionary = raw_story
 		cf.set_value("story", "cleared", _known_bool_map(imported_story.get("cleared", {}), STORY_DATA.stage_ids()))
-		var imported_story_best: Dictionary = imported_story.get("best", {})
+		var raw_story_best = imported_story.get("best", {})
 		var clean_story_best := {}
-		if imported_story_best is Dictionary:
+		if raw_story_best is Dictionary:
+			var imported_story_best: Dictionary = raw_story_best
 			for stage_id in STORY_DATA.stage_ids():
-				clean_story_best[stage_id] = maxi(int(imported_story_best.get(stage_id, 0)), 0)
+				clean_story_best[stage_id] = maxi(_save_int(imported_story_best.get(stage_id, 0)), 0)
 		cf.set_value("story", "best", clean_story_best)
-		cf.set_value("story", "temple_rainbow_unlocked", bool(imported_story.get("temple_rainbow_unlocked", false)))
+		cf.set_value("story", "temple_rainbow_unlocked", _save_bool(imported_story.get("temple_rainbow_unlocked", false)))
 	cf.set_value("bestiary", "seen", _known_bool_map(parsed.get("bestiary", {}), BESTIARY_MAP.values()))
 	var imported_programs := _known_bool_map(parsed.get("programs", {}), PROGRAM_DEFS.keys())
 	imported_programs["kernel"] = true
@@ -612,9 +694,24 @@ func _known_bool_map(raw, allowed: Array) -> Dictionary:
 		return result
 	for key in allowed:
 		var id := str(key)
-		if bool(raw.get(id, false)):
+		var flag = raw.get(id, false)
+		if flag is bool and flag:
 			result[id] = true
 	return result
+
+## Inteiros vindos de JSON sem erro de conversão: string "12x" vira 0,
+## não ERROR no log.
+func _save_int(v) -> int:
+	if v is int:
+		return v
+	if v is float:
+		return int(v)
+	return 0
+
+func _save_bool(v) -> bool:
+	if v is bool:
+		return v
+	return false
 
 func patch_level(id: String) -> int:
 	return int(patch_levels.get(id, 0))

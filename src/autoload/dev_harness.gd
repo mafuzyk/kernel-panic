@@ -10,6 +10,7 @@ const HSectionVisual = preload("res://src/autoload/harness/sections_visual.gd")
 const HSectionScene = preload("res://src/autoload/harness/sections_scene.gd")
 const HSectionModes = preload("res://src/autoload/harness/sections_modes.gd")
 const HSectionPolish = preload("res://src/autoload/harness/sections_polish.gd")
+const HSectionDeep = preload("res://src/autoload/harness/sections_deep.gd")
 
 var active := false
 const LEAK_GUARD_MAX_ORPHANS := 40
@@ -25,9 +26,11 @@ var _sec_visual
 var _sec_scene
 var _sec_modes
 var _sec_polish
+var _sec_deep
 
 func _ready() -> void:
 	_init_sections()
+	_probe_source()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	var args := OS.get_cmdline_user_args()
 	if "--autotest" in args:
@@ -42,6 +45,9 @@ func _ready() -> void:
 	elif OS.get_environment("KP_SHOT") != "":
 		active = true
 		_sec_modes._capture.call_deferred()
+	elif OS.get_environment("KP_DEEP") != "":
+		active = true
+		_sec_deep._probe.call_deferred()
 
 func _pass(msg: String) -> void:
 	print("AT_PASS ", msg)
@@ -57,10 +63,39 @@ func _check(cond: bool, msg: String) -> bool:
 		_fail(msg)
 	return cond
 
+## O preset de export publica scripts sem o texto-fonte: `source_code` vem
+## vazio e `get_file_as_string("res://*.gd")` não tem o que ler. Asserções
+## sobre a grafia do código só valem com fonte; no artefato elas viram
+## AT_SKIP explícito, e o comportamento segue coberto por contratos runtime.
+var _source_available := true
+
+func _probe_source() -> void:
+	var script: Script = load("res://src/autoload/game.gd")
+	_source_available = script != null and str(script.source_code).length() > 1000
+
+func _check_source(cond: bool, msg: String) -> bool:
+	if _source_available:
+		return _check(cond, msg)
+	print("AT_SKIP source-only check needs script text: ", msg)
+	return true
+
 func _watchdog(real_s: float = 90.0) -> void:
 	await get_tree().create_timer(real_s, true, false, true).timeout
 	print("AT_FAIL watchdog timeout")
 	get_tree().quit(1)
+
+## Primeiro Button em qualquer profundidade abaixo de `root`.
+func _first_button(root: Node) -> Button:
+	if root == null:
+		return null
+	for child in root.get_children():
+		if child is Button:
+			return child
+		var found := _first_button(child)
+		if found != null:
+			return found
+	return null
+
 
 func _ticks(n: int) -> void:
 	for i in n:
@@ -94,6 +129,7 @@ func _init_sections() -> void:
 	_sec_scene = HSectionScene.new(self)
 	_sec_modes = HSectionModes.new(self)
 	_sec_polish = HSectionPolish.new(self)
+	_sec_deep = HSectionDeep.new(self)
 
 func _autotest() -> void:
 	_watchdog()
@@ -103,7 +139,7 @@ func _autotest() -> void:
 	Game.set_program("kernel")
 	await _ticks(20)
 	_check(get_tree().current_scene != null and get_tree().current_scene.name == "Menu", "menu is main scene")
-	_check(Balance.is_desktop_display() == (DisplayServer.get_name() in ["windows", "macos", "x11", "wayland", "embedded"]), "is_desktop_display matches display server")
+	_check(Balance.is_desktop_display() == (DisplayServer.get_name().to_lower() in ["windows", "macos", "x11", "wayland", "embedded"]), "is_desktop_display matches display server")
 	_check(get_tree().current_scene.find_children("*", "BootOverlay", true, false).is_empty(), "boot overlay skipped in headless")
 	var required_bestiary_ids := ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "boss", "recursor", "firewall", "update_loop", "bloatware", "god", "root", "segfault", "bluescreen", "pagefault"]
 	var entry_ids := {}
@@ -119,6 +155,9 @@ func _autotest() -> void:
 	_check(Game.BESTIARY_MAP.get("BLUE SCREEN", "") == "bluescreen", "blue screen maps to bestiary")
 	_check(Game.BESTIARY_MAP.get("PAGE FAULT", "") == "pagefault", "page fault maps to bestiary")
 	await _sec_boot._color_assist_test()
+	await _sec_boot._settings_focus_test(get_tree().current_scene)
+	await _sec_boot._language_selector_test(get_tree().current_scene)
+	await _sec_scene._desktop_focus_test(get_tree().current_scene)
 	Fx.stacktrace(Vector2.ZERO, "TEST_CRASH")
 	await _ticks(2)
 	_check(true, "stacktrace renders without error")
@@ -146,8 +185,10 @@ func _autotest() -> void:
 	if not click_ok:
 		return _finish()
 	Game.start_run()
+	var fresh_arena_id := get_tree().current_scene.get_instance_id() if get_tree().current_scene != null else 0
 	var ok := await _until(func() -> bool:
-		return get_tree().current_scene != null and get_tree().current_scene.name == "Arena", 6.0, "arena load")
+		var cur := get_tree().current_scene
+		return cur != null and cur.name == "Arena" and cur.get_instance_id() != fresh_arena_id, 6.0, "arena load")
 	if not ok:
 		return _finish()
 	await _ticks(10)
@@ -161,12 +202,17 @@ func _autotest() -> void:
 	var onboarding_abort_path := OS.get_environment("KP_ONBOARDING_ABORT") != ""
 	var onboarding_restore_label := "aborted onboarding probe restores tutorial hints ConfigFile section" if onboarding_abort_path else "onboarding probe restores tutorial hints ConfigFile section"
 	_check(_config_snapshot_matches(onboarding_tutorial_disk_before, _config_snapshot("tutorial", "hints", {})), onboarding_restore_label)
+	await _sec_scene._arena_focus_test(arena)
 	await _sec_tasks_a._input_safety_test(arena)
 	Game.state = Game.State.PLAYING
 	get_tree().paused = false
 	Game.start_run()
+	# Por instance_id, não pelo nó: a arena antiga é freed na troca de cena e
+	# a lambda capturada logava "Lambda capture was freed".
+	var old_arena_id := arena.get_instance_id()
 	ok = await _until(func() -> bool:
-		return get_tree().current_scene != null and get_tree().current_scene.name == "Arena" and get_tree().current_scene != arena, 6.0, "input safety arena reset")
+		var cur := get_tree().current_scene
+		return cur != null and cur.name == "Arena" and cur.get_instance_id() != old_arena_id, 6.0, "input safety arena reset")
 	if not ok:
 		return _finish()
 	arena = get_tree().current_scene
@@ -379,15 +425,16 @@ func _autotest() -> void:
 	ok = await _until(func() -> bool: return Game.state == Game.State.GAME_OVER, 5.0, "game over state")
 	if not ok:
 		return _finish()
-	_check(arena._over_panel.visible, "game over panel visible")
+	_check(arena._run_summary.visible, "game over panel visible")
 	var best_after := Game.best
 	_check(best_after >= Game.score, "best score saved")
 	Game.start_run()
 	ok = false
+	var prev_arena_id := arena.get_instance_id()
 	for i in 360:
 		await get_tree().process_frame
 		var next_scene := get_tree().current_scene
-		if next_scene != null and next_scene.name == "Arena" and next_scene != arena:
+		if next_scene != null and next_scene.name == "Arena" and next_scene.get_instance_id() != prev_arena_id:
 			ok = true
 			break
 	if not ok:
@@ -405,21 +452,46 @@ func _autotest() -> void:
 	await _sec_systems_a._systems_test_a(arena2)
 	await _sec_systems_b1._systems_test_b1(arena2)
 	await _sec_systems_b2._systems_test_b2(arena2)
+	await _sec_systems_b2._event_banner_test(arena2)
+	await _sec_deep._enemy_death_idempotency_test()
+	await _sec_deep._rootlet_shield_recharge_test()
+	await _sec_deep._absorb_arms_overclock_test()
+	await _sec_deep._dash_recharge_test()
+	await _sec_deep._heal_semantics_test()
+	await _sec_deep._splitshot_rotation_test(arena2)
+	await _sec_deep._deferred_orb_cap_test(arena2)
+	await _sec_deep._temple_god_spawn_test()
 	await _sec_misc._difficulty_test()
 	await _sec_misc._debug_controls_test(arena2)
 	await _sec_misc._mote_sweep_test(arena2)
 	await _sec_misc._oom_steal_identity_test(arena2)
+	await _sec_deep._oom_ownership_test(arena2)
+	await _sec_deep._page_fault_cap_test(arena2)
 	await _sec_visual._story_test(arena2)
 	await _sec_visual._windows_test(arena2)
 	await _sec_visual._temple_test(arena2)
 	await _sec_visual._glyph_lib_test()
+	await _sec_visual._i18n_test()
+	await _sec_visual._audit_fixes_test()
+	await _sec_visual._float_text_collision_test()
+	await _sec_visual._arena_field_test()
+	await _sec_visual._editorial_screens_test()
+	await _sec_visual._silhouette_metric_test()
 	await _sec_visual._icon_quality_test()
 	await _sec_visual._raster_trial_test()
 	await _sec_polish._raster_optical_test()
 	await _sec_polish._sprite_trial_test()
 	await _sec_visual._charm_terminal_test(arena2)
+	await _sec_visual._terminal_history_test(arena2)
 	await _sec_visual._charm_speedrun_test(arena2)
 	await _sec_modes._touch_test()
+	await _sec_modes._multitouch_test()
+	await _sec_modes._touch_layout_test()
+	await _sec_deep._scene_swap_hygiene_test()
+	await _sec_deep._vampic_reset_test()
+	arena2 = get_tree().current_scene as Arena
+	await _sec_modes._reticle_modal_test(arena2)
+	await _sec_deep._story_hold_restart_test()
 	Game.to_menu()
 	ok = await _until(func() -> bool:
 		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 6.0, "menu return")
@@ -452,11 +524,14 @@ func _autotest() -> void:
 	await _sec_polish._menu_reflow_test(menu_scene)
 	await _sec_scene._text_overflow_test()
 	await _sec_polish._bestiary_glyph_test()
+	await _sec_polish._bestiary_i18n_test()
 	await _sec_polish._story_path_test()
+	await _sec_polish._video_settings_test()
 	await _sec_scene._touch_hud_layout_test()
 	await _sec_modes._achievements_panel_test()
 	await _sec_polish._awards_chrome_test(menu_scene)
 	await _sec_scene._charm_save_transfer_test(menu_scene)
+	await _sec_scene._corrupt_save_test()
 	if menu_scene.has_method("_reset_scores"):
 		menu_scene._reset_scores()
 		var cf_after := ConfigFile.new()
@@ -468,6 +543,7 @@ func _autotest() -> void:
 	await _sec_boot._task10_test(menu_scene)
 	_check(_config_sections_equal(run_before_task10, _config_section_snapshot("run")), "task10 restores run config section")
 	await _sec_boot._task11_test(menu_scene)
+	await _sec_boot._run_config_test(menu_scene)
 	await _sec_scene._story_scene_test()
 	await _sec_scene._story_intro_auto_test()
 	await _sec_scene._story_intro_layout_test()
@@ -634,4 +710,3 @@ func _spawn_boss(arena: Arena, mk := 1) -> void:
 		var orb := EnemyOrb.new()
 		orb.setup(boss.global_position + Vector2.from_angle(TAU * i / 5.0) * 60.0, Vector2.from_angle(TAU * i / 5.0), 120.0, boss.col)
 		arena.enemy_container.add_child(orb)
-

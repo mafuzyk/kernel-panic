@@ -16,62 +16,6 @@ var _layout: Dictionary = {}
 func _init(menu) -> void:
 	m = menu
 
-func _style_card_button(b: Button, border: Color, button_size := Vector2(270, 84)) -> void:
-	b.custom_minimum_size = button_size
-	b.focus_mode = Control.FOCUS_NONE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(border.r, border.g, border.b, 0.0)
-	sb.border_color = Color(border.r, border.g, border.b, 0.0)
-	sb.set_border_width_all(0)
-	sb.set_corner_radius_all(0)
-	b.add_theme_stylebox_override("normal", sb)
-	var sbh := sb.duplicate()
-	sbh.bg_color = Color(border.r, border.g, border.b, 0.08)
-	sbh.border_color = Color(border.r, border.g, border.b, 0.0)
-	sbh.set_border_width_all(0)
-	b.add_theme_stylebox_override("hover", sbh)
-	var sbp := sb.duplicate()
-	sbp.bg_color = Color(border.r, border.g, border.b, 0.16)
-	sbp.border_color = Color(border.r, border.g, border.b, 0.0)
-	sbp.set_border_width_all(0)
-	b.add_theme_stylebox_override("pressed", sbp)
-	b.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	b.add_theme_font_size_override("font_size", 18)
-	b.add_theme_color_override("font_color", Balance.COL_TEXT)
-	b.add_theme_color_override("font_hover_color", Balance.COL_PLAYER_HOT)
-	b.add_theme_color_override("font_pressed_color", Balance.COL_PLAYER_HOT)
-	b.z_index = 2
-	b.pivot_offset = button_size * 0.5
-	b.button_down.connect(func() -> void:
-		b.scale = Vector2(0.96, 0.96)
-		Sfx.play("ui", 1.0, -10.0)
-	)
-	b.button_up.connect(func() -> void:
-		b.scale = Vector2.ONE
-	)
-
-func _add_menu_frame(rect: Rect2, accent: Color, alpha: float = 0.025) -> Control:
-	var frame: Control = TacticalChromeScript.new()
-	frame.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	frame.position = rect.position
-	frame.size = rect.size
-	frame.z_index = 1
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.call("configure_panel", Rect2(Vector2.ZERO, rect.size), accent, alpha)
-	m.add_child(frame)
-	m._menu_frames.append(frame)
-	return frame
-
-func _set_button_text_inset(button: Button, inset: float) -> void:
-	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	for state in ["normal", "hover", "pressed"]:
-		var base: StyleBox = button.get_theme_stylebox(state)
-		if base == null:
-			continue
-		var adjusted: StyleBox = base.duplicate()
-		adjusted.content_margin_left = inset
-		button.add_theme_stylebox_override(state, adjusted)
-
 func _settings_nav_style(border: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(border.r, border.g, border.b, 0.0 if border.a < 0.5 else 0.055)
@@ -112,6 +56,13 @@ func _style_settings_footer_button(button: Button, border: Color) -> void:
 	_set_button_text_inset(button, 54.0)
 	_add_button_chrome(button, border, 0.02)
 
+## Recuo do texto para o ícone caber à esquerda do rótulo.
+func _set_button_text_inset(button: Button, inset: float) -> void:
+	var style: StyleBox = button.get_theme_stylebox("normal")
+	if style != null:
+		style.content_margin_left = inset
+
+
 func footer_button_layout_for_viewport(viewport_size: Vector2) -> Dictionary:
 	var total_width := minf(448.0, maxf(viewport_size.x * 0.327, 280.0))
 	var gap := 14.0
@@ -120,167 +71,6 @@ func footer_button_layout_for_viewport(viewport_size: Vector2) -> Dictionary:
 		"gap": gap,
 		"button_width": (total_width - gap) * 0.5,
 	}
-
-func _build_button_row() -> void:
-	var lay := menu_layout_for_viewport(m.size)
-	var purge_width: float = (lay["purge"] as Rect2).size.x
-	m._purge_btn = Button.new()
-	_style_card_button(m._purge_btn, Balance.COL_PLAYER, Vector2(purge_width, 88.0))
-	m._purge_btn.text = ">> PURGE"
-	m._purge_btn.add_theme_font_size_override("font_size", 30)
-	m._purge_btn.anchor_left = 0.5
-	m._purge_btn.anchor_right = 0.5
-	m._purge_btn.anchor_top = 0.5
-	m._purge_btn.anchor_bottom = 0.5
-	m._purge_btn.offset_left = -purge_width * 0.5
-	m._purge_btn.offset_right = purge_width * 0.5
-	m._purge_btn.offset_top = -52.0
-	m._purge_btn.offset_bottom = 36.0
-	m._purge_btn.pressed.connect(m._start)
-	m.add_child(m._purge_btn)
-	_add_menu_frame(lay["purge"], Balance.COL_PLAYER, 0.035)
-	m._story_btn = Button.new()
-	_style_card_button(m._story_btn, Balance.COL_PLAYER, Vector2((lay["story"] as Rect2).size.x, 58.0))
-	m._story_btn.text = "STORY // ACTS"
-	m._story_btn.add_theme_font_size_override("font_size", 19)
-	m._story_btn.anchor_left = 0.5
-	m._story_btn.anchor_right = 0.5
-	m._story_btn.anchor_top = 0.5
-	m._story_btn.anchor_bottom = 0.5
-	var story_width: float = (lay["story"] as Rect2).size.x
-	m._story_btn.offset_left = -story_width * 0.5
-	m._story_btn.offset_right = story_width * 0.5
-	m._story_btn.offset_top = 44.0
-	m._story_btn.offset_bottom = 102.0
-	m._story_btn.pressed.connect(m._open_story_selector)
-	m.add_child(m._story_btn)
-	_add_menu_frame(lay["story"], Balance.COL_PLAYER, 0.025)
-	m._mode_btn = Button.new()
-	_style_card_button(m._mode_btn, Balance.COL_MOTE, Vector2((lay["mode"] as Rect2).size.x, 50.0))
-	m._mode_btn.text = "MODE: CLASSIC"
-	m._mode_btn.add_theme_font_size_override("font_size", 16)
-	m._mode_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	m._mode_btn.anchor_left = 0.5
-	m._mode_btn.anchor_right = 0.5
-	m._mode_btn.anchor_top = 0.5
-	m._mode_btn.anchor_bottom = 0.5
-	var mode_width: float = (lay["mode"] as Rect2).size.x
-	m._mode_btn.offset_left = -mode_width * 0.5
-	m._mode_btn.offset_right = mode_width * 0.5
-	m._mode_btn.offset_top = 112.0
-	m._mode_btn.offset_bottom = 162.0
-	m._mode_btn.pressed.connect(m._cycle_mode)
-	m.add_child(m._mode_btn)
-	var mode_normal: StyleBox = m._mode_btn.get_theme_stylebox("normal").duplicate()
-	mode_normal.content_margin_left = 40.0
-	m._mode_btn.add_theme_stylebox_override("normal", mode_normal)
-	var mode_hover: StyleBox = m._mode_btn.get_theme_stylebox("hover").duplicate()
-	mode_hover.content_margin_left = 40.0
-	m._mode_btn.add_theme_stylebox_override("hover", mode_hover)
-	var mode_pressed: StyleBox = m._mode_btn.get_theme_stylebox("pressed").duplicate()
-	mode_pressed.content_margin_left = 40.0
-	m._mode_btn.add_theme_stylebox_override("pressed", mode_pressed)
-	_add_menu_frame(lay["mode"], Balance.COL_MOTE, 0.03)
-	m._program_btn = Button.new()
-	m._program_btn.flat = true
-	m._program_btn.z_index = 2
-	m._program_btn.focus_mode = Control.FOCUS_NONE
-	m._program_btn.anchor_left = 0.5
-	m._program_btn.anchor_right = 0.5
-	m._program_btn.anchor_top = 0.5
-	m._program_btn.anchor_bottom = 0.5
-	m._program_btn.offset_left = 42.0
-	m._program_btn.offset_right = 220.0
-	m._program_btn.offset_top = 112.0
-	m._program_btn.offset_bottom = 162.0
-	m._program_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	m._program_btn.add_theme_font_size_override("font_size", 15)
-	m._program_btn.add_theme_color_override("font_color", Color(0.6, 1.0, 0.8, 0.9))
-	m._program_btn.add_theme_color_override("font_hover_color", TacticalUIHelper.LIME)
-	m._program_btn.pressed.connect(m._open_program_selector)
-	m.add_child(m._program_btn)
-	m._diff_btn = Button.new()
-	m._diff_btn.flat = true
-	m._diff_btn.z_index = 2
-	m._diff_btn.focus_mode = Control.FOCUS_NONE
-	m._diff_btn.anchor_left = 0.5
-	m._diff_btn.anchor_right = 0.5
-	m._diff_btn.anchor_top = 0.5
-	m._diff_btn.anchor_bottom = 0.5
-	m._diff_btn.offset_left = -110.0
-	m._diff_btn.offset_right = 110.0
-	m._diff_btn.offset_top = 166.0
-	m._diff_btn.offset_bottom = 192.0
-	m._diff_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	m._diff_btn.add_theme_font_size_override("font_size", 13)
-	m._diff_btn.add_theme_color_override("font_color", Color(0.6, 1.0, 0.8, 0.9))
-	m._diff_btn.add_theme_color_override("font_hover_color", TacticalUIHelper.LIME)
-	m._diff_btn.pressed.connect(m._cycle_difficulty)
-	m.add_child(m._diff_btn)
-	m._refresh_difficulty_label()
-	var bottom_width: float = (lay["button_row"] as Rect2).size.x
-	var bottom_gap: float = lay["gap"]
-	var bottom_button_w: float = lay["button_width"]
-	var row := HBoxContainer.new()
-	row.anchor_left = 0.5
-	row.anchor_right = 0.5
-	row.anchor_top = 1.0
-	row.anchor_bottom = 1.0
-	row.offset_left = -bottom_width * 0.5
-	row.offset_right = bottom_width * 0.5
-	row.offset_top = -95.0
-	row.offset_bottom = -47.0
-	row.add_theme_constant_override("separation", int(bottom_gap))
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	m._footer_row = row
-	m.add_child(row)
-	m._refresh_program_label()
-	var settings_btn := Button.new()
-	_style_card_button(settings_btn, Balance.COL_TEXT, Vector2(bottom_button_w, 48.0))
-	settings_btn.text = "SETTINGS"
-	_set_button_text_inset(settings_btn, 92.0)
-	_add_button_icon(settings_btn, "settings", Balance.COL_PLAYER, 52.0)
-	settings_btn.z_index = 2
-	settings_btn.pressed.connect(m._open_settings)
-	row.add_child(settings_btn)
-	var best_btn := Button.new()
-	_style_card_button(best_btn, Balance.COL_SPEWER, Vector2(bottom_button_w, 48.0))
-	best_btn.text = "BESTIARY"
-	_set_button_text_inset(best_btn, 92.0)
-	_add_button_icon(best_btn, "bestiary", Balance.COL_SPEWER, 52.0)
-	best_btn.z_index = 2
-	best_btn.pressed.connect(m._open_bestiary)
-	row.add_child(best_btn)
-	var ach_btn := Button.new()
-	_style_card_button(ach_btn, TacticalUIHelper.LIME, Vector2(bottom_button_w, 48.0))
-	ach_btn.text = "AWARDS"
-	_set_button_text_inset(ach_btn, 92.0)
-	_add_button_icon(ach_btn, "awards", TacticalUIHelper.LIME, 52.0)
-	ach_btn.z_index = 2
-	ach_btn.pressed.connect(m._open_achievements)
-	row.add_child(ach_btn)
-	var bottom_y: float = m.size.y - 95.0
-	var bottom_x: float = (m.size.x - bottom_width) * 0.5
-	_add_menu_frame(Rect2(Vector2(bottom_x, bottom_y), Vector2(bottom_button_w, 48.0)), Balance.COL_TEXT, 0.015)
-	_add_menu_frame(Rect2(Vector2(bottom_x + bottom_button_w + bottom_gap, bottom_y), Vector2(bottom_button_w, 48.0)), Balance.COL_SPEWER, 0.02)
-	_add_menu_frame(Rect2(Vector2(bottom_x + (bottom_button_w + bottom_gap) * 2.0, bottom_y), Vector2(bottom_button_w, 48.0)), TacticalUIHelper.LIME, 0.02)
-	m._mode_info = Label.new()
-	m._mode_info.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	m._mode_info.add_theme_font_size_override("font_size", 12)
-	m._mode_info.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.6))
-	m._mode_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	m._mode_info.anchor_left = 0.0
-	m._mode_info.anchor_right = 0.0
-	m._mode_info.anchor_top = 0.5
-	m._mode_info.anchor_bottom = 0.5
-	m._mode_info.offset_left = (lay["mode_info"] as Rect2).position.x
-	m._mode_info.offset_right = (lay["mode_info"] as Rect2).end.x
-	m._mode_info.offset_top = (lay["mode_info"] as Rect2).position.y
-	m._mode_info.offset_bottom = (lay["mode_info"] as Rect2).end.y
-	m._mode_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	m._mode_info.visible = false
-	m.add_child(m._mode_info)
-	m._refresh_mode_ui()
 
 func menu_layout_for_viewport(viewport: Vector2) -> Dictionary:
 	var compact := viewport.x < 760.0
@@ -318,78 +108,6 @@ func menu_layout_for_viewport(viewport: Vector2) -> Dictionary:
 func menu_layout() -> Dictionary:
 	return _layout if not _layout.is_empty() else menu_layout_for_viewport(m.size)
 
-func apply_menu_layout() -> void:
-	_layout = menu_layout_for_viewport(m.size)
-	var lay := _layout
-	var center := Vector2(m.size.x * 0.5, m.size.y * 0.5)
-	for title_label in [m._title, m._title_r, m._title_b]:
-		if title_label != null and is_instance_valid(title_label):
-			title_label.offset_top = (lay["title"] as Rect2).position.y
-			title_label.offset_bottom = (lay["title"] as Rect2).end.y
-			title_label.add_theme_font_size_override("font_size", int(lay["title_size"]))
-	if m._subtitle != null and is_instance_valid(m._subtitle):
-		m._subtitle.offset_top = (lay["subtitle"] as Rect2).position.y
-		m._subtitle.offset_bottom = (lay["subtitle"] as Rect2).end.y
-	if m._controls_line != null and is_instance_valid(m._controls_line):
-		m._controls_line.anchor_top = 0.0
-		m._controls_line.anchor_bottom = 0.0
-		m._controls_line.offset_top = (lay["controls"] as Rect2).position.y
-		m._controls_line.offset_bottom = (lay["controls"] as Rect2).end.y
-	if m._best_label != null and is_instance_valid(m._best_label):
-		m._best_label.offset_top = (lay["best"] as Rect2).position.y
-		m._best_label.offset_bottom = (lay["best"] as Rect2).end.y
-	if m._klog != null and is_instance_valid(m._klog):
-		m._klog.offset_left = (lay["klog"] as Rect2).position.x
-		m._klog.offset_right = (lay["klog"] as Rect2).end.x
-		m._klog.offset_top = (lay["klog"] as Rect2).position.y
-		m._klog.offset_bottom = (lay["klog"] as Rect2).end.y
-	if m._mode_info != null and is_instance_valid(m._mode_info):
-		m._mode_info.anchor_top = 0.0
-		m._mode_info.anchor_bottom = 0.0
-		m._mode_info.offset_left = (lay["mode_info"] as Rect2).position.x
-		m._mode_info.offset_right = (lay["mode_info"] as Rect2).end.x
-		m._mode_info.offset_top = (lay["mode_info"] as Rect2).position.y
-		m._mode_info.offset_bottom = (lay["mode_info"] as Rect2).end.y
-	_place_center_button(m._purge_btn, lay["purge"], center)
-	_place_center_button(m._story_btn, lay["story"], center)
-	_place_center_button(m._mode_btn, lay["mode"], center)
-	_place_center_button(m._program_btn, lay["program"], center)
-	_place_center_button(m._diff_btn, lay["diff"], center)
-	if m._footer_row != null and is_instance_valid(m._footer_row):
-		m._footer_row.anchor_left = 0.0
-		m._footer_row.anchor_right = 0.0
-		m._footer_row.anchor_top = 0.0
-		m._footer_row.anchor_bottom = 0.0
-		m._footer_row.position = (lay["button_row"] as Rect2).position
-		m._footer_row.size = (lay["button_row"] as Rect2).size
-	var row_rect := lay["button_row"] as Rect2
-	var slots := [
-		row_rect.position,
-		Vector2(row_rect.position.x + float(lay["button_width"]) + float(lay["gap"]), row_rect.position.y),
-		Vector2(row_rect.position.x + (float(lay["button_width"]) + float(lay["gap"])) * 2.0, row_rect.position.y),
-	]
-	var frame_rects: Array = [lay["purge"], lay["story"], lay["mode"]]
-	for slot in slots:
-		frame_rects.append(Rect2(slot, Vector2(float(lay["button_width"]), 48.0)))
-	for i in mini(m._menu_frames.size(), frame_rects.size()):
-		var frame: Control = m._menu_frames[i]
-		if frame != null and is_instance_valid(frame):
-			frame.position = (frame_rects[i] as Rect2).position
-			frame.size = (frame_rects[i] as Rect2).size
-
-func _place_center_button(button: Button, rect: Rect2, center: Vector2) -> void:
-	if button == null or not is_instance_valid(button):
-		return
-	button.anchor_left = 0.5
-	button.anchor_right = 0.5
-	button.anchor_top = 0.5
-	button.anchor_bottom = 0.5
-	button.offset_left = rect.position.x - center.x
-	button.offset_right = rect.end.x - center.x
-	button.offset_top = rect.position.y - center.y
-	button.offset_bottom = rect.end.y - center.y
-	button.pivot_offset = rect.size * 0.5
-
 func _style_overlay_back(back: Button) -> void:
 	back.text = "BACK // ESC"
 	back.custom_minimum_size = Vector2(154.0, 42.0)
@@ -422,22 +140,6 @@ func _style_overlay_back(back: Button) -> void:
 	back.add_theme_stylebox_override("pressed", hover)
 	_add_button_chrome(back, Balance.COL_PLAYER, 0.018)
 	_add_button_icon(back, "back", Balance.COL_PLAYER, 30.0)
-
-func _mk_title(f: Font, col: Color) -> Label:
-	var l := Label.new()
-	l.text = "KERNEL PANIC"
-	l.add_theme_font_override("font", f)
-	l.add_theme_font_size_override("font_size", 76)
-	l.add_theme_color_override("font_color", col)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.anchor_left = 0.0
-	l.anchor_right = 1.0
-	l.offset_left = 0.0
-	l.offset_right = 0.0
-	l.offset_top = 125.0
-	l.offset_bottom = 235.0
-	m.add_child(l)
-	return l
 
 func draw_shell(m) -> void:
 	if m._settings_panel != null and m._settings_panel.visible:

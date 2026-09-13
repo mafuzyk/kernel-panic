@@ -400,7 +400,7 @@ func _systems_test_a(arena: Arena) -> void:
 	Game.register_heal("cycle")
 	h._check(Game.stats["heals"]["recover"] == 2 and Game.stats["heals"]["cycle"] == 1, "heal telemetry counts by source")
 	var line: String = arena._heals_line(Game.stats)
-	h._check(line.begins_with("HEALS +3") and "RECOVER x2" in line, "heals line formats (%s)" % line)
+	h._check(line == tr("ARENA_HEALS") % [3, "RECOVER x2, CYCLE x1"], "heals line formats (%s)" % line)
 	print("AT_STEP scrap")
 	Game.patch_levels = {"scrapdiet": 1}
 	Game.set_program("kernel")
@@ -443,4 +443,3 @@ func _systems_test_a(arena: Arena) -> void:
 		arena.touch.player = player
 	await h._ticks(2)
 	Game.patch_levels = {}
-

@@ -114,11 +114,75 @@ func burst(pos: Vector2, color: Color, scale: float = 1.0, shards_n: int = 7) ->
 	shards(pos, color, shards_n, 340.0 * scale)
 	shake(0.25 * scale)
 
+## Aviso flutuante.
+##
+## Empilha em vez de sobrepor. Antes, tudo era posicionado na mesma âncora com
+## `randf_range(-8, 8)` de dispersão: dois avisos no mesmo instante — o caso
+## NORMAL quando uma onda estreia dois tipos de inimigo — caíam quase no mesmo
+## pixel e nenhum dos dois era legível.
+## Altura mínima de uma linha de aviso flutuante, e quantas linhas a pilha
+## pode descer antes de desistir e aceitar a sobreposição.
+const TEXT_LINE_MIN := 18.0
+const TEXT_MAX_STACK := 6
+## Folga entre dois avisos empilhados. Sem ela eles encostam, e encostar já
+## conta como sobreposição para o olho e para `Rect2.intersects`.
+const TEXT_GAP := 3.0
+
+var _live_text: Array[FloatText] = []
+
+
 func text(pos: Vector2, s: String, color: Color, size: int = 15) -> void:
 	var t := FloatText.new()
 	t.setup(s, color, size, mono_font)
-	t.position = pos + Vector2(randf_range(-8, 8), -14)
+	t.half_width = mono_font.get_string_size(s, HORIZONTAL_ALIGNMENT_CENTER, -1, size).x * 0.5
+	t.line_height = maxf(float(size) + 6.0, TEXT_LINE_MIN)
+	t.position = _free_text_slot(pos + Vector2(randf_range(-8, 8), -14), t)
+	_live_text.append(t)
 	_attach(t)
+
+
+## Retângulos dos avisos flutuantes vivos. Exposto para o autotest afirmar a
+## não-sobreposição por comportamento.
+func live_text_rects() -> Array[Rect2]:
+	_prune_live_text()
+	var out: Array[Rect2] = []
+	for node in _live_text:
+		var ft: FloatText = node
+		out.append(ft.text_rect())
+	return out
+
+
+func _prune_live_text() -> void:
+	var alive: Array[FloatText] = []
+	for node in _live_text:
+		if is_instance_valid(node):
+			alive.append(node)
+	_live_text = alive
+
+
+## Desce o aviso até achar uma faixa livre. Eles sobem a 34px/s, então a pilha
+## se desfaz sozinha em menos de meio segundo.
+##
+## Desce para logo ABAIXO do retângulo que colidiu, em vez de somar uma altura
+## de linha fixa: avisos podem ter corpos diferentes, e passo fixo deixava dois
+## retângulos encostados — o que ainda conta como sobreposição.
+func _free_text_slot(base: Vector2, incoming: FloatText) -> Vector2:
+	_prune_live_text()
+	var candidate := base
+	for _step in TEXT_MAX_STACK:
+		var probe := Rect2(
+			candidate - Vector2(incoming.half_width, incoming.line_height * 0.5),
+			Vector2(incoming.half_width * 2.0, incoming.line_height))
+		var highest := INF
+		for node in _live_text:
+			var other: FloatText = node
+			var other_rect := other.text_rect()
+			if probe.intersects(other_rect):
+				highest = minf(highest, other_rect.position.y)
+		if highest == INF:
+			return candidate
+		candidate.y = highest - incoming.line_height * 0.5 - TEXT_GAP
+	return candidate
 
 func stacktrace(pos: Vector2, killer: String, big := false) -> void:
 	var t := FloatText.new()
@@ -272,6 +336,14 @@ class FloatText extends Node2D:
 	var t := 0.0
 	var dur := 0.75
 	var multiline := false
+	## Medidos por `Fx.text` no momento do spawn: é o que permite decidir
+	## sobreposição sem remedir a fonte a cada quadro.
+	var half_width := 60.0
+	var line_height := TEXT_LINE_MIN
+
+	func text_rect() -> Rect2:
+		return Rect2(position - Vector2(half_width, line_height * 0.5),
+			Vector2(half_width * 2.0, line_height))
 
 	func setup(s: String, c: Color, sz: int, f: Font) -> void:
 		label = s

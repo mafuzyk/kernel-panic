@@ -11,11 +11,341 @@ var h: Node
 func _init(harness: Node) -> void:
 	h = harness
 
+
+## Entrada pelo viewport: detecta ausência de foco, armadilha de seta e foco
+## perdido ao fechar overlays. Não chama handlers de teclado diretamente.
+func _desktop_focus_test(menu: Node) -> void:
+	print("AT_STEP desktop_focus")
+	var viewport: Viewport = h.get_viewport()
+	var shell: Control = menu.get("_shell")
+	var initial: Control = viewport.gui_get_focus_owner()
+	if initial == null or not shell.is_ancestor_of(initial):
+		print("AT_DEBUG menu initial focus=", initial.name if initial != null else "null")
+	h._check(initial != null and shell.is_ancestor_of(initial),
+		"desktop menu opens with an actionable keyboard focus")
+	# Mesmo sem foco inicial, reproduz a armadilha de seta de forma independente.
+	var purge: Button = h._first_button(shell)
+	purge.grab_focus()
+	_focus_key(KEY_DOWN)
+	var next: Control = viewport.gui_get_focus_owner()
+	h._check(next != null and next != purge and shell.is_ancestor_of(next),
+		"Down leaves PURGE for another menu action")
+	# A fileira MODE entrou entre PURGE e o resto: um Down para nela.
+	if shell.has_method("run_config_hits"):
+		var mode_hit: Button = shell.run_config_hits().get("mode")
+		h._check(next == mode_hit, "Down from PURGE reaches the MODE control")
+	# Travessia genuína por teclado até trocar programa: Tab do PURGE ao swap,
+	# Enter abre o seletor. Sem mouse em nenhum ponto.
+	h._check(shell.has_method("swap_hit") and is_instance_valid(shell.swap_hit()), "shell exposes the program swap control")
+	if shell.has_method("swap_hit") and is_instance_valid(shell.swap_hit()):
+		var swap: Button = shell.swap_hit()
+		purge.grab_focus()
+		var reached := false
+		for i in 8:
+			_focus_key(KEY_TAB)
+			if viewport.gui_get_focus_owner() == swap:
+				reached = true
+				break
+		h._check(reached, "Tab from PURGE reaches program swap without a mouse")
+		if not reached:
+			return
+		_focus_key(KEY_ENTER)
+		if not h._check(not bool(menu.get("_starting")),
+			"Enter on a menu route does not trigger the global start shortcut"):
+			return
+		await h._ticks(3)
+		var opened: Control = menu.get("_program_panel")
+		h._check(opened != null and opened.visible,
+			"keyboard Enter on swap opens program selection without a mouse")
+		if opened != null and opened.visible:
+			menu.call("_close_program_selector")
+	# O anel de foco do PURGE envolve a ação primária, não a coluna inteira.
+	h._check(shell.has_method("primary_hit_rect"), "shell exposes the primary action geometry")
+	if shell.has_method("primary_hit_rect"):
+		var hit_rect: Rect2 = shell.primary_hit_rect()
+		var purge_label: Label = shell.get("_purge_label")
+		if not (is_instance_valid(purge_label) and hit_rect.encloses(purge_label.get_global_rect())):
+			var host: Control = shell.get("_purge_host")
+			print("AT_DEBUG purge hit=", hit_rect, " label=", purge_label.get_global_rect() if is_instance_valid(purge_label) else Rect2(), " host=", (host.size if is_instance_valid(host) else Vector2(-1, -1)), " shell=", shell.size)
+		h._check(is_instance_valid(purge_label) and hit_rect.encloses(purge_label.get_global_rect()), "purge focus ring wraps the arrow and wordmark")
+		h._check(hit_rect.size.y >= Design.CLICK_TARGET_MIN, "purge hit keeps the click-target minimum")
+		h._check(hit_rect.size.x < shell.size.x * 0.85, "purge focus ring stays bounded to the primary action")
+	for spec in [
+		["program", "_open_program_selector", "_close_program_selector", "_program_panel"],
+		["story", "_open_story_selector", "_close_story_selector", "_story_panel"],
+		["bestiary", "_open_bestiary", "_close_bestiary", "_bestiary_panel"],
+		["achievements", "_open_achievements", "_close_achievements", "_ach_panel"],
+		["settings", "_open_settings", "_close_settings", "_settings_panel"],
+	]:
+		purge.grab_focus()
+		menu.call(str(spec[1]))
+		await h._ticks(3)
+		var panel: Control = menu.get(str(spec[3]))
+		var focused: Control = viewport.gui_get_focus_owner()
+		h._check(focused != null and panel.is_ancestor_of(focused),
+			"%s takes keyboard focus when opened" % spec[0])
+		var visited: Array[Control] = []
+		var contained := true
+		for step in panel.find_children("*", "Control", true, false).size() + 1:
+			focused = viewport.gui_get_focus_owner()
+			if focused == null or not panel.is_ancestor_of(focused):
+				contained = false
+				break
+			if visited.has(focused):
+				break
+			visited.append(focused)
+			_focus_key(KEY_TAB)
+		h._check(contained, "%s keeps Tab inside the open panel" % spec[0])
+		var reachable := true
+		for node in panel.find_children("*", "BaseButton", true, false):
+			if node.is_visible_in_tree() and not node.disabled and node.focus_mode == Control.FOCUS_ALL:
+				reachable = reachable and visited.has(node)
+		h._check(reachable, "%s makes every enabled button reachable by Tab" % spec[0])
+		menu.call(str(spec[2]))
+		await h._ticks(3)
+		h._check(viewport.gui_get_focus_owner() == purge,
+			"%s returns focus to its opener when closed" % spec[0])
+		# O segundo show não passa por _ready().
+		menu.call(str(spec[1]))
+		await h._ticks(3)
+		focused = viewport.gui_get_focus_owner()
+		h._check(focused != null and panel.is_ancestor_of(focused),
+			"%s takes keyboard focus again when reopened" % spec[0])
+		menu.call(str(spec[2]))
+		await h._ticks(3)
+	purge.grab_focus()
+	await _selector_activation_test()
+	# O anel de foco do rodapé precisa conter o rótulo: a célula media
+	# `get_minimum_size()` antes do layout (zero) e o texto transbordava.
+	if shell.has_method("footer_hosts"):
+		var ring_ok := true
+		for host in shell.footer_hosts():
+			if not is_instance_valid(host):
+				ring_ok = false
+				continue
+			for label in host.find_children("*", "Label", true, false):
+				if not (host as Control).get_global_rect().encloses((label as Control).get_global_rect()):
+					ring_ok = false
+		h._check(ring_ok, "footer focus ring contains its label")
+	await _menu_pointer_test()
+	await _action_feedback_test()
+	purge.grab_focus()
+
+
+func _action_feedback_test() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	h.add_child(layer)
+	var col := VBoxContainer.new()
+	layer.add_child(col)
+	for emphasis in ["text", "danger", "primary"]:
+		var block := ScreenKit.action("Action", "", emphasis, func() -> void: pass)
+		col.add_child(block)
+		await h._ticks(3)
+		var hit: Button = block.get_meta("hit")
+		var label: Label = block.get_meta("label_node")
+		var outside := InputEventMouseMotion.new()
+		outside.position = Vector2(1200, 650)
+		h.get_viewport().push_input(outside, true)
+		hit.release_focus()
+		await h._ticks(2)
+		var idle: Color = label.self_modulate
+		var fill: StyleBoxFlat = block.get_theme_stylebox("panel")
+		var idle_fill: Color = fill.bg_color
+		var motion := InputEventMouseMotion.new()
+		motion.position = hit.get_global_rect().get_center()
+		h.get_viewport().push_input(motion, true)
+		await h._ticks(2)
+		var hover: Color = label.self_modulate
+		var hover_fill: Color = fill.bg_color
+		hit.grab_focus()
+		h.get_viewport().push_input(outside, true)
+		await h._ticks(2)
+		h._check(label.self_modulate == hover and fill.bg_color == hover_fill,
+			"%s mouse and keyboard use the same active feedback" % emphasis)
+		if emphasis == "primary":
+			h._check(idle_fill == Design.ACCENT and hover_fill == Design.ACCENT_HOT
+				and label.get_theme_color("font_color") == Design.SURFACE and label.self_modulate == Color.WHITE,
+				"primary feedback brightens the surface while preserving dark text")
+		else:
+			h._check(is_equal_approx(idle.a, Design.TEXT_SECONDARY.a) and hover == Color.WHITE,
+				"%s feedback brightens the separate label on hover" % emphasis)
+		hit.release_focus()
+		await h._ticks(2)
+		h._check(label.self_modulate == idle and fill.bg_color == idle_fill,
+			"%s feedback restores idle after mouse and focus leave" % emphasis)
+		hit.disabled = true
+		h.get_viewport().push_input(motion, true)
+		await h._ticks(2)
+		h._check(label.self_modulate == idle and fill.bg_color == idle_fill,
+			"%s disabled action does not display active feedback" % emphasis)
+		hit.disabled = false
+		hit.grab_focus()
+		await h._ticks(2)
+		hit.disabled = true
+		await h._ticks(2)
+		h._check(label.self_modulate == idle and fill.bg_color == idle_fill,
+			"%s disabling an active action removes its feedback" % emphasis)
+		var ring: StyleBoxFlat = hit.get_theme_stylebox("focus")
+		h._check(ring.border_color == Design.FOCUS_RING_COLOR and ring.border_width_left == int(Design.FOCUS_RING_WIDTH),
+			"%s feedback preserves the amber keyboard ring" % emphasis)
+		block.queue_free()
+		await h._ticks(2)
+	layer.queue_free()
+	await h._ticks(2)
+
+
+func _menu_pointer_test() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	h.add_child(layer)
+	var shell := MenuShell.new()
+	layer.add_child(shell)
+	await h._ticks(3)
+	var presses: Array = []
+	shell.purge_pressed.connect(func() -> void: presses.append("purge"))
+	var label: Label = shell.get("_purge_label")
+	var hit: Button = h._first_button(shell)
+	h._check(hit.get_global_rect().encloses(label.get_global_rect()),
+		"PURGE mouse target covers its visible label")
+	await _focus_click(label.get_global_rect().get_center())
+	h._check(presses == ["purge"], "clicking the PURGE label triggers it exactly once")
+	presses.clear()
+	hit.grab_focus()
+	_focus_key(KEY_ENTER)
+	h._check(presses == ["purge"], "keyboard and mouse activate the same PURGE action")
+	layer.queue_free()
+	await h._ticks(2)
+
+
+func _focus_click(position: Vector2) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.position = position
+	# get_global_rect() está no viewport lógico; não aplicar o stretch da janela
+	# novamente ao injetar coordenadas de mouse.
+	h.get_viewport().push_input(motion, true)
+	await h._ticks(1)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = position
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		h.get_viewport().push_input(event, true)
+
+
+func _selector_activation_test() -> void:
+	var saved_program: String = Game.program
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	h.add_child(layer)
+	var program := ProgramPanel.new()
+	program.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(program)
+	await h._ticks(3)
+	var selections: Array = []
+	var boots: Array = []
+	program.selection_changed.connect(func(id: String) -> void: selections.append(id))
+	program.boot_pressed.connect(func() -> void: boots.append(true))
+	var card: Button = program.get("_cards")["kernel"].get_meta("hit")
+	card.grab_focus()
+	_focus_key(KEY_ENTER)
+	h._check(selections == ["kernel"] and boots.is_empty(),
+		"program Enter selects the focused card once without booting")
+	selections.clear()
+	boots.clear()
+	var boot: Button = program.get("_boot_block").get_meta("hit")
+	boot.grab_focus()
+	_focus_key(KEY_ENTER)
+	h._check(boots == [true], "program Enter on BOOT emits exactly one boot")
+	program.hide()
+	var story: Control = load("res://src/ui/story_panel.gd").new()
+	story.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(story)
+	await h._ticks(3)
+	var mounts: Array = []
+	story.stage_mounted.connect(func(index: int) -> void: mounts.append(index))
+	var mount: Button = story.get("_mount_block").get_meta("hit")
+	mount.grab_focus()
+	_focus_key(KEY_ENTER)
+	h._check(mounts.size() == 1, "story Enter on MOUNT emits exactly one mount")
+	layer.queue_free()
+	await h._ticks(2)
+	Game.set_program(saved_program)
+
+
+func _focus_key(code: int) -> void:
+	var event: InputEventKey = h._key_event(code)
+	h.get_viewport().push_input(event)
+	var released := InputEventKey.new()
+	released.keycode = code
+	released.physical_keycode = code
+	h.get_viewport().push_input(released)
+
+
+func _arena_focus_test(arena: Arena) -> void:
+	print("AT_STEP arena_focus")
+	arena._set_paused(true)
+	await h._ticks(3)
+	var pause: Control = arena.get("_pause_screen")
+	var resume: Button = h._first_button(pause)
+	h._check(h.get_viewport().gui_get_focus_owner() == resume,
+		"pause opens with Resume focused instead of requiring Tab")
+	var terminal: Button = pause.get("_action_blocks")[2].get_meta("hit")
+	terminal.grab_focus()
+	_focus_key(KEY_ENTER)
+	await h._ticks(3)
+	var terminal_panel: Control = arena.get("_terminal_panel")
+	h._check(terminal_panel.visible and h.get_viewport().gui_get_focus_owner() is LineEdit,
+		"Enter on Terminal opens the command field")
+	terminal_panel.close_terminal()
+	await h._ticks(3)
+	h._check(pause.visible, "Terminal close action restores the pause panel")
+	h._check(h.get_viewport().gui_get_focus_owner() == terminal,
+		"closing Terminal restores focus to its pause action")
+	arena._set_paused(false)
+	arena._show_run_summary()
+	await h._ticks(3)
+	var summary: Control = arena.get("_run_summary")
+	h._check(h.get_viewport().gui_get_focus_owner() == h._first_button(summary),
+		"run summary opens with its primary action focused")
+	summary.hide()
+	var saved_pending: int = arena.get("_patch_pending")
+	var saved_rng: int = Game.rng.state
+	arena.set("_patch_pending", 1)
+	arena._try_show_patch()
+	await h._ticks(3)
+	var patch_panel: Control = arena.get("_patch_panel")
+	var focused: Control = h.get_viewport().gui_get_focus_owner()
+	h._check(focused != null and patch_panel.is_ancestor_of(focused),
+		"patch offers open with a card focused")
+	patch_panel.hide()
+	arena.set("_patch_open", false)
+	arena.set("_patch_pending", saved_pending)
+	Game.rng.state = saved_rng
+	h.get_tree().paused = false
+
+## Um card de fase estreito demais corta a descrição no meio da palavra —
+## era o caso com `cols = 6` cravado (73px por card).
+func _story_card_width_test(story_panel) -> void:
+	if story_panel == null or not story_panel.has_method("_content_metrics"):
+		return
+	for vp in [Vector2(1280, 720), Vector2(1366, 768), Vector2(720, 720)]:
+		story_panel.size = vp
+		var metrics: Dictionary = story_panel.call("_content_metrics")
+		h._check(float(metrics["card_w"]) >= 120.0,
+			"story stage cards stay readable at %dx%d (%dpx)" % [int(vp.x), int(vp.y), int(metrics["card_w"])])
+
+
 func _story_menu_test(menu: Node) -> void:
 	print("AT_STEP story_menu")
 	var story_panel_script: Script = load("res://src/ui/story_panel.gd")
 	h._check(story_panel_script != null, "story selector script loads")
-	h._check(menu.has_method("_open_story_selector") and menu.get("_story_btn") != null, "menu exposes a separate Story entry")
+	# Era `menu.get("_story_btn") != null` — prendia o contrato a um WIDGET da
+	# barra antiga, que é construída e escondida. A rota é o contrato; por onde
+	# ela é oferecida é decisão da casca.
+	var menu_routes: Array = menu.main_shell_snapshot().get("routes", [])
+	h._check(menu.has_method("_open_story_selector") and menu_routes.has("STORY"),
+		"menu exposes a separate Story entry")
 	if story_panel_script == null or not menu.has_method("_open_story_selector"):
 		return
 	menu.call("_open_story_selector")
@@ -24,6 +354,7 @@ func _story_menu_test(menu: Node) -> void:
 	h._check(panel != null and panel.visible, "story selector opens without changing endless mode")
 	if panel != null:
 		h._check(panel.has_method("available_stage_indices") and panel.has_method("select_stage"), "story selector exposes stage interaction API")
+		await _story_card_width_test(panel)
 		h._check(panel.available_stage_indices().has(0), "first Story stage is selectable")
 	menu.call("_close_story_selector")
 	await h._ticks(1)
@@ -90,16 +421,11 @@ func _menu_shell_test(menu: Node) -> void:
 			h.get_viewport().push_input(h._key_event(KEY_ESCAPE))
 			h._check(not bool(menu.get("_settings_panel").visible), "Viewport Escape closes settings with a focused text field")
 			menu._close_settings()
-	var tactical_surface_script: Script = load("res://src/ui/tactical_state_surface.gd")
-	h._check(tactical_surface_script != null and tactical_surface_script.has_method("pause_section_rects"), "pause surface exposes separated volume and warning geometry")
-	if tactical_surface_script != null and tactical_surface_script.has_method("pause_section_rects"):
-		for viewport_size in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
-			var pause_sections: Dictionary = tactical_surface_script.pause_section_rects(viewport_size)
-			var pause_panel: Rect2 = tactical_surface_script.panel_rect_for_viewport(viewport_size, "pause")
-			var volume_rect: Rect2 = pause_sections["volume"]
-			var warning_rect: Rect2 = pause_sections["warning"]
-			h._check(pause_panel.encloses(volume_rect) and pause_panel.encloses(warning_rect), "pause sections stay inside panel at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
-			h._check(not volume_rect.intersects(warning_rect), "pause volume and abandon warning keep a visible gap at %dx%d" % [int(viewport_size.x), int(viewport_size.y)])
+	# A geometria da pausa era verificada contra TacticalStateSurface.pause_layout(),
+	# que posicionava tudo por retângulo absoluto. A tela virou PausePanel, com
+	# containers, e essas asserções passaram a descrever um layout que não existe
+	# mais — foram substituídas pelas de contenção em _task9_test, que medem o
+	# painel VIVO. Ver docs/superpowers/reports/2026-09-11-auditoria-desktop.md.
 
 func _story_scene_test() -> void:
 	print("AT_STEP story_scene")
@@ -121,6 +447,24 @@ func _story_scene_test() -> void:
 	h._check(Game.mode == "story", "story arena loads in story mode")
 	h._check(str(story_arena.get("_story_stage").get("path", "")) == "/boot", "story arena loads the selected stage")
 	h._check(story_arena.get("_story_intro_panel") != null, "story arena builds an intro card")
+	var story_intro_panel = story_arena.get("_story_intro_panel")
+	var story_intro_title: Label = story_arena.get("_story_intro_title")
+	h._check(story_intro_panel is Control and story_intro_panel.theme == UiTheme.shared(),
+		"story intro uses the shared design theme")
+	h._check(story_intro_panel is Control and story_intro_panel.has_method("content_rects"),
+		"story intro exposes live editorial content geometry")
+	if story_intro_panel is Control and story_intro_panel.has_method("content_rects"):
+		var intro_bounds := Rect2(Vector2.ZERO, story_intro_panel.size)
+		var intro_inside := true
+		for raw_rect in story_intro_panel.call("content_rects"):
+			intro_inside = intro_inside and intro_bounds.encloses(Rect2(raw_rect))
+		h._check(intro_inside, "story intro live editorial content stays inside the viewport")
+	h._check(story_intro_title != null and story_intro_title.get_theme_font("font") == Design.grotesk(Design.WEIGHT_BLACK),
+		"story intro title uses the editorial grotesk instead of Orbitron")
+	h._check(story_intro_title != null and story_intro_title.horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT,
+		"story intro title follows the left-aligned editorial hierarchy")
+	var tactical_story_surfaces: Array[Node] = story_intro_panel.find_children("*", "TacticalStateSurface", true, false) if story_intro_panel is Control else []
+	h._check(tactical_story_surfaces.is_empty(), "story intro no longer renders a TacticalStateSurface shell")
 	h._check(story_arena.has_method("story_intro_active"), "story arena exposes the intro state query")
 	h._check(not story_arena.spawner.story_mode, "story spawner idles during the intro")
 	await h._simulation_seconds(1.5)
@@ -156,8 +500,10 @@ func _story_intro_auto_test() -> void:
 	var saved_stage := Game.story_stage_index
 	Game.story_cleared[Game.story_stage_id(0)] = true
 	h._check(bool(Game.start_story(0)), "story auto-dismiss test loads the first stage")
+	var pre_auto_id := h.get_tree().current_scene.get_instance_id() if h.get_tree().current_scene != null else 0
 	var loaded: bool = await h._until(func() -> bool:
-		return h.get_tree().current_scene != null and h.get_tree().current_scene.name == "Arena", 6.0, "story arena")
+		var cur := h.get_tree().current_scene
+		return cur != null and cur.name == "Arena" and cur.get_instance_id() != pre_auto_id, 6.0, "story arena")
 	if not loaded:
 		return
 	var auto_arena: Arena = h.get_tree().current_scene
@@ -282,14 +628,31 @@ func _touch_hud_layout_test() -> void:
 		return
 	var hud_script: Script = load("res://src/ui/hud.gd")
 	var hud_src := str(hud_script.source_code)
-	h._check(hud_src.contains("if not touch_layout():"), "combat hud skips desktop-only dash module drawing on touch")
-	h._check(hud_src.contains("label += \"  READY\""), "overclock ready keeps its label without the [E] keyboard hint on touch")
-	h._check(hud_src.contains("\"[SHIFT]\" if not touch_layout()"), "dash charge text gates the [SHIFT] keyboard hint on touch")
-	h._check(hud_src.contains("_banner.text = \"\" if hide_main else text"), "compact wave banner omits the duplicated cycle line")
-	h._check(hud_src.contains("_banner_sub_l.offset_top = 186"), "compact wave banner repositions below the encounter panel")
+	h._check_source(hud_src.contains("if not touch_layout():"), "combat hud skips desktop-only dash module drawing on touch")
+	# Era texto-fonte e travava a frase na forma literal — quebrou na tradução,
+	# sem regressão nenhuma. `overclock_label()` é função pura dos quatro
+	# estados, então a REGRA dá para afirmar direto.
+	var hud_probe: Hud = hud_script.new()
+	h._check(not hud_probe.overclock_label(false, true, false, true).contains("[E]"),
+		"overclock ready keeps its label without the [E] keyboard hint on touch")
+	h._check(hud_probe.overclock_label(false, true, false, false).contains("[E]"),
+		"desktop keeps the [E] hint when overclock is ready")
+	h._check(not hud_probe.overclock_label(true, true, false, false).contains("[E]"),
+		"shield programs never advertise the overclock key")
+	hud_probe.queue_free()
+	h._check(hud_probe.dash_charge_text(1, false).contains("[SHIFT]"), "dash charge text gates the [SHIFT] keyboard hint on touch")
+	h._check(not hud_probe.dash_charge_text(1, true).contains("[SHIFT]"), "touch dash charge hides the keyboard hint")
+	h._check(hud_probe.dash_charge_text(2, true) == "x2", "multi-charge dash shows its count")
 	var tc_script: Script = load("res://src/ui/touch_controls.gd")
 	var tc = tc_script.new() if tc_script != null else null
 	h._check(tc != null and tc.has_method("_dash_btn") and tc.has_method("_oc_btn"), "touch controls expose button rects for layout probes")
+	h._check(tc != null and tc.has_method("visual_state"), "touch controls expose their live visual state")
+	if tc != null and tc.has_method("visual_state"):
+		tc.set("_aim_active", false)
+		var idle_visual: Dictionary = tc.call("visual_state")
+		h._check(bool(idle_visual.get("dash", false)) and bool(idle_visual.get("boost", false)),
+			"touch dash and boost remain visible without an active aim gesture")
+		h._check(not bool(idle_visual.get("aim", true)), "touch aim overlay stays hidden until aim is active")
 	var saved_touch_scale := Sfx.touch_scale
 	var saved_force := OS.get_environment("KP_FORCE_TOUCH")
 	for scale in [0.85, 1.0, 1.2]:
@@ -315,14 +678,18 @@ func _touch_hud_layout_test() -> void:
 			h._check(touch_patches.size.x >= minf(120.0, plain_patches_vp.size.x) - 0.01, "touch patch dock keeps readable chips at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
 	Sfx.touch_scale = saved_touch_scale
 	var banner_hud = hud_script.new()
-	banner_hud.size = Vector2(432, 720)
-	banner_hud.set("_banner_sub", "PURGE THE DAEMONS")
-	h._check(bool(banner_hud.call("_banner_compact")), "compact viewport suppresses the duplicated wave-banner cycle line")
-	banner_hud.size = Vector2(1366, 768)
-	h._check(not bool(banner_hud.call("_banner_compact")), "desktop viewport keeps the full wave banner")
-	banner_hud.size = Vector2(720, 720)
-	banner_hud.set("_banner_sub", "")
-	h._check(not bool(banner_hud.call("_banner_compact")), "subtitle-less hint banners keep their main line on compact")
+	h._check(banner_hud.has_method("banner_layout_snapshot"), "combat hud exposes live banner layout geometry")
+	if banner_hud.has_method("banner_layout_snapshot"):
+		for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+			banner_hud.size = vp
+			var wave_banner: Dictionary = banner_hud.call("banner_layout_snapshot", vp, "CYCLE 01", "PURGE THE DAEMONS")
+			var encounter: Rect2 = banner_hud.call("layout_snapshot", vp)["encounter"]
+			var sub_rect: Rect2 = wave_banner.get("sub_rect", Rect2())
+			h._check(not bool(wave_banner.get("main_visible", true)), "cycle banner does not duplicate the encounter cycle at %dx%d" % [int(vp.x), int(vp.y)])
+			h._check(sub_rect.position.y >= encounter.end.y and Rect2(Vector2.ZERO, vp).encloses(sub_rect),
+				"cycle banner subtitle stays below encounter and inside viewport at %dx%d" % [int(vp.x), int(vp.y)])
+		var hint_banner: Dictionary = banner_hud.call("banner_layout_snapshot", Vector2(432, 720), "MOVE // WASD", "")
+		h._check(bool(hint_banner.get("main_visible", false)), "subtitle-less combat hint keeps its main line on compact")
 	banner_hud.free()
 	var gate_hud = hud_script.new()
 	OS.set_environment("KP_FORCE_TOUCH", "")
@@ -393,3 +760,55 @@ func _charm_save_transfer_test(menu: Node) -> void:
 	Game.story_cleared = saved_story_cleared
 	Game.story_best = saved_story_best
 
+func _corrupt_save_test() -> void:
+	print("AT_STEP corrupt_save")
+	var path := Sfx.SAVE_PATH
+	var had_file := FileAccess.file_exists(path)
+	var backup := FileAccess.get_file_as_bytes(path) if had_file else PackedByteArray()
+	var dir := DirAccess.open("user://")
+	var saved_mode := Game.mode
+	var saved_diff := Game.difficulty
+	var saved_onehp := Game.onehp_unlocked
+	if had_file:
+		dir.remove("kernel_panic.cfg")
+	# Sem arquivo, o load não tem o que ler: mantém o estado seguro em
+	# memória sem erro e sem lixo. (Defaults de boot vêm das declarações.)
+	Game.mode = "classic"
+	Game.difficulty = "normal"
+	Game.onehp_unlocked = false
+	Game._load_run_config()
+	h._check(Game.mode == "classic" and Game.difficulty == "normal" and not Game.onehp_unlocked, "missing save keeps safe state without errors")
+	var bad := ConfigFile.new()
+	bad.set_value("run", "best_classic", 424242)
+	bad.set_value("run", "onehp_unlocked", "yes-please")
+	bad.set_value("game", "mode", 12345)
+	bad.set_value("game", "difficulty", "lunatic")
+	bad.set_value("bestiary", "seen", "nope")
+	bad.set_value("programs", "unlocked", "kernel")
+	bad.set_value("story", "cleared", "cleared!")
+	bad.save(path)
+	Game._load_run_config()
+	h._check(Game.mode == "classic", "wrong-typed mode falls back to classic")
+	h._check(Game.difficulty == "normal", "unknown difficulty falls back to normal")
+	h._check(not Game.onehp_unlocked, "wrong-typed onehp lock stays locked")
+	h._check(Game.bestiary.is_empty(), "wrong-typed bestiary falls back to empty")
+	h._check(Game.best == 424242, "valid progress survives a corrupt neighbor section")
+	h._check(not bool(Game.import_save_string("!!!not-base64!!!")), "non-base64 transfer is rejected")
+	var non_dict_run := {"format": "kernel-panic-save", "version": 1, "run": "oops", "weekly": {}}
+	h._check(not bool(Game.import_save_string(Marshalls.raw_to_base64(JSON.stringify(non_dict_run).to_utf8_buffer()))), "non-dict run section is rejected")
+	var nested_bad := {"format": "kernel-panic-save", "version": 1, "run": {"best_classic": "lots", "onehp_unlocked": "maybe", "program": "daemon"}, "weekly": {"best": "many"}, "story": {"cleared": "yes", "best": {"boot": "fast"}}, "bestiary": "all", "achievements": {"first_blood": "yep"}}
+	h._check(bool(Game.import_save_string(Marshalls.raw_to_base64(JSON.stringify(nested_bad).to_utf8_buffer()))), "nested wrong types sanitize instead of failing")
+	var cf := ConfigFile.new()
+	cf.load(path)
+	h._check(int(cf.get_value("run", "best_classic", -1)) == 0 and int(cf.get_value("weekly", "best", -1)) == 0, "nested wrong numbers sanitize to zero")
+	h._check(not Game.achievements.has("first_blood"), "stringly achievement flags are dropped")
+	if had_file:
+		var f := FileAccess.open(path, FileAccess.WRITE)
+		f.store_buffer(backup)
+		f.close()
+	elif FileAccess.file_exists(path):
+		dir.remove("kernel_panic.cfg")
+	Game.mode = saved_mode
+	Game.difficulty = saved_diff
+	Game.onehp_unlocked = saved_onehp
+	Game._load_run_config()

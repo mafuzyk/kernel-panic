@@ -26,15 +26,29 @@ const MOTE_KILL_VALUE := 2.0
 const MOTE_MAGNET := 115.0
 const MOTE_MAGNET_OC := 185.0
 const MOTE_LIFE := 12.0
+## Teto de motes simultâneos na tela. O MoteField reserva 128 slots, mas o
+## teto de projeto é este — ver docs/superpowers/reports/2026-09-11-auditoria-desktop.md (B9).
+const MOTE_CAP := 90
 
 const COMBO_WINDOW := 3.0
 const COMBO_MAX := 8
 
-const WAVE_BUDGET_BASE := 6
+## Curva de dificuldade. Estas constantes existiam mas NINGUÉM as lia: as
+## funções abaixo traziam os números no corpo, e diferentes dos declarados.
+## Decisão da autora (2026-09-11): vale o que roda — é o que shipou no v2.5.0,
+## foi jogado, e é a base sobre a qual DIFF_*_MULT foi calibrado. Os valores
+## foram corrigidos para a realidade e as funções agora os leem de fato.
+## Trocar qualquer um destes AGORA muda o balanceamento de verdade.
+const WAVE_BUDGET_BASE := 8
 const WAVE_BUDGET_GROWTH := 5
+## Termo extra por onda, a partir de WAVE_BUDGET_RAMP_AFTER.
+const WAVE_BUDGET_RAMP := 2
+const WAVE_BUDGET_RAMP_AFTER := 4
 const WAVE_SPAWN_INTERVAL := 1.7
 const WAVE_SPAWN_MIN := 0.6
-const WAVE_SCALE_CAP := 1.65
+## Incremento de escala por onda.
+const WAVE_SCALE_STEP := 0.03
+const WAVE_SCALE_CAP := 1.7
 const BOSS_EVERY := 5
 const HEAL_EVERY := 3
 
@@ -67,8 +81,32 @@ const COL_MOTE := Color("ffd24f")
 const COL_TEXT := Color("cfe9ff")
 const COL_DANGER := Color("ff2a4d")
 
+## ── legibilidade do campo da arena ────────────────────────────────────
+##
+## Regra: o fundo nunca fica mais claro que a entidade mais escura. O jogador
+## lê FORMAS em movimento sobre o campo; quando o campo acende na mesma faixa
+## de matiz dos inimigos, as duas leituras competem.
+##
+## A corrupção era vermelho aceso (0.85, 0.08, 0.28) misturado a 32% sobre 24%
+## da tela. Virou escurecimento: um setor corrompido é grade DANIFICADA — luz
+## que falta, não luz somada. O matiz vermelho sobrevive na borda do setor, que
+## é onde ele informa sem ofuscar.
+const BG_CORRUPTION_COL := Color(0.075, 0.012, 0.030)
+## Quanto o setor corrompido puxa o campo para a cor acima.
+const BG_CORRUPTION_MIX := 0.72
+## Fração das células do fundo que podem corromper.
+const BG_CORRUPTION_COVERAGE := 0.14
+## Peso da grade secundária. Era 0.22 e, correndo em direção oposta à primária,
+## produzia moiré — duas réguas em vez de uma régua e uma textura.
+const BG_SUBGRID_WEIGHT := 0.10
+
+
+static func background_corruption_color() -> Color:
+	return BG_CORRUPTION_COL
+
+## Escala do inimigo por onda. O teto só passa a valer da onda 24 em diante.
 static func wave_scale(wave: int) -> float:
-	return minf(1.0 + float(wave - 1) * 0.03, 1.7)
+	return minf(1.0 + float(wave - 1) * WAVE_SCALE_STEP, WAVE_SCALE_CAP)
 
 const ERA_TINTS := [
 	Color("4ff2ff"),
@@ -77,6 +115,50 @@ const ERA_TINTS := [
 	Color("b46bff"),
 	Color("ff2a4d"),
 ]
+
+## Quanto o acento de era tinge a grade do campo.
+##
+## Era 0.75 no endless. Três das cinco cores de era SÃO cores de inimigo —
+## `ff9a3d` é o LANCER, `b46bff` é o SPEWER, `ff2a4d` é o DANGER — então a
+## 0.75 o campo inteiro passava cinco ondas com a cor de uma ameaça, e a mesma
+## regra que tirou o brilho dos setores corrompidos estava sendo violada pela
+## grade. A identidade de era sobrevive; ela só para de gritar.
+## A era muda a COR da grade, não a luz dela. Baixar só a mistura apagaria a
+## identidade de era junto com o brilho; rebaixar o ganho do acento mantém o
+## deslocamento de matiz (ciano → laranja → azul → roxo → vermelho) e tira a
+## luminância que competia com as entidades.
+const ERA_MIX_ENDLESS := 0.45
+const ERA_MIX_STORY := 0.28
+const ERA_TINT_GAIN_GRID := 0.45
+const ERA_TINT_GAIN_GLOW := 0.32
+
+## Pico de cor do campo: o que o shader produz no centro, onde a grade cheia e
+## o brilho central somam. É sobre isto que a asserção de legibilidade mede.
+static func field_peak_color(era_tint: Color, era_mix: float) -> Color:
+	var grid_base := Color(0.075, 0.13, 0.24)
+	var glow_base := Color(0.05, 0.13, 0.2)
+	var grid_ink := grid_base.lerp(shade(era_tint, ERA_TINT_GAIN_GRID), era_mix * 0.7)
+	var glow_ink := glow_base.lerp(shade(era_tint, ERA_TINT_GAIN_GLOW), era_mix * 0.9)
+	# grade primária (0.55) + secundária, e o brilho central a 0.9.
+	var g: float = 0.55 + BG_SUBGRID_WEIGHT
+	return Color(
+		0.012 + grid_ink.r * g + glow_ink.r * 0.9,
+		0.014 + grid_ink.g * g + glow_ink.g * 0.9,
+		0.033 + grid_ink.b * g + glow_ink.b * 0.9)
+
+
+static func shade(base: Color, mult: float) -> Color:
+	return Color(base.r * mult, base.g * mult, base.b * mult, base.a)
+
+
+static func dimmest_entity_luminance() -> float:
+	var dimmest := 1.0
+	for entity in [COL_DRONE, COL_LANCER, COL_SPEWER, COL_SPLITTER, COL_BULWARK,
+		COL_MOTE, COL_PLAYER, COL_DANGER]:
+		var entity_color: Color = entity
+		dimmest = minf(dimmest, entity_color.get_luminance())
+	return dimmest
+
 
 static func era_color(wave: int) -> Color:
 	return ERA_TINTS[clampi((wave - 1) / 5, 0, ERA_TINTS.size() - 1)]
@@ -96,7 +178,8 @@ static func threat_color(id: String, color_assist: bool = false) -> Color:
 	return threat_palette(color_assist).get(id, COL_TEXT)
 
 static func wave_budget(wave: int) -> int:
-	return 8 + (wave - 1) * 5 + maxi(0, wave - 4) * 2
+	return WAVE_BUDGET_BASE + (wave - 1) * WAVE_BUDGET_GROWTH \
+		+ maxi(0, wave - WAVE_BUDGET_RAMP_AFTER) * WAVE_BUDGET_RAMP
 
 static func max_alive(wave: int) -> int:
 	return mini(6 + wave * 2, 10)

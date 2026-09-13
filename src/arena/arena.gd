@@ -24,16 +24,14 @@ var quality_tier := 0
 var _fps_accum := 0.0
 var _fps_time := 0.0
 var _state := "play"
+## Tela de pausa. Substituiu o layout por retângulo absoluto de
+## TacticalStateSurface.pause_layout().
+var _pause_screen: PausePanel
 var _pause_panel: Control
 var _pause_stats: Label
-var _over_panel: Control
-var _over_stats: Label
-var _over_core_stats: Label
-var _over_run_stats: Label
-var _over_title: Label
-var _over_sub: Label
-var _over_primary: Button
-var _over_menu: Button
+## Tela de fim de run. Substituiu sete Labels/Buttons posicionados por offset
+## absoluto em panel_kit, cujo conteúdo era montado com espaço contado à mão.
+var _run_summary: RunSummaryPanel
 var _story_stage: Dictionary = {}
 var _story_intro_panel: Control
 var _story_intro_path: Label
@@ -50,6 +48,9 @@ var _intro_quote: Label
 var touch: TouchControls
 var reticle: Reticle
 var _patch_panel: Control
+var _patch_header: VBoxContainer
+var _patch_title_label: Label
+var _patch_sub_label: Label
 var _patch_box: HBoxContainer
 var _patch_offers: Array = []
 var _patch_open := false
@@ -66,6 +67,8 @@ const PANEL_CONTENT_HEIGHT := 500.0
 const PANEL_SAFE_MARGIN := 16.0
 const PATCH_MAX_WIDTH := 930.0
 const PATCH_BOX_HEIGHT := 295.0
+const PATCH_HEADER_HEIGHT := 72.0
+const PATCH_HEADER_GAP := Design.SPACE_XL
 var _abandon_armed := false
 var _abandon_t := 0.0
 var _abandon_timer: SceneTreeTimer
@@ -120,9 +123,39 @@ func _ready() -> void:
 	overlay = ArenaOverlay.new()
 	add_child(overlay)
 	_build_patch_ui()
-	_panel_kit._build_pause_panel()
+	_pause_screen = PausePanel.new()
+	_pause_screen.visible = false
+	_pause_screen.resume_pressed.connect(func() -> void: _set_paused(false))
+	_pause_screen.restart_pressed.connect(func() -> void:
+		_set_paused(false)
+		_restart_current_run()
+	)
+	_pause_screen.terminal_pressed.connect(_open_terminal)
+	_pause_screen.abandon_pressed.connect(_request_abandon_confirmation)
+	_pause_screen.sfx_changed.connect(Sfx.set_sfx_vol)
+	_pause_screen.music_changed.connect(Sfx.set_music_vol)
+	var pause_layer := CanvasLayer.new()
+	pause_layer.layer = 58
+	pause_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	pause_layer.add_child(_pause_screen)
+	# O roteador é quem despacha o Escape ENQUANTO a árvore está pausada: a
+	# própria arena não roda nesse estado. Ele vivia dentro de _make_panel
+	# ("pause"), então aposentar o painel antigo o matou junto e o Escape
+	# parou de fechar a pausa.
+	var pause_router: Node = PauseInputRouterScript.new()
+	pause_router.arena = self
+	pause_layer.add_child(pause_router)
+	add_child(pause_layer)
+	_pause_screen.set_volumes(Sfx.sfx_vol, Sfx.music_vol)
 	_panel_kit._build_terminal_panel()
-	_panel_kit._build_game_over_panel()
+	_run_summary = RunSummaryPanel.new()
+	_run_summary.visible = false
+	_run_summary.primary_pressed.connect(_handle_over_primary)
+	_run_summary.secondary_pressed.connect(_handle_over_secondary)
+	var summary_layer := CanvasLayer.new()
+	summary_layer.layer = 60
+	summary_layer.add_child(_run_summary)
+	add_child(summary_layer)
 	_intro_kit._build_intro()
 	if Game.mode == "story":
 		_story_stage = Game.story_stage_def(Game.story_stage_index)
@@ -172,8 +205,8 @@ func _ready() -> void:
 	Game.bestiary_unlocked.connect(_on_bestiary_unlocked)
 	Sfx.play_music()
 	Fx.flash(Color(0, 0, 0), 1.0, 0.6)
-	_queue_hint("move", "MOVE // WASD OR TOUCH")
-	_queue_hint("dash", "DASH // SPACE / SHIFT")
+	_queue_hint("move", tr("CTRL_MOVE"))
+	_queue_hint("dash", tr("CTRL_DASH"))
 	if touch != null:
 		_maybe_show_touch_hints()
 
@@ -189,8 +222,8 @@ func _maybe_show_touch_hints() -> void:
 	add_child(hint_layer)
 	var hint_y := maxf(90.0, get_viewport_rect().size.y - 160.0)
 	var texts := [
-		["LEFT THUMB // MOVE", Vector2(0, 560)],
-		["RIGHT THUMB // AIM + FIRE", Vector2(640, 560)],
+		[tr("CTRL_LEFT_THUMB"), Vector2(0, 560)],
+		[tr("CTRL_RIGHT_THUMB"), Vector2(640, 560)],
 	]
 	for h in texts:
 		var l := Label.new()
@@ -223,15 +256,15 @@ func _queue_hint(id: String, text: String) -> void:
 
 func _route_enemy_hint(enemy: EnemyBase) -> void:
 	if enemy is LancerEnemy:
-		_queue_hint("lancer", "SIDESTEP THE LINE")
+		_queue_hint("lancer", tr("HINT_SIDESTEP"))
 	elif enemy is SpewerEnemy:
-		_queue_hint("spewer", "SHOOT THE ORBS DOWN")
+		_queue_hint("spewer", tr("HINT_SHOOT_ORBS"))
 	elif enemy is SplitterEnemy:
-		_queue_hint("splitter", "KILL IT AWAY FROM YOU")
+		_queue_hint("splitter", tr("HINT_KILL_AWAY"))
 	elif enemy is BulwarkEnemy:
-		_queue_hint("dash", "DASH // SPACE / SHIFT")
+		_queue_hint("dash", tr("CTRL_DASH"))
 	elif enemy_list.size() == 1:
-		_queue_hint("move", "MOVE // WASD OR TOUCH")
+		_queue_hint("move", tr("CTRL_MOVE"))
 
 func _on_enemy_exit(n: Node) -> void:
 	enemy_list.erase(n)
@@ -307,10 +340,21 @@ func patch_card_rects_for_viewport(viewport_size: Vector2) -> Array[Rect2]:
 		rects.append(Rect2(box.position.x + i * (card_width + separation), box.position.y, card_width, box.size.y))
 	return rects
 
+func patch_header_rect_for_viewport(viewport_size: Vector2) -> Rect2:
+	var box := patch_box_rect_for_viewport(viewport_size)
+	var height := PATCH_HEADER_HEIGHT
+	var top := maxf(PANEL_SAFE_MARGIN, box.position.y - PATCH_HEADER_HEIGHT - PATCH_HEADER_GAP)
+	return Rect2(box.position.x, top, box.size.x, minf(height, maxf(box.position.y - top, 0.0)))
+
 func _layout_patch_box() -> void:
 	if _patch_box == null or not is_instance_valid(_patch_box):
 		return
-	var box := patch_box_rect_for_viewport(get_viewport_rect().size)
+	var viewport_size := get_viewport_rect().size
+	var box := patch_box_rect_for_viewport(viewport_size)
+	if is_instance_valid(_patch_header):
+		var header := patch_header_rect_for_viewport(viewport_size)
+		_patch_header.position = header.position
+		_patch_header.size = header.size
 	_patch_box.anchor_left = 0.5
 	_patch_box.anchor_right = 0.5
 	_patch_box.anchor_top = 0.0
@@ -328,8 +372,8 @@ func _layout_patch_box() -> void:
 			card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 func _refresh_responsive_layout(viewport_height: float = -1.0) -> void:
-	_panel_kit._layout_pause_panel()
-	for panel in [_pause_panel, _over_panel, _patch_panel]:
+	# _layout_pause_panel foi aposentado junto com o painel de retângulo absoluto.
+	for panel in [_patch_panel]:
 		if panel == null or not is_instance_valid(panel):
 			continue
 		for control in panel.get_children():
@@ -357,11 +401,19 @@ func state_action_rects(viewport: Vector2, count: int) -> Array[Rect2]:
 
 
 func pause_action_labels() -> Array[String]:
-	return _panel_kit.pause_action_labels()
+	return _pause_screen.action_labels() if is_instance_valid(_pause_screen) else _panel_kit.pause_action_labels()
 
 
 func pause_action_icon_kinds() -> Array[String]:
-	return _panel_kit.pause_action_icon_kinds()
+	return _pause_screen.action_icon_kinds() if is_instance_valid(_pause_screen) else _panel_kit.pause_action_icon_kinds()
+
+
+## B4: este forwarding sumiu quando `_open_terminal` foi movido para o
+## panel_kit, mas o par `_close_terminal` continuou sendo chamado daqui. O
+## modo de captura KP_SHOT=terminal ficou morto desde então e ninguém notou,
+## porque esse caminho não roda no autotest.
+func _open_terminal() -> void:
+	_panel_kit._open_terminal()
 
 
 func handle_pause_input(event: InputEvent) -> bool:
@@ -369,7 +421,7 @@ func handle_pause_input(event: InputEvent) -> bool:
 
 
 func game_over_action_labels() -> Array[String]:
-	return _panel_kit.game_over_action_labels()
+	return _run_summary.action_labels() if is_instance_valid(_run_summary) else _panel_kit.game_over_action_labels()
 
 
 const STORY_INTRO_FADE_IN := 0.35
@@ -420,21 +472,27 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 		_bg_mat.set_shader_parameter("corruption", _stage_kit.background_corruption_for_wave(wave))
 	Game.log_event("CYCLE %02d START" % wave)
 	if is_boss:
-		Game.log_event("ANOMALY INBOUND // %s" % RootBoss.title_for_index(int(Game.wave / float(Balance.BOSS_EVERY))))
-		hud.show_banner("CYCLE %02d // ANOMALY" % wave, "ROOT DAEMON INBOUND", 2.2)
+		Game.log_event(tr("ARENA_ANOMALY_INBOUND") % RootBoss.title_for_index(int(Game.wave / float(Balance.BOSS_EVERY))))
+		hud.show_banner(tr("ARENA_CYCLE_ANOMALY") % wave, tr("ARENA_ROOT_INBOUND"), 2.2)
 		Sfx.play("boss", 1.0, 0.0)
 		_intro_kit._run_boss_intro()
 	else:
-		hud.show_banner("CYCLE %02d" % wave, "PURGE THE DAEMONS", 1.8)
+		hud.show_banner(tr("ARENA_CYCLE") % wave, tr("ARENA_PURGE_SUB"), 1.8)
 		Sfx.play("wave", 1.0 + wave * 0.01, -6.0)
 	if wave >= 5 and not Game.unlocked_programs.has("daemon"):
 		Game.unlock_program("daemon")
-		hud.show_banner("PROGRAM UNLOCKED", "DAEMON AVAILABLE IN SETTINGS", 2.4)
+		hud.show_banner(tr("ARENA_PROGRAM_UNLOCKED"), tr("ARENA_DAEMON_AVAILABLE"), 2.4)
 		Sfx.play("ready", 1.2, -4.0)
 	if wave > 1 and (wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
-		player.heal(1)
-		Game.register_heal("cycle")
+		player.heal(1, "cycle")
 		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
+
+## Contrato do Spawner: banners de evento (SURGE/SWARM/...) chegam via
+## IntroKit. Sem este delegate, o call_deferred do Spawner caía em
+## "Method not found" e o banner se perdia com ERROR no log.
+func show_event_banner(txt: String) -> void:
+	if _intro_kit != null:
+		_intro_kit.show_event_banner(txt)
 
 func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 	wave_signal_count += 1
@@ -445,27 +503,20 @@ func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 	Game.log_event("STORY // %s // WAVE %02d START" % [_story_stage.get("path", ""), current_wave])
 	if is_boss:
 		Game.log_event("STORY BOSS INBOUND // %s" % _story_stage.get("boss", "ROOT DAEMON"))
-		hud.show_banner("%s // FINAL WAVE" % _story_stage.get("path", ""), str(_story_stage.get("boss", "ROOT DAEMON")), 2.2)
+		hud.show_banner("%s // %s" % [_story_stage.get("path", ""), tr("STORY_CHROME_FINAL_WAVE")], str(_story_stage.get("boss", "ROOT DAEMON")), 2.2)
 		Sfx.play("boss", 1.0, 0.0)
 	else:
-		hud.show_banner("%s // WAVE %02d" % [_story_stage.get("path", ""), current_wave], "PURGE THE DAEMONS", 1.8)
+		hud.show_banner("%s // %s" % [_story_stage.get("path", ""), tr("STORY_CHROME_WAVE") % current_wave], tr("ARENA_PURGE_SUB"), 1.8)
 		Sfx.play("wave", 1.0 + current_wave * 0.01, -6.0)
 	if current_wave > 1 and (current_wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
-		player.heal(1)
-		Game.register_heal("story")
+		player.heal(1, "story")
 		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
 
-const TIPS := [
-		"DASHING GRANTS INVULNERABILITY FRAMES",
-		"CHAIN KILLS FAST FOR UP TO x8 SCORE",
-		"MOTES CHARGE YOUR OVERCLOCK",
-		"THE DAEMONS DO NOT ACCEPT COMPLAINTS",
-		"ELITES HAVE NEW TRICKS. WATCH THE WHITE RING",
-		"DASHING THROUGH ENEMIES BEATS APOLOGIZING",
-		"OVERCLOCK LASTS LONGER IF YOU KEEP KILLING",
-		"CORRUPTION POOLS ARE NOT POOLS",
-		"OOM_KILLER WANTS YOUR MOTES. RUDE",
-		"THE GRID REMEMBERS YOUR SCORES",
+## Chaves, não texto: `const` só aceita expressão constante, e `tr()` resolve
+## em tempo de execução — o idioma pode mudar depois que a arena carregou.
+const TIP_KEYS := [
+		"TIP_DASH_IFRAMES", "TIP_CHAIN", "TIP_MOTES", "TIP_COMPLAINTS", "TIP_ELITES",
+		"TIP_DASH_THROUGH", "TIP_OVERCLOCK", "TIP_POOLS", "TIP_OOM", "TIP_GRID",
 	]
 
 var _tip_label: Label
@@ -486,8 +537,9 @@ func _on_wave_cleared(wave: int) -> void:
 
 func _on_story_wave_cleared(current_wave: int) -> void:
 	var klog: Array = _story_stage.get("klog", [])
-	var line := str(klog[(current_wave - 1) % klog.size()]) if not klog.is_empty() else "wave complete"
-	hud.show_banner("%s // WAVE %02d CLEAR" % [_story_stage.get("path", ""), current_wave], "KLOG // " + line, 2.2)
+	var stage_id := str(_story_stage.get("id", ""))
+	var line := StoryData.localized_klog(stage_id, current_wave - 1) if not klog.is_empty() else tr("STORY_CHROME_FALLBACK")
+	hud.show_banner("%s // %s" % [_story_stage.get("path", ""), tr("STORY_CHROME_CLEAR") % current_wave], "%s // %s" % [tr("STORY_CHROME_KLOG"), line], 2.2)
 	Game.log_event("KLOG // " + line)
 	Game.add_score(current_wave * 50)
 	Sfx.play("ui", 1.3, -6.0)
@@ -511,8 +563,8 @@ func _show_tip() -> void:
 		tl.layer = 45
 		tl.add_child(_tip_label)
 		add_child(tl)
-	_tip_index = randi() % TIPS.size()
-	_tip_label.text = "TIP // " + TIPS[_tip_index]
+	_tip_index = randi() % TIP_KEYS.size()
+	_tip_label.text = tr("ARENA_TIP_PREFIX") + tr(str(TIP_KEYS[_tip_index]))
 	_tip_label.modulate.a = 0.0
 	var tw := create_tween()
 	tw.tween_property(_tip_label, "modulate:a", 0.85, 0.4)
@@ -521,33 +573,24 @@ func _show_tip() -> void:
 
 func _build_patch_ui() -> void:
 	_patch_panel = Control.new()
-	_patch_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_patch_panel.theme = UiTheme.shared()
+	_patch_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_patch_panel.visible = false
 	_patch_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.01, 0.012, 0.03, 0.86)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Design.SCRIM
 	_patch_panel.add_child(dim)
-	var title := Label.new()
-	title.text = "KERNEL PATCH DETECTED"
-	title.add_theme_font_override("font", load("res://assets/fonts/Orbitron.ttf"))
-	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", Balance.COL_MOTE)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.anchor_left = 0.0
-	title.anchor_right = 1.0
-	_panel_kit._center_panel_control(title, 130.0, 50.0)
-	_patch_panel.add_child(title)
-	var sub := Label.new()
-	sub.text = "SELECT ONE // [1] [2] [3]"
-	sub.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	sub.add_theme_font_size_override("font_size", 13)
-	sub.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.anchor_left = 0.0
-	sub.anchor_right = 1.0
-	_panel_kit._center_panel_control(sub, 182.0, 24.0)
-	_patch_panel.add_child(sub)
+	_patch_header = VBoxContainer.new()
+	_patch_header.add_theme_constant_override("separation", Design.SPACE_XS)
+	_patch_panel.add_child(_patch_header)
+	_patch_title_label = ScreenKit.grot(tr("ARENA_PATCH_TITLE"), Design.TEXT_HEADING, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
+	_patch_title_label.name = "PatchOfferTitle"
+	_patch_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_patch_header.add_child(_patch_title_label)
+	_patch_sub_label = ScreenKit.mono(tr("PATCH_SELECT_TOUCH") if Design.touch_input() else tr("PATCH_SELECT_ONE"), Design.TEXT_CAPTION, Design.TEXT_MUTED)
+	_patch_header.add_child(_patch_sub_label)
+	ScreenKit.rule(_patch_header, 0.22)
 	_patch_box = HBoxContainer.new()
 	_patch_box.anchor_left = 0.5
 	_patch_box.anchor_right = 0.5
@@ -591,6 +634,7 @@ func _try_show_patch() -> void:
 	_layout_patch_box()
 	_patch_panel.modulate.a = 1.0
 	_patch_panel.visible = true
+	ScreenKit.open_focus(_patch_panel)
 	var cards := _patch_box.get_children()
 	for i in cards.size():
 		var card: Control = cards[i]
@@ -616,7 +660,7 @@ func _make_patch_card(def: Dictionary, idx: int) -> Control:
 func _apply_patch_effects(id: String) -> void:
 	match id:
 		"hp":
-			player.add_max_hp(1)
+			player.add_max_hp(1, "reintegration")
 		"shield":
 			player.add_shield_charge()
 		"absorb":
@@ -625,7 +669,7 @@ func _apply_patch_effects(id: String) -> void:
 			for o in get_tree().get_nodes_in_group("enemy_orbs"):
 				o.pop()
 			player.invuln = maxf(player.invuln, 2.0)
-			player.heal(1)
+			player.heal(1, "restore")
 
 func _pick_patch(idx: int) -> void:
 	if not _patch_open or idx >= _patch_offers.size():
@@ -676,56 +720,59 @@ func _show_game_over() -> void:
 	_clear_abandon_confirmation()
 	_story_victory = false
 	_story_next_stage = -1
-	_over_title.text = "PROCESS TERMINATED"
-	_over_title.add_theme_color_override("font_color", Balance.COL_DANGER)
-	_over_primary.text = "REBOOT  [ENTER]"
-	_over_menu.text = "ABANDON PROCESS  [ESC]"
 	Game.end_run()
 	var s := Game.stats
 	var acc := 0.0
 	if s["shots"] > 0:
 		acc = float(s["hits"]) / float(s["shots"]) * 100.0
-	var core_lines := [
-		"TERMINATED BY %s" % str(Game.stats.get("killer", "DAEMON")),
-		"PROGRAM       %s" % Game.program_def()["name"],
-		"BUILD         %s" % Game.build_string(),
-		"SEED          %s" % Game.run_seed_text(),
-	]
-	var run_lines := [
-		"FINAL SCORE      %07d" % Game.score,
-		"BEST             %07d" % Game.best_for_mode(),
-		"CYCLES        %d" % s["wave"],
-		"DAEMONS PURGED %d" % s["kills"],
-		_heals_line(s),
-		"ACCURACY      %d%%" % int(acc),
-		"UPTIME        %02d:%02d" % [int(s["time"] / 60.0), int(s["time"]) % 60],
-	]
-	_over_sub.text = ["segmentation fault (core dumped)", "process has stopped responding", "kernel oops", "the daemons send their regards"][randi() % 4]
-	_over_core_stats.text = "\n".join(core_lines)
-	_over_run_stats.text = "\n".join(run_lines)
-	for c in _over_panel.get_children():
-		if c is Label and c.text == "NEW RECORD":
-			c.queue_free()
-	if Game.new_best:
-		var nb: Label = _panel_kit._make_label("NEW RECORD", 20, Balance.COL_MOTE)
-		_panel_kit._center_panel_control(nb, 118.0, 30.0)
-		_over_panel.add_child(nb)
-		var ntw := nb.create_tween()
-		ntw.set_loops()
-		ntw.tween_property(nb, "modulate:a", 0.35, 0.5)
-		ntw.tween_property(nb, "modulate:a", 1.0, 0.5)
-	_over_panel.modulate.a = 0.0
-	_over_panel.visible = true
-	var tw := create_tween()
-	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
+	# Rótulo e valor são campos separados. Era aqui que nascia o B2
+	# (`SEED          SEED -19999...`, porque run_seed_text() já traz o prefixo)
+	# e o B3 (sete linhas em três colunas, alinhadas com espaço contado à mão).
+	_run_summary.show_summary({
+		"title": tr("OVER_TITLE"),
+		"accent": Balance.COL_DANGER,
+		"subtitle": tr("OVER_TERMINATED_BY").format([str(s.get("killer", "DAEMON"))]),
+		"score_caption": tr("STAT_SCORE"),
+		"score_value": "%07d" % Game.score,
+		"badge": tr("OVER_NEW_RECORD") if Game.new_best else "",
+		"stats": [
+			[tr("STAT_CYCLES"), "%d" % int(s["wave"])],
+			[tr("STAT_DAEMONS_PURGED"), "%d" % int(s["kills"])],
+			[tr("STAT_UPTIME"), "%02d:%02d" % [int(s["time"] / 60.0), int(s["time"]) % 60]],
+			[tr("STAT_ACCURACY"), "%d%%" % int(acc)],
+		],
+		"meta": "%s / %s / %s / %s / %s" % [
+			Game.program_def()["name"], Game.build_string(),
+			tr("SUMMARY_BEST") % Game.best_for_mode(), tr("SUMMARY_SEED") % Game.run_seed, _heals_line(s),
+		],
+		"primary": tr("OVER_REBOOT"),
+		"secondary": tr("OVER_ABANDON"),
+	})
+	_show_run_summary()
 	Sfx.play("gameover", 0.9, 0.0)
 	Sfx.duck_music(-8.0, 2.0)
+
+
+## Exibe o painel de fim de run com fade. Compartilhado por morte e vitória.
+func _show_run_summary() -> void:
+	_run_summary.modulate.a = 0.0
+	_run_summary.visible = true
+	ScreenKit.open_focus(_run_summary)
+	var tw := create_tween()
+	tw.tween_property(_run_summary, "modulate:a", 1.0, Design.MOTION_NORMAL)
+
 
 func _restart_current_run() -> void:
 	if Game.mode == "story":
 		Game.start_story(Game.story_stage_index)
 	else:
 		Game.start_run()
+
+## Ação secundária da tela de fim de run. Na morte volta ao menu; na vitória
+## de stage volta ao seletor — o rótulo muda junto, em show_summary().
+func _handle_over_secondary() -> void:
+	Game.to_menu()
+
 
 func _handle_over_primary() -> void:
 	if _story_victory:
@@ -740,25 +787,32 @@ func _show_story_victory(stage_id: String) -> void:
 	var index := Game.story_stage_index
 	_story_next_stage = index + 1 if index + 1 < Game.story_stage_count() and Game.story_stage_unlocked(index + 1) else -1
 	_story_victory = true
-	_over_title.text = "STAGE CLEARED"
-	_over_title.add_theme_color_override("font_color", _story_stage.get("theme", {}).get("accent", Balance.COL_PLAYER))
-	_over_sub.text = "%s // %s" % [_story_stage.get("path", ""), _story_stage.get("title", "")]
-	var next_line := "NEXT // %s" % Game.story_stage_def(_story_next_stage).get("path", "") if _story_next_stage >= 0 else "ACT 1 // UNIX RECOVERY COMPLETE"
+	var next_line := tr("ARENA_NEXT") % Game.story_stage_def(_story_next_stage).get("path", "") if _story_next_stage >= 0 else tr("STORY_ACT1_DONE")
 	if _story_next_stage < 0:
-		next_line = "BONUS ACT // TEMPLEOS COMPLETE" if stage_id == "temple_god" else "STORY // ALL MOUNTED PATHS COMPLETE"
+		next_line = tr("STORY_BONUS_DONE") if stage_id == "temple_god" else tr("STORY_ALL_DONE")
 		if stage_id == "temple_god":
-			next_line += "\nRAINBOW GRID UNLOCKED FOR ENDLESS"
-	var best_value := Game.story_stage_best(index)
-	_over_core_stats.text = "STAGE          %s\nBEST           %07d\n\n%s" % [str(_story_stage.get("title", "STAGE CLEARED")), best_value, next_line]
-	_over_run_stats.text = "STAGE SCORE      %07d\nDAEMONS PURGED   %d\nUPTIME           %02d:%02d" % [Game.score, int(Game.stats.get("kills", 0)), int(float(Game.stats.get("time", 0.0)) / 60.0), int(float(Game.stats.get("time", 0.0))) % 60]
-	_over_primary.text = "NEXT STAGE  [ENTER]" if _story_next_stage >= 0 else "RETURN TO MENU  [ENTER]"
-	_over_menu.text = "STORY SELECT  [ESC]"
-	_over_panel.modulate.a = 0.0
-	_over_panel.visible = true
-	var tw := create_tween()
-	tw.tween_property(_over_panel, "modulate:a", 1.0, 0.45)
+			next_line += "  //  " + tr("STORY_RAINBOW_UNLOCKED")
+	var victory_title := StoryData.localized_title(stage_id)
+	var st := Game.stats
+	_run_summary.show_summary({
+		"title": tr("VICTORY_TITLE"),
+		"accent": _story_stage.get("theme", {}).get("accent", Balance.COL_PLAYER),
+		"subtitle": "%s // %s" % [_story_stage.get("path", ""), victory_title],
+		"score_caption": tr("STAT_STAGE_SCORE"),
+		"score_value": "%07d" % Game.score,
+		"badge": next_line,
+		"stats": [
+			[tr("STAT_DAEMONS_PURGED"), "%d" % int(st.get("kills", 0))],
+			[tr("STAT_UPTIME"), "%02d:%02d" % [int(float(st.get("time", 0.0)) / 60.0), int(float(st.get("time", 0.0))) % 60]],
+			[tr("STAT_STAGE_BEST"), "%07d" % Game.story_stage_best(index)],
+		],
+		"meta": victory_title if victory_title != "" else tr("ARENA_STAGE_CLEARED"),
+		"primary": tr("VICTORY_NEXT_STAGE") if _story_next_stage >= 0 else tr("VICTORY_RETURN"),
+		"secondary": tr("VICTORY_STORY_SELECT"),
+	})
+	_show_run_summary()
 	Sfx.play("ready", 1.2, -2.0)
-	Sfx.duck_music(-6.0, 2.0)
+
 
 func _heals_line(s: Dictionary) -> String:
 	var heals: Dictionary = s.get("heals", {})
@@ -766,11 +820,11 @@ func _heals_line(s: Dictionary) -> String:
 	for k in heals:
 		total += int(heals[k])
 	if total == 0:
-		return "HEALS +0"
+		return tr("ARENA_HEALS_NONE")
 	var parts: Array = []
 	for k in heals:
 		parts.append("%s x%d" % [str(k).to_upper(), int(heals[k])])
-	return "HEALS +%d (%s)" % [total, ", ".join(parts)]
+	return tr("ARENA_HEALS") % [total, ", ".join(parts)]
 
 func _on_enemy_died(e: EnemyBase) -> void:
 	var was_split: bool = e is RootBoss and e.get("_split_silent") == true
@@ -805,8 +859,10 @@ func _on_enemy_died(e: EnemyBase) -> void:
 	n += Game.patch_level("frag")
 	if spawner.wave_event == "rich":
 		n *= 2
-	var motes := get_tree().get_nodes_in_group("motes").size()
-	n = mini(n, maxi(0, 90 - motes))
+	# O grupo "motes" foi esvaziado pela reescrita MultiMesh; contar por ele
+	# devolvia sempre 0 e o teto nunca era aplicado. O campo sabe seu tamanho.
+	var live_motes: int = mote_field.count() if is_instance_valid(mote_field) else 0
+	n = mini(n, maxi(0, Balance.MOTE_CAP - live_motes))
 	var field := mote_field if is_instance_valid(mote_field) else null
 	if field != null:
 		for i in n:
@@ -815,17 +871,16 @@ func _on_enemy_died(e: EnemyBase) -> void:
 		_spawn_recover(e.global_position)
 	if boss_reward:
 		if player.hp < player.max_hp:
-			player.heal(1)
-			Game.register_heal("boss")
+			player.heal(1, "boss")
 		if not is_fragment and Game.mode != "onehp":
 			_spawn_recover(e.global_position)
 		if not Game.unlocked_programs.has("rootlet") and int(Game.stats.get("damage", 0)) == _boss_dmg_snapshot:
 			Game.unlock_program("rootlet")
-			hud.show_banner("PROGRAM UNLOCKED", "ROOTLET AVAILABLE IN SETTINGS", 2.4)
+			hud.show_banner(tr("ARENA_PROGRAM_UNLOCKED"), tr("ARENA_ROOTLET_AVAILABLE"), 2.4)
 			Sfx.play("ready", 1.2, -4.0)
 		hud.clear_boss_encounter()
 		overlay.aberrate(1.2)
-		hud.show_banner("ROOT PURGED", "INTEGRITY +1  SCORE +250", 2.0)
+		hud.show_banner(tr("ARENA_ROOT_PURGED"), tr("ARENA_RECOVER"), 2.0)
 		Game.add_score(250)
 		Sfx.haptic(90)
 		if e.boss_index >= 2:
@@ -865,10 +920,9 @@ func _on_combo_milestone(m: int) -> void:
 		return
 	if m == 4 and Game.patch_level("vampic") > 0 and Game.vampic_cd <= 0.0 and player.hp < player.max_hp:
 		Game.vampic_cd = Game.VAMPIC_COOLDOWN
-		player.heal(1)
-		Game.register_heal("vampic")
+		player.heal(1, "vampic")
 		Fx.text(player.global_position + Vector2(0, -52), "+1", Balance.COL_PLAYER, 13)
-	Fx.text(player.global_position + Vector2(0, -40), "CHAIN x%d" % m, Balance.COL_MOTE, 18 if m < Balance.COMBO_MAX else 22)
+	Fx.text(player.global_position + Vector2(0, -40), tr("ARENA_CHAIN") % m, Balance.COL_MOTE, 18 if m < Balance.COMBO_MAX else 22)
 	Fx.ring(player.global_position, Balance.COL_MOTE, 10.0, 60.0, 0.35, 2.5)
 	Sfx.play("ready", 1.3 if m < Balance.COMBO_MAX else 1.6, -8.0)
 	Sfx.haptic(15)
@@ -912,8 +966,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			KEY_F4:
 				debug_clear_combatants()
-		get_viewport().set_input_as_handled()
-		return
+		if event.physical_keycode in [KEY_F1, KEY_F2, KEY_F3, KEY_F4]:
+			get_viewport().set_input_as_handled()
+			return
 	if _terminal_panel != null and _terminal_panel.visible:
 		if event.is_action_pressed("pause"):
 			_panel_kit._close_terminal()
@@ -957,14 +1012,26 @@ func _set_paused(v: bool) -> void:
 		_clear_abandon_confirmation()
 		_panel_kit._close_terminal()
 	get_tree().paused = v
-	_pause_panel.visible = v
+	_pause_screen.visible = v
 	if v:
+		ScreenKit.open_focus(_pause_screen, _pause_screen.get("_action_blocks")[0].get_meta("hit"))
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	if v:
-		_pause_stats.text = "%s // SCORE %07d   CYCLE %02d   COMBO x%d\nBUILD: %s" % [Game.program_def()["name"], Game.score, Game.wave, Game.mult, Game.build_string()]
+		_pause_screen.set_volumes(Sfx.sfx_vol, Sfx.music_vol)
+		_pause_screen.set_run_state([
+			[tr("STAT_CYCLE"), "%02d" % Game.wave],
+			[tr("STAT_SCORE"), "%07d" % Game.score],
+			[tr("STAT_CHAIN"), "x%d" % Game.mult],
+			[tr("STAT_INTEGRITY"), "%d/%d" % [player.hp, player.max_hp]],
+		], "%s / %s" % [Game.program_def()["name"], Game.build_string()])
 	Sfx.play("ui", 1.0, -6.0)
 	if not v:
+		ScreenKit.close_focus(_pause_screen)
 		_try_show_patch()
+
+## Rota usada pelo botão de fechar do TerminalPanel.
+func _close_terminal() -> void:
+	_panel_kit._close_terminal()
+
 
 func execute_terminal_command(command: String) -> String:
 	var raw := command.strip_edges()
@@ -1009,8 +1076,18 @@ func _terminal_man(query: String) -> String:
 		needle = "root"
 	for entry in BestiaryPanel.ENTRIES:
 		if str(entry["id"]).to_lower() == needle or str(entry["name"]).to_lower() == needle:
-			return "%s\n%s\nBUGS: %s\nTHREAT %d" % [entry["name"], entry["desc"], entry["bugs"], int(entry["threat"])]
+			var man_desc := _localized_entry_text(entry, "DESC")
+			var man_bugs := _localized_entry_text(entry, "BUGS")
+			return "%s\n%s\n%s: %s\n%s" % [entry["name"], man_desc, tr("TERM_MAN_BUGS"), man_bugs, tr("TERM_MAN_THREAT") % int(entry["threat"])]
 	return "man: no entry for %s" % query.strip_edges()
+
+## Mesma regra do painel: inglês do ENTRIES como fallback, nunca chave crua.
+func _localized_entry_text(entry: Dictionary, field: String) -> String:
+	var key := "BEST_%s_%s" % [field.to_upper(), str(entry.get("id", "")).to_upper()]
+	var translated := TranslationServer.translate(key)
+	if translated == key:
+		return str(entry.get(field.to_lower(), ""))
+	return translated
 
 func _terminal_heal() -> String:
 	if Game.mode == "onehp":
@@ -1023,8 +1100,7 @@ func _terminal_heal() -> String:
 		return "sudo: heal not needed"
 	if not Game.consume_terminal_heal():
 		return "sudo: PERMISSION DENIED"
-	player.heal(1)
-	Game.register_heal("sudo")
+	player.heal(1, "sudo")
 	Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY // SUDO", Balance.COL_PLAYER, 14)
 	return "sudo: heal granted // integrity +1"
 
@@ -1056,7 +1132,13 @@ func _request_abandon_confirmation() -> void:
 	_abandon_generation += 1
 	_abandon_armed = true
 	_abandon_t = ABANDON_CONFIRM_WINDOW
-	_pause_info.text = PAUSE_INFO_CONFIRM
+	# O aviso vive no PRÓPRIO bloco de abandono agora. Antes era uma linha
+	# solta desenhada dentro da moldura vermelha, o que fazia [ESC] e [R]
+	# parecerem parte do abandono (B6).
+	if is_instance_valid(_pause_screen):
+		_pause_screen.set_abandon_armed(true)
+	if _pause_info != null and is_instance_valid(_pause_info):
+		_pause_info.text = PAUSE_INFO_CONFIRM
 	var generation := _abandon_generation
 	_abandon_timer = get_tree().create_timer(ABANDON_CONFIRM_WINDOW, true, false, true)
 	_abandon_timer.timeout.connect(_on_abandon_timeout.bind(generation))
@@ -1070,6 +1152,8 @@ func _clear_abandon_confirmation() -> void:
 	_abandon_armed = false
 	_abandon_t = 0.0
 	_abandon_timer = null
+	if is_instance_valid(_pause_screen):
+		_pause_screen.set_abandon_armed(false)
 	if _pause_info != null and is_instance_valid(_pause_info):
 		_pause_info.text = PAUSE_INFO_DEFAULT
 
@@ -1099,8 +1183,7 @@ func _process(delta: float) -> void:
 			walls.set_tint(rainbow)
 		if _dust != null:
 			_dust.color = Color(rainbow.r, rainbow.g, rainbow.b, 0.22)
-	var debug_open: bool = _debug_panel != null and _debug_panel.visible
-	var want_hidden: bool = _state == "play" and not get_tree().paused and reticle != null and not debug_open
+	var want_hidden: bool = _wants_hidden_cursor()
 	var target_mouse := Input.MOUSE_MODE_HIDDEN if want_hidden else Input.MOUSE_MODE_VISIBLE
 	if Input.mouse_mode != target_mouse:
 		Input.mouse_mode = target_mouse
@@ -1109,8 +1192,8 @@ func _process(delta: float) -> void:
 			_restart_hold_t += delta
 			if _restart_hold_t >= RESTART_HOLD_DURATION and not _restart_triggered:
 				_restart_triggered = true
-				Game.log_event("SPEEDRUN RESTART // HOLD R")
-				Game.start_run()
+				Game.log_event(tr("CTRL_SPEEDRUN_RESTART"))
+				_restart_current_run()
 		else:
 			_restart_hold_t = 0.0
 			_restart_triggered = false
@@ -1121,7 +1204,8 @@ func _process(delta: float) -> void:
 		var c := _era_color
 		if OS.get_environment("KP_NOTINT") == "":
 			_bg_mat.set_shader_parameter("era_tint", Vector3(c.r, c.g, c.b))
-		_bg_mat.set_shader_parameter("era_mix", 0.28 if Game.mode == "story" else 0.75)
+		_bg_mat.set_shader_parameter("era_mix",
+			Balance.ERA_MIX_STORY if Game.mode == "story" else Balance.ERA_MIX_ENDLESS)
 		_bg_mat.set_shader_parameter("corruption", 0.0 if Game.mode == "story" else _stage_kit.background_corruption_for_wave(Game.wave))
 	if _state == "play":
 		Game.stats["time"] += delta
@@ -1139,6 +1223,13 @@ func _update_debug_cursor() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif _state == "play" and not get_tree().paused and reticle != null:
 		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+
+## Predicado puro do cursor: gameplay com reticle pede cursor oculto; qualquer
+## modal (pausa/patch/terminal/summary), debug aberto ou reticle ausente pede
+## cursor visível. O _process só aplica; o teste cobre o contrato aqui.
+func _wants_hidden_cursor() -> bool:
+	var debug_open: bool = _debug_panel != null and _debug_panel.visible
+	return _state == "play" and not get_tree().paused and reticle != null and not debug_open
 
 func _exit_tree() -> void:
 	_clear_abandon_confirmation()
