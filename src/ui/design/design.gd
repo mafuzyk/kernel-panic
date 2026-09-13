@@ -44,9 +44,9 @@ const TEXT_MICRO := 11      ## selos, unidades, rodapé de painel
 const TEXT_CAPTION := 13    ## rótulos de campo, dicas, legendas
 const TEXT_BODY := 15       ## corpo padrão, descrições
 const TEXT_SUBHEAD := 18    ## rótulo de botão, cabeçalho de lista
-const TEXT_HEADING := 32    ## título de tela (SETTINGS //, BESTIARY //)
-const TEXT_TITLE := 44      ## título de painel de estado (PAUSED)
-const TEXT_DISPLAY := 76    ## exclusivo do título do menu
+const TEXT_HEADING := 28    ## título de tela (SETTINGS //, BESTIARY //)
+const TEXT_TITLE := 36      ## título de painel de estado (PAUSED)
+const TEXT_DISPLAY := 60    ## exclusivo do título do menu
 
 ## Entrelinha como múltiplo do tamanho da fonte.
 const LEADING_TIGHT := 1.15
@@ -180,6 +180,32 @@ static func touch_input() -> bool:
 ## Alvo mínimo de interação para o dispositivo atual.
 static func target_min() -> float:
 	return TOUCH_TARGET_MIN if DisplayServer.is_touchscreen_available() else CLICK_TARGET_MIN
+
+
+## Margens da safe area em unidades de canvas. Zero no desktop ou sem cutout.
+## O desktop não muda quando não há inset móvel: o retorno é zero exato.
+static func safe_margins(canvas_size: Vector2) -> Dictionary:
+	var zero := {"left": 0.0, "top": 0.0, "right": 0.0, "bottom": 0.0}
+	if not touch_input():
+		return zero
+	var window_size := Vector2(DisplayServer.window_get_size())
+	if window_size.x <= 0.0 or window_size.y <= 0.0:
+		return zero
+	return safe_margins_from(window_size, DisplayServer.get_display_safe_area(), canvas_size)
+
+## Matemática pura da conversão (testável sem cutout real).
+static func safe_margins_from(window_size: Vector2, safe: Rect2i, canvas_size: Vector2) -> Dictionary:
+	var zero := {"left": 0.0, "top": 0.0, "right": 0.0, "bottom": 0.0}
+	if window_size.x <= 0.0 or window_size.y <= 0.0 or canvas_size.x <= 0.0 or canvas_size.y <= 0.0:
+		return zero
+	var sx := canvas_size.x / window_size.x
+	var sy := canvas_size.y / window_size.y
+	return {
+		"left": maxf(0.0, float(safe.position.x) * sx),
+		"top": maxf(0.0, float(safe.position.y) * sy),
+		"right": maxf(0.0, (window_size.x - float(safe.end.x)) * sx),
+		"bottom": maxf(0.0, (window_size.y - float(safe.end.y)) * sy),
+	}
 
 
 ## Aplica um multiplicador de brilho preservando o alpha.

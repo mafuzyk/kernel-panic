@@ -41,7 +41,8 @@ var _stats_data: Array = []
 
 func _ready() -> void:
 	theme = UiTheme.shared()
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# TOP_LEFT + sync manual (ver menu_shell): FULL_RECT + `size = vp` WARNING.
+	set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	_resize_to_viewport()
 	get_viewport().size_changed.connect(_resize_to_viewport)
 	_build()
@@ -67,7 +68,7 @@ func _apply_layout_mode() -> void:
 		return
 	var step := Design.breakpoint_for(size.x)
 	var compact := step == "compact" or step == "medium"
-	_title.add_theme_font_size_override("font_size", 38 if compact else 74)
+	_title.add_theme_font_size_override("font_size", 32 if compact else 60)
 	_subtitle.visible = not compact
 	# Em janela estreita o masthead é 70px de decoração que não cabe.
 	if is_instance_valid(_masthead):
@@ -85,7 +86,15 @@ func _apply_layout_mode() -> void:
 # ── contrato consumido pelo autotest ──────────────────────────────────
 
 func action_labels() -> Array[String]:
-	return [tr("PAUSE_RESUME"), tr("PAUSE_RESTART"), tr("PAUSE_TERMINAL"), tr("PAUSE_ABANDON")]
+	# Derivado dos blocos CONSTRUÍDOS, não de lista fixa: no touch o
+	# Terminal (desktop-only) nem nasce, e o contrato reflete a tela real.
+	var out: Array[String] = []
+	for block in _action_blocks:
+		if is_instance_valid(block) and block.has_meta("label_node"):
+			var node: Label = block.get_meta("label_node")
+			if is_instance_valid(node):
+				out.append(node.text)
+	return out
 
 
 func action_icon_kinds() -> Array[String]:
@@ -164,7 +173,7 @@ func _build() -> void:
 	_masthead = ScreenKit.masthead(col, tr("PAUSE_STATE"))
 	ScreenKit.gap(col, Design.SPACE_3XL)
 
-	_title = ScreenKit.grot(tr("PAUSE_TITLE"), 74, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
+	_title = ScreenKit.grot(tr("PAUSE_TITLE"), 60, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD
 	col.add_child(_title)
 	_subtitle = ScreenKit.mono(tr("PAUSE_SUBTITLE"), Design.TEXT_SUBHEAD, Design.TEXT_SECONDARY)
@@ -235,12 +244,18 @@ func _build_actions(parent: Node) -> void:
 	_actions_row.add_theme_constant_override("separation", Design.SPACE_2XL)
 	parent.add_child(_actions_row)
 
+	# Touch: sem dicas de teclado e sem o Terminal (workstation desktop-only;
+	# expor quebrada no telefone é pior que esconder a entrada).
+	var touch := Design.touch_input()
 	for spec in [
 		[tr("PAUSE_RESUME"), "[ESC]", "primary", func() -> void: resume_pressed.emit()],
 		[tr("PAUSE_RESTART"), "[R]", "text", func() -> void: restart_pressed.emit()],
 		[tr("PAUSE_TERMINAL"), "[T]", "text", func() -> void: terminal_pressed.emit()],
 	]:
-		var block := ScreenKit.action(str(spec[0]), str(spec[1]), str(spec[2]), spec[3])
+		if touch and str(spec[0]) == tr("PAUSE_TERMINAL"):
+			continue
+		var key := "" if touch else str(spec[1])
+		var block := ScreenKit.action(str(spec[0]), key, str(spec[2]), spec[3])
 		_action_blocks.append(block)
 		_actions_row.add_child(block)
 
@@ -251,7 +266,7 @@ func _build_actions(parent: Node) -> void:
 	_actions_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_actions_row.add_child(_actions_spacer)
 
-	_abandon_block = ScreenKit.action(tr("PAUSE_ABANDON"), "[Q]", "danger",
+	_abandon_block = ScreenKit.action(tr("PAUSE_ABANDON"), "" if touch else "[Q]", "danger",
 		func() -> void: abandon_pressed.emit())
 	_action_blocks.append(_abandon_block)
 	_actions_row.add_child(_abandon_block)

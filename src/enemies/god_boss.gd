@@ -33,17 +33,30 @@ func roll_oracle_attack() -> String:
 	oracle_roll_count += 1
 	return last_oracle_attack
 
+## Fonte única da cadência do oráculo: pressão monotonicamente crescente.
+## P1 lento e legível, P3 implacável — nunca o contrário.
+func oracle_interval_for_phase(target_phase: int) -> float:
+	match clampi(target_phase, 1, 3):
+		1:
+			return 2.20
+		2:
+			return 1.90
+		_:
+			return 1.60
+
 func _move(delta: float) -> void:
 	var to_player := player.global_position - global_position if player != null and is_instance_valid(player) else Vector2.ZERO
 	var desired := steer_distance_band(to_player, 190.0, 330.0, -1.0, 0.72)
 	desired += steer_separation(2.4) * 0.7
 	_v = _v.move_toward(desired.limit_length(1.0) * speed, 260.0 * delta)
-	oracle_cd -= delta
-	if oracle_cd <= 0.0:
-		oracle_cd = maxf(2.2 - 0.18 * (3 - phase), 1.15)
-		_oracle_cast(roll_oracle_attack())
+	# Fase ANTES de agendar: o código antigo usava a fase do frame anterior e
+	# a fórmula invertida desacelerava o boss conforme ele perdia HP.
 	var frac := float(hp) / float(max_hp) if max_hp > 0 else 0.0
 	phase = 3 if frac < 0.33 else (2 if frac < 0.66 else 1)
+	oracle_cd -= delta
+	if oracle_cd <= 0.0:
+		oracle_cd = oracle_interval_for_phase(phase)
+		_oracle_cast(roll_oracle_attack())
 
 func _oracle_cast(attack: String) -> void:
 	match attack:

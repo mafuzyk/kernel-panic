@@ -4,6 +4,12 @@ extends Node2D
 var player: Player
 var _spread := 0.0
 
+func _ready() -> void:
+	# ALWAYS: modais (patch/pausa/terminal) deixam o cursor visível e pausam
+	# a tree. Sendo pausável, o reticle congelava no último frame visível por
+	# cima do modal. Assim ele sempre deriva a visibilidade do cursor real.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
 func _process(delta: float) -> void:
 	var firing := player != null and is_instance_valid(player) and player.fire_cd > 0.0
 	if firing:

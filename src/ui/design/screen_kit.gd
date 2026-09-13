@@ -162,7 +162,7 @@ static func action(label: String, key: String, emphasis: String, on_press: Calla
 		color = Design.DANGER
 	elif emphasis == "text":
 		color = Design.TEXT_PRIMARY
-	var size: int = 30 if emphasis == "primary" else 25
+	var size: int = 26 if emphasis == "primary" else 22
 	var weight: int = Design.WEIGHT_HEAVY if emphasis == "primary" else Design.WEIGHT_BOLD
 	line.add_child(grot(label, size, weight, color))
 	if key != "":
@@ -184,6 +184,13 @@ static func action(label: String, key: String, emphasis: String, on_press: Calla
 	hit.add_theme_stylebox_override("hover", glow)
 	hit.pressed.connect(on_press)
 	stack.add_child(hit)
+	# Alvos touch: fileiras de ação precisam de 56px (primária) e 48px
+	# (secundárias) em viewport real de telefone. Só em touch — o desktop
+	# mantém a densidade editorial atual.
+	if Design.touch_input():
+		var touch_min := 56.0 if emphasis == "primary" else 48.0
+		if stack.custom_minimum_size.y < touch_min:
+			stack.custom_minimum_size.y = touch_min
 	stack.set_meta("label_node", line.get_child(0))
 	stack.set_meta("hit", hit)
 	bind_feedback(hit, line.get_child(0), sb if emphasis == "primary" else null)
@@ -225,7 +232,7 @@ static func set_action_density(block: PanelContainer, compact: bool) -> void:
 	if block.has_meta("label_node"):
 		var node: Label = block.get_meta("label_node")
 		if is_instance_valid(node):
-			node.add_theme_font_size_override("font_size", 20 if compact else 30)
+			node.add_theme_font_size_override("font_size", 18 if compact else 26)
 
 
 ## Troca o rótulo de um bloco criado por `action()`.
