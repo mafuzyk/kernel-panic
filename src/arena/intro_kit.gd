@@ -35,6 +35,9 @@ func _build_intro() -> void:
 	var il_layer := CanvasLayer.new()
 	il_layer.layer = 56
 	il_layer.add_child(a._intro_label)
+	# O quote nascia sem pai: um órfão por arena (+1 no contador a cada troca
+	# de cena) e a fala do boss nunca renderizava. Mesma camada do título.
+	il_layer.add_child(a._intro_quote)
 	a.add_child(il_layer)
 
 func _build_story_intro() -> void:
@@ -53,16 +56,12 @@ func _build_story_intro() -> void:
 func _show_story_intro() -> void:
 	if a._story_intro_panel == null or a._story_stage.is_empty():
 		return
-	var act_label := "ACT 1 // UNIX RECOVERY LOG"
-	if str(a._story_stage.get("act", "")) == "windows":
-		act_label = "ACT 2 // WINDOWS RECOVERY LOG"
-	elif str(a._story_stage.get("act", "")) == "templeos":
-		act_label = "BONUS ACT // TEMPLEOS ORACLE LOG"
+	var stage_id := str(a._story_stage.get("id", ""))
 	a._story_intro_panel.set_story(
 		str(a._story_stage.get("path", "")),
-		str(a._story_stage.get("title", "STORY STAGE")),
-		str(a._story_stage.get("intro", "")),
-		act_label
+		StoryData.localized_title(stage_id),
+		StoryData.localized_intro(stage_id),
+		StoryData.localized_act_label(str(a._story_stage.get("act", "")))
 	)
 	_fit_story_intro_text()
 	a._story_intro_panel.modulate.a = 0.0

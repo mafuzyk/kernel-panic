@@ -41,6 +41,7 @@ var t := 0.0
 var _card_rects: Dictionary = {}
 var _tab_rects: Dictionary = {}
 var _selected_stage := 0
+var _last_narrow := false
 var _act_filter := "unix"
 
 var _title: Label
@@ -79,7 +80,7 @@ func title_text() -> String:
 
 
 func title_font_size() -> int:
-	return Design.TEXT_HEADING if Design.breakpoint_for(size.x) == "compact" else Design.TEXT_TITLE
+	return Design.TEXT_HEADING if Design.breakpoint_for(size.x) == "compact" or Design.touch_input() else Design.TEXT_TITLE
 
 
 func available_stage_indices() -> Array:
@@ -427,6 +428,7 @@ func _build() -> void:
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD
 	col.add_child(_title)
 	_subtitle = ScreenKit.mono(tr("STORY_SUBTITLE"), Design.TEXT_CAPTION, Design.TEXT_SECONDARY)
+	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD
 	col.add_child(_subtitle)
 
 	ScreenKit.gap(col, Design.SPACE_XL)
@@ -499,7 +501,7 @@ func _build_tabs(parent: Node) -> void:
 		stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		cell.add_child(stack)
 
-		var label := ScreenKit.mono(tr("STORY_ACT_%s" % act_id.to_upper()), Design.TEXT_CAPTION,
+		var label := ScreenKit.mono(tr("STORY_TAB_%s" % act_id.to_upper()), Design.TEXT_CAPTION,
 			Design.TEXT_MUTED)
 		stack.add_child(label)
 		var bar := ColorRect.new()
@@ -547,9 +549,9 @@ func _build_footer(parent: Node) -> void:
 	_footer.add_theme_constant_override("separation", Design.SPACE_XL)
 	parent.add_child(_footer)
 
-	_mount_block = ScreenKit.action(mount_label(), "[ENTER]", "primary", _mount)
+	_mount_block = ScreenKit.action(mount_label(), "" if Design.touch_input() else "[ENTER]", "primary", _mount)
 	_footer.add_child(_mount_block)
-	_back_block = ScreenKit.action(tr("UI_BACK"), "[ESC]", "text",
+	_back_block = ScreenKit.action(tr("UI_BACK"), "" if Design.touch_input() else "[ESC]", "text",
 		func() -> void: back_pressed.emit())
 	_footer.add_child(_back_block)
 	ScreenKit.grow_h(_footer)
@@ -693,6 +695,15 @@ func _refresh_rows() -> void:
 
 		var path_text := str(stage.get("path", "")) if unlocked else tr("STORY_STATE_LOCKED")
 		_set_label(row, "path", ink.get("title", Design.TEXT_PRIMARY), path_text)
+		# No narrow o meta (estado + ondas) some: a linha precisa caber em
+		# ~300px e o detalhe já mostra ondas e estado (precedente: bestiário
+		# esconde pontos no narrow).
+		var row_narrow := _last_narrow
+		for meta_key in ["state", "waves"]:
+			if row.has_meta(meta_key):
+				var meta_label: Label = row.get_meta(meta_key)
+				if is_instance_valid(meta_label):
+					meta_label.visible = not row_narrow
 		_set_label(row, "title", ink.get("body", Design.TEXT_MUTED),
 			_stage_title(index) if unlocked else tr("STORY_STATUS_LOCKED"))
 		_set_label(row, "state", ink.get("state", Design.TEXT_MUTED), state_label(state))
@@ -723,11 +734,11 @@ func _set_label(row: PanelContainer, key: String, color: Color, text: String) ->
 # ── detalhe ───────────────────────────────────────────────────────────
 
 func _stage_title(index: int) -> String:
-	return _content(index, "title", "STORY_TITLE_%s" % Game.story_stage_id(index).to_upper())
+	return StoryData.localized_title(Game.story_stage_id(index))
 
 
 func _stage_intro(index: int) -> String:
-	return _content(index, "intro", "STORY_INTRO_%s" % Game.story_stage_id(index).to_upper())
+	return StoryData.localized_intro(Game.story_stage_id(index))
 
 
 ## Conteúdo localizado com queda para o texto em inglês de `StoryData`. Uma
@@ -755,7 +766,7 @@ func _fill_detail() -> void:
 		tr("STORY_DETAIL_TAG").format([str(stage.get("path", ""))]),
 		Design.TEXT_MICRO, accent))
 	ScreenKit.gap(_detail, Design.SPACE_SM)
-	_detail.add_child(ScreenKit.grot(_stage_title(index), 34, Design.WEIGHT_BLACK,
+	_detail.add_child(ScreenKit.grot(_stage_title(index), 28, Design.WEIGHT_BLACK,
 		Design.TEXT_PRIMARY if unlocked else Design.TEXT_FAINT))
 	ScreenKit.gap(_detail, Design.SPACE_XS)
 	_detail.add_child(ScreenKit.mono(
@@ -827,7 +838,9 @@ func _apply_layout_mode() -> void:
 	if not is_instance_valid(_title):
 		return
 	var step := Design.breakpoint_for(size.x)
-	var narrow := step == "compact" or step == "medium"
+	# Touch usa a composição empilhada mesmo em landscape largo: o split
+	# desktop espreme lista e detalhe até virar microcópia no telefone.
+	var narrow := step == "compact" or step == "medium" or Design.touch_input()
 	_title.add_theme_font_size_override("font_size", title_font_size())
 	_subtitle.visible = not narrow
 	if is_instance_valid(_body):
@@ -846,6 +859,9 @@ func _apply_layout_mode() -> void:
 		_footer.vertical = narrow
 		_footer.add_theme_constant_override("separation",
 			Design.SPACE_SM if narrow else Design.SPACE_XL)
+	if narrow != _last_narrow:
+		_last_narrow = narrow
+		_refresh_rows()
 	for block in [_mount_block, _back_block]:
 		ScreenKit.set_action_density(block, narrow)
 	_sync_scroll_hint()

@@ -63,7 +63,7 @@ func _build_windows_visuals() -> void:
 		var watermark_layer := CanvasLayer.new()
 		watermark_layer.layer = 76
 		a._windows_watermark = Label.new()
-		a._windows_watermark.text = "ACTIVATE WINDOWS // GO TO SETTINGS"
+		a._windows_watermark.text = tr("STORY_WATERMARK")
 		a._windows_watermark.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 		a._windows_watermark.add_theme_font_size_override("font_size", 11)
 		a._windows_watermark.add_theme_color_override("font_color", Color(0.2, 0.65, 0.85, 0.6))

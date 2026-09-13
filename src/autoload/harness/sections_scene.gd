@@ -19,6 +19,8 @@ func _desktop_focus_test(menu: Node) -> void:
 	var viewport: Viewport = h.get_viewport()
 	var shell: Control = menu.get("_shell")
 	var initial: Control = viewport.gui_get_focus_owner()
+	if initial == null or not shell.is_ancestor_of(initial):
+		print("AT_DEBUG menu initial focus=", initial.name if initial != null else "null")
 	h._check(initial != null and shell.is_ancestor_of(initial),
 		"desktop menu opens with an actionable keyboard focus")
 	# Mesmo sem foco inicial, reproduz a armadilha de seta de forma independente.
@@ -28,7 +30,25 @@ func _desktop_focus_test(menu: Node) -> void:
 	var next: Control = viewport.gui_get_focus_owner()
 	h._check(next != null and next != purge and shell.is_ancestor_of(next),
 		"Down leaves PURGE for another menu action")
-	if next != null and next != purge:
+	# A fileira MODE entrou entre PURGE e o resto: um Down para nela.
+	if shell.has_method("run_config_hits"):
+		var mode_hit: Button = shell.run_config_hits().get("mode")
+		h._check(next == mode_hit, "Down from PURGE reaches the MODE control")
+	# Travessia genuína por teclado até trocar programa: Tab do PURGE ao swap,
+	# Enter abre o seletor. Sem mouse em nenhum ponto.
+	h._check(shell.has_method("swap_hit") and is_instance_valid(shell.swap_hit()), "shell exposes the program swap control")
+	if shell.has_method("swap_hit") and is_instance_valid(shell.swap_hit()):
+		var swap: Button = shell.swap_hit()
+		purge.grab_focus()
+		var reached := false
+		for i in 8:
+			_focus_key(KEY_TAB)
+			if viewport.gui_get_focus_owner() == swap:
+				reached = true
+				break
+		h._check(reached, "Tab from PURGE reaches program swap without a mouse")
+		if not reached:
+			return
 		_focus_key(KEY_ENTER)
 		if not h._check(not bool(menu.get("_starting")),
 			"Enter on a menu route does not trigger the global start shortcut"):
@@ -36,9 +56,20 @@ func _desktop_focus_test(menu: Node) -> void:
 		await h._ticks(3)
 		var opened: Control = menu.get("_program_panel")
 		h._check(opened != null and opened.visible,
-			"menu Down then Enter opens program selection without a mouse")
+			"keyboard Enter on swap opens program selection without a mouse")
 		if opened != null and opened.visible:
 			menu.call("_close_program_selector")
+	# O anel de foco do PURGE envolve a ação primária, não a coluna inteira.
+	h._check(shell.has_method("primary_hit_rect"), "shell exposes the primary action geometry")
+	if shell.has_method("primary_hit_rect"):
+		var hit_rect: Rect2 = shell.primary_hit_rect()
+		var purge_label: Label = shell.get("_purge_label")
+		if not (is_instance_valid(purge_label) and hit_rect.encloses(purge_label.get_global_rect())):
+			var host: Control = shell.get("_purge_host")
+			print("AT_DEBUG purge hit=", hit_rect, " label=", purge_label.get_global_rect() if is_instance_valid(purge_label) else Rect2(), " host=", (host.size if is_instance_valid(host) else Vector2(-1, -1)), " shell=", shell.size)
+		h._check(is_instance_valid(purge_label) and hit_rect.encloses(purge_label.get_global_rect()), "purge focus ring wraps the arrow and wordmark")
+		h._check(hit_rect.size.y >= Design.CLICK_TARGET_MIN, "purge hit keeps the click-target minimum")
+		h._check(hit_rect.size.x < shell.size.x * 0.85, "purge focus ring stays bounded to the primary action")
 	for spec in [
 		["program", "_open_program_selector", "_close_program_selector", "_program_panel"],
 		["story", "_open_story_selector", "_close_story_selector", "_story_panel"],
@@ -84,6 +115,18 @@ func _desktop_focus_test(menu: Node) -> void:
 		await h._ticks(3)
 	purge.grab_focus()
 	await _selector_activation_test()
+	# O anel de foco do rodapé precisa conter o rótulo: a célula media
+	# `get_minimum_size()` antes do layout (zero) e o texto transbordava.
+	if shell.has_method("footer_hosts"):
+		var ring_ok := true
+		for host in shell.footer_hosts():
+			if not is_instance_valid(host):
+				ring_ok = false
+				continue
+			for label in host.find_children("*", "Label", true, false):
+				if not (host as Control).get_global_rect().encloses((label as Control).get_global_rect()):
+					ring_ok = false
+		h._check(ring_ok, "footer focus ring contains its label")
 	await _menu_pointer_test()
 	await _action_feedback_test()
 	purge.grab_focus()
@@ -457,8 +500,10 @@ func _story_intro_auto_test() -> void:
 	var saved_stage := Game.story_stage_index
 	Game.story_cleared[Game.story_stage_id(0)] = true
 	h._check(bool(Game.start_story(0)), "story auto-dismiss test loads the first stage")
+	var pre_auto_id := h.get_tree().current_scene.get_instance_id() if h.get_tree().current_scene != null else 0
 	var loaded: bool = await h._until(func() -> bool:
-		return h.get_tree().current_scene != null and h.get_tree().current_scene.name == "Arena", 6.0, "story arena")
+		var cur := h.get_tree().current_scene
+		return cur != null and cur.name == "Arena" and cur.get_instance_id() != pre_auto_id, 6.0, "story arena")
 	if not loaded:
 		return
 	var auto_arena: Arena = h.get_tree().current_scene
@@ -583,7 +628,7 @@ func _touch_hud_layout_test() -> void:
 		return
 	var hud_script: Script = load("res://src/ui/hud.gd")
 	var hud_src := str(hud_script.source_code)
-	h._check(hud_src.contains("if not touch_layout():"), "combat hud skips desktop-only dash module drawing on touch")
+	h._check_source(hud_src.contains("if not touch_layout():"), "combat hud skips desktop-only dash module drawing on touch")
 	# Era texto-fonte e travava a frase na forma literal — quebrou na tradução,
 	# sem regressão nenhuma. `overclock_label()` é função pura dos quatro
 	# estados, então a REGRA dá para afirmar direto.
@@ -595,7 +640,9 @@ func _touch_hud_layout_test() -> void:
 	h._check(not hud_probe.overclock_label(true, true, false, false).contains("[E]"),
 		"shield programs never advertise the overclock key")
 	hud_probe.queue_free()
-	h._check(hud_src.contains("\"[SHIFT]\" if not touch_layout()"), "dash charge text gates the [SHIFT] keyboard hint on touch")
+	h._check(hud_probe.dash_charge_text(1, false).contains("[SHIFT]"), "dash charge text gates the [SHIFT] keyboard hint on touch")
+	h._check(not hud_probe.dash_charge_text(1, true).contains("[SHIFT]"), "touch dash charge hides the keyboard hint")
+	h._check(hud_probe.dash_charge_text(2, true) == "x2", "multi-charge dash shows its count")
 	var tc_script: Script = load("res://src/ui/touch_controls.gd")
 	var tc = tc_script.new() if tc_script != null else null
 	h._check(tc != null and tc.has_method("_dash_btn") and tc.has_method("_oc_btn"), "touch controls expose button rects for layout probes")
@@ -712,3 +759,56 @@ func _charm_save_transfer_test(menu: Node) -> void:
 	Game.achievements = saved_achievements
 	Game.story_cleared = saved_story_cleared
 	Game.story_best = saved_story_best
+
+func _corrupt_save_test() -> void:
+	print("AT_STEP corrupt_save")
+	var path := Sfx.SAVE_PATH
+	var had_file := FileAccess.file_exists(path)
+	var backup := FileAccess.get_file_as_bytes(path) if had_file else PackedByteArray()
+	var dir := DirAccess.open("user://")
+	var saved_mode := Game.mode
+	var saved_diff := Game.difficulty
+	var saved_onehp := Game.onehp_unlocked
+	if had_file:
+		dir.remove("kernel_panic.cfg")
+	# Sem arquivo, o load não tem o que ler: mantém o estado seguro em
+	# memória sem erro e sem lixo. (Defaults de boot vêm das declarações.)
+	Game.mode = "classic"
+	Game.difficulty = "normal"
+	Game.onehp_unlocked = false
+	Game._load_run_config()
+	h._check(Game.mode == "classic" and Game.difficulty == "normal" and not Game.onehp_unlocked, "missing save keeps safe state without errors")
+	var bad := ConfigFile.new()
+	bad.set_value("run", "best_classic", 424242)
+	bad.set_value("run", "onehp_unlocked", "yes-please")
+	bad.set_value("game", "mode", 12345)
+	bad.set_value("game", "difficulty", "lunatic")
+	bad.set_value("bestiary", "seen", "nope")
+	bad.set_value("programs", "unlocked", "kernel")
+	bad.set_value("story", "cleared", "cleared!")
+	bad.save(path)
+	Game._load_run_config()
+	h._check(Game.mode == "classic", "wrong-typed mode falls back to classic")
+	h._check(Game.difficulty == "normal", "unknown difficulty falls back to normal")
+	h._check(not Game.onehp_unlocked, "wrong-typed onehp lock stays locked")
+	h._check(Game.bestiary.is_empty(), "wrong-typed bestiary falls back to empty")
+	h._check(Game.best == 424242, "valid progress survives a corrupt neighbor section")
+	h._check(not bool(Game.import_save_string("!!!not-base64!!!")), "non-base64 transfer is rejected")
+	var non_dict_run := {"format": "kernel-panic-save", "version": 1, "run": "oops", "weekly": {}}
+	h._check(not bool(Game.import_save_string(Marshalls.raw_to_base64(JSON.stringify(non_dict_run).to_utf8_buffer()))), "non-dict run section is rejected")
+	var nested_bad := {"format": "kernel-panic-save", "version": 1, "run": {"best_classic": "lots", "onehp_unlocked": "maybe", "program": "daemon"}, "weekly": {"best": "many"}, "story": {"cleared": "yes", "best": {"boot": "fast"}}, "bestiary": "all", "achievements": {"first_blood": "yep"}}
+	h._check(bool(Game.import_save_string(Marshalls.raw_to_base64(JSON.stringify(nested_bad).to_utf8_buffer()))), "nested wrong types sanitize instead of failing")
+	var cf := ConfigFile.new()
+	cf.load(path)
+	h._check(int(cf.get_value("run", "best_classic", -1)) == 0 and int(cf.get_value("weekly", "best", -1)) == 0, "nested wrong numbers sanitize to zero")
+	h._check(not Game.achievements.has("first_blood"), "stringly achievement flags are dropped")
+	if had_file:
+		var f := FileAccess.open(path, FileAccess.WRITE)
+		f.store_buffer(backup)
+		f.close()
+	elif FileAccess.file_exists(path):
+		dir.remove("kernel_panic.cfg")
+	Game.mode = saved_mode
+	Game.difficulty = saved_diff
+	Game.onehp_unlocked = saved_onehp
+	Game._load_run_config()

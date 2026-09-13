@@ -80,7 +80,7 @@ func title_text() -> String:
 
 
 func title_font_size() -> int:
-	return Design.TEXT_HEADING if Design.breakpoint_for(size.x) == "compact" else Design.TEXT_TITLE
+	return Design.TEXT_HEADING if Design.breakpoint_for(size.x) == "compact" or Design.touch_input() else Design.TEXT_TITLE
 
 
 static func entry_color(id: String) -> Color:
@@ -340,7 +340,7 @@ func _build() -> void:
 	_footer = BoxContainer.new()
 	_footer.add_theme_constant_override("separation", Design.SPACE_XL)
 	col.add_child(_footer)
-	_back_block = ScreenKit.action(tr("UI_BACK"), "[ESC]", "text", func() -> void: back_pressed.emit())
+	_back_block = ScreenKit.action(tr("UI_BACK"), "" if Design.touch_input() else "[ESC]", "text", func() -> void: back_pressed.emit())
 	_footer.add_child(_back_block)
 	ScreenKit.grow_h(_footer)
 	_hint = ScreenKit.mono(scroll_hint_text(), Design.TEXT_MICRO, Design.TEXT_FAINT)
@@ -429,9 +429,18 @@ static func _focus_ring() -> StyleBoxFlat:
 
 func _entry_for(id: String) -> Dictionary:
 	for entry in ENTRIES:
-		if str(entry["id"]) == id:
+		if str(entry.get("id")) == id:
 			return entry
 	return {}
+
+## Prosa da entrada no idioma atual. O inglês do ENTRIES é o fallback quando
+## a chave ainda não existe no CSV — nunca exibir a chave crua.
+func _entry_text(entry: Dictionary, field: String) -> String:
+	var key := "BEST_%s_%s" % [field.to_upper(), str(entry.get("id", "")).to_upper()]
+	var translated := tr(key)
+	if translated == key:
+		return str(entry.get(field.to_lower(), ""))
+	return translated
 
 
 func _refresh_progress() -> void:
@@ -533,7 +542,7 @@ func _fill_detail() -> void:
 	_detail.add_child(ScreenKit.mono(tr("BESTIARY_BEHAVIOR"), Design.TEXT_MICRO, Design.TEXT_MUTED))
 	ScreenKit.gap(_detail, Design.SPACE_SM)
 	var desc := ScreenKit.mono(
-		"> " + (str(entry.get("desc", "")) if seen else tr("BESTIARY_LOCKED_BODY")),
+		"> " + (_entry_text(entry, "DESC") if seen else tr("BESTIARY_LOCKED_BODY")),
 		Design.TEXT_CAPTION, Design.TEXT_SECONDARY if seen else Design.TEXT_GHOST)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_detail.add_child(desc)
@@ -542,7 +551,7 @@ func _fill_detail() -> void:
 	_detail.add_child(ScreenKit.mono(tr("BESTIARY_BUG_REPORT"), Design.TEXT_MICRO, Design.TEXT_MUTED))
 	ScreenKit.gap(_detail, Design.SPACE_SM)
 	var bugs := ScreenKit.mono(
-		"> " + (str(entry.get("bugs", "")) if seen else tr("BESTIARY_LOCKED_NOTES")),
+		"> " + (_entry_text(entry, "BUGS") if seen else tr("BESTIARY_LOCKED_NOTES")),
 		Design.TEXT_CAPTION, Design.TEXT_FAINT if seen else Design.TEXT_GHOST)
 	bugs.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_detail.add_child(bugs)
@@ -574,7 +583,7 @@ func _apply_layout_mode() -> void:
 	if not is_instance_valid(_title):
 		return
 	var step := Design.breakpoint_for(size.x)
-	var narrow := step == "compact" or step == "medium"
+	var narrow := step == "compact" or step == "medium" or Design.touch_input()
 	_title.add_theme_font_size_override("font_size", title_font_size())
 	_subtitle.visible = step != "compact"
 	if is_instance_valid(_body):

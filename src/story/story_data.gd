@@ -152,3 +152,44 @@ static func stage_ids() -> Array:
 
 static func stage_wave_count(index: int) -> int:
 	return stage_at(index).get("waves", []).size()
+
+## Fonte única de localização do Story (seletor E runtime). Chaves derivam
+## do id estável da fase; ausência de chave cai para o inglês cru do STAGES,
+## nunca para a chave crua na tela.
+static func localized_title(stage_id: String) -> String:
+	return _localized("STORY_TITLE_%s" % stage_id.to_upper(), _raw(stage_id, "title"))
+
+static func localized_intro(stage_id: String) -> String:
+	return _localized("STORY_INTRO_%s" % stage_id.to_upper(), _raw(stage_id, "intro"))
+
+static func localized_klog(stage_id: String, line_index: int) -> String:
+	var raw_klog: Array = _raw(stage_id, "klog")
+	var key := "STORY_KLOG_%s_%d" % [stage_id.to_upper(), line_index]
+	var fallback := str(raw_klog[line_index % raw_klog.size()]) if not raw_klog.is_empty() else ""
+	return _localized(key, fallback)
+
+static func localized_act_label(act_id: String) -> String:
+	var key := "STORY_ACT_UNIX"
+	if act_id == "windows":
+		key = "STORY_ACT_WINDOWS"
+	elif act_id == "templeos":
+		key = "STORY_ACT_TEMPLEOS"
+	var fallback := "ACT 1 // UNIX RECOVERY LOG"
+	if act_id == "windows":
+		fallback = "ACT 2 // WINDOWS RECOVERY LOG"
+	elif act_id == "templeos":
+		fallback = "BONUS ACT // TEMPLEOS ORACLE LOG"
+	return _localized(key, fallback)
+
+static func stage_id_of(index: int) -> String:
+	return str(stage_at(index).get("id", ""))
+
+static func _raw(stage_id: String, field: String):
+	for stage in STAGES:
+		if str(stage.get("id", "")) == stage_id:
+			return stage.get(field, "")
+	return "" if field != "klog" else []
+
+static func _localized(key: String, fallback: String) -> String:
+	var translated := TranslationServer.translate(key)
+	return fallback if translated == key else translated

@@ -335,3 +335,128 @@ SET_VSYNC_OFF,OFF,DESLIGADO
 SET_VSYNC_ON,ON,LIGADO
 SET_VSYNC_ADAPTIVE,ADAPTIVE,ADAPTATIVO
 SET_VIDEO_NOTE,FULLSCREEN CHANGES APPLY IMMEDIATELY,MUDANÇAS DE TELA CHEIA VALEM NA HORA
+BEST_DESC_DRONE,basic corrupted process. dash through packs.,processo corrompido básico. avance com dash pelos bandos.
+BEST_BUGS_DRONE,swarms without a scheduler. forever.,enxame sem escalonador. para sempre.
+BEST_DESC_LANCER,"telegraphs then lunges. sidestep the line, punish the stagger.",telegrafa e avança. saia da linha e puna o atordoamento.
+BEST_BUGS_LANCER,lunges in a straight line. sidestep = fix.,avança em linha reta. sair do caminho = correção.
+BEST_DESC_SPEWER,"keeps distance, spits orbs. shoot the orbs down.","mantém distância, cospe orbes. derrube os orbes no tiro."
+BEST_BUGS_SPEWER,orbs are shootable. it has not learned this.,orbes são destrutíveis. ele ainda não aprendeu isso.
+BEST_DESC_SPLITTER,splits on death. kill it away from you.,divide-se ao morrer. mate longe de você.
+BEST_BUGS_SPLITTER,death is a fork(). plan accordingly.,morrer é um fork(). planeje de acordo.
+BEST_DESC_BULWARK,"armored and slow. dash past, never hug.","blindado e lento. passe com dash, nunca cole."
+BEST_BUGS_BULWARK,armor does not cover the back. or manners.,a blindagem não cobre as costas. nem as maneiras.
+BEST_DESC_TROJAN,leaves corruption pools. do not swim.,deixa poças de corrupção. não nade.
+BEST_BUGS_TROJAN,leaves pools. calls them 'features'.,deixa poças. chama de 'recursos'.
+BEST_DESC_OOM,steals your motes and runs. hunt it first.,rouba seus motes e foge. cace primeiro.
+BEST_BUGS_OOM,steals motes. returns nothing. ever.,rouba motes. não devolve nada. nunca.
+BEST_DESC_BOSS,every variant has a tell. learn it. respect it.,toda variante tem um sinal. aprenda. respeite.
+BEST_BUGS_BOSS,segfaults reproduce. two of them.,segfaults se reproduzem. dois deles.
+BEST_DESC_ROOT,splits at half integrity. track both processes.,divide-se com metade da integridade. rastreie os dois processos.
+BEST_BUGS_ROOT,forks once. both children are real.,faz fork uma vez. os dois filhos são reais.
+BEST_DESC_SEGFAULT,"glitches, teleports, then opens a lance line.","trava, teleporta e abre uma linha de lança."
+BEST_BUGS_SEGFAULT,address is invalid. movement is not.,o endereço é inválido. o movimento não.
+BEST_DESC_BLUESCREEN,freezes systems and floods the arena with fan shots.,congela sistemas e inunda a arena com tiros em leque.
+BEST_BUGS_BLUESCREEN,the error is blue. the projectiles are not.,"o erro é azul. os projéteis, não."
+BEST_DESC_PAGEFAULT,pages shield it until the orbiting nodes are purged.,páginas o protegem até os nós orbitais serem eliminados.
+BEST_BUGS_PAGEFAULT,read protection enabled. delete the pages.,proteção de leitura ativada. delete as páginas.
+BEST_DESC_RECURSOR,teleports and leaves corruption. pools mark where it was. keep moving.,teleporta e deixa corrupção. as poças marcam onde esteve. continue em movimento.
+BEST_BUGS_RECURSOR,leaves corruption where it *was*. check behind you.,deixa corrupção onde *estava*. olhe para trás.
+BEST_DESC_FIREWALL,rotating wall of orbs. kill the wall to drop the wall.,parede giratória de orbes. derrube a parede para derrubar a parede.
+BEST_BUGS_FIREWALL,wall persists after death of nearby processes.,a parede persiste após a morte de processos próximos.
+BEST_DESC_UPDATE_LOOP,reinstalls once after death. finish the update before celebrating.,reinstala uma vez após morrer. termine a atualização antes de comemorar.
+BEST_BUGS_UPDATE_LOOP,"dies, says 'reinstalling', returns with fewer excuses.","morre, diz 'reinstalando' e volta com menos desculpas."
+BEST_DESC_BLOATWARE,fat process. drops static popup orbs and spawns background drones.,processo gordo. solta orbes popup estáticos e gera drones de fundo.
+BEST_BUGS_BLOATWARE,47 background processes terminated on exit.,47 processos de fundo encerrados na saída.
+BEST_DESC_GOD,oracle process. chooses its next attack by literal random roll.,processo oráculo. escolhe o próximo ataque por rolagem literal de aleatório.
+BEST_BUGS_GOD,the attack pattern is not a pattern. it is a result.,o padrão de ataque não é um padrão. é um resultado.
+PATCH_SELECT_ONE,SELECT ONE // [1] [2] [3],ESCOLHA UM // [1] [2] [3]
+BUILD_NO_PATCHES,NO PATCHES,SEM PATCHES
+TERMINAL_TYPE_HELP,Type 'help' for available commands.,Digite 'help' para ver os comandos.
+STORY_ACT_UNIX,ACT 1 // UNIX RECOVERY LOG,ATO 1 // REGISTRO DE RECUPERAÇÃO UNIX
+STORY_ACT_WINDOWS,ACT 2 // WINDOWS RECOVERY LOG,ATO 2 // REGISTRO DE RECUPERAÇÃO WINDOWS
+STORY_ACT_TEMPLEOS,BONUS ACT // TEMPLEOS ORACLE LOG,ATO BÔNUS // REGISTRO DO ORÁCULO TEMPLEOS
+STORY_KLOG_BOOT_0,init: mounting /boot,init: montando /boot
+STORY_KLOG_BOOT_1,watchdog: first signal acquired,watchdog: primeiro sinal adquirido
+STORY_KLOG_BOOT_2,kernel: input accepted,kernel: entrada aceita
+STORY_KLOG_VAR_LOG_0,rsyslog: warning queue growing,rsyslog: fila de avisos crescendo
+STORY_KLOG_VAR_LOG_1,spewer: packet burst detected,spewer: rajada de pacotes detectada
+STORY_KLOG_VAR_LOG_2,journal: do not rotate me,journal: não me rotacione
+STORY_KLOG_NET_0,netlink: route table unstable,netlink: tabela de rotas instável
+STORY_KLOG_NET_1,lancer: line of sight established,lancer: linha de visão estabelecida
+STORY_KLOG_NET_2,firewall: handshake refused,firewall: handshake recusado
+STORY_KLOG_MEM_0,kswapd0: reclaim failed,kswapd0: recuperação falhou
+STORY_KLOG_MEM_1,oom_killer: looking for loose data,oom_killer: procurando dados soltos
+STORY_KLOG_MEM_2,allocator: fragmentation detected,allocator: fragmentação detectada
+STORY_KLOG_QUARANTINE_0,security: quarantine boundary active,security: perímetro de quarentena ativo
+STORY_KLOG_QUARANTINE_1,trojan: route mutation complete,trojan: mutação de rota completa
+STORY_KLOG_QUARANTINE_2,corruption: containment failing,corruption: contenção falhando
+STORY_KLOG_KERNEL_0,kernel: unrecoverable exception,kernel: exceção irrecuperável
+STORY_KLOG_KERNEL_1,root.exe: fork requested,root.exe: fork solicitado
+STORY_KLOG_KERNEL_2,panic: last process standing,panic: último processo de pé
+STORY_KLOG_WIN98_0,winlogon: welcome back,winlogon: bem-vindo de volta
+STORY_KLOG_WIN98_1,explorer: 47 icons restored,explorer: 47 ícones restaurados
+STORY_KLOG_WIN98_2,system: this computer may be shut down,system: este computador pode ser desligado
+STORY_KLOG_WINXP_0,winlogon: blue-green session active,winlogon: sessão azul-esverdeada ativa
+STORY_KLOG_WINXP_1,update: reboot scheduled,update: reinicialização agendada
+STORY_KLOG_WINXP_2,theme: luna applied successfully,theme: luna aplicado com sucesso
+STORY_KLOG_WIN11_0,shell: rounded corners enabled,shell: cantos arredondados ativados
+STORY_KLOG_WIN11_1,telemetry: everything is fine,telemetry: está tudo bem
+STORY_KLOG_WIN11_2,bloatware: 47 background processes active,bloatware: 47 processos de fundo ativos
+STORY_KLOG_TEMPLE_BOOT_0,temple: praise the scheduler,temple: louvado seja o escalonador
+STORY_KLOG_TEMPLE_BOOT_1,graphics: rainbow driver loaded,graphics: driver arco-íris carregado
+STORY_KLOG_TEMPLE_BOOT_2,oracle: probability is a form of worship,oracle: probabilidade é uma forma de adoração
+STORY_KLOG_TEMPLE_GOD_0,oracle: six-sided truth unavailable,oracle: verdade de seis lados indisponível
+STORY_KLOG_TEMPLE_GOD_1,scheduler: GOD has entered the room,scheduler: GOD entrou na sala
+STORY_KLOG_TEMPLE_GOD_2,panic: randomness is now a mechanic,panic: aleatoriedade agora é mecânica
+STORY_CHROME_WAVE,WAVE %02d,ONDA %02d
+STORY_CHROME_FINAL_WAVE,FINAL WAVE,ONDA FINAL
+STORY_CHROME_CLEAR,WAVE %02d CLEAR,ONDA %02d COMPLETA
+STORY_CHROME_FALLBACK,wave complete,onda completa
+STORY_CHROME_KLOG,KLOG,KLOG
+STORY_RAINBOW_UNLOCKED,RAINBOW GRID UNLOCKED FOR ENDLESS,GRADE ARCO-ÍRIS DESBLOQUEADA PARA O ENDLESS
+STORY_HINT_DISMISS,PRESS ANY KEY,PRESSIONE QUALQUER TECLA
+STORY_WATERMARK,ACTIVATE WINDOWS // GO TO SETTINGS,ATIVE O WINDOWS // VÁ PARA CONFIGURAÇÕES
+SET_LANGUAGE,LANGUAGE // %s,IDIOMA // %s
+SET_LANG_ENGLISH,ENGLISH,INGLÊS
+SET_LANG_PORTUGUESE,PORTUGUÊS (BRASIL),PORTUGUÊS (BRASIL)
+PATCH_RARITY_STANDARD,STANDARD,PADRÃO
+PATCH_RARITY_RARE,RARE,RARO
+PATCH_RARITY_LEGENDARY,LEGENDARY,LENDÁRIO
+PATCH_LEVEL_UP,LEVEL %d → %d,NÍVEL %d → %d
+PATCH_NEW,NEW PATCH,PATCH NOVO
+SUMMARY_BEST,BEST %07d,RECORDE %07d
+SUMMARY_SEED,SEED %d,SEMENTE %d
+SET_TRANSFER_HEAD,SAVE TRANSFER // PORTABLE,TRANSFERÊNCIA // PORTÁTIL
+SET_BOUND_TO,%s BOUND TO %s,%s VINCULADO A %s
+TERM_HINT,DIAGNOSTIC WORKSTATION // INPUT LOCKED TO FROZEN RUN,ESTAÇÃO DE DIAGNÓSTICO // ENTRADA TRAVADA NA EXECUÇÃO CONGELADA
+TERM_LINK,PROCESS LINK,LINK DE PROCESSO
+TERM_STATE_STABLE,STABLE,ESTÁVEL
+TERM_STATE_FROZEN,FROZEN,CONGELADO
+TERM_STATE_STANDBY,STANDBY,EM ESPERA
+TERM_CMD_INDEX,COMMAND INDEX,ÍNDICE DE COMANDOS
+TERM_DESC_HELP,available commands,comandos disponíveis
+TERM_DESC_TOP,process snapshot,retrato do processo
+TERM_DESC_DMESG,run event log,log de eventos da run
+TERM_DESC_MAN,tactical reference,referência tática
+TERM_DESC_SUDO,one-use recovery,recuperação de uso único
+TERM_DESC_RM,abort process,abortar processo
+TERM_SYSSTATUS,SYSTEM STATUS,STATUS DO SISTEMA
+TERM_CLOSE,CLOSE  [ESC],FECHAR  [ESC]
+TERM_RUN,RUN [ENTER],EXECUTAR [ENTER]
+TERM_RUN_SHORT,RUN,EXECUTAR
+TERM_PLACEHOLDER,enter diagnostic command,digite um comando de diagnóstico
+TERM_SHORTCUTS,↑↓ HISTORY        TAB AUTOCOMPLETE        ESC CLOSE,↑↓ HISTÓRICO        TAB AUTOCOMPLETAR        ESC FECHAR
+TERM_READY,KERNEL PANIC TTY READY,KERNEL PANIC TTY PRONTO
+TERM_PAUSED,PAUSED,PAUSADO
+TERM_INPUT,INPUT,ENTRADA
+TERM_READY_STATE,READY,PRONTA
+TERM_PROMPT,PROMPT,PROMPT
+TERM_ACTIVE,ACTIVE,ATIVO
+TERM_COMMANDS,COMMANDS,COMANDOS
+TERM_CYCLE,CYCLE,CICLO
+TERM_MAN_BUGS,BUGS,BUGS
+TERM_MAN_THREAT,THREAT %d,AMEAÇA %d
+PATCH_SELECT_TOUCH,TAP A CARD TO INSTALL,TOQUE NUM CARD PARA INSTALAR
+STORY_TAB_UNIX,UNIX,UNIX
+STORY_TAB_WINDOWS,WINDOWS,WINDOWS
+STORY_TAB_TEMPLEOS,TEMPLEOS,TEMPLEOS

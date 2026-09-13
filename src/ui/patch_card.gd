@@ -50,10 +50,10 @@ func configure(definition: Dictionary, index: int) -> void:
 
 func rarity_label() -> String:
 	if bool(_def.get("legend", false)):
-		return "LEGENDARY"
+		return tr("PATCH_RARITY_LEGENDARY")
 	if bool(_def.get("rare", false)):
-		return "RARE"
-	return "STANDARD"
+		return tr("PATCH_RARITY_RARE")
+	return tr("PATCH_RARITY_STANDARD")
 
 
 func card_title() -> String:
@@ -203,7 +203,7 @@ func _refresh() -> void:
 	_desc.text = patch_desc(_def)
 	_desc.add_theme_color_override("font_color", ink.get("body", Design.TEXT_SECONDARY))
 	_marker_rule.color = Design.alpha(marker, 0.58)
-	_level_label.text = "LEVEL %d → %d" % [_level, _level + 1] if _level > 0 else "NEW PATCH"
+	_level_label.text = tr("PATCH_LEVEL_UP") % [_level, _level + 1] if _level > 0 else tr("PATCH_NEW")
 	_level_label.add_theme_color_override("font_color", marker)
 	var marks: Array[String] = []
 	for dot in 4:

@@ -355,7 +355,18 @@ func _build_settings() -> void:
 	_refresh_color_assist_label()
 	assign_section(m._color_assist_btn, "ACCESSIBILITY")
 	box.add_child(m._color_assist_btn)
-	var save_label := _settings_group_label("SAVE TRANSFER // PHONE ↔ PC")
+	m._language_btn = Button.new()
+	m._language_btn.flat = true
+	m._language_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
+	m._language_btn.add_theme_font_size_override("font_size", 17)
+	m._language_btn.add_theme_color_override("font_color", Balance.COL_TEXT)
+	m._language_btn.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
+	m._language_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	m._language_btn.pressed.connect(_cycle_language)
+	_refresh_language_label()
+	assign_section(m._language_btn, "ACCESSIBILITY")
+	box.add_child(m._language_btn)
+	var save_label := _settings_group_label(tr("SET_TRANSFER_HEAD"))
 	assign_section(save_label, "SAVE DATA")
 	box.add_child(save_label)
 	var transfer_title := Label.new()
@@ -452,7 +463,7 @@ func _build_settings() -> void:
 	footer_row.position = footer.position
 	footer_row.size = footer.size
 	footer_row.add_theme_constant_override("separation", Design.SPACE_XL)
-	var back_block := ScreenKit.action(tr("UI_BACK"), "[ESC]", "text", _close_settings)
+	var back_block := ScreenKit.action(tr("UI_BACK"), "" if Design.touch_input() else "[ESC]", "text", _close_settings)
 	footer_row.add_child(back_block)
 	var footer_spacer := Control.new()
 	footer_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -460,9 +471,10 @@ func _build_settings() -> void:
 	m._settings_panel.add_child(footer_row)
 	m._settings_footer_row = footer_row
 	m._settings_nav_buttons.clear()
-	for index in SETTINGS_SECTIONS.size():
+	for index in _visible_sections().size():
+		var section_id := str(_visible_sections()[index])
 		var nav_button := Button.new()
-		nav_button.text = section_label(str(SETTINGS_SECTIONS[index]))
+		nav_button.text = section_label(section_id)
 		nav_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		nav_button.position = navigation.position + Vector2(10.0, 12.0 + float(index) * 48.0)
 		nav_button.size = Vector2(navigation.size.x - 20.0, 38.0)
@@ -475,7 +487,7 @@ func _build_settings() -> void:
 		nav_button.add_theme_stylebox_override("hover", _nav_style(false, true))
 		nav_button.add_theme_stylebox_override("pressed", _nav_style(true, false))
 		m._settings_nav_buttons.append(nav_button)
-		nav_button.pressed.connect(set_active_section.bind(str(SETTINGS_SECTIONS[index])))
+		nav_button.pressed.connect(set_active_section.bind(section_id))
 		m._settings_panel.add_child(nav_button)
 	var nav_hint := Label.new()
 	nav_hint.text = tr("SET_FOOTER")
@@ -491,7 +503,7 @@ func _build_settings() -> void:
 	chips_row.add_theme_constant_override("separation", 8)
 	m._settings_chips_row = chips_row
 	m._settings_panel.add_child(chips_row)
-	for section in SETTINGS_SECTIONS:
+	for section in _visible_sections():
 		var chip := Button.new()
 		chip.text = section_chip_label(str(section))
 		chip.focus_mode = Control.FOCUS_ALL
@@ -738,7 +750,7 @@ func _handle_keybind_capture(event: InputEventKey) -> bool:
 		return true
 	m._capture_action = ""
 	_refresh_keybind_buttons()
-	m._keybind_status.text = "%s BOUND TO %s" % [_keybind_action_label(action), _keybind_key_name(physical_key)]
+	m._keybind_status.text = tr("SET_BOUND_TO") % [_keybind_action_label(action), _keybind_key_name(physical_key)]
 	return true
 
 func _make_slider_row(label_text: String, value: float, on_change: Callable) -> HBoxContainer:
@@ -802,6 +814,41 @@ func _refresh_color_assist_label() -> void:
 	if m._color_assist_btn != null:
 		m._color_assist_btn.text = tr("SET_COLOR_ASSIST") % (tr("SET_VAL_ON") if Sfx.color_assist else tr("SET_VAL_OFF"))
 
+func _cycle_language() -> void:
+	var next := "pt_BR" if Game.language() == "en" else "en"
+	if m != null and m.has_method("_apply_language"):
+		m.call("_apply_language", next)
+
+func _refresh_language_label() -> void:
+	if m._language_btn != null and is_instance_valid(m._language_btn):
+		var name := tr("SET_LANG_ENGLISH") if Game.language() == "en" else tr("SET_LANG_PORTUGUESE")
+		m._language_btn.text = tr("SET_LANGUAGE") % name
+
+func language_button() -> Button:
+	return m._language_btn
+
+func focus_language_control() -> void:
+	if m._language_btn != null and is_instance_valid(m._language_btn):
+		m._language_btn.grab_focus()
+
+## Reconstrói o painel no idioma novo sem reiniciar o processo. O painel
+## antigo esconde na hora e libera no fim do frame (seguro dentro do próprio
+## `pressed`); o novo já nasce com `tr()` no idioma atual.
+func rebuild_settings() -> void:
+	_section_members.clear()
+	if m._settings_chip_buttons != null:
+		m._settings_chip_buttons.clear()
+	m._capture_action = ""
+	var was_open: bool = m._settings_panel != null and is_instance_valid(m._settings_panel) and m._settings_panel.visible
+	if m._settings_panel != null and is_instance_valid(m._settings_panel):
+		m._settings_panel.visible = false
+		m._settings_panel.queue_free()
+	_build_settings()
+	_apply_section_visibility()
+	_refresh_nav_selection()
+	if was_open:
+		_open_settings()
+
 func assign_section(control: Control, section: String) -> void:
 	if control == null or not SETTINGS_SECTIONS.has(section):
 		return
@@ -817,6 +864,13 @@ func section_names() -> Array:
 
 func section_controls(section: String) -> Array:
 	return _section_members.get(section, [])
+
+## Seções visíveis na navegação. Touch esconde CONTROLS (keybinds não
+## existem no telefone); o idioma continua em ACCESSIBILITY.
+func _visible_sections() -> Array:
+	if Design.touch_input():
+		return SETTINGS_SECTIONS.filter(func(s: String) -> bool: return s != "CONTROLS")
+	return SETTINGS_SECTIONS.duplicate()
 
 func set_active_section(section: String) -> void:
 	if not SETTINGS_SECTIONS.has(section):
@@ -844,14 +898,15 @@ func _apply_section_visibility() -> void:
 		m._keybind_box.visible = _active_section == "CONTROLS"
 
 func _refresh_nav_selection() -> void:
-	var index := SETTINGS_SECTIONS.find(_active_section)
+	var sections := _visible_sections()
+	var index := sections.find(_active_section)
 	if not m._settings_nav_buttons.is_empty():
 		for i in m._settings_nav_buttons.size():
 			var nav_button: Button = m._settings_nav_buttons[i]
 			if not is_instance_valid(nav_button):
 				continue
 			var selected: bool = i == index
-			nav_button.text = section_label(str(SETTINGS_SECTIONS[i]))
+			nav_button.text = section_label(str(sections[i]))
 			nav_button.add_theme_color_override("font_color", Design.TEXT_PRIMARY if selected else Design.TEXT_SECONDARY)
 			nav_button.add_theme_stylebox_override("normal", _nav_style(selected, false))
 	if not m._settings_chip_buttons.is_empty():
@@ -860,7 +915,7 @@ func _refresh_nav_selection() -> void:
 			if not is_instance_valid(chip):
 				continue
 			var chip_selected: bool = i == index
-			chip.text = section_chip_label(str(SETTINGS_SECTIONS[i]))
+			chip.text = section_chip_label(str(sections[i]))
 			chip.add_theme_color_override("font_color", Design.TEXT_PRIMARY if chip_selected else Design.TEXT_SECONDARY)
 			chip.add_theme_stylebox_override("normal", _chip_style(chip_selected, false))
 

@@ -208,7 +208,7 @@ func _build_footer(parent: Node) -> void:
 	_footer.add_theme_constant_override("separation", Design.SPACE_XL)
 	parent.add_child(_footer)
 
-	_back_block = ScreenKit.action(tr("UI_BACK"), "[ESC]", "text",
+	_back_block = ScreenKit.action(tr("UI_BACK"), "" if Design.touch_input() else "[ESC]", "text",
 		func() -> void: back_pressed.emit())
 	_footer.add_child(_back_block)
 	ScreenKit.grow_h(_footer)
