@@ -1,6 +1,6 @@
 # Maintainer: mafuzyk
 pkgname=kernel-panic-bin
-pkgver=2.5.0
+pkgver=3.0.0
 pkgrel=1
 pkgdesc='Neon arena shooter about keeping one stubborn process alive'
 arch=('x86_64')
