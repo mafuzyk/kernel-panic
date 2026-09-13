@@ -11,6 +11,64 @@ var h: Node
 func _init(harness: Node) -> void:
 	h = harness
 
+func _reticle_modal_test(arena: Arena) -> void:
+	print("AT_STEP reticle_modal")
+	# Headless não monta reticle (sem cursor real; ver KP_FORCE_RETICLE): o
+	# contrato modal é exercido num reticle próprio, vivo na arena real.
+	var r := Reticle.new()
+	r.player = arena.player
+	arena.add_child(r)
+	# A arena dirige o cursor pelo próprio reticle: sem dono, ela o mantém
+	# visível e o teste lutaria contra a cena em vez do contrato.
+	arena.reticle = r
+	await h._ticks(2)
+	h._check(r != null and is_instance_valid(r), "arena owns a reticle")
+	if r == null or not is_instance_valid(r):
+		return
+	h._check(r.process_mode == Node.PROCESS_MODE_ALWAYS, "reticle processes while paused")
+	# O predicado dirige o cursor em qualquer ambiente; a visibilidade final
+	# depende do cursor do SO, que o headless ignora (sempre VISIBLE).
+	var e2e := DisplayServer.get_name() != "headless"
+	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+	await h._ticks(2)
+	h._check(arena._wants_hidden_cursor(), "gameplay wants the os cursor hidden")
+	if e2e:
+		h._check(r.visible, "hidden os cursor shows the reticle in gameplay")
+	else:
+		print("AT_SKIP reticle visibility needs a real cursor; the driving predicate is asserted")
+	arena._set_paused(true)
+	await h._ticks(2)
+	h._check(not arena._wants_hidden_cursor(), "pause wants the os cursor back")
+	if e2e:
+		h._check(not r.visible, "pause hides the reticle")
+	arena.call("_open_terminal")
+	await h._ticks(2)
+	h._check(not arena._wants_hidden_cursor(), "terminal wants the os cursor back")
+	if e2e:
+		h._check(not r.visible, "terminal keeps the reticle hidden")
+	arena.call("_close_terminal")
+	await h._ticks(2)
+	arena._set_paused(false)
+	await h._ticks(2)
+	h._check(arena._wants_hidden_cursor(), "resume wants the os cursor hidden again")
+	if e2e:
+		h._check(r.visible, "resume restores the reticle")
+	arena._patch_pending = 1
+	arena.call("_try_show_patch")
+	await h._ticks(2)
+	h._check(bool(arena.get("_patch_open")) and not arena._wants_hidden_cursor(), "patch offer wants the os cursor back")
+	if e2e:
+		h._check(bool(arena.get("_patch_open")) and not r.visible, "patch offer hides the reticle")
+	arena.call("_pick_patch", 0)
+	await h._ticks(2)
+	h._check(not bool(arena.get("_patch_open")) and arena._wants_hidden_cursor(), "patch pick wants the os cursor hidden again")
+	if e2e:
+		h._check(not bool(arena.get("_patch_open")) and r.visible, "patch pick restores the reticle")
+	r.queue_free()
+	arena.reticle = null
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await h._ticks(1)
+
 func _touch_test() -> void:
 	var arena: Arena = h.get_tree().current_scene
 	if not is_instance_valid(arena.player) or arena.player == null:
@@ -131,6 +189,107 @@ func _touch_test() -> void:
 	Game.mode = "classic"
 	player.touch_mode = false
 	tcl.queue_free()
+	await h._ticks(2)
+
+func _multitouch_test() -> void:
+	print("AT_STEP multitouch")
+	var arena: Arena = h.get_tree().current_scene
+	var player: Player = arena.player
+	var touch_ui := TouchControls.new()
+	touch_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+	touch_ui.player = player
+	touch_ui.arena = arena
+	var tcl := CanvasLayer.new()
+	tcl.layer = 30
+	tcl.add_child(touch_ui)
+	arena.add_child(tcl)
+	await h._ticks(2)
+	player.invuln = 9999.0
+	player.dash_cd = 0.0
+	player.dash_t = 0.0
+	player.oc_ready = false
+	player.overclock_active = false
+	_press(Vector2(200, 400), true, 20)
+	_drag(20, Vector2(200, 400), Vector2(260, 380))
+	_press(Vector2(900, 400), true, 21)
+	await h._ticks(5)
+	h._check(player.touch_move.length() > 0.1 and player.touch_fire, "move and aim fingers held")
+	var dash_id_before := player.dash_id
+	var move_id_before: int = touch_ui._move_id
+	var aim_id_before: int = touch_ui._aim_id
+	h._check(aim_id_before == 21, "aim finger owns the aim channel")
+	_press(touch_ui._dash_btn().get_center(), true, 22)
+	await h._ticks(3)
+	_press(touch_ui._dash_btn().get_center(), false, 22)
+	await h._ticks(2)
+	h._check(player.dash_id == dash_id_before + 1, "third finger dashes while move and aim are held")
+	h._check(touch_ui._move_id == move_id_before and touch_ui._aim_id == aim_id_before, "dash does not steal move or aim channels")
+	h._check(player.touch_move.length() > 0.1 and player.touch_fire, "move and aim survive the dash")
+	_press(Vector2(900, 400), false, 21)
+	_press(Vector2(200, 400), false, 20)
+	await h._ticks(2)
+	player.oc_ready = false
+	_press(touch_ui._oc_btn().get_center(), true, 23)
+	await h._ticks(2)
+	h._check(touch_ui._aim_id == -1, "disabled boost never steals the aim channel")
+	_press(touch_ui._oc_btn().get_center(), false, 23)
+	await h._ticks(2)
+	player.oc_ready = true
+	_press(Vector2(900, 400), true, 24)
+	await h._ticks(2)
+	_press(touch_ui._oc_btn().get_center(), true, 25)
+	await h._ticks(3)
+	h._check(player.overclock_active, "third finger boosts while aim is held")
+	h._check(touch_ui._aim_id == 24, "boost does not steal the aim channel")
+	_press(touch_ui._oc_btn().get_center(), false, 25)
+	_press(Vector2(900, 400), false, 24)
+	await h._ticks(2)
+	player.touch_move = Vector2.ZERO
+	player.touch_fire = false
+	player.touch_aim = Vector2.ZERO
+	player.overclock_active = false
+	player.oc_ready = false
+	player.invuln = 0.0
+	tcl.queue_free()
+	await h._ticks(2)
+
+func _touch_layout_test() -> void:
+	print("AT_STEP touch_layout")
+	var cut := Design.safe_margins_from(Vector2(1280, 720), Rect2i(0, 0, 1280, 720), Vector2(1280, 720))
+	h._check(cut["left"] == 0.0 and cut["top"] == 0.0 and cut["right"] == 0.0 and cut["bottom"] == 0.0, "full-bleed display reports zero safe insets")
+	var notch := Design.safe_margins_from(Vector2(1280, 720), Rect2i(80, 0, 1200, 700), Vector2(1280, 720))
+	h._check(notch["left"] == 80.0 and notch["top"] == 0.0 and notch["right"] == 0.0 and notch["bottom"] == 20.0, "cutout insets convert to canvas units")
+	h._check(Design.safe_margins(Vector2(1280, 720))["left"] == 0.0, "desktop reports no safe insets")
+	OS.set_environment("KP_FORCE_TOUCH", "1")
+	var shell := MenuShell.new()
+	h.add_child(shell)
+	await h._ticks(2)
+	var enter_hidden := true
+	var ring_ok := true
+	for label in shell.find_children("*", "Label", true, false):
+		var l := label as Label
+		if l.text == "ENTER" and l.visible:
+			enter_hidden = false
+	for host in shell.footer_hosts():
+		for flabel in (host as Control).find_children("*", "Label", true, false):
+			if not (host as Control).get_global_rect().encloses((flabel as Control).get_global_rect()):
+				ring_ok = false
+	h._check(enter_hidden, "touch menu hides the keyboard hint")
+	h._check(ring_ok, "touch menu keeps the footer ring contract")
+	shell.queue_free()
+	var pause := PausePanel.new()
+	h.add_child(pause)
+	await h._ticks(2)
+	var pause_labels: Array = pause.action_labels()
+	h._check(not pause_labels.has(tr("PAUSE_TERMINAL")), "touch pause hides the desktop-only terminal entry")
+	var key_leak := false
+	for node in pause.find_children("*", "Label", true, false):
+		var text := str((node as Label).text)
+		if text.begins_with("[") and text.ends_with("]"):
+			key_leak = true
+	h._check(not key_leak, "touch pause shows no keyboard hints")
+	pause.queue_free()
+	OS.set_environment("KP_FORCE_TOUCH", "")
 	await h._ticks(2)
 
 func _press(pos: Vector2, down: bool, idx: int) -> void:
@@ -390,8 +549,9 @@ func _achievements_panel_test() -> void:
 			scrolls += 1
 	h._check(scrolls >= 1, "achievements panel scrolls instead of blocking input")
 	panel.free()
-	var menu_src := str(load("res://src/ui/menu.gd").source_code)
-	h._check(menu_src.contains("_open_achievements"), "menu exposes an achievements entry point")
+	# Contrato runtime em vez de grep no fonte: o menu vivo expõe a entrada.
+	var live_menu: Node = h.get_tree().current_scene
+	h._check(live_menu != null and live_menu.has_method("_open_achievements"), "menu exposes an achievements entry point")
 	var hud_script: Script = load("res://src/ui/hud.gd")
 	var hud_detached = hud_script.new()
 	hud_detached.size = Vector2(1366, 768)

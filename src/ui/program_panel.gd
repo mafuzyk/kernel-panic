@@ -375,11 +375,11 @@ func _build_footer(parent: Node) -> void:
 	_footer.add_theme_constant_override("separation", Design.SPACE_XL)
 	parent.add_child(_footer)
 
-	_boot_block = ScreenKit.action(_boot_label(), "[ENTER]", "primary",
+	_boot_block = ScreenKit.action(_boot_label(), "" if Design.touch_input() else "[ENTER]", "primary",
 		func() -> void: boot_pressed.emit())
 	_footer.add_child(_boot_block)
 
-	_back_block = ScreenKit.action(tr("UI_BACK"), "[ESC]", "text",
+	_back_block = ScreenKit.action(tr("UI_BACK"), "" if Design.touch_input() else "[ESC]", "text",
 		func() -> void: back_pressed.emit())
 	_footer.add_child(_back_block)
 
@@ -434,7 +434,7 @@ func _make_card(id: String) -> PanelContainer:
 
 	var role := ScreenKit.mono(_content(id, "role", "PROGRAM_ROLE_%s" % id.to_upper()), Design.TEXT_MICRO, identity)
 	names.add_child(role)
-	var name_label := ScreenKit.grot(str(definition.get("name", id.to_upper())), 30,
+	var name_label := ScreenKit.grot(str(definition.get("name", id.to_upper())), 26,
 		Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
 	names.add_child(name_label)
 

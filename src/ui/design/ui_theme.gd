@@ -161,7 +161,12 @@ static func _build_sliders(theme: Theme) -> void:
 	var filled := StyleBoxFlat.new()
 	filled.bg_color = Design.alpha(Design.ACCENT, 0.55)
 	theme.set_stylebox("grabber_area", "HSlider", filled)
-	theme.set_stylebox("grabber_area_highlight", "HSlider", filled)
+	# Slider não tem StyleBox "focus": o destaque de foco/hover vem por
+	# "grabber_area_highlight". Sem cor distinta, o foco de teclado no
+	# Settings era invisível (gate 3C).
+	var focused := StyleBoxFlat.new()
+	focused.bg_color = Design.ACCENT
+	theme.set_stylebox("grabber_area_highlight", "HSlider", focused)
 
 
 static func _build_containers(theme: Theme) -> void:

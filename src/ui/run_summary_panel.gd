@@ -47,7 +47,8 @@ func _ready() -> void:
 	# zero, os containers colapsam no mínimo e o título quebra letra por letra.
 	_primary_text = tr("OVER_REBOOT")
 	_secondary_text = tr("OVER_ABANDON")
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# TOP_LEFT + sync manual (ver menu_shell): FULL_RECT + `size = vp` WARNING.
+	set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	_resize_to_viewport()
 	get_viewport().size_changed.connect(_resize_to_viewport)
 	_build()
@@ -117,7 +118,7 @@ func _rebuild_stats(stats: Array) -> void:
 
 		var value := Label.new()
 		value.add_theme_font_override("font", Design.grotesk(Design.WEIGHT_BLACK))
-		value.add_theme_font_size_override("font_size", 46)
+		value.add_theme_font_size_override("font_size", 38)
 		value.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
 		value.text = str(entry[1])
 		value.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -212,8 +213,8 @@ func _build_masthead(parent: Node) -> void:
 	var mark := VBoxContainer.new()
 	mark.add_theme_constant_override("separation", -6)
 	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var l1 := _grot(28, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY); l1.text = "KERNEL"
-	var l2 := _grot(28, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY); l2.text = "PANIC"
+	var l1 := _grot(24, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY); l1.text = "KERNEL"
+	var l2 := _grot(24, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY); l2.text = "PANIC"
 	mark.add_child(l1); mark.add_child(l2)
 	mark.add_child(_mono(tr("TAGLINE"), Design.TEXT_MICRO, Design.TEXT_MUTED))
 	row.add_child(mark)
@@ -247,7 +248,7 @@ func _build_hero(parent: Node) -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	_title = _grot(74, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
+	_title = _grot(60, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
 	# WORD, não WORD_SMART: SMART quebra DENTRO da palavra quando ela não cabe,
 	# e "TERMINATED" em 74px vira uma coluna de sílabas.
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -263,7 +264,7 @@ func _build_hero(parent: Node) -> void:
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_score_caption = _mono(tr("STAT_SCORE"), Design.TEXT_SUBHEAD, Design.TEXT_SECONDARY)
 	right.add_child(_score_caption)
-	_score_value = _grot(66, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
+	_score_value = _grot(54, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
 	right.add_child(_score_value)
 	_badge = _mono("", Design.TEXT_SUBHEAD, Design.DANGER)
 	right.add_child(_badge)
@@ -303,11 +304,11 @@ func _action_block(primary: bool) -> Control:
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(line)
 
-	var label := _grot(30 if primary else 25, Design.WEIGHT_HEAVY if primary else Design.WEIGHT_BOLD,
+	var label := _grot(26 if primary else 22, Design.WEIGHT_HEAVY if primary else Design.WEIGHT_BOLD,
 		Design.SURFACE if primary else Design.TEXT_PRIMARY)
 	label.text = _primary_text if primary else _secondary_text
 	line.add_child(label)
-	line.add_child(_mono("[ENTER]" if primary else "[ESC]", Design.TEXT_CAPTION,
+	line.add_child(_mono("" if Design.touch_input() else ("[ENTER]" if primary else "[ESC]"), Design.TEXT_CAPTION,
 		Design.alpha(Design.SURFACE, 0.7) if primary else Design.TEXT_MUTED))
 
 	if primary:

@@ -28,16 +28,20 @@ func _input(event: InputEvent) -> void:
 				return
 			if t.position.y <= 70.0:
 				return
+			# Ações momentâneas primeiro: com aim já segurado, um terceiro
+			# dedo no DASH caía fora de todos os ramos e era ignorado; BOOST
+			# desabilitado virava `_aim_id`. Hit-test antes de alocar canal.
+			if _dash_btn().has_point(t.position):
+				_press_dash()
+				return
+			if _oc_btn().has_point(t.position):
+				if player != null and player.oc_ready:
+					player.try_overclock()
+				return
 			if t.position.x < size.x * 0.4 and t.position.y > 70.0 and _move_id == -1:
 				_move_id = t.index
 				_move_origin = t.position
 			elif t.position.x >= size.x * 0.4 and _aim_id == -1 and t.position.y > 70.0:
-				if _dash_btn().has_point(t.position):
-					_press_dash()
-					return
-				if _oc_btn().has_point(t.position) and player != null and player.oc_ready:
-					player.try_overclock()
-					return
 				_aim_id = t.index
 				_aim_origin = t.position
 				_aim_pos = t.position
@@ -98,17 +102,23 @@ func movement_vector_from_offset(offset: Vector2) -> Vector2:
 	var clamped_offset := offset.limit_length(float(geometry["travel_radius"]))
 	return (clamped_offset / float(geometry["normalization_divisor"])).limit_length(1.0)
 
+func _margins() -> Dictionary:
+	return Design.safe_margins(size)
+
 func _dash_btn() -> Rect2:
 	var s := 120.0 * _sc()
-	return Rect2(size.x - s - 40.0 * _sc(), size.y - s - 36.0, s, s)
+	var mg := _margins()
+	return Rect2(size.x - s - 40.0 * _sc() - float(mg["right"]), size.y - s - 36.0 - float(mg["bottom"]), s, s)
 
 func _oc_btn() -> Rect2:
 	var s := 120.0 * _sc()
-	return Rect2(size.x - s - 40.0 * _sc(), size.y - s * 2 - 36.0 - 22.0, s, s)
+	var mg := _margins()
+	return Rect2(size.x - s - 40.0 * _sc() - float(mg["right"]), size.y - s * 2 - 36.0 - 22.0 - float(mg["bottom"]), s, s)
 
 func _pause_btn() -> Rect2:
 	var w := 76.0 * _sc()
-	return Rect2(size.x * 0.5 - w * 0.5, 12.0, w, 54.0 * _sc())
+	var mg := _margins()
+	return Rect2(size.x * 0.5 - w * 0.5, 12.0 + float(mg["top"]), w, 54.0 * _sc())
 
 var _tex_dash: Texture2D = preload("res://assets/icons/icon_dash.png")
 var _tex_pause: Texture2D = preload("res://assets/icons/icon_pause.png")

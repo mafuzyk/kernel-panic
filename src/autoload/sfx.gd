@@ -134,7 +134,7 @@ func play_music() -> void:
 		p.play()
 
 func set_music_variant(variant: String) -> void:
-	music_variant = variant if variant in ["normal", "crt_heavy", "crt_soft", "clean"] else "normal"
+	music_variant = variant if variant in ["normal", "crt_heavy", "crt_soft", "clean", "holy"] else "normal"
 	var pitch := 1.0
 	match music_variant:
 		"crt_heavy":
@@ -143,6 +143,8 @@ func set_music_variant(variant: String) -> void:
 			pitch = 0.92
 		"clean":
 			pitch = 1.04
+		"holy":
+			pitch = 1.12
 	for stem in _stems:
 		stem.pitch_scale = pitch
 

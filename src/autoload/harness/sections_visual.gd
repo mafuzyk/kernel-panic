@@ -11,6 +11,14 @@ var h: Node
 func _init(harness: Node) -> void:
 	h = harness
 
+## Probe que executa desenho de teste dentro de `_draw`, o único contexto
+## onde CanvasItem permite draw_*. Usada pelos testes de regression visual.
+class GlyphDrawProbe extends Control:
+	var draw_fn: Callable
+	func _draw() -> void:
+		if draw_fn.is_valid():
+			draw_fn.call(self)
+
 func _hud_style_test(arena: Arena) -> void:
 	print("AT_STEP hud_style")
 	var tui_script: Script = load("res://src/ui/tactical_ui.gd")
@@ -209,6 +217,10 @@ func _temple_test(arena: Arena) -> void:
 	var temple_stage := Game.story_stage_def(9)
 	var god_stage := Game.story_stage_def(10)
 	h._check(str(temple_stage.get("theme", {}).get("grid_style", "")) == "holy", "TempleOS uses the holy CRT profile")
+	Sfx.set_music_variant("holy")
+	h._check(Sfx.music_variant == "holy", "templeos holy music variant is recognized")
+	Sfx.set_music_variant("normal")
+	h._check(Sfx.music_variant == "normal", "music variant returns to normal")
 	h._check(temple_stage.get("arena_size", Vector2.ZERO) == Vector2(640.0, 640.0), "TempleOS shrinks the arena to 640x640")
 	h._check(str(god_stage.get("boss_kind", "")) == "god", "TempleOS final stage declares the GOD boss")
 	var sp: Spawner = arena.spawner
@@ -223,6 +235,13 @@ func _temple_test(arena: Arena) -> void:
 		var oracle_b := str(god_enemy.call("roll_oracle_attack"))
 		Game.rng.seed = old_seed
 		h._check(oracle_a == oracle_b and not oracle_a.is_empty(), "GOD oracle attacks follow the gameplay RNG")
+		h._check(god_enemy.has_method("oracle_interval_for_phase"), "GOD exposes a pure phase cadence contract")
+		if god_enemy.has_method("oracle_interval_for_phase"):
+			var p1 := float(god_enemy.call("oracle_interval_for_phase", 1))
+			var p2 := float(god_enemy.call("oracle_interval_for_phase", 2))
+			var p3 := float(god_enemy.call("oracle_interval_for_phase", 3))
+			h._check(p1 > p2 and p2 > p3, "GOD pressure rises monotonically P1 > P2 > P3")
+			h._check(p1 <= 2.5 and p3 >= 1.0, "GOD cadence stays in the readable band")
 	if god_enemy is Node:
 		god_enemy.free()
 	h._check(arena.has_method("temple_stage_profile"), "arena exposes TempleOS stage profile")
@@ -285,10 +304,14 @@ func _glyph_lib_test() -> void:
 	# A arena precisa ficar no caminho desenhado em código: é o que preserva a
 	# animação das 10 entidades que usam `t` e a nitidez no tamanho real.
 	# Decisão da autora 2026-09-11, ver specs/2026-09-11-brief-sprites.md.
-	var glyph_source := str(load("res://src/ui/glyph_lib.gd").source_code)
-	var draw_glyph_body := glyph_source.split("static func draw_glyph")[1].split("static func ")[0]
-	h._check(not draw_glyph_body.contains("EntitySprite.draw_entity"),
-		"arena glyph path stays code-drawn (sprites only via draw_portrait)")
+	# split()[1] travaria sem fonte: só avalia com source disponível.
+	if h._source_available:
+		var glyph_source := str(load("res://src/ui/glyph_lib.gd").source_code)
+		var draw_glyph_body := glyph_source.split("static func draw_glyph")[1].split("static func ")[0]
+		h._check(not draw_glyph_body.contains("EntitySprite.draw_entity"),
+			"arena glyph path stays code-drawn (sprites only via draw_portrait)")
+	else:
+		print("AT_SKIP source-only check needs script text: arena glyph path stays code-drawn")
 
 ## B4/B7/B8 — três achados da auditoria de 2026-09-11.
 func _audit_fixes_test() -> void:
@@ -334,6 +357,8 @@ func _audit_fixes_test() -> void:
 func _i18n_test() -> void:
 	print("AT_STEP i18n")
 	var sample := ["PAUSE_TITLE", "OVER_TITLE", "STAT_ACCURACY", "AWARDS_HEADER"]
+	# Sweep limitado da 3.0: chrome player-facing não pode voltar a literal.
+	var sweep := ["PATCH_RARITY_STANDARD", "PATCH_RARITY_RARE", "PATCH_RARITY_LEGENDARY", "PATCH_LEVEL_UP", "PATCH_NEW", "PATCH_SELECT_ONE", "SUMMARY_BEST", "SUMMARY_SEED", "BUILD_NO_PATCHES", "SET_TRANSFER_HEAD", "SET_BOUND_TO", "SET_LANGUAGE", "SET_LANG_ENGLISH", "SET_LANG_PORTUGUESE", "TERMINAL_TYPE_HELP", "TERM_LINK", "TERM_STATE_STABLE", "TERM_STATE_FROZEN", "TERM_STATE_STANDBY", "TERM_CMD_INDEX", "TERM_DESC_HELP", "TERM_DESC_TOP", "TERM_DESC_DMESG", "TERM_DESC_MAN", "TERM_DESC_SUDO", "TERM_DESC_RM", "TERM_SYSSTATUS", "TERM_CLOSE", "TERM_RUN", "TERM_RUN_SHORT", "TERM_PLACEHOLDER", "TERM_SHORTCUTS", "TERM_READY", "TERM_HINT", "TERM_PAUSED", "TERM_INPUT", "TERM_READY_STATE", "TERM_PROMPT", "TERM_ACTIVE", "TERM_COMMANDS", "TERM_CYCLE", "TERM_MAN_BUGS", "TERM_MAN_THREAT"]
 	var previous := TranslationServer.get_locale()
 
 	for locale in ["en", "pt_BR"]:
@@ -345,11 +370,44 @@ func _i18n_test() -> void:
 			if tr(key) == key:
 				all_translated = false
 		h._check(all_translated, "every sampled string resolves in %s" % locale)
+		var sweep_ok := true
+		for key in sweep:
+			if tr(key) == key:
+				sweep_ok = false
+		h._check(sweep_ok, "bounded 3.0 sweep resolves in %s" % locale)
 
 	TranslationServer.set_locale("en")
 	var english := tr("OVER_TITLE")
 	TranslationServer.set_locale("pt_BR")
 	h._check(tr("OVER_TITLE") != english, "locales actually differ, not just fall back")
+	# Runtime do Story segue o idioma: título/intro/klog/ato de todas as fases
+	# mais o chrome de onda, sem chave crua em nenhum idioma.
+	var story_ok := true
+	var titles_en: Array = []
+	var titles_pt: Array = []
+	for stage_id in StoryData.stage_ids():
+		TranslationServer.set_locale("en")
+		var title_en := StoryData.localized_title(stage_id)
+		var intro_en := StoryData.localized_intro(stage_id)
+		var klog_en := StoryData.localized_klog(stage_id, 0)
+		TranslationServer.set_locale("pt_BR")
+		var title_pt := StoryData.localized_title(stage_id)
+		var intro_pt := StoryData.localized_intro(stage_id)
+		var klog_pt := StoryData.localized_klog(stage_id, 0)
+		titles_en.append(title_en)
+		titles_pt.append(title_pt)
+		for text in [title_en, intro_en, klog_en, title_pt, intro_pt, klog_pt]:
+			if text.is_empty() or str(text).begins_with("STORY_"):
+				story_ok = false
+	h._check(story_ok, "story title, intro and klog resolve in en and pt_BR")
+	h._check(titles_en != titles_pt, "story titles are actually translated")
+	var chrome_ok := true
+	for locale in ["en", "pt_BR"]:
+		TranslationServer.set_locale(locale)
+		for key in ["STORY_CHROME_WAVE", "STORY_CHROME_FINAL_WAVE", "STORY_CHROME_CLEAR", "STORY_CHROME_FALLBACK", "STORY_CHROME_KLOG", 		"STORY_RAINBOW_UNLOCKED", "STORY_HINT_DISMISS", "STORY_WATERMARK", "STORY_ACT_UNIX", "STORY_ACT_WINDOWS", "STORY_ACT_TEMPLEOS", "STORY_TAB_UNIX", "STORY_TAB_WINDOWS", "STORY_TAB_TEMPLEOS"]:
+			if tr(key) == key:
+				chrome_ok = false
+	h._check(chrome_ok, "story runtime chrome resolves in en and pt_BR")
 
 	h._check(Game.has_method("set_language") and Game.has_method("language"),
 		"game owns the language setting")
@@ -586,6 +644,7 @@ func _editorial_screens_test() -> void:
 				for content in story.call("content_rects"):
 					if not story_screen.encloses(content):
 						story_inside = false
+						print("AT_DEBUG story overflow at %s: %s" % [story_label, str(content)])
 				h._check(story_inside, "story selector content stays inside the screen at %s" % story_label)
 
 	# Selecionar DESTACA; montar é o segundo passo. Antes `stage_selected` ia
@@ -725,7 +784,7 @@ func _icon_quality_test() -> void:
 	var kinds: Array = icon.call("icon_kinds")
 	for kind in ["settings", "bestiary", "dash", "back", "resume", "restart", "terminal", "audio", "music", "warning", "awards", "check"]:
 		h._check(kinds.has(kind), "tactical icon covers the %s kind" % kind)
-		h._check(icon_src.contains("\t\t\"%s\":" % kind), "%s icon resolves to a non-empty drawing routine" % kind)
+		h._check_source(icon_src.contains("\t\t\"%s\":" % kind), "%s icon resolves to a non-empty drawing routine" % kind)
 		var metrics: Dictionary = icon.call("icon_metrics", str(kind))
 		h._check(bool(metrics.get("covered", false)), "%s icon has documented quality metrics" % kind)
 		h._check(float(metrics.get("min_stroke", 0.0)) >= 1.5, "%s icon documents a minimum stroke of at least 1.5" % kind)
@@ -741,7 +800,7 @@ func _icon_quality_test() -> void:
 		return
 	var patch_src := str(patch_script.source_code)
 	for family in ["_draw_damage_glyph", "_draw_fire_glyph", "_draw_defense_glyph", "_draw_utility_glyph", "_draw_movement_glyph", "_draw_economy_glyph"]:
-		h._check(patch_src.contains("func %s" % family), "patch card draws the %s family" % family.trim_prefix("_draw_").trim_suffix("_glyph"))
+		h._check_source(patch_src.contains("func %s" % family), "patch card draws the %s family" % family.trim_prefix("_draw_").trim_suffix("_glyph"))
 	for id in Game.PATCH_CODES:
 		var family: String = patch_script.call("patch_icon_family", str(id))
 		h._check(["damage", "fire", "defense", "utility", "movement", "economy"].has(family), "%s patch icon belongs to a documented family" % str(id))
@@ -795,7 +854,7 @@ func _raster_trial_test() -> void:
 		if not str(patch_script.call("patch_raster_path", str(id))).is_empty():
 			uniform = false
 	h._check(uniform, "no patch card takes the raster path any more")
-	h._check(str(icon_script.source_code).contains("match _kind"), "tactical icon keeps the code-drawn draw dispatch")
+	h._check_source(str(icon_script.source_code).contains("match _kind"), "tactical icon keeps the code-drawn draw dispatch")
 	# Era texto-fonte: procurava `match patch_icon_family` DENTRO do arquivo, e
 	# quebrou ao mover o match para `draw_family_glyph()` — um ponto de entrada
 	# estático que existe para a folha de prova medir o MESMO desenho que o card
@@ -805,14 +864,45 @@ func _raster_trial_test() -> void:
 	h._check(patch_script.has_method("draw_family_glyph"),
 		"patch card exposes one entry point for the family symbol")
 	var family_seed: int = Game.rng.seed
-	var family_probe := Control.new()
+	# Desenhar fora de `_draw` loga ERROR do engine: a probe desenha DENTRO
+	# do próprio `_draw`, que é o único contexto válido de CanvasItem.
+	var family_probe := GlyphDrawProbe.new()
+	family_probe.draw_fn = func(canvas: Control) -> void:
+		for family in ["damage", "fire", "defense", "utility", "movement", "economy"]:
+			PatchCard.draw_family_glyph(canvas, str(family), Vector2(24, 24), Color.WHITE)
 	family_probe.size = Vector2(48, 48)
 	h.get_tree().current_scene.add_child(family_probe)
-	for family in ["damage", "fire", "defense", "utility", "movement", "economy"]:
-		PatchCard.draw_family_glyph(family_probe, str(family), Vector2(24, 24), Color.WHITE)
+	await h._ticks(2)
 	h._check(Game.rng.seed == family_seed, "patch family symbols draw without touching the gameplay rng")
 	family_probe.queue_free()
-	h._check(str(icon_script.source_code).contains("framed: bool = false"), "tactical icon configure exposes the framed overlay switch (default off)")
+	h._check_source(str(icon_script.source_code).contains("framed: bool = false"), "tactical icon configure exposes the framed overlay switch (default off)")
+
+func _terminal_history_test(arena: Arena) -> void:
+	print("AT_STEP terminal_history")
+	var tp: TerminalPanel = arena.get("_terminal_panel")
+	h._check(tp != null and is_instance_valid(tp), "arena exposes the live terminal panel")
+	if tp == null or not is_instance_valid(tp):
+		return
+	tp.submit_command("help")
+	tp.submit_command("top")
+	tp._input.text = ""
+	h._check(tp._history_step(-1) and tp._input.text == "top", "terminal UP recalls the last command")
+	h._check(tp._history_step(-1) and tp._input.text == "help", "terminal UP walks further back")
+	h._check(tp._history_step(1) and tp._input.text == "top", "terminal DOWN walks forward")
+	var up_key := InputEventKey.new()
+	up_key.pressed = true
+	up_key.keycode = KEY_UP
+	tp._input.text = ""
+	tp._on_input_gui(up_key)
+	h._check(tp._input.text == "help", "terminal UP key event recalls history")
+	tp._input.text = "su"
+	h._check(tp._history_complete() and tp._input.text == "sudo heal", "terminal TAB completes a unique prefix")
+	tp._input.text = "m"
+	h._check(tp._history_complete() and tp._input.text == "man ", "terminal TAB completes man with room for the target")
+	tp._input.text = ""
+	h._check(not tp._history_complete(), "terminal TAB on empty input keeps focus navigation")
+	tp._input.text = "zzz"
+	h._check(not tp._history_complete() and tp._input.text == "zzz", "terminal TAB without matches changes nothing")
 
 func _charm_terminal_test(arena: Arena) -> void:
 	print("AT_STEP charm_terminal")
