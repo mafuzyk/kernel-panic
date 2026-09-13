@@ -28,7 +28,33 @@ Somehow, it worked.
 
 ## Play it
 
-Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v2.5.0`.
+Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v3.0.0`.
+
+### What's new in 3.0.0
+
+- Run setup is back in the new menu: MODE (CLASSIC / WEEKLY / ONE-HP) and
+  DIFFICULTY (EASY / NORMAL / HARD) rows work with mouse and keyboard, respect
+  the One-HP unlock, persist locally, and Story keeps its fixed curve.
+- Combat bugfixes: idempotent enemy death, ROOTLET shield recharge, global orb
+  cap, TempleOS GOD spawn, wave event banners, DAMAGE ABSORBER arming Overclock,
+  Story hold-to-restart, OOM mote ownership, PAGE FAULT cap, DAEMON multi-charge
+  recharge, and truthful heal telemetry with the `integrity_restored` achievement.
+- Corrupt or mistyped saves and transfer strings sanitize to safe defaults
+  instead of logging script errors; unrelated progress is preserved.
+- Terminal history (↑↓) and TAB autocomplete; the debug console spawns every
+  regular enemy kind.
+- The autotest runs with AUTOTEST_ALL_PASS / 0 AT_FAIL and no in-run script
+  or engine errors (only engine exit-time teardown notes), and the exported
+  artifact has its own release-safe gate (source-only checks skip where
+  scripts ship compiled).
+- Mobile: three-finger move+aim+DASH/BOOST multitouch, display-cutout safe
+  insets, touch-sized action targets, no keyboard hints on touch, stacked
+  single-pane Story/Bestiary, desktop-only Terminal entry hidden on touch.
+- GOD pressure rises monotonically across phases with literal oracle RNG.
+- TempleOS holy music variant; boss intro quotes render.
+- PURGE focus ring stays bounded to the primary action; Settings sliders show
+  keyboard focus; Settings has an EN/PT-BR language selector with instant
+  refresh and persistence; full Story runtime localization.
 
 ### What's new in 2.5.0
 
@@ -43,7 +69,11 @@ Grab the Android, Linux, or Windows build from the [latest release](https://gith
 
 ### Android
 
-1. Download `KERNEL-PANIC-v2.5.0-release.apk` from the latest release and open it from your browser or file manager.
+1. Download `KERNEL-PANIC-v3.0.0-release.apk` from the latest release and open it from your browser or file manager.
+> **Updating from 2.5.0?** The original release key was lost, so 3.0.0 is
+> signed with a new key: Android will NOT install it as an update. Export
+> your progress first (Settings → Save transfer → Export), uninstall 2.5.0,
+> install 3.0.0, then import the transfer string.
 2. If Android blocks the installation, allow that app to **Install unknown apps** in the system settings, then open the APK again.
 3. Confirm **Install**. The current export targets 64-bit ARM devices (`arm64-v8a`).
 

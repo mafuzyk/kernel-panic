@@ -1,11 +1,11 @@
 # KERNEL PANIC — portable Linux x86_64
 
-The portable release contains these two files in one directory:
+The portable release is a single file: the project data is embedded in the
+executable (preset `Linux x86_64` sets `binary_format/embed_pck=true`).
 
 ```text
 kernel-panic-linux-x86_64/
-├── kernel-panic
-└── kernel-panic.pck
+└── kernel-panic
 ```
 
 Build it from the repository root with:
