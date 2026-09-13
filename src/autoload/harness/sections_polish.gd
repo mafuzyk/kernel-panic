@@ -150,6 +150,7 @@ func _menu_reflow_test(menu: Node) -> void:
 			for content in shell.content_rects():
 				if not view.encloses(content):
 					inside = false
+					print("AT_DEBUG menu shell overflow at %dx%d: %s" % [int(vp.x), int(vp.y), str(content)])
 			h._check(inside, "menu shell content stays inside the viewport at %dx%d" % [int(vp.x), int(vp.y)])
 		shell.size = menu.size
 	# Todo overlay do menu precisa ficar ACIMA do shell e pintar fundo OPACO.
@@ -306,6 +307,31 @@ func _awards_chrome_test(menu: Node) -> void:
 			await h._ticks(2)
 		h._check(back_hit is Button and not live.visible, "menu closes achievements through the panel-owned back action")
 
+func _bestiary_i18n_test() -> void:
+	print("AT_STEP bestiary_i18n")
+	var previous := TranslationServer.get_locale()
+	var panel := BestiaryPanel.new()
+	h.add_child(panel)
+	await h._ticks(1)
+	var raw_keys := false
+	for locale in ["en", "pt_BR"]:
+		TranslationServer.set_locale(locale)
+		await h._ticks(1)
+		for entry in BestiaryPanel.ENTRIES:
+			for field in ["DESC", "BUGS"]:
+				var key := "BEST_%s_%s" % [field, str(entry.get("id", "")).to_upper()]
+				if panel._entry_text(entry, field) == key:
+					raw_keys = true
+	h._check(not raw_keys, "every bestiary entry resolves in en and pt_BR")
+	TranslationServer.set_locale("en")
+	var english := panel._entry_text(BestiaryPanel.ENTRIES[0], "DESC")
+	TranslationServer.set_locale("pt_BR")
+	var portuguese := panel._entry_text(BestiaryPanel.ENTRIES[0], "DESC")
+	h._check(english != portuguese and portuguese.length() > 0, "bestiary prose is actually translated, not just present")
+	TranslationServer.set_locale(previous)
+	panel.queue_free()
+	await h._ticks(1)
+
 func _bestiary_glyph_test() -> void:
 	print("AT_STEP bestiary_glyph")
 	var glyph_script: Script = load("res://src/ui/glyph_lib.gd")
@@ -338,10 +364,10 @@ func _raster_optical_test() -> void:
 		var pad: float = icon_script.call("optical_pad", str(kind))
 		h._check(pad >= 0.02 and pad <= 0.14, "%s icon optical padding stays in the 0.02..0.14 band" % str(kind))
 	var src := str(icon_script.source_code)
-	h._check(src.contains("raster_path(_kind, int(minf(size.x, size.y)))"), "icon draw queries the registry with its rendered size")
-	h._check(src.contains("draw_texture_rect(tex, Rect2(Vector2(pad, pad)"), "icon raster draws into the padded rect")
+	h._check_source(src.contains("raster_path(_kind, int(minf(size.x, size.y)))"), "icon draw queries the registry with its rendered size")
+	h._check_source(src.contains("draw_texture_rect(tex, Rect2(Vector2(pad, pad)"), "icon raster draws into the padded rect")
 	var patch_script: Script = load("res://src/ui/patch_card.gd")
-	h._check(patch_script != null and str(patch_script.source_code).contains("PATCH_RASTER_PAD"), "patch card raster draws into the padded rect")
+	h._check_source(patch_script != null and str(patch_script.source_code).contains("PATCH_RASTER_PAD"), "patch card raster draws into the padded rect")
 	var music_small: String = icon_script.call("raster_path", "music", 24)
 	h._check(music_small.is_empty(), "24px opt-out kinds fall back to the code-drawn icon")
 	var music_big: String = icon_script.call("raster_path", "music", 52)
@@ -412,9 +438,9 @@ func _story_path_test() -> void:
 func _leak_guard_test() -> void:
 	print("AT_STEP leak_guard")
 	var game_src := str(load("res://src/autoload/game.gd").source_code)
-	h._check(game_src.contains("TacticalIcon.clear_raster_cache()"), "teardown clears the tactical icon raster cache")
-	h._check(game_src.contains("PatchCard.clear_raster_cache()"), "teardown clears the patch card raster cache")
-	h._check(game_src.contains("EntitySprite.clear_sprite_cache()"), "teardown clears the sprite trial cache")
+	h._check_source(game_src.contains("TacticalIcon.clear_raster_cache()"), "teardown clears the tactical icon raster cache")
+	h._check_source(game_src.contains("PatchCard.clear_raster_cache()"), "teardown clears the patch card raster cache")
+	h._check_source(game_src.contains("EntitySprite.clear_sprite_cache()"), "teardown clears the sprite trial cache")
 	var orphans: int = int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
 	var objects: int = int(Performance.get_monitor(Performance.OBJECT_COUNT))
 	print("AT_DEBUG leak_guard orphans=%d objects=%d" % [orphans, objects])
@@ -438,4 +464,4 @@ func _sprite_trial_test() -> void:
 	var probe = sprite_script.call("draw_entity", null, "drone", Vector2.ZERO, 24.0, Color.WHITE)
 	h._check(not bool(probe), "draw_entity reports the glyph fallback for a null canvas (empty or missing sprite keeps current visuals)")
 	var glyph_src := str(load("res://src/ui/glyph_lib.gd").source_code)
-	h._check(glyph_src.contains("EntitySprite.draw_entity"), "glyph library routes through the single sprite switch")
+	h._check_source(glyph_src.contains("EntitySprite.draw_entity"), "glyph library routes through the single sprite switch")

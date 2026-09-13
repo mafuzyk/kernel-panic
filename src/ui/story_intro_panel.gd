@@ -89,7 +89,7 @@ func _build() -> void:
 	footer_label = ScreenKit.mono("", Design.TEXT_MICRO, Design.TEXT_MUTED)
 	footer_row.add_child(footer_label)
 	ScreenKit.grow_h(footer_row)
-	hint_label = ScreenKit.mono("PRESS ANY KEY", Design.TEXT_MICRO, Design.TEXT_MUTED)
+	hint_label = ScreenKit.mono(tr("STORY_HINT_DISMISS"), Design.TEXT_MICRO, Design.TEXT_MUTED)
 	hint_label.modulate.a = 0.0
 	footer_row.add_child(hint_label)
 

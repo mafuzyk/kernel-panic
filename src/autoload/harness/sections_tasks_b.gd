@@ -167,7 +167,7 @@ func _task9_test(arena: Arena) -> void:
 				patch_content_measurable = patch_content_measurable and raw_rect.size.x > 0.0 and raw_rect.size.y > 0.0
 			h._check(patch_content_inside, "patch card content stays inside the 280x330 card")
 			h._check(patch_content_measurable, "patch card editorial content keeps measurable layout boxes")
-			h._check(patch_card.has_method("rarity_label") and patch_card.rarity_label() == "LEGENDARY", "patch card exposes semantic rarity label")
+			h._check(patch_card.has_method("rarity_label") and patch_card.rarity_label() == tr("PATCH_RARITY_LEGENDARY"), "patch card exposes semantic rarity label")
 			h._check(patch_card.has_method("card_title") and patch_card.card_title() == "STATIC FIELD", "patch card preserves readable title")
 			var patch_title_node = patch_card.get("_title")
 			h._check(patch_title_node is Label and patch_title_node.text == "STATIC FIELD" \
