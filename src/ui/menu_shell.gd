@@ -24,7 +24,7 @@ signal quit_pressed
 signal mode_cycled
 signal difficulty_cycled
 
-const HERO_RADIUS_WIDE := 150.0
+const HERO_RADIUS_WIDE := 120.0
 const HERO_RADIUS_COMPACT := 90.0
 
 var _hero: Control
@@ -35,6 +35,13 @@ var _program_label: Label
 var _version_label: Label
 var _story_block: PanelContainer
 var _archives_block: PanelContainer
+var _mode_block: PanelContainer
+var _diff_block: PanelContainer
+var _cfg_row: BoxContainer
+var _swap_hit: Button
+var _swap_link: Control
+var _footer_hosts: Array = []
+var _purge_host: PanelContainer
 var _body: BoxContainer
 var _hero_wrap: Control
 var _footer_row: HBoxContainer
@@ -45,7 +52,10 @@ var _hero_color := Design.ACCENT
 
 func _ready() -> void:
 	theme = UiTheme.shared()
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# TOP_LEFT, não FULL_RECT: o tamanho vem de `_resize_to_viewport` (pronto +
+	# size_changed). Com FULL_RECT, cada `size = vp` logava WARNING de anchors
+	# opostos — e o teste de contenção também seta `shell.size` direto.
+	set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	_resize_to_viewport()
 	get_viewport().size_changed.connect(_resize_to_viewport)
 	_build()
@@ -72,14 +82,18 @@ func _apply_layout_mode() -> void:
 	var step := Design.breakpoint_for(size.x)
 	var compact := step == "compact" or step == "medium"
 	_body.vertical = compact
-	_purge_label.add_theme_font_size_override("font_size", 48 if compact else 92)
+	_purge_label.add_theme_font_size_override("font_size", 32 if compact else 54)
 	if is_instance_valid(_hero_wrap):
 		var r: float = HERO_RADIUS_COMPACT if compact else HERO_RADIUS_WIDE
 		_hero_wrap.custom_minimum_size = Vector2(r * 2.2, r * 2.2)
 		# Em modo empilhado o herói come a altura que o conteúdo precisa —
 		# 1024x640 transbordava com ele visível.
 		_hero_wrap.visible = not compact
-	for block in [_story_block, _archives_block]:
+	if is_instance_valid(_cfg_row):
+		# Lado a lado no wide; empilhadas no compacto, onde meia largura
+		# cortaria "DIFICULDADE: CURVA FIXA".
+		_cfg_row.vertical = compact
+	for block in [_story_block, _archives_block, _mode_block, _diff_block]:
 		ScreenKit.set_action_density(block, compact)
 	# Em janela baixa o masthead é 110px de decoração que não cabe — mesma
 	# decisão tomada na pausa.
@@ -93,6 +107,50 @@ func set_run_config(mode_text: String, best_text: String, program_name: String) 
 	_mode_label.text = mode_text
 	_best_label.text = best_text
 	_program_label.text = program_name
+
+
+## Rótulos das fileiras de MODE/DIFFICULTY, atualizados a cada refresh do menu.
+func set_cycle_labels(mode_text: String, diff_text: String) -> void:
+	ScreenKit.set_action_label(_mode_block, mode_text)
+	ScreenKit.set_action_label(_diff_block, diff_text)
+
+
+## Controles reais de run config, para o autotest acionar os mesmos botões
+## que mouse e teclado alcançam.
+func run_config_hits() -> Dictionary:
+	return {
+		"mode": _mode_block.get_meta("hit") if _mode_block != null else null,
+		"difficulty": _diff_block.get_meta("hit") if _diff_block != null else null,
+	}
+
+
+## Botão de trocar programa (o link MENU_SWAP), para navegação por teclado.
+func swap_hit() -> Button:
+	if _swap_link != null and _swap_link.get_child_count() > 1 and _swap_link.get_child(1) is Button:
+		return _swap_link.get_child(1)
+	return null
+
+
+## Células do rodapé (hosts com o botão de overlay como filho 1).
+func footer_hosts() -> Array:
+	return _footer_hosts
+
+
+## Retângulo global do hit do PURGE. Por construção o hit cobre o host
+## inteiro (FULL_RECT), então o host é a medida estável do anel — válida
+## mesmo antes do primeiro sort headless do botão.
+func primary_hit_rect() -> Rect2:
+	if _purge_host != null and is_instance_valid(_purge_host):
+		return _purge_host.get_global_rect()
+	return Rect2()
+
+
+## Foco inicial da navegação por teclado do menu.
+func focus_primary() -> void:
+	if _purge_host != null and _purge_host.has_meta("hit"):
+		var hit: Button = _purge_host.get_meta("hit")
+		if is_instance_valid(hit):
+			hit.grab_focus()
 
 
 func set_version(text: String) -> void:
@@ -128,7 +186,7 @@ func content_rects() -> Array[Rect2]:
 	# O rodapé PRECISA estar aqui: sem ele a asserção de contenção passava com
 	# "ENTER Start" e os botões de rodapé cortados pela borda inferior.
 	for node in [_purge_label, _mode_label, _best_label, _program_label,
-			_version_label, _story_block, _archives_block, _footer_row]:
+			_version_label, _mode_block, _diff_block, _story_block, _archives_block, _footer_row]:
 		# is_visible_in_tree, não `visible`: um filho de container escondido mantém
 		# `visible == true` e entrava na medição, acusando estouro falso.
 		if node != null and is_instance_valid(node) and node.is_visible_in_tree():
@@ -171,8 +229,8 @@ func _build_masthead(parent: Node) -> HBoxContainer:
 	var mark := VBoxContainer.new()
 	mark.add_theme_constant_override("separation", -8)
 	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	mark.add_child(ScreenKit.grot("KERNEL", 40, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY))
-	mark.add_child(ScreenKit.grot("PANIC", 40, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY))
+	mark.add_child(ScreenKit.grot("KERNEL", 26, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY))
+	mark.add_child(ScreenKit.grot("PANIC", 26, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY))
 	mark.add_child(ScreenKit.mono(tr("TAGLINE"), Design.TEXT_MICRO, Design.TEXT_MUTED))
 	row.add_child(mark)
 
@@ -219,12 +277,20 @@ func _build_actions(parent: Node) -> void:
 
 	# Ação primária: tipo enorme em acento, precedido de seta. Em fundo escuro
 	# isto domina sem precisar de bloco sólido.
+	# SHRINK_BEGIN: o host herdava FILL da coluna e o anel âmbar cobria a
+	# largura inteira. O hit continua generoso (seta + wordmark + padding).
 	var purge_row := HBoxContainer.new()
 	purge_row.add_theme_constant_override("separation", Design.SPACE_LG)
-	purge_row.add_child(ScreenKit.grot("→", 72, Design.WEIGHT_BLACK, Design.ACCENT))
-	_purge_label = ScreenKit.grot(tr("MENU_PURGE"), 92, Design.WEIGHT_BLACK, Design.ACCENT)
+	purge_row.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	purge_row.add_child(ScreenKit.grot("→", 44, Design.WEIGHT_BLACK, Design.ACCENT))
+	_purge_label = ScreenKit.grot(tr("MENU_PURGE"), 54, Design.WEIGHT_BLACK, Design.ACCENT)
 	purge_row.add_child(_purge_label)
-	col.add_child(_overlay_button(purge_row, func() -> void: purge_pressed.emit()))
+	var purge_pad := Control.new()
+	purge_pad.custom_minimum_size = Vector2(Design.SPACE_LG, 0)
+	purge_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	purge_row.add_child(purge_pad)
+	_purge_host = _overlay_button(purge_row, func() -> void: purge_pressed.emit())
+	col.add_child(_purge_host)
 
 	_mode_label = ScreenKit.mono("", Design.TEXT_SUBHEAD, Design.TEXT_SECONDARY)
 	col.add_child(_mode_label)
@@ -232,7 +298,21 @@ func _build_actions(parent: Node) -> void:
 	col.add_child(_best_label)
 
 	ScreenKit.gap(col, Design.SPACE_SM)
-	col.add_child(_link(tr("MENU_CONFIGURE"), func() -> void: configure_pressed.emit()))
+	# Run config real: MODE e DIFFICULTY são fileiras acionáveis, não texto.
+	# O link ambíguo "Configurar partida" (segundo alias de trocar programa)
+	# saiu daqui; programa continua em MENU_SWAP abaixo.
+	# Lado a lado: duas fileiras empilhadas estouravam 1366x768.
+	# BoxContainer puro (não HBox): só ele aceita trocar `vertical` — HBox
+	# loga "Can't change orientation".
+	_cfg_row = BoxContainer.new()
+	_cfg_row.add_theme_constant_override("separation", Design.SPACE_MD)
+	col.add_child(_cfg_row)
+	_mode_block = ScreenKit.action(tr("MENU_MODE_CLASSIC"), "", "text", func() -> void: mode_cycled.emit())
+	_mode_block.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_cfg_row.add_child(_mode_block)
+	_diff_block = ScreenKit.action(tr("MENU_DIFFICULTY") % "NORMAL", "", "text", func() -> void: difficulty_cycled.emit())
+	_diff_block.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_cfg_row.add_child(_diff_block)
 
 	ScreenKit.gap(col, Design.SPACE_MD)
 	ScreenKit.rule(col)
@@ -250,9 +330,10 @@ func _build_actions(parent: Node) -> void:
 	prog.add_child(ScreenKit.mono(tr("MENU_ACTIVE_PROGRAM"), Design.TEXT_MICRO, Design.TEXT_MUTED))
 	var prog_row := HBoxContainer.new()
 	prog_row.add_theme_constant_override("separation", Design.SPACE_MD)
-	_program_label = ScreenKit.grot("", 26, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
+	_program_label = ScreenKit.grot("", 22, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
 	prog_row.add_child(_program_label)
-	prog_row.add_child(_link(tr("MENU_SWAP"), func() -> void: configure_pressed.emit()))
+	_swap_link = _link(tr("MENU_SWAP"), func() -> void: configure_pressed.emit())
+	prog_row.add_child(_swap_link)
 	prog.add_child(prog_row)
 
 
@@ -293,6 +374,13 @@ func _overlay_button(content: Control, on_press: Callable) -> PanelContainer:
 	hit.add_theme_stylebox_override("hover", glow)
 	hit.pressed.connect(on_press)
 	host.add_child(hit)
+	# Mesmo contrato de ScreenKit.action(): sem o meta "hit", acessores
+	# (focus_primary/primary_hit_rect/run_config_hits) recebiam null e o
+	# foco inicial do menu se perdia sem erro visível.
+	host.set_meta("hit", hit)
+	var first_labels := content.find_children("*", "Label", false, false)
+	if not first_labels.is_empty():
+		host.set_meta("label_node", first_labels[0])
 	_bind_labels(hit, content)
 	return host
 
@@ -312,7 +400,9 @@ func _build_footer(parent: Node) -> void:
 	parent.add_child(row)
 	_footer_row = row
 
-	row.add_child(ScreenKit.mono("ENTER", Design.TEXT_CAPTION, Design.ACCENT))
+	var enter_hint := ScreenKit.mono("ENTER", Design.TEXT_CAPTION, Design.ACCENT)
+	enter_hint.visible = not Design.touch_input()
+	row.add_child(enter_hint)
 	row.add_child(ScreenKit.mono(tr("MENU_START"), Design.TEXT_CAPTION, Design.TEXT_SECONDARY))
 	ScreenKit.grow_h(row)
 
@@ -321,10 +411,22 @@ func _build_footer(parent: Node) -> void:
 		[tr("MENU_AWARDS"), func() -> void: awards_pressed.emit()],
 		[tr("MENU_QUIT"), func() -> void: quit_pressed.emit()],
 	]:
-		var cell := Control.new()
-		var label := ScreenKit.mono(str(spec[0]), Design.TEXT_CAPTION, Design.TEXT_PRIMARY)
-		cell.custom_minimum_size = Vector2(label.get_minimum_size().x + Design.SPACE_LG, Design.SPACE_XL)
-		label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
-		label.position = Vector2(Design.SPACE_SM, 0)
-		cell.add_child(label)
-		row.add_child(_overlay_button(cell, spec[1]))
+		# HBox dimensiona pelo conteúdo: medir `get_minimum_size()` aqui
+		# (antes do layout) devolvia zero e o anel de foco saía menor que
+		# o texto.
+		var cell := HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 0)
+		var pad_l := Control.new()
+		pad_l.custom_minimum_size = Vector2(Design.SPACE_SM, 0)
+		pad_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(pad_l)
+		cell.add_child(ScreenKit.mono(str(spec[0]), Design.TEXT_CAPTION, Design.TEXT_PRIMARY))
+		var pad_r := Control.new()
+		pad_r.custom_minimum_size = Vector2(Design.SPACE_SM, 0)
+		pad_r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(pad_r)
+		if Design.touch_input() and cell.custom_minimum_size.y < Design.TOUCH_TARGET_MIN:
+			cell.custom_minimum_size.y = Design.TOUCH_TARGET_MIN
+		var host := _overlay_button(cell, spec[1])
+		_footer_hosts.append(host)
+		row.add_child(host)

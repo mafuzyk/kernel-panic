@@ -290,6 +290,12 @@ func status_label_ink() -> Color:
 	return Design.TEXT_MUTED
 
 
+## Texto da carga de dash como função PURA: a dica `[SHIFT]` não aparece em
+## toque. Separada do desenho pelo mesmo motivo de `overclock_label()`.
+func dash_charge_text(dash_max: int, touch: bool) -> String:
+	return ("x%d" % dash_max) if dash_max > 1 else ("[SHIFT]" if not touch else "x1")
+
+
 ## Onde ficam o rótulo e o medidor de cada par do módulo de integridade.
 ##
 ## O rótulo vem SEMPRE acima do que ele nomeia. `INTEGRITY` ficava acima dos
@@ -785,7 +791,7 @@ func _dash_pip(f: Font) -> void:
 	var dash_rect: Rect2 = layout_snapshot()["dash"]
 	var dash_text := tr("HUD_DASH_READY") if _dash_frac >= 1.0 else tr("HUD_DASH_CHARGING")
 	draw_string(f, dash_rect.position + Vector2(16.0, 28.0), dash_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 13, Color(col.r, col.g, col.b, 0.82))
-	var charge_text := ("x%d" % _dash_max) if _dash_max > 1 else ("[SHIFT]" if not touch_layout() else "x1")
+	var charge_text := dash_charge_text(_dash_max, touch_layout())
 	draw_string(f, dash_rect.position + Vector2(16.0, 52.0), charge_text, HORIZONTAL_ALIGNMENT_LEFT, dash_rect.size.x - 88.0, 11, Color(col.r, col.g, col.b, 0.68))
 	var cooldown := Rect2(dash_rect.position + Vector2(16.0, dash_rect.size.y - 16.0), Vector2(maxf(dash_rect.size.x - 32.0, 50.0), 4.0))
 	draw_rect(cooldown, Color(col.r, col.g, col.b, 0.16))

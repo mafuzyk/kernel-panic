@@ -11,6 +11,8 @@ const ENEMY_KINDS := [
 	["oom", "OOM_KILLER"],
 	["recursor", "RECURSOR"],
 	["firewall", "FIREWALL"],
+	["update_loop", "UPDATE_LOOP"],
+	["bloatware", "BLOATWARE"],
 ]
 
 var arena: Node

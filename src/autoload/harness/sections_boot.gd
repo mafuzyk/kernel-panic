@@ -289,6 +289,59 @@ func _task11_test(menu: Node) -> void:
 	if menu != null:
 		menu.refresh_shell()
 
+func _settings_focus_test(menu: Node) -> void:
+	print("AT_STEP settings_focus")
+	menu.call("_open_settings")
+	await h._ticks(3)
+	var panel: Control = menu.get("_settings_panel")
+	var owner: Control = h.get_viewport().gui_get_focus_owner()
+	print("AT_DEBUG settings focus=", owner.get_class() if owner != null else "null")
+	h._check(owner != null and panel != null and panel.is_ancestor_of(owner), "opening settings takes keyboard focus inside the panel")
+	menu.call("_close_settings")
+	await h._ticks(1)
+
+func _language_selector_test(menu: Node) -> void:
+	print("AT_STEP language_selector")
+	var saved_lang := Game.language()
+	var kit: RefCounted = menu.get("_settings_kit")
+	h._check(kit != null and kit.has_method("language_button"), "settings exposes a language control")
+	if kit == null or not kit.has_method("language_button"):
+		return
+	menu.call("_open_settings")
+	await h._ticks(2)
+	kit.call("set_active_section", "ACCESSIBILITY")
+	await h._ticks(1)
+	var lang_btn: Button = kit.call("language_button")
+	h._check(is_instance_valid(lang_btn) and lang_btn.visible, "language control is visible in settings")
+	if not is_instance_valid(lang_btn):
+		menu.call("_close_settings")
+		return
+	var before := Game.language()
+	lang_btn.pressed.emit()
+	await h._ticks(2)
+	var after := Game.language()
+	h._check(after != before, "pressing the language control switches language")
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	h._check(str(cf.get_value("feel", "language", "")) == after, "language selection persists")
+	h._check(str(menu.main_shell_snapshot().get("mode_explanation", "")) != "", "shell survives the language rebuild")
+	lang_btn = kit.call("language_button")
+	h._check(is_instance_valid(lang_btn), "language control exists after rebuild")
+	menu.call("_close_settings")
+	await h._ticks(1)
+	var post_close: Control = h.get_viewport().gui_get_focus_owner()
+	# O teste possui a própria higiene de foco: restaura o PURGE de forma
+	# síncrona para não vazar estado para o desktop_focus.
+	var shell_fix: Control = menu.get("_shell")
+	if shell_fix != null and shell_fix.has_method("focus_primary"):
+		shell_fix.call("focus_primary")
+		await h._ticks(1)
+		post_close = h.get_viewport().gui_get_focus_owner()
+	Game.set_language(saved_lang)
+	if menu.has_method("refresh_shell"):
+		menu.refresh_shell()
+	await h._ticks(1)
+
 func _color_assist_test() -> void:
 	print("AT_STEP color_assist")
 	var balance_script: Script = load("res://src/autoload/balance.gd")
@@ -343,11 +396,13 @@ func _color_assist_test() -> void:
 
 	var splitter := SplitterEnemy.new()
 	var bulwark := BulwarkEnemy.new()
-	var splitter_source := FileAccess.get_file_as_string("res://src/enemies/splitter.gd")
-	var bulwark_source := FileAccess.get_file_as_string("res://src/enemies/bulwark.gd")
+	# load(), não FileAccess: no artefato o .gd não existe como texto, mas o
+	# script compilado carrega e `source_code` vem vazio — sem ERROR no log.
+	var splitter_source := str((load("res://src/enemies/splitter.gd") as Script).source_code)
+	var bulwark_source := str((load("res://src/enemies/bulwark.gd") as Script).source_code)
 	h._check(splitter.has_method("color_assist_marker") and splitter.color_assist_marker() == "SPLIT", "Splitter exposes code-drawn assist marker")
 	h._check(bulwark.has_method("color_assist_marker") and bulwark.color_assist_marker() == "BULW", "Bulwark exposes code-drawn assist marker")
-	h._check(splitter_source.contains("draw_string") and bulwark_source.contains("draw_string") and not splitter_source.contains(".png") and not bulwark_source.contains(".png"), "threat markers use code drawing without images")
+	h._check_source(splitter_source.contains("draw_string") and bulwark_source.contains("draw_string") and not splitter_source.contains(".png") and not bulwark_source.contains(".png"), "threat markers use code drawing without images")
 	var bestiary_probe := BestiaryPanel.new()
 	h._check(bestiary_probe.has_method("assist_marker_text") \
 		and bestiary_probe.call("assist_marker_text", "splitter") == ("SPLIT" if Sfx.color_assist else "") \
@@ -362,3 +417,88 @@ func _color_assist_test() -> void:
 	h._restore_config_snapshot("feel", "color_assist", saved_disk)
 	if menu != null and menu.has_method("_refresh_color_assist_label"):
 		menu._refresh_color_assist_label()
+
+func _run_config_test(menu: Node) -> void:
+	print("AT_STEP run_config_interaction")
+	var saved_mode := Game.mode
+	var saved_diff := Game.difficulty
+	var saved_onehp := Game.onehp_unlocked
+	var saved_mode_disk: Dictionary = h._config_snapshot("game", "mode", "classic")
+	var saved_diff_disk: Dictionary = h._config_snapshot("game", "difficulty", "normal")
+	var saved_onehp_disk: Dictionary = h._config_snapshot("run", "onehp_unlocked", false)
+	var shell: Control = menu.get("_shell")
+	h._check(shell != null and is_instance_valid(shell), "live menu shell exists for run config")
+	if shell == null or not is_instance_valid(shell) or not menu.has_method("refresh_shell"):
+		_restore_run_config_fixture(saved_mode, saved_diff, saved_onehp, saved_mode_disk, saved_diff_disk, saved_onehp_disk, menu)
+		return
+	h._check(shell.has_method("run_config_hits"), "shell exposes run-config controls")
+	if not shell.has_method("run_config_hits"):
+		_restore_run_config_fixture(saved_mode, saved_diff, saved_onehp, saved_mode_disk, saved_diff_disk, saved_onehp_disk, menu)
+		return
+	Game.onehp_unlocked = false
+	Game.mode = "classic"
+	Game.set_difficulty("normal")
+	menu.refresh_shell()
+	await h._ticks(1)
+	var hits: Dictionary = shell.run_config_hits()
+	var mode_hit: Button = hits.get("mode")
+	var diff_hit: Button = hits.get("difficulty")
+	h._check(is_instance_valid(mode_hit) and is_instance_valid(diff_hit), "mode and difficulty controls exist in the live shell")
+	if not is_instance_valid(mode_hit) or not is_instance_valid(diff_hit):
+		_restore_run_config_fixture(saved_mode, saved_diff, saved_onehp, saved_mode_disk, saved_diff_disk, saved_onehp_disk, menu)
+		return
+	h._check(mode_hit.focus_mode == Control.FOCUS_ALL and diff_hit.focus_mode == Control.FOCUS_ALL, "mode and difficulty controls are keyboard reachable")
+	mode_hit.grab_focus()
+	h._check(mode_hit.has_focus(), "mode control takes keyboard focus")
+	h._check(mode_hit.get_global_rect().size.x > 0.0 and mode_hit.get_global_rect().size.y > 0.0, "mode control has a clickable rect")
+	mode_hit.pressed.emit()
+	await h._ticks(1)
+	h._check(Game.mode == "weekly", "pressing the MODE control selects weekly")
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	h._check(str(cf.get_value("game", "mode", "")) == "weekly", "mode selection persists to ConfigFile")
+	h._check(str(menu.main_shell_snapshot().get("mode_explanation", "")).contains(tr("MODE_WEEKLY")), "shell shows weekly immediately")
+	mode_hit.pressed.emit()
+	await h._ticks(1)
+	h._check(Game.mode == "classic", "locked one-hp is skipped when cycling modes")
+	Game.unlock_onehp()
+	Game.mode = "classic"
+	menu.refresh_shell()
+	await h._ticks(1)
+	mode_hit.pressed.emit()
+	mode_hit.pressed.emit()
+	await h._ticks(1)
+	h._check(Game.mode == "onehp", "unlocked one-hp is selectable from the shell")
+	Game.mode = "classic"
+	Game.set_difficulty("normal")
+	menu.refresh_shell()
+	await h._ticks(1)
+	diff_hit.pressed.emit()
+	await h._ticks(1)
+	h._check(Game.difficulty == "hard", "pressing the DIFFICULTY control cycles normal to hard")
+	cf.load(Sfx.SAVE_PATH)
+	h._check(str(cf.get_value("game", "difficulty", "")) == "hard", "difficulty selection persists to ConfigFile")
+	h._check(str(menu.main_shell_snapshot().get("mode_explanation", "")).contains(tr("DIFF_HARD")), "shell shows hard immediately")
+	Game.mode = "story"
+	menu.refresh_shell()
+	await h._ticks(1)
+	var story_diff := Game.difficulty
+	diff_hit.pressed.emit()
+	await h._ticks(1)
+	h._check(Game.difficulty == story_diff, "story keeps its fixed difficulty curve")
+	var diff_text := ""
+	var diff_block: Control = shell.get("_diff_block")
+	if diff_block != null and diff_block.has_meta("label_node"):
+		diff_text = str(diff_block.get_meta("label_node").text)
+	h._check(diff_text == tr("MENU_DIFFICULTY_FIXED"), "shell shows fixed difficulty in story")
+	_restore_run_config_fixture(saved_mode, saved_diff, saved_onehp, saved_mode_disk, saved_diff_disk, saved_onehp_disk, menu)
+
+func _restore_run_config_fixture(saved_mode: String, saved_diff: String, saved_onehp: bool, saved_mode_disk: Dictionary, saved_diff_disk: Dictionary, saved_onehp_disk: Dictionary, menu: Node) -> void:
+	Game.mode = saved_mode
+	Game.difficulty = saved_diff
+	Game.onehp_unlocked = saved_onehp
+	h._restore_config_snapshot("game", "mode", saved_mode_disk)
+	h._restore_config_snapshot("game", "difficulty", saved_diff_disk)
+	h._restore_config_snapshot("run", "onehp_unlocked", saved_onehp_disk)
+	if menu != null and menu.has_method("refresh_shell"):
+		menu.refresh_shell()

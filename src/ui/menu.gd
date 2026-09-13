@@ -34,6 +34,7 @@ var _program_btn: Button
 var _story_btn: Button
 var _aim_btn_ref: Button
 var _color_assist_btn: Button
+var _language_btn: Button
 var _boot: BootOverlay
 var _keybind_box: VBoxContainer
 var _keybind_status: Label
@@ -102,6 +103,32 @@ func _open_settings() -> void:
 
 func _close_settings() -> void:
 	_settings_kit._close_settings()
+	# Devolve o foco ao menu: fechar overlay sem dono de foco deixava a
+	# navegação por teclado órfã. Diferido um frame — o grab imediato cai no
+	# vazio quando a visibilidade ainda está assentando.
+	if _shell != null and _shell.has_method("focus_primary"):
+		_shell.call_deferred("focus_primary")
+
+## Troca de idioma com refresh imediato: persiste, invalida painéis lazy
+## (nascem no idioma novo na próxima abertura) e reconstrói shell+settings.
+func _apply_language(code: String) -> void:
+	var section := "AUDIO"
+	if _settings_kit != null:
+		section = _settings_kit.active_section()
+	Game.set_language(code)
+	_invalidate_lazy_panels()
+	refresh_shell()
+	if _settings_kit != null:
+		_settings_kit.rebuild_settings()
+		_settings_kit.set_active_section(section)
+		_settings_kit.focus_language_control()
+
+func _invalidate_lazy_panels() -> void:
+	for key in ["_program_panel", "_story_panel", "_bestiary_panel", "_ach_panel"]:
+		var panel: Control = get(key)
+		if panel != null and is_instance_valid(panel):
+			panel.queue_free()
+		set(key, null)
 
 func _handle_keybind_capture(event: InputEventKey) -> bool:
 	return _settings_kit._handle_keybind_capture(event)
@@ -407,6 +434,8 @@ func _build_shell() -> void:
 	_shell.story_pressed.connect(_open_story_selector)
 	_shell.archives_pressed.connect(_open_bestiary)
 	_shell.configure_pressed.connect(_open_program_selector)
+	_shell.mode_cycled.connect(_cycle_mode)
+	_shell.difficulty_cycled.connect(_cycle_difficulty)
 	_shell.settings_pressed.connect(_open_settings)
 	_shell.awards_pressed.connect(_open_achievements)
 	_shell.quit_pressed.connect(func() -> void: get_tree().quit())
@@ -435,6 +464,10 @@ func refresh_shell() -> void:
 	var best := Game.best_for_mode()
 	var best_text := "%s %07d" % [tr("MENU_BEST"), best] if best > 0 else tr("MENU_NO_RECORD")
 	_shell.set_run_config(mode_text, best_text, str(Game.program_def()["name"]))
+	var cycle_modes := {"classic": "MENU_MODE_CLASSIC", "weekly": "MENU_MODE_WEEKLY", "onehp": "MENU_MODE_ONEHP", "story": "MENU_MODE_STORY"}
+	var cycle_mode_text := tr(str(cycle_modes.get(Game.mode, "MENU_MODE_CLASSIC")))
+	var cycle_diff_text := tr("MENU_DIFFICULTY_FIXED") if Game.mode == "story" else tr("MENU_DIFFICULTY") % Game.difficulty.to_upper()
+	_shell.set_cycle_labels(cycle_mode_text, cycle_diff_text)
 	_shell.set_hero(str(Game.program), Balance.COL_PLAYER)
 
 
@@ -484,6 +517,7 @@ func _cycle_mode() -> void:
 	cf.set_value("game", "mode", Game.mode)
 	cf.save(Sfx.SAVE_PATH)
 	_refresh_mode_ui()
+	refresh_shell()
 	if _aim_btn_ref != null:
 		_refresh_aim_label(_aim_btn_ref)
 
@@ -497,6 +531,7 @@ func _cycle_difficulty() -> void:
 	Game.set_difficulty(str(order[(idx + 1) % order.size()]))
 	Sfx.play("ui", 1.1, -8.0)
 	_refresh_difficulty_label()
+	refresh_shell()
 
 func _refresh_difficulty_label() -> void:
 	if _diff_btn == null:
@@ -507,6 +542,11 @@ func _refresh_difficulty_label() -> void:
 		_diff_btn.text = tr("MENU_DIFFICULTY") % Game.difficulty.to_upper()
 
 func _refresh_mode_ui() -> void:
+	# A UI legacy não é mais construída; só o shell novo reflete estado.
+	# Sem este guard, ciclar modo logava SCRIPT ERROR em _mode_btn nulo.
+	if _mode_btn == null or _mode_info == null:
+		_update_best()
+		return
 	var cf := ConfigFile.new()
 	cf.load(Sfx.SAVE_PATH)
 	match Game.mode:
@@ -574,6 +614,8 @@ static func _next_touch_scale_idx(v: float) -> int:
 	return (_touch_scale_idx(v) + 1) % 3
 
 func _update_best() -> void:
+	if _best_label == null:
+		return
 	var b := Game.best_for_mode()
 	_best_label.text = (tr("MENU_HIGH_SCORE") % b) if b > 0 else "NO RECORD YET"
 

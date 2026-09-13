@@ -484,20 +484,23 @@ func _corruption_volley(n: int) -> void:
 		get_parent().add_child(shot)
 	Sfx.play("shoot", 0.6, -5.0)
 
+## Só as pages DESTE boss. A contagem global quebrava com múltiplos bosses
+## (um boss herdava o escudo do outro) e não via adds deferred do mesmo frame.
 func _pages_alive() -> int:
 	var count := 0
 	for p in get_tree().get_nodes_in_group("page"):
-		if is_instance_valid(p):
+		if is_instance_valid(p) and p.get("boss") == self:
 			count += 1
 	return count
 
 func _do_pages() -> void:
-	for i in 4:
-		if _pages_alive() >= 4:
-			break
+	# Déficit calculado UMA vez: o loop antigo recontava a cada iteração mas
+	# os adds são deferred, então 1/2/3 pages vivas viravam 5/6/7.
+	var missing := 4 - _pages_alive()
+	for i in missing:
 		var pg := PageNode.new()
 		pg.boss = self
-		pg.orbit_idx = i
+		pg.orbit_idx = i % 4
 		pg.position = global_position + Vector2.from_angle(TAU * i / 4.0) * 90.0
 		get_parent().call_deferred("add_child", pg)
 	Fx.ring(global_position, col, radius, radius + 80.0, 0.4, 3.0, true)
@@ -613,9 +616,8 @@ func _warn_and_rebuild_shield() -> void:
 	await tree.create_timer(0.8).timeout
 	if not is_instance_valid(self):
 		return
-	for i in 6:
-		if _pages_alive() >= 6:
-			break
+	var shield_missing := 6 - _pages_alive()
+	for i in shield_missing:
 		var pg := PageNode.new()
 		pg.boss = self
 		pg.orbit_idx = i % 4
