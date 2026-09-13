@@ -44,7 +44,7 @@ var _footer_hosts: Array = []
 var _purge_host: PanelContainer
 var _body: BoxContainer
 var _hero_wrap: Control
-var _footer_row: HBoxContainer
+var _footer_row: BoxContainer
 var _masthead_row: HBoxContainer
 var _hero_kind := "kernel"
 var _hero_color := Design.ACCENT
@@ -99,6 +99,21 @@ func _apply_layout_mode() -> void:
 	# decisão tomada na pausa.
 	if is_instance_valid(_masthead_row):
 		_masthead_row.visible = size.y > 700.0
+	# Invalidação explícita: trocar densidade/tipo/vertical muda mínimos, e a
+	# cadeia ancestral precisa resortear com os novos valores (sem isto, um
+	# resize para viewport estreita mantinha a largura do modo anterior).
+	if is_instance_valid(_body):
+		_body.update_minimum_size()
+	if is_instance_valid(_cfg_row):
+		_cfg_row.update_minimum_size()
+	# O rodapé horizontal tem mínimo de ~400px (ENTER + 3 links): no compacto
+	# ele sozinho forçava a coluna inteira para fora de 432. Empilhado, o
+	# mínimo cai para a largura do maior link.
+	if is_instance_valid(_footer_row):
+		_footer_row.vertical = compact
+		_footer_row.update_minimum_size()
+	if is_instance_valid(_body):
+		_body.queue_sort()
 
 
 # ── estado vindo do menu ──────────────────────────────────────────────
@@ -395,16 +410,26 @@ func _bind_labels(hit: Button, content: Node) -> void:
 func _build_footer(parent: Node) -> void:
 	ScreenKit.rule(parent, 0.14)
 	ScreenKit.gap(parent, Design.SPACE_MD)
-	var row := HBoxContainer.new()
+	var row := BoxContainer.new()
 	row.add_theme_constant_override("separation", Design.SPACE_MD)
 	parent.add_child(row)
 	_footer_row = row
 
 	var enter_hint := ScreenKit.mono("ENTER", Design.TEXT_CAPTION, Design.ACCENT)
 	enter_hint.visible = not Design.touch_input()
-	row.add_child(enter_hint)
-	row.add_child(ScreenKit.mono(tr("MENU_START"), Design.TEXT_CAPTION, Design.TEXT_SECONDARY))
+	# Duas sub-fileiras: no wide ficam lado a lado (como antes); no compacto
+	# empilham em 2 linhas baixas em vez de 6 (o rodapé plano estourava 640
+	# de altura e 432 de largura).
+	var left_box := HBoxContainer.new()
+	left_box.add_theme_constant_override("separation", Design.SPACE_MD)
+	left_box.add_child(enter_hint)
+	left_box.add_child(ScreenKit.mono(tr("MENU_START"), Design.TEXT_CAPTION, Design.TEXT_SECONDARY))
+	row.add_child(left_box)
 	ScreenKit.grow_h(row)
+
+	var right_box := HBoxContainer.new()
+	right_box.add_theme_constant_override("separation", Design.SPACE_MD)
+	row.add_child(right_box)
 
 	for spec in [
 		[tr("MENU_SETTINGS"), func() -> void: settings_pressed.emit()],
@@ -429,4 +454,4 @@ func _build_footer(parent: Node) -> void:
 			cell.custom_minimum_size.y = Design.TOUCH_TARGET_MIN
 		var host := _overlay_button(cell, spec[1])
 		_footer_hosts.append(host)
-		row.add_child(host)
+		right_box.add_child(host)

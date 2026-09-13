@@ -77,6 +77,8 @@ func _apply_layout_mode() -> void:
 	for block in _action_blocks:
 		ScreenKit.set_action_density(block, compact)
 	_actions_row.vertical = compact
+	if is_instance_valid(_actions_row):
+		_actions_row.update_minimum_size()
 	_actions_row.add_theme_constant_override("separation",
 		Design.SPACE_MD if compact else Design.SPACE_2XL)
 	if is_instance_valid(_actions_spacer):

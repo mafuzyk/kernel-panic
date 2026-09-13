@@ -588,6 +588,7 @@ func _apply_layout_mode() -> void:
 	_subtitle.visible = step != "compact"
 	if is_instance_valid(_body):
 		_body.vertical = narrow
+		_body.update_minimum_size()
 		_body.add_theme_constant_override("separation", Design.SPACE_MD if narrow else Design.SPACE_XL)
 	if is_instance_valid(_back_block):
 		ScreenKit.set_action_density(_back_block, narrow)

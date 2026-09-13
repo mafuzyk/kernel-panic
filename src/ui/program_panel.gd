@@ -639,6 +639,7 @@ func _apply_layout_mode() -> void:
 		ScreenKit.set_action_density(block, compact)
 	if is_instance_valid(_footer):
 		_footer.vertical = compact
+		_footer.update_minimum_size()
 		_footer.add_theme_constant_override("separation",
 			Design.SPACE_SM if compact else Design.SPACE_XL)
 	var cols := _column_count()

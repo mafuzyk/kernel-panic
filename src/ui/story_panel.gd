@@ -857,6 +857,8 @@ func _apply_layout_mode() -> void:
 				path_label.add_theme_font_size_override("font_size", path_size)
 	if is_instance_valid(_footer):
 		_footer.vertical = narrow
+		_body.update_minimum_size()
+		_footer.update_minimum_size()
 		_footer.add_theme_constant_override("separation",
 			Design.SPACE_SM if narrow else Design.SPACE_XL)
 	if narrow != _last_narrow:

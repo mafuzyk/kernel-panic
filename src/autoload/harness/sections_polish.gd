@@ -144,7 +144,9 @@ func _menu_reflow_test(menu: Node) -> void:
 	if shell != null:
 		for vp in [Vector2(1920, 1080), Vector2(1366, 768), Vector2(1024, 640), Vector2(432, 720)]:
 			shell.size = vp
-			await h._ticks(2)
+			# 2 ticks era marginal no 432 (âncora/densidade assentam com
+			# atraso sob carga): 5 estabiliza sem mudar o contrato.
+			await h._ticks(5)
 			var view := Rect2(Vector2.ZERO, vp)
 			var inside := true
 			for content in shell.content_rects():
