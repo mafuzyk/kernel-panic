@@ -57,11 +57,17 @@ func _show_story_intro() -> void:
 	if a._story_intro_panel == null or a._story_stage.is_empty():
 		return
 	var stage_id := str(a._story_stage.get("id", ""))
+	# O rodapé da carta passa a anunciar o ALVO da fase junto do nome do ato: é
+	# onde a jogadora fica sabendo o que está perseguindo antes de começar.
+	var par := StoryData.stage_par_seconds(stage_id)
+	var footer := StoryData.localized_act_label(str(a._story_stage.get("act", "")))
+	if par > 0.0:
+		footer += "   //   " + tr("STORY_OBJECTIVE") % ("%d:%02d" % [int(par / 60.0), int(par) % 60])
 	a._story_intro_panel.set_story(
 		str(a._story_stage.get("path", "")),
 		StoryData.localized_title(stage_id),
 		StoryData.localized_intro(stage_id),
-		StoryData.localized_act_label(str(a._story_stage.get("act", "")))
+		footer
 	)
 	_fit_story_intro_text()
 	a._story_intro_panel.modulate.a = 0.0

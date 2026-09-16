@@ -492,6 +492,17 @@ func _capture() -> void:
 				if rm_terminal != null:
 					rm_terminal.call("submit_command", "rm -rf /")
 				await h._ticks(140)
+			# A fala do antagonista, que entra pela fila do HUD depois do banner
+			# da onda. A captura espera a fila chegar nela.
+			"beat":
+				arena.spawner.stop()
+				if arena.has_method("story_intro_active"):
+					for _beat_wait in 240:
+						if not bool(arena.call("story_intro_active")):
+							break
+						arena.call("dismiss_story_intro")
+						await h._ticks(1)
+				await h._ticks(140)
 			# O boss do ato macOS no estado de pânico, que é quando ele inverte
 			# o matiz do campo.
 			"panic":

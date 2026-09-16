@@ -531,6 +531,9 @@ func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 	else:
 		hud.show_banner("%s // %s" % [_story_stage.get("path", ""), tr("STORY_CHROME_WAVE") % current_wave], tr("ARENA_PURGE_SUB"), 1.8)
 		Sfx.play("wave", 1.0 + current_wave * 0.01, -6.0)
+	# A fala entra pela FILA do HUD, não por cima: ela só sobe quando o banner
+	# da onda termina, para as duas não disputarem o mesmo pixel.
+	_maybe_speak_beat_for_wave(current_wave)
 	if current_wave > 1 and (current_wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
 		player.heal(1, "story")
 		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
@@ -557,6 +560,27 @@ func _on_wave_cleared(wave: int) -> void:
 	_show_tip()
 	if Game.should_offer_patch(wave):
 		offer_patch()
+
+## As falas do antagonista.
+##
+## O Story de 3.0 entregava uma carta de intro e uma linha de klog por onda —
+## texto de MÁQUINA, sem ninguém do outro lado. Agora o processo que você está
+## purgando responde, em três momentos: quando a fase abre, no meio dela, e
+## quando ela cai. Mesma estética de terminal, sem cutscene.
+func _speak_beat(moment: String) -> void:
+	var stage_id := str(_story_stage.get("id", ""))
+	var line := StoryData.localized_beat(stage_id, moment)
+	if line.is_empty():
+		return
+	hud.queue_hint("beat_%s_%s" % [stage_id, moment], tr("STORY_VOICE"), 2.6, line, true)
+	Game.log_event("%s: %s" % [tr("STORY_VOICE").to_lower(), line])
+
+func _maybe_speak_beat_for_wave(current_wave: int) -> void:
+	var stage_id := str(_story_stage.get("id", ""))
+	for moment in ["OPEN", "MID"]:
+		if StoryData.beat_wave_for_moment(stage_id, str(moment)) == current_wave:
+			_speak_beat(str(moment))
+			return
 
 func _on_story_wave_cleared(current_wave: int) -> void:
 	var klog: Array = _story_stage.get("klog", [])
@@ -824,8 +848,16 @@ func _show_story_victory(stage_id: String) -> void:
 		next_line = tr("STORY_BONUS_DONE") if stage_id == "temple_god" else tr("STORY_ALL_DONE")
 		if stage_id == "temple_god":
 			next_line += "  //  " + tr("STORY_RAINBOW_UNLOCKED")
+	# Fim de ATO: a última fase do ato entrega a tinta de campo, e é ela que dá
+	# um arco ao conjunto em vez de a corrente simplesmente continuar.
+	if StoryData.is_act_final_stage(stage_id):
+		var act_id := str(_story_stage.get("act", "unix"))
+		next_line = tr("STORY_ACT_COMPLETE") % [StoryData.localized_act_label(act_id), tr("TINT_%s" % StoryData.act_reward(act_id).to_upper())]
 	var victory_title := StoryData.localized_title(stage_id)
 	var st := Game.stats
+	var rank := Game.story_stage_rank(stage_id)
+	var par := StoryData.stage_par_seconds(stage_id)
+	_speak_beat("CLEAR")
 	_run_summary.show_summary({
 		"title": tr("VICTORY_TITLE"),
 		"accent": _story_stage.get("theme", {}).get("accent", Balance.COL_PLAYER),
@@ -834,8 +866,9 @@ func _show_story_victory(stage_id: String) -> void:
 		"score_value": "%07d" % Game.score,
 		"badge": next_line,
 		"stats": [
+			[tr("STAT_RANK"), rank],
 			[tr("STAT_DAEMONS_PURGED"), "%d" % int(st.get("kills", 0))],
-			[tr("STAT_UPTIME"), "%02d:%02d" % [int(float(st.get("time", 0.0)) / 60.0), int(float(st.get("time", 0.0))) % 60]],
+			[tr("STAT_UPTIME"), "%02d:%02d / %02d:%02d" % [int(float(st.get("time", 0.0)) / 60.0), int(float(st.get("time", 0.0))) % 60, int(par / 60.0), int(par) % 60]],
 			[tr("STAT_STAGE_BEST"), "%07d" % Game.story_stage_best(index)],
 		],
 		"meta": victory_title if victory_title != "" else tr("ARENA_STAGE_CLEARED"),
@@ -1215,15 +1248,18 @@ func _process(delta: float) -> void:
 			_clear_abandon_confirmation()
 	if _windows_watermark != null and is_instance_valid(_windows_watermark):
 		_windows_watermark.visible = fmod(float(Game.stats.get("time", 0.0)), 2.6) < 2.0
-	if _temple_mode or (Game.mode != "story" and Game.temple_rainbow_unlocked):
-		var rainbow := Color.from_hsv(fmod(float(Game.stats.get("time", 0.0)) * 0.08, 1.0), 0.78, 1.0)
-		_era_color = rainbow
+	# Tinta cosmética: dentro do TempleOS é sempre o rainbow, que é a fase; fora
+	# do story é a que a jogadora escolheu entre as que destravou limpando atos.
+	var active_tint := "rainbow" if _temple_mode else (Game.field_tint if Game.mode != "story" else "")
+	if active_tint != "":
+		var tint := Balance.field_tint_color(active_tint, float(Game.stats.get("time", 0.0)))
+		_era_color = tint
 		if hud != null:
-			hud.set_era_accent(rainbow)
+			hud.set_era_accent(tint)
 		if walls != null:
-			walls.set_tint(rainbow)
+			walls.set_tint(tint)
 		if _dust != null:
-			_dust.color = Color(rainbow.r, rainbow.g, rainbow.b, 0.22)
+			_dust.color = Color(tint.r, tint.g, tint.b, 0.22)
 	var want_hidden: bool = _wants_hidden_cursor()
 	var target_mouse := Input.MOUSE_MODE_HIDDEN if want_hidden else Input.MOUSE_MODE_VISIBLE
 	if Input.mouse_mode != target_mouse:

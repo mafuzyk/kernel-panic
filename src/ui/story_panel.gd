@@ -785,12 +785,38 @@ func _fill_detail() -> void:
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_detail.add_child(intro)
 
+	# O que a fase PEDE e o que ela PAGA. Sem isto o seletor só dizia quantas
+	# ondas tem — nada que a jogadora pudesse perseguir ou levar embora.
+	#
+	# A nota entra na fileira que já existia, no lugar da escala, e o resto vem
+	# como linhas de texto: uma segunda fileira de estatísticas alargava o
+	# mínimo horizontal do detalhe e estourava a página inteira em 432px.
+	var stage_id := str(stage.get("id", ""))
+	var par := StoryData.stage_par_seconds(stage_id)
+	var rank := Game.story_stage_rank(stage_id)
 	ScreenKit.gap(_detail, Design.SPACE_LG)
 	ScreenKit.stat_row(_detail, [
 		[tr("STORY_WAVES"), "%02d" % stage.get("waves", []).size()],
-		[tr("STORY_SCALE"), "%.2fx" % float(stage.get("scale", 1.0))],
+		# Um traço, não "NOT RANKED": o valor da fileira é tipografia display de
+		# 26px em três colunas que esticam, e uma palavra longa aqui alarga o
+		# mínimo do detalhe até a página inteira estourar em 432px.
+		[tr("STORY_STAT_RANK"), rank if rank != "" else "—"],
 		[tr("STORY_BEST"), str(Game.story_stage_best(index))],
 	], 26)
+	ScreenKit.gap(_detail, Design.SPACE_SM)
+	var target_line := ScreenKit.mono(
+		"%s %.2fx   //   %s %d:%02d" % [tr("STORY_SCALE"), float(stage.get("scale", 1.0)),
+			tr("STORY_STAT_TARGET"), int(par / 60.0), int(par) % 60],
+		Design.TEXT_MICRO, Design.TEXT_MUTED)
+	target_line.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_detail.add_child(target_line)
+	if StoryData.is_act_final_stage(stage_id):
+		var reward := StoryData.act_reward(str(stage.get("act", "unix")))
+		var reward_line := ScreenKit.mono(
+			"%s // %s" % [tr("STORY_REWARD"), tr("TINT_%s" % reward.to_upper())],
+			Design.TEXT_MICRO, _act_color(str(stage.get("act", "unix"))))
+		reward_line.autowrap_mode = TextServer.AUTOWRAP_WORD
+		_detail.add_child(reward_line)
 
 	ScreenKit.gap(_detail, Design.SPACE_LG)
 	_detail.add_child(ScreenKit.mono(tr("STORY_THREATS"), Design.TEXT_MICRO, Design.TEXT_MUTED))

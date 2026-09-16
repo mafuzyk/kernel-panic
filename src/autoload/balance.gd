@@ -327,6 +327,61 @@ static func difficulty_cadence(wave: int) -> float:
 	var floor_v: float = DIFF_CADENCE_FLOOR.get(Game.difficulty, 0.78)
 	return clampf(base * scale, floor_v, 1.0)
 
+## ── tintas de campo ──────────────────────────────────────────────────
+##
+## Recompensa por limpar um ATO: uma tinta que a jogadora liga no endless. A do
+## TempleOS já existia como `temple_rainbow_unlocked` e continua sendo a mesma
+## coisa — só que agora tem irmãs, e todas passam pelo mesmo lugar.
+##
+## `""` é o estado normal, em que a era da onda manda na cor.
+const FIELD_TINTS := {
+	"unix": Color("4ff2ff"),
+	"crt": Color("79d6ce"),
+	"aqua": Color("5ac8fa"),
+}
+
+## Cor da tinta num instante. O rainbow é o único que depende do tempo.
+static func field_tint_color(tint: String, seconds: float) -> Color:
+	if tint == "rainbow":
+		return Color.from_hsv(fmod(seconds * 0.08, 1.0), 0.78, 1.0)
+	return FIELD_TINTS.get(tint, COL_PLAYER)
+
+static func field_tint_names() -> Array:
+	var names: Array = ["rainbow"]
+	for key in FIELD_TINTS.keys():
+		names.append(str(key))
+	return names
+
+## ── nota da fase do Story ─────────────────────────────────────────────
+##
+## O Story não tinha nada a perseguir dentro de uma fase: limpar era limpar. A
+## nota mede as duas coisas que a fase já produzia sem usar — integridade
+## perdida e tempo — e as transforma num alvo visível.
+##
+## `S` é o contrato explícito, anunciado na carta de intro: sem dano E dentro do
+## tempo. `A` é metade disso. `B` é ter limpado, que continua sendo suficiente
+## para destravar a fase seguinte — a nota é um alvo, nunca um portão.
+const STORY_RANKS := ["S", "A", "B"]
+
+static func story_rank(damage_taken: int, seconds: float, par_seconds: float) -> String:
+	var in_time := par_seconds <= 0.0 or seconds <= par_seconds
+	var untouched := damage_taken <= 0
+	if untouched and in_time:
+		return "S"
+	if untouched or in_time:
+		return "A"
+	return "B"
+
+## Qual das duas notas é a melhor. Existe para o save nunca REBAIXAR um S.
+static func better_story_rank(first: String, second: String) -> String:
+	var a := STORY_RANKS.find(first)
+	var b := STORY_RANKS.find(second)
+	if a < 0:
+		return second
+	if b < 0:
+		return first
+	return first if a <= b else second
+
 ## ── coordenação de ataque ─────────────────────────────────────────────
 ##
 ## Antes disto todo inimigo decidia atacar sozinho, olhando só para o próprio

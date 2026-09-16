@@ -35,6 +35,7 @@ var _story_btn: Button
 var _aim_btn_ref: Button
 var _color_assist_btn: Button
 var _language_btn: Button
+var _field_tint_btn: Button
 var _boot: BootOverlay
 var _keybind_box: VBoxContainer
 var _keybind_status: Label

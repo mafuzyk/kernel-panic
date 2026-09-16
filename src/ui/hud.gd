@@ -460,18 +460,28 @@ func show_banner(text: String, sub: String, dur := 2.0) -> void:
 func _banner_compact() -> bool:
 	return not bool(banner_layout_snapshot(size, _banner_text, _banner_sub).get("main_visible", true))
 
-func queue_hint(id: String, text: String, dur := 1.35) -> void:
+## `sub` existe para as falas do Story: elas precisam de um rótulo de quem fala
+## acima da frase, e entram pela MESMA fila dos hints para não atropelar o
+## banner da onda que acabou de subir.
+## `priority` põe a mensagem na FRENTE da fila. As falas do Story usam isto:
+## elas comentam o que está acontecendo agora, e esperar atrás de duas dicas de
+## tutorial as faria chegar comentando outra coisa.
+func queue_hint(id: String, text: String, dur := 1.35, sub := "", priority := false) -> void:
 	if id.is_empty() or _hint_queue_ids.has(id):
 		return
 	_hint_queue_ids[id] = true
-	_hint_queue.append({"text": text, "dur": dur})
+	var entry := {"text": text, "dur": dur, "sub": sub}
+	if priority:
+		_hint_queue.push_front(entry)
+	else:
+		_hint_queue.append(entry)
 	_show_next_hint()
 
 func _show_next_hint() -> void:
 	if _banner_t > 0.0 or _hint_queue.is_empty():
 		return
 	var hint: Dictionary = _hint_queue.pop_front()
-	show_banner(str(hint["text"]), "", float(hint["dur"]))
+	show_banner(str(hint["text"]), str(hint.get("sub", "")), float(hint["dur"]))
 
 func set_boss_fragments(minis: Array) -> void:
 	_boss_fragments.clear()

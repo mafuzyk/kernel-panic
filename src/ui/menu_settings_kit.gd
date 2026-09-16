@@ -663,6 +663,28 @@ func _build_video_section(box: Node) -> void:
 	assign_section(vsync_btn, "VIDEO")
 	box.add_child(vsync_btn)
 
+	# Tinta de campo: a recompensa dos atos do Story. Só aparece com opções, e
+	# só tem opções depois de limpar um ato — antes disso a linha explica como
+	# se destrava, em vez de mostrar um botão que não faz nada.
+	var tints: Array = Game.unlocked_field_tints()
+	if tints.size() > 1:
+		var tint_btn := _cycle_button(_field_tint_label())
+		tint_btn.pressed.connect(func() -> void:
+			var options: Array = Game.unlocked_field_tints()
+			var current := options.find(Game.field_tint)
+			Game.set_field_tint(str(options[(maxi(current, 0) + 1) % options.size()]))
+			tint_btn.text = _field_tint_label()
+		)
+		assign_section(tint_btn, "VIDEO")
+		box.add_child(tint_btn)
+		m._field_tint_btn = tint_btn
+	else:
+		var tint_hint := _settings_group_label(tr("SET_FIELD_TINT_LOCKED"))
+		tint_hint.add_theme_font_size_override("font_size", 12)
+		tint_hint.add_theme_color_override("font_color", Design.TEXT_FAINT)
+		assign_section(tint_hint, "VIDEO")
+		box.add_child(tint_hint)
+
 	var note := _settings_group_label(tr("SET_VIDEO_NOTE"))
 	note.add_theme_font_size_override("font_size", 12)
 	note.add_theme_color_override("font_color", Design.TEXT_FAINT)
@@ -684,6 +706,15 @@ func _cycle_button(label: String) -> Button:
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	return button
 
+
+## Rótulo da tinta ativa. `""` é o estado normal e tem nome próprio na lista.
+func _field_tint_label() -> String:
+	var tint := Game.field_tint
+	var name := tr("TINT_NONE") if tint == "" else tr("TINT_%s" % tint.to_upper())
+	return tr("SET_FIELD_TINT") % name
+
+func field_tint_button() -> Button:
+	return m._field_tint_btn
 
 static func _window_label() -> String:
 	var keys := ["SET_WINDOW_WINDOWED", "SET_WINDOW_FULLSCREEN", "SET_WINDOW_BORDERLESS"]

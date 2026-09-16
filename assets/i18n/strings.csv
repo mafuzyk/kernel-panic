@@ -491,3 +491,63 @@ STORY_INTRO_MAC_KERNEL_TASK,The machine has decided the problem is you. It would
 STORY_KLOG_MAC_KERNEL_TASK_0,kernel_task: thermal pressure nominal,kernel_task: pressão térmica nominal
 STORY_KLOG_MAC_KERNEL_TASK_1,panic: you need to restart your computer,panic: você precisa reiniciar o seu computador
 STORY_KLOG_MAC_KERNEL_TASK_2,watchdog: reboot in 3... 3... 3...,watchdog: reiniciando em 3... 3... 3...
+STORY_VOICE,ROOT // INCOMING MESSAGE,ROOT // MENSAGEM RECEBIDA
+STORY_ACT_COMPLETE,%s CLEARED // %s FIELD TINT UNLOCKED,%s LIMPO // TINTA DE CAMPO %s DESBLOQUEADA
+STAT_RANK,RANK,NOTA
+STORY_OBJECTIVE,TARGET // NO DAMAGE UNDER %s,ALVO // SEM DANO EM ATÉ %s
+STORY_RANK_NONE,NOT RANKED,SEM NOTA
+STORY_STAT_RANK,BEST RANK,MELHOR NOTA
+STORY_STAT_TARGET,TARGET TIME,TEMPO-ALVO
+STORY_REWARD,ACT REWARD,RECOMPENSA DO ATO
+TINT_NONE,NONE,NENHUMA
+TINT_UNIX,UNIX,UNIX
+TINT_CRT,CRT,CRT
+TINT_AQUA,AQUA,AQUA
+TINT_RAINBOW,RAINBOW,ARCO-ÍRIS
+SET_FIELD_TINT,FIELD TINT: %s,TINTA DE CAMPO: %s
+SET_FIELD_TINT_LOCKED,clear a story act to unlock a tint,limpe um ato do modo história para destravar uma tinta
+STORY_BEAT_BOOT_OPEN,you are early. i have not finished allocating myself.,você chegou cedo. eu ainda não terminei de me alocar.
+STORY_BEAT_BOOT_MID,four processes and you are already counting them. cute.,quatro processos e você já está contando. que gracinha.
+STORY_BEAT_BOOT_CLEAR,/boot is yours. it was the cheapest thing i own.,/boot é seu. era a coisa mais barata que eu tinha.
+STORY_BEAT_VAR_LOG_OPEN,everything you do here is being written down.,tudo que você faz aqui está sendo anotado.
+STORY_BEAT_VAR_LOG_MID,i have eleven months of warnings nobody read. want one?,tenho onze meses de avisos que ninguém leu. quer um?
+STORY_BEAT_VAR_LOG_CLEAR,you cleared the partition. the log of you clearing it survives.,você limpou a partição. o registro de você limpando sobreviveu.
+STORY_BEAT_NET_OPEN,every route from here leads back to me.,toda rota daqui volta para mim.
+STORY_BEAT_NET_MID,you keep sidestepping. i keep learning the angle.,você continua desviando. eu continuo aprendendo o ângulo.
+STORY_BEAT_NET_CLEAR,the namespace is empty. i was never IN it.,o namespace está vazio. eu nunca estive DENTRO dele.
+STORY_BEAT_MEM_OPEN,there is no free memory. there is memory i have not taken yet.,não existe memória livre. existe memória que eu ainda não tomei.
+STORY_BEAT_MEM_MID,the killer is not hunting you. it is doing inventory.,o killer não está te caçando. ele está fazendo inventário.
+STORY_BEAT_MEM_CLEAR,you reclaimed the pages. you also learned what forks.,você reclamou as páginas. e aprendeu o que se divide.
+STORY_BEAT_QUARANTINE_OPEN,these were isolated for your safety. mine, actually.,estes foram isolados para a sua segurança. minha, na verdade.
+STORY_BEAT_QUARANTINE_MID,containment is a word for a door that still opens.,contenção é uma palavra para uma porta que ainda abre.
+STORY_BEAT_QUARANTINE_CLEAR,you walked through quarantine and came out clean. annoying.,você atravessou a quarentena e saiu limpo. irritante.
+STORY_BEAT_KERNEL_OPEN,this is the last clean address. i reserved it.,este é o último endereço limpo. eu o reservei.
+STORY_BEAT_KERNEL_MID,fork me and you get two of this conversation.,me divida e você terá duas desta conversa.
+STORY_BEAT_KERNEL_CLEAR,the kernel is yours. i was only ever a process.,o kernel é seu. eu nunca fui mais que um processo.
+STORY_BEAT_WIN98_OPEN,it is now safe to turn off your computer. please do not.,agora é seguro desligar o seu computador. por favor, não.
+STORY_BEAT_WIN98_MID,a driver i lost in 1998 has been located. it is hostile.,um driver que perdi em 1998 foi localizado. ele é hostil.
+STORY_BEAT_WIN98_CLEAR,your computer did not run into a problem. i did.,o seu computador não encontrou um problema. eu encontrei.
+STORY_BEAT_WINXP_OPEN,welcome. an update has been scheduled for this fight.,bem-vindo. uma atualização foi agendada para esta luta.
+STORY_BEAT_WINXP_MID,restart now? restart later? i already chose.,reiniciar agora? reiniciar depois? eu já escolhi.
+STORY_BEAT_WINXP_CLEAR,the update finished. it installed nothing.,a atualização terminou. ela não instalou nada.
+STORY_BEAT_WIN11_OPEN,everything here is rounded. none of it is soft.,tudo aqui é arredondado. nada aqui é macio.
+STORY_BEAT_WIN11_MID,forty-seven background processes send their regards.,quarenta e sete processos em segundo plano mandam lembranças.
+STORY_BEAT_WIN11_CLEAR,activate windows. go to settings. you have earned it.,ative o windows. vá em configurações. você mereceu.
+STORY_BEAT_MAC_SYSTEM_OPEN,the volume is read-only. so is my opinion of you.,o volume é somente leitura. minha opinião sobre você também.
+STORY_BEAT_MAC_SYSTEM_MID,that is not a bug. that is a spinning wheel.,isso não é um bug. isso é uma roda girando.
+STORY_BEAT_MAC_SYSTEM_CLEAR,integrity protected. from me, apparently.,integridade protegida. de mim, aparentemente.
+STORY_BEAT_MAC_APPS_OPEN,i know what you meant to do. i corrected it.,eu sei o que você queria fazer. eu corrigi.
+STORY_BEAT_MAC_APPS_MID,you dodged early. that was very brave of you.,você desviou cedo. foi muito corajoso da sua parte.
+STORY_BEAT_MAC_APPS_CLEAR,no genius survived. statistically that tracks.,nenhum gênio sobreviveu. estatisticamente faz sentido.
+STORY_BEAT_MAC_UPDATES_OPEN,an update is ready. it has been ready for eleven months.,uma atualização está pronta. está pronta há onze meses.
+STORY_BEAT_MAC_UPDATES_MID,remind me tomorrow. i will ask again in nine seconds.,lembre-me amanhã. vou perguntar de novo em nove segundos.
+STORY_BEAT_MAC_UPDATES_CLEAR,update complete. restart required. always.,atualização concluída. reinício necessário. sempre.
+STORY_BEAT_MAC_KERNEL_TASK_OPEN,thermal pressure nominal. the problem is you.,pressão térmica nominal. o problema é você.
+STORY_BEAT_MAC_KERNEL_TASK_MID,i am not attacking. i am protecting the machine from its user.,não estou atacando. estou protegendo a máquina do usuário dela.
+STORY_BEAT_MAC_KERNEL_TASK_CLEAR,you did not need to restart your computer after all.,no fim você não precisava reiniciar o seu computador.
+STORY_BEAT_TEMPLE_BOOT_OPEN,the scheduler is listening. speak in random numbers.,o escalonador está ouvindo. fale em números aleatórios.
+STORY_BEAT_TEMPLE_BOOT_MID,the rainbow is not decoration. it is the driver.,o arco-íris não é decoração. é o driver.
+STORY_BEAT_TEMPLE_BOOT_CLEAR,640 by 640 and not one pixel of doubt.,640 por 640 e nenhum pixel de dúvida.
+STORY_BEAT_TEMPLE_GOD_OPEN,i do not choose the next attack. i roll for it.,eu não escolho o próximo ataque. eu rolo o dado.
+STORY_BEAT_TEMPLE_GOD_MID,you are reading a pattern into a result. keep going.,você está lendo um padrão num resultado. continue.
+STORY_BEAT_TEMPLE_GOD_CLEAR,the roll went your way. that is all it ever was.,o dado caiu a seu favor. sempre foi só isso.

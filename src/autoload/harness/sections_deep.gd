@@ -567,6 +567,126 @@ func _field_inversion_test() -> void:
 		h._check(Balance.field_display_color(peak).get_luminance() <= brightest,
 			"the inverted %s field never out-glows the brightest entity" % stage_id)
 
+## O Story deixou de ser uma lista de ondas: tem alvo, tem voz e tem paga.
+func _story_substance_test() -> void:
+	print("AT_STEP deep_story_substance")
+
+	# Nota: o contrato anunciado na carta de intro é "sem dano E dentro do
+	# tempo". Metade disso vale A; ter limpado vale B, e B nunca é um portão.
+	h._check(Balance.story_rank(0, 50.0, 90.0) == "S", "no damage inside the target time is an S")
+	h._check(Balance.story_rank(0, 200.0, 90.0) == "A", "no damage but slow is an A")
+	h._check(Balance.story_rank(3, 50.0, 90.0) == "A", "fast but hurt is an A")
+	h._check(Balance.story_rank(3, 200.0, 90.0) == "B", "hurt and slow still clears, as a B")
+	h._check(Balance.story_rank(2, 999.0, 0.0) == "A", "a stage with no target time only grades damage")
+	h._check(Balance.better_story_rank("B", "S") == "S" and Balance.better_story_rank("S", "B") == "S",
+		"the better rank wins no matter which side it is on")
+	h._check(Balance.better_story_rank("A", "") == "A", "an unranked stage is beaten by any rank")
+
+	# Alvo de tempo: derivado das ondas, maior quando há boss, nunca zero.
+	var lowest := 9999.0
+	for stage_id in StoryData.stage_ids():
+		var par: float = StoryData.stage_par_seconds(str(stage_id))
+		lowest = minf(lowest, par)
+	h._check(lowest > 0.0, "every stage publishes a target time")
+	h._check(StoryData.stage_par_seconds("kernel") > StoryData.stage_par_seconds("boot"),
+		"a boss stage gets more time than the tutorial")
+	h._check(StoryData.stage_par_seconds("missing_stage") == 0.0, "an unknown stage has no target")
+
+	# Fim de ato e recompensa.
+	var finals: Array = []
+	for stage_id in StoryData.stage_ids():
+		if StoryData.is_act_final_stage(str(stage_id)):
+			finals.append(str(stage_id))
+	h._check(finals == ["kernel", "win11", "mac_kernel_task", "temple_god"],
+		"each act ends on its own last stage (%s)" % ", ".join(finals))
+	for act_id in StoryData.act_ids():
+		h._check(StoryData.act_reward(str(act_id)) != "", "the %s act pays a field tint" % act_id)
+
+	# Vozes: o contrato de CONTEÚDO. Uma fase sem falas é uma fase vazia, que é
+	# exatamente o que o Story de 3.0 era.
+	var previous_locale := TranslationServer.get_locale()
+	for locale in ["en", "pt_BR"]:
+		TranslationServer.set_locale(locale)
+		var silent: Array[String] = []
+		for stage_id in StoryData.stage_ids():
+			for moment in StoryData.BEAT_MOMENTS:
+				if StoryData.localized_beat(str(stage_id), str(moment)).strip_edges().is_empty():
+					silent.append("%s/%s" % [stage_id, moment])
+		h._check(silent.is_empty(), "every story stage speaks at every beat in %s (%s)" % [locale, ", ".join(silent)])
+	TranslationServer.set_locale(previous_locale)
+	h._check(StoryData.beat_wave_for_moment("boot", "OPEN") == 1, "the opening line lands on the first wave")
+	h._check(StoryData.beat_wave_for_moment("boot", "MID") == 2, "the middle line lands mid-stage")
+	h._check(StoryData.beat_wave_for_moment("boot", "CLEAR") == -1, "the closing line is not tied to a wave")
+
+	# Tintas de campo: trancadas até o ato cair, e a escolha não aceita o que
+	# não foi conquistado.
+	var saved_rewards: Dictionary = Game.story_act_rewards.duplicate(true)
+	var saved_tint := Game.field_tint
+	Game.story_act_rewards = {}
+	Game.field_tint = ""
+	h._check(Game.unlocked_field_tints() == [""], "no act cleared means no tint to pick")
+	h._check(not Game.field_tint_unlocked("aqua"), "a tint from an uncleared act stays locked")
+	Game.set_field_tint("aqua")
+	h._check(Game.field_tint == "", "setting a locked tint changes nothing")
+	Game.story_act_rewards = {"macos": true}
+	h._check(Game.field_tint_unlocked("aqua"), "clearing the act unlocks its tint")
+	h._check(Game.unlocked_field_tints().has("aqua"), "the unlocked tint joins the pick list")
+	h._check(Balance.field_tint_color("rainbow", 0.0) != Balance.field_tint_color("rainbow", 5.0),
+		"the rainbow tint moves with the run clock")
+	h._check(Balance.field_tint_color("aqua", 0.0) == Balance.field_tint_color("aqua", 5.0),
+		"a fixed tint does not")
+	Game.story_act_rewards = saved_rewards
+	Game.field_tint = saved_tint
+
+## Limpar a última fase de um ato grava a nota e paga a tinta.
+func _story_completion_test() -> void:
+	print("AT_STEP deep_story_completion")
+	var saved_mode := Game.mode
+	var saved_state := Game.state
+	var saved_index := Game.story_stage_index
+	var saved_stats: Dictionary = Game.stats.duplicate(true)
+	var saved_cleared: Dictionary = Game.story_cleared.duplicate(true)
+	var saved_ranks: Dictionary = Game.story_ranks.duplicate(true)
+	var saved_rewards: Dictionary = Game.story_act_rewards.duplicate(true)
+	var saved_best: Dictionary = Game.story_best.duplicate(true)
+	var disk: Dictionary = h._config_section_snapshot("story")
+
+	Game.story_ranks = {}
+	Game.story_act_rewards = {}
+	var index := -1
+	for candidate in Game.story_stage_count():
+		if Game.story_stage_id(candidate) == "kernel":
+			index = candidate
+	h._check(index >= 0, "the UNIX act final stage is on the chain")
+	if index >= 0:
+		# Uma volta impecável: sem dano, dentro do tempo.
+		Game.mode = "story"
+		Game.state = Game.State.PLAYING
+		Game.story_stage_index = index
+		Game.stats = {"kills": 9, "shots": 9, "hits": 9, "damage": 0, "time": 10.0, "wave": 5, "boss_kills": 1, "heals": {}}
+		h._check(Game.complete_story_stage(), "a cleared stage completes")
+		h._check(Game.story_stage_rank("kernel") == "S", "a flawless fast clear records an S")
+		h._check(bool(Game.story_act_rewards.get("unix", false)), "clearing the act's last stage pays its tint")
+		h._check(Game.field_tint_unlocked(StoryData.act_reward("unix")), "and that tint becomes pickable")
+		# Uma volta ruim depois NÃO rebaixa a nota.
+		Game.mode = "story"
+		Game.state = Game.State.PLAYING
+		Game.story_stage_index = index
+		Game.stats = {"kills": 9, "shots": 9, "hits": 9, "damage": 5, "time": 999.0, "wave": 5, "boss_kills": 1, "heals": {}}
+		h._check(Game.complete_story_stage(), "the stage can be replayed")
+		h._check(Game.story_stage_rank("kernel") == "S", "a worse run never downgrades a recorded rank")
+
+	Game.mode = saved_mode
+	Game.state = saved_state
+	Game.story_stage_index = saved_index
+	Game.stats = saved_stats
+	Game.story_cleared = saved_cleared
+	Game.story_ranks = saved_ranks
+	Game.story_act_rewards = saved_rewards
+	Game.story_best = saved_best
+	h._restore_config_section("story", disk)
+	await h._ticks(2)
+
 func _oom_ownership_test(arena: Arena) -> void:
 	print("AT_STEP deep_oom_ownership")
 	var mf: MoteField = arena.mote_field

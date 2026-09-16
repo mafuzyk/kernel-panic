@@ -470,6 +470,8 @@ func _autotest() -> void:
 	await _sec_deep._enemy_aim_test(arena2)
 	await _sec_deep._new_cast_test(arena2)
 	await _sec_deep._field_inversion_test()
+	await _sec_deep._story_substance_test()
+	await _sec_deep._story_completion_test()
 	await _sec_deep._oom_ownership_test(arena2)
 	await _sec_deep._page_fault_cap_test(arena2)
 	await _sec_visual._story_test(arena2)

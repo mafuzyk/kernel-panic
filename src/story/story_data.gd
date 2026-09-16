@@ -198,6 +198,76 @@ const STAGES := [
 	}
 ]
 
+## ── objetivo, ritmo e recompensa ──────────────────────────────────────
+##
+## O Story de 3.0 era uma lista de ondas: entrava, matava, saía. Não havia o que
+## PERSEGUIR dentro de uma fase nem o que levar dela. Três coisas mudam isso e
+## todas vivem aqui, ao lado das ondas que elas medem.
+
+## Tempo-alvo da fase, em segundos. Derivado das ondas para não virar uma tabela
+## paralela que envelhece sozinha; uma fase pode sobrescrever com `"par"`.
+static func stage_par_seconds(stage_id: String) -> float:
+	var stage := _stage_of(stage_id)
+	if stage.is_empty():
+		return 0.0
+	if stage.has("par"):
+		return float(stage["par"])
+	var wave_count: int = stage.get("waves", []).size()
+	var boss_time := 45.0 if stage.has("boss") else 0.0
+	return float(wave_count) * 22.0 + boss_time
+
+## Falas do antagonista durante a fase. Momentos: OPEN (primeira onda), MID
+## (metade), CLEAR (última onda limpa). O texto vive no CSV como todo texto de
+## jogador; chave ausente devolve "" e o momento simplesmente não fala.
+const BEAT_MOMENTS := ["OPEN", "MID", "CLEAR"]
+
+static func localized_beat(stage_id: String, moment: String) -> String:
+	if not BEAT_MOMENTS.has(moment):
+		return ""
+	return _localized("STORY_BEAT_%s_%s" % [stage_id.to_upper(), moment], "")
+
+## Em que onda cai a fala do meio.
+static func beat_wave_for_moment(stage_id: String, moment: String) -> int:
+	var wave_count: int = _stage_of(stage_id).get("waves", []).size()
+	if wave_count <= 0:
+		return -1
+	match moment:
+		"OPEN":
+			return 1
+		"MID":
+			return maxi(int(ceil(float(wave_count) / 2.0)), 1)
+	return -1
+
+## Recompensa por ATO limpo, não por fase: é o que dá um arco ao ato inteiro.
+## Cada uma é uma tinta de campo para o endless, escolhida em Settings.
+const ACT_REWARDS := {
+	"unix": "unix",
+	"windows": "crt",
+	"macos": "aqua",
+	"templeos": "rainbow",
+}
+
+static func act_reward(act_id: String) -> String:
+	return str(ACT_REWARDS.get(act_id, ""))
+
+## O ato termina na última fase que o declara.
+static func is_act_final_stage(stage_id: String) -> bool:
+	var stage := _stage_of(stage_id)
+	if stage.is_empty():
+		return false
+	var act := str(stage.get("act", "unix"))
+	var last := ""
+	for candidate in STAGES:
+		if str(candidate.get("act", "unix")) == act:
+			last = str(candidate.get("id", ""))
+	return last == stage_id
+
+static func _stage_of(stage_id: String) -> Dictionary:
+	for stage in STAGES:
+		if str(stage.get("id", "")) == stage_id:
+			return stage
+	return {}
+
 static func stage_count() -> int:
 	return STAGES.size()
 

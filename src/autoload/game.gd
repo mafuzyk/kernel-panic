@@ -22,6 +22,12 @@ var program := "kernel"
 var story_stage_index := 0
 var story_cleared: Dictionary = {}
 var story_best: Dictionary = {}
+## `id da fase -> "S"/"A"/"B"`. Guarda a MELHOR nota, nunca a última.
+var story_ranks: Dictionary = {}
+## `id do ato -> true` para cada tinta de campo destravada por limpar o ato.
+var story_act_rewards: Dictionary = {}
+## Tinta de campo escolhida pela jogadora, entre as destravadas. "" = nenhuma.
+var field_tint := ""
 var temple_rainbow_unlocked := false
 var vampic_cd := 0.0
 const VAMPIC_COOLDOWN := 10.0
@@ -168,7 +174,19 @@ func _load_run_config() -> void:
 			program = saved_prog
 		story_cleared = _cfg_dict(cf, "story", "cleared", {})
 		story_best = _cfg_dict(cf, "story", "best", {})
+		story_ranks = _cfg_dict(cf, "story", "ranks", {})
+		story_act_rewards = _cfg_dict(cf, "story", "act_rewards", {})
 		temple_rainbow_unlocked = _cfg_bool(cf, "story", "temple_rainbow_unlocked", false)
+		# O rainbow é anterior ao sistema de recompensas por ato e vive no save de
+		# quem já limpou o TempleOS: ele conta como a recompensa daquele ato.
+		if temple_rainbow_unlocked:
+			story_act_rewards["templeos"] = true
+		# Sem escolha gravada, quem já tinha o rainbow continua com ele ligado:
+		# antes do sistema de tintas ele era automático, e virar um opt-in tiraria
+		# silenciosamente algo que a jogadora já tinha conquistado.
+		field_tint = _cfg_str(cf, "story", "field_tint", "rainbow" if temple_rainbow_unlocked else "")
+		if field_tint != "" and not field_tint_unlocked(field_tint):
+			field_tint = ""
 	rng.randomize()
 
 ## Sanitizadores de ConfigFile: o Variant vem do disco sem tipo garantido e
@@ -627,6 +645,9 @@ func export_save_string() -> String:
 		"story": {
 			"cleared": _known_bool_map(story_cleared, STORY_DATA.stage_ids()),
 			"best": story_best.duplicate(true),
+			"ranks": story_ranks.duplicate(true),
+			"act_rewards": story_act_rewards.duplicate(true),
+			"field_tint": field_tint,
 			"temple_rainbow_unlocked": temple_rainbow_unlocked,
 		},
 		"bestiary": _known_bool_map(bestiary, BESTIARY_MAP.values()),
@@ -677,6 +698,25 @@ func import_save_string(encoded: String) -> bool:
 			for stage_id in STORY_DATA.stage_ids():
 				clean_story_best[stage_id] = maxi(_save_int(imported_story_best.get(stage_id, 0)), 0)
 		cf.set_value("story", "best", clean_story_best)
+		var raw_ranks = imported_story.get("ranks", {})
+		var clean_ranks := {}
+		if raw_ranks is Dictionary:
+			var imported_ranks: Dictionary = raw_ranks
+			for stage_id in STORY_DATA.stage_ids():
+				var rank := str(imported_ranks.get(stage_id, ""))
+				if Balance.STORY_RANKS.has(rank):
+					clean_ranks[stage_id] = rank
+		cf.set_value("story", "ranks", clean_ranks)
+		var raw_rewards = imported_story.get("act_rewards", {})
+		var clean_rewards := {}
+		if raw_rewards is Dictionary:
+			var imported_rewards: Dictionary = raw_rewards
+			for act_id in STORY_DATA.ACT_REWARDS.keys():
+				if _save_bool(imported_rewards.get(act_id, false)):
+					clean_rewards[act_id] = true
+		cf.set_value("story", "act_rewards", clean_rewards)
+		var imported_tint := str(imported_story.get("field_tint", ""))
+		cf.set_value("story", "field_tint", imported_tint if STORY_DATA.ACT_REWARDS.values().has(imported_tint) else "")
 		cf.set_value("story", "temple_rainbow_unlocked", _save_bool(imported_story.get("temple_rainbow_unlocked", false)))
 	cf.set_value("bestiary", "seen", _known_bool_map(parsed.get("bestiary", {}), BESTIARY_MAP.values()))
 	var imported_programs := _known_bool_map(parsed.get("programs", {}), PROGRAM_DEFS.keys())
@@ -802,11 +842,51 @@ func end_run() -> void:
 	lf.set_value("lifetime", "killers", kd)
 	lf.save(Sfx.SAVE_PATH)
 
+## Nota da run que acabou de limpar a fase. Só leitura, para a tela de vitória
+## poder mostrar a mesma nota que o save vai guardar.
+func story_run_rank(stage_id: String) -> String:
+	return Balance.story_rank(
+		int(stats.get("damage", 0)),
+		float(stats.get("time", 0.0)),
+		STORY_DATA.stage_par_seconds(stage_id))
+
+func story_stage_rank(stage_id: String) -> String:
+	return str(story_ranks.get(stage_id, ""))
+
+## Tinta destravada = ato limpo. O TempleOS entra pelo campo antigo também,
+## para quem já tinha o rainbow não perder o que já tinha.
+func field_tint_unlocked(tint: String) -> bool:
+	if tint == "":
+		return true
+	for act_id in STORY_DATA.ACT_REWARDS.keys():
+		if STORY_DATA.act_reward(act_id) == tint:
+			return bool(story_act_rewards.get(act_id, false))
+	return false
+
+func unlocked_field_tints() -> Array:
+	var tints: Array = [""]
+	for act_id in STORY_DATA.ACT_REWARDS.keys():
+		var tint := STORY_DATA.act_reward(act_id)
+		if tint != "" and bool(story_act_rewards.get(act_id, false)) and not tints.has(tint):
+			tints.append(tint)
+	return tints
+
+func set_field_tint(tint: String) -> void:
+	if not field_tint_unlocked(tint):
+		return
+	field_tint = tint
+	var cf := ConfigFile.new()
+	cf.load(Sfx.SAVE_PATH)
+	cf.set_value("story", "field_tint", field_tint)
+	cf.save(Sfx.SAVE_PATH)
+
 func complete_story_stage() -> bool:
 	if mode != "story" or state != State.PLAYING:
 		return false
 	var index := story_stage_index
 	var id := story_stage_id(index)
+	# A nota é da RUN, então é medida antes de `end_run()` mexer no estado.
+	var earned_rank := story_run_rank(id)
 	end_run()
 	if id.is_empty():
 		return false
@@ -815,17 +895,25 @@ func complete_story_stage() -> bool:
 	if score > previous_best:
 		story_best[id] = score
 		new_best = true
+	# Nunca rebaixa: um S continua S mesmo depois de uma volta preguiçosa.
+	story_ranks[id] = Balance.better_story_rank(earned_rank, story_stage_rank(id))
 	var cf := ConfigFile.new()
 	cf.load(Sfx.SAVE_PATH)
 	cf.set_value("story", "cleared", story_cleared)
 	cf.set_value("story", "best", story_best)
+	cf.set_value("story", "ranks", story_ranks)
+	if STORY_DATA.is_act_final_stage(id):
+		var act_id := str(story_stage_def(index).get("act", "unix"))
+		story_act_rewards[act_id] = true
+		cf.set_value("story", "act_rewards", story_act_rewards)
+		log_event("STORY // ACT %s COMPLETE // %s TINT UNLOCKED" % [act_id.to_upper(), STORY_DATA.act_reward(act_id).to_upper()])
 	if id == "temple_god":
 		temple_rainbow_unlocked = true
 		cf.set_value("story", "temple_rainbow_unlocked", true)
 	cf.save(Sfx.SAVE_PATH)
 	if id == "mem" and not unlocked_programs.has("rootlet"):
 		unlock_program("rootlet")
-	log_event("STORY CLEAR // %s" % id.to_upper())
+	log_event("STORY CLEAR // %s // RANK %s" % [id.to_upper(), story_ranks[id]])
 	return true
 
 func to_menu() -> void:
