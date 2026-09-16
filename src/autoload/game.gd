@@ -218,7 +218,16 @@ func _cfg_dict(cf: ConfigFile, section: String, key: String, fallback: Dictionar
 		return v
 	return fallback
 
+## Número da semana corrente.
+##
+## `KP_WEEK` força uma semana específica. Existe para o VERIFICADOR do placar:
+## ele re-simula uma run enviada dias depois, e tanto a seed quanto os traits da
+## semana saem daqui — sem forçar, ele reconferiria a partida errada. É lido do
+## ambiente do processo, então nada que chegue pela rede o alcança.
 func week_number() -> int:
+	var forced := OS.get_environment("KP_WEEK")
+	if forced != "" and forced.is_valid_int():
+		return int(forced)
 	var days := int(Time.get_unix_time_from_system() / 86400.0)
 	return int(float(days + 3) / 7.0)
 

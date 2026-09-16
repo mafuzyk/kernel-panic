@@ -165,7 +165,7 @@ func roundtrip() -> void:
 
 ## Uma passada: `record` grava enquanto o motorista dirige; caso contrário
 ## reproduz o buffer e o motorista fica calado.
-func _drive_once(record: bool, data: PackedByteArray, picks: Array) -> Dictionary:
+func _drive_once(record: bool, data: PackedByteArray, picks: Array, sample_every: int = SAMPLE_EVERY) -> Dictionary:
 	if record:
 		Replay.begin_record()
 	else:
@@ -187,7 +187,7 @@ func _drive_once(record: bool, data: PackedByteArray, picks: Array) -> Dictionar
 	var driver := ScriptedDriver.new()
 	driver.arena = arena
 	driver.limit = FRAMES
-	driver.sample_every = SAMPLE_EVERY
+	driver.sample_every = maxi(sample_every, 1)
 	driver.silent = true
 	driver.drive_input = record
 	arena.add_child(driver)
@@ -219,6 +219,15 @@ func record_to_file() -> void:
 	var packet := {
 		"week": Game.week_number(),
 		"seed": Game.run_seed,
+		# O pacote descreve a própria amostragem. Sem isso, gravar com um passo
+		# e conferir com outro produzia digests que nem falavam dos mesmos
+		# quadros — e o resultado era "não bate" por motivo nenhum.
+		"sample_every": SAMPLE_EVERY,
+		# Dois números diferentes de propósito. `frames` é o que o motorista
+		# contou; `input_frames` é o tamanho do buffer, que a ARENA indexa e que
+		# começa antes do motorista e termina depois. O servidor peneira pelo
+		# segundo, que é o que descreve os bytes que ele recebeu.
+		"input_frames": Replay.recorded_frames(),
 		"frames": int(pass_result["frames"]),
 		"score": Game.score,
 		"input": Marshalls.raw_to_base64(pass_result["bytes"]),
@@ -254,10 +263,18 @@ func verify_from_file() -> void:
 		h.get_tree().quit(1)
 		return
 	var packet: Dictionary = parsed
+	# A semana do pacote tem de ser a que este processo está simulando. A seed e
+	# os traits saem dela; conferir uma run de outra semana daria "não bate" por
+	# um motivo que não é trapaça.
+	var packet_week := int(packet.get("week", -1))
+	if packet_week != Game.week_number():
+		print("REPLAY_FAIL packet week %d is not the simulated week %d" % [packet_week, Game.week_number()])
+		h.get_tree().quit(2)
+		return
 	Game.mode = "weekly"
 	Game.difficulty = "normal"
 	Game.program = "kernel"
-	var replayed := await _drive_once(false, Marshalls.base64_to_raw(str(packet["input"])), packet.get("picks", []))
+	var replayed := await _drive_once(false, Marshalls.base64_to_raw(str(packet["input"])), packet.get("picks", []), int(packet.get("sample_every", SAMPLE_EVERY)))
 	if replayed.is_empty():
 		print("REPLAY_FAIL verification pass did not run")
 		h.get_tree().quit(1)
@@ -279,6 +296,10 @@ func verify_from_file() -> void:
 						if a[i][k] != b[i].get(k):
 							print("   ", k, " recorded=", a[i][k], " verified=", b[i].get(k))
 					break
+	# A pontuação que vale é a que a SIMULAÇÃO produziu, nunca a que o pacote
+	# alega. O que o cliente manda é a entrada; o placar é resultado.
+	print("REPLAY_SCORE ", Game.score)
+	print("REPLAY_SEED ", Game.run_seed)
 	print("REPLAY_MATCH ", "yes" if (same_digest and same_frames and same_score) else "no")
 	h.get_tree().quit(0 if (same_digest and same_frames and same_score) else 1)
 

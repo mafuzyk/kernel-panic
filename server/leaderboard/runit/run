@@ -1,0 +1,10 @@
+#!/bin/sh
+# Serviço runit do placar. Instale em /etc/sv/kernel-panic-board e ative com
+# `ln -s /etc/sv/kernel-panic-board /var/service/`.
+exec 2>&1
+exec chpst -u mafu:mafu \
+  env KP_PROJECT=/home/mafu/kernel-panic \
+      KP_BOARD_DB=/var/lib/kernel-panic-board/board.sqlite3 \
+      KP_BOARD_HOST=127.0.0.1 \
+      KP_BOARD_PORT=8710 \
+  python3 /home/mafu/kernel-panic/server/leaderboard/server.py
