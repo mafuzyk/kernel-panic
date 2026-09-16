@@ -53,6 +53,15 @@ func _ready() -> void:
 	elif OS.get_environment("KP_DETERMINISM") != "":
 		active = true
 		_sec_replay.probe.call_deferred()
+	elif OS.get_environment("KP_REPLAY") != "":
+		active = true
+		_sec_replay.roundtrip.call_deferred()
+	elif OS.get_environment("KP_RECORD_OUT") != "":
+		active = true
+		_sec_replay.record_to_file.call_deferred()
+	elif OS.get_environment("KP_VERIFY_IN") != "":
+		active = true
+		_sec_replay.verify_from_file.call_deferred()
 
 func _pass(msg: String) -> void:
 	print("AT_PASS ", msg)
@@ -478,6 +487,7 @@ func _autotest() -> void:
 	await _sec_deep._field_inversion_test()
 	await _sec_deep._weekly_traits_test()
 	await _sec_deep._run_clock_test(arena2)
+	await _sec_deep._replay_recorder_test(arena2)
 	await _sec_deep._story_setpiece_test()
 	await _sec_deep._story_substance_test()
 	await _sec_deep._story_completion_test()

@@ -1054,6 +1054,93 @@ func _run_clock_test(arena: Arena) -> void:
 	Game.stats["time"] = saved_time
 	await h._ticks(2)
 
+## O gravador de comandos, que é a base do placar verificado.
+##
+## O ciclo completo (gravar uma run, re-simular e comparar) roda em
+## `KP_REPLAY=1`, porque troca de cena duas vezes. Aqui ficam as invariantes que
+## quebraram de verdade durante a construção — as duas custaram uma run inteira
+## de divergência cada.
+func _replay_recorder_test(arena: Arena) -> void:
+	print("AT_STEP deep_replay_recorder")
+	h._check(Replay.mode == Replay.Mode.OFF, "the recorder is idle during a normal run")
+
+	# IDEMPOTÊNCIA. A primeira versão cortava o comprimento DEPOIS de arredondar,
+	# então quantizar o valor já quantizado caía noutro byte e a run gravada
+	# separava da reproduzida no décimo quadro.
+	var probes := [
+		Vector2.ZERO, Vector2(1.0, 0.0), Vector2(-1.0, 0.0), Vector2(0.0, 1.0),
+		Vector2(1.0, 1.0), Vector2(-0.7071, 0.7071), Vector2(0.013, -0.9), Vector2(0.4, 0.4),
+	]
+	var stable := true
+	for probe in probes:
+		var once: Vector2 = Replay.quantize_move(probe)
+		var twice: Vector2 = Replay.quantize_move(once)
+		if not once.is_equal_approx(twice):
+			stable = false
+	h._check(stable, "quantizing a move twice gives the same vector")
+	h._check(Replay.quantize_move(Vector2(3.0, 4.0)).length() <= 1.01,
+		"an oversized move is clamped before it is encoded")
+	var angle_stable := true
+	for raw_angle in [0.0, 0.5, PI, -PI * 0.25, TAU - 0.001, 12.0]:
+		var once_angle: float = Replay.quantize_angle(float(raw_angle))
+		if not is_equal_approx(once_angle, Replay.quantize_angle(once_angle)):
+			angle_stable = false
+	h._check(angle_stable, "quantizing an angle twice gives the same angle")
+
+	# IDA E VOLTA pelo buffer, byte a byte.
+	Replay.begin_record()
+	var written: Array = []
+	for step in 12:
+		Replay.frame = step
+		var move: Vector2 = Replay.quantize_move(Vector2(sin(float(step)), cos(float(step) * 0.7)))
+		var angle: float = Replay.quantize_angle(float(step) * 0.37)
+		var fire := step % 2 == 0
+		var dash := step % 5 == 0
+		var overclock := step % 7 == 0
+		written.append([move, angle, fire, dash, overclock])
+		Replay.push(move, angle, true, fire, dash, overclock)
+	h._check(Replay.recorded_frames() == 12, "the buffer holds one slot per frame (%d)" % Replay.recorded_frames())
+	h._check(Replay.buffer().size() == 12 * Replay.BYTES_PER_FRAME, "and exactly five bytes each")
+	var data: PackedByteArray = Replay.buffer()
+	Replay.begin_replay(data, [])
+	var faithful := true
+	for step in 12:
+		Replay.frame = step
+		var back: Dictionary = Replay.command()
+		var expected: Array = written[step]
+		if not (back["move"] as Vector2).is_equal_approx(expected[0]) \
+				or not is_equal_approx(float(back["angle"]), float(expected[1])) \
+				or bool(back["fire"]) != bool(expected[2]) \
+				or bool(back["dash"]) != bool(expected[3]) \
+				or bool(back["overclock"]) != bool(expected[4]):
+			faithful = false
+	h._check(faithful, "every recorded command reads back exactly as it was written")
+	Replay.frame = 999
+	var past_end: Dictionary = Replay.command()
+	h._check((past_end["move"] as Vector2) == Vector2.ZERO and not bool(past_end["fire"]),
+		"past the end of a recording the command reads as standing still")
+	Replay.stop()
+	h._check(Replay.mode == Replay.Mode.OFF, "stopping puts the recorder back to idle")
+
+	# TODO input passa pelo mesmo ponto. O toque chamava `request_dash()` direto,
+	# o que no celular deixava o dash fora da gravação inteira.
+	var player: Player = arena.player
+	if player != null and is_instance_valid(player):
+		h._check("touch_dash" in player and "touch_overclock" in player,
+			"the player takes dash and overclock as intent, not as a direct call")
+	var touch_source := ""
+	var touch_script: Script = load("res://src/ui/touch_controls.gd")
+	if touch_script != null:
+		touch_source = str(touch_script.source_code)
+	if touch_source.length() > 500:
+		h._check(not touch_source.contains("player.request_dash("),
+			"touch dash goes through the command point instead of calling the action")
+		h._check(not touch_source.contains("player.try_overclock("),
+			"and so does touch overclock")
+	else:
+		print("AT_SKIP source-only check needs script text: touch input routing")
+	await h._ticks(2)
+
 func _oom_ownership_test(arena: Arena) -> void:
 	print("AT_STEP deep_oom_ownership")
 	var mf: MoteField = arena.mote_field

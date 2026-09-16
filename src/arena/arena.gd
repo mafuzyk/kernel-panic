@@ -299,6 +299,9 @@ func _physics_process(delta: float) -> void:
 	# 3. O cronômetro de speedrun do HUD mostrava a mesma mentira.
 	if _state == "play":
 		Game.stats["time"] += delta
+		# Antes do jogador ler: a arena é o pai, então o `_physics_process` dela
+		# roda primeiro e os dois enxergam o mesmo número de quadro.
+		Replay.advance()
 
 func debug_controls_enabled() -> bool:
 	return OS.is_debug_build() and Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
@@ -731,6 +734,11 @@ func _try_show_patch() -> void:
 		tw.parallel().tween_property(card, "position:y", 0.0, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	Sfx.play("ready", 0.8, -4.0)
 	Sfx.haptic(30)
+	# Em reprodução ninguém está olhando para as cartas: a escolha vem do que
+	# foi gravado. Sem isto a árvore ficaria congelada para sempre esperando um
+	# clique que não vai existir.
+	if Replay.is_replaying():
+		_pick_patch.call_deferred(maxi(Replay.next_patch_pick(), 0))
 
 func _make_patch_card(def: Dictionary, idx: int) -> Control:
 	var card: Control = PatchCard.new()
@@ -758,6 +766,7 @@ func _apply_patch_effects(id: String) -> void:
 func _pick_patch(idx: int) -> void:
 	if not _patch_open or idx >= _patch_offers.size():
 		return
+	Replay.record_patch_pick(idx)
 	var def: Dictionary = _patch_offers[idx]
 	var id: String = def["id"]
 	Game.apply_patch(id)

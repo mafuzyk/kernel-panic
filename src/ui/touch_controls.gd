@@ -36,7 +36,7 @@ func _input(event: InputEvent) -> void:
 				return
 			if _oc_btn().has_point(t.position):
 				if player != null and player.oc_ready:
-					player.try_overclock()
+					player.touch_overclock = true
 				return
 			if t.position.x < size.x * 0.4 and t.position.y > 70.0 and _move_id == -1:
 				_move_id = t.index
@@ -124,10 +124,12 @@ var _tex_dash: Texture2D = preload("res://assets/icons/icon_dash.png")
 var _tex_pause: Texture2D = preload("res://assets/icons/icon_pause.png")
 var _tex_oc: Texture2D = preload("res://assets/icons/icon_overclock.png")
 
+## Intenção, não ação. Chamar `request_dash()` daqui pulava o ponto onde o
+## comando do quadro é resolvido e gravado — ver `Player.touch_dash`.
 func _press_dash() -> void:
 	if player == null or not is_instance_valid(player):
 		return
-	player.request_dash(_move_vec)
+	player.touch_dash = true
 
 func _process(delta: float) -> void:
 	t += delta

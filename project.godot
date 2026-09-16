@@ -23,6 +23,7 @@ config/icon="res://assets/icons/launcher.png"
 
 Game="*res://src/autoload/game.gd"
 Weekly="*res://src/autoload/weekly.gd"
+Replay="*res://src/autoload/replay.gd"
 Sfx="*res://src/autoload/sfx.gd"
 Fx="*res://src/autoload/fx.gd"
 DevHarness="*res://src/autoload/dev_harness.gd"

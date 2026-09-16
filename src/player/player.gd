@@ -24,6 +24,12 @@ var dead := false
 var touch_move := Vector2.ZERO
 var touch_fire := false
 var touch_aim := Vector2.ZERO
+## Intenções de um disparo só, vindas do toque. Existem porque o toque chamava
+## `request_dash()` e `try_overclock()` DIRETO, pulando o ponto onde o comando é
+## resolvido — então no celular um dash nunca entrava na gravação da run. Todo
+## input chega como intenção e é resolvido num lugar só.
+var touch_dash := false
+var touch_overclock := false
 
 var _ghost_cd := 0.0
 var _aura: Node2D
@@ -129,12 +135,25 @@ func _fade_curve() -> Curve:
 	c.add_point(Vector2(1.0, 0.0))
 	return c
 
+## Ponto ÚNICO onde o comando do quadro é resolvido.
+##
+## Ao vivo ele vem do teclado, do toque ou do mouse — e já sai quantizado, para
+## que o valor gravado seja exatamente o que a simulação usou. Em reprodução ele
+## vem do buffer, e nenhum dos caminhos de origem é consultado: é isso que faz
+## uma run gravada com mouse rodar igual num servidor sem mouse nenhum.
+func _resolve_move() -> Vector2:
+	if Replay.is_replaying():
+		return Replay.command()["move"]
+	var live := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if touch_move.length() > 0.15:
+		live = touch_move.limit_length(1.0)
+	return Replay.quantize_move(live)
+
 func _physics_process(delta: float) -> void:
 	if dead:
 		return
-	var input_vec := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	if touch_move.length() > 0.15:
-		input_vec = touch_move.limit_length(1.0)
+	var replaying := Replay.is_replaying()
+	var input_vec := _resolve_move()
 	var target_speed := Balance.PLAYER_SPEED * (1.15 if overclock_active else 1.0) * slow_factor
 	target_speed *= 1.0 + 0.12 * Game.patch_level("light")
 	target_speed *= float(prog.get("speed_mul", 1.0))
@@ -182,7 +201,17 @@ func _physics_process(delta: float) -> void:
 	else:
 		aim = get_global_mouse_position() - global_position
 		lockon_target = null
-	if aim.length() > 4.0:
+	# A mira gravada é o RESULTADO das quatro rotas acima, como direção. Só o
+	# ângulo e o "existe mira" importam daqui para baixo, então é só isso que
+	# atravessa a gravação — e é por isso que a rota de origem deixa de importar.
+	var has_aim := aim.length() > 4.0
+	if replaying:
+		var replay_cmd: Dictionary = Replay.command()
+		has_aim = bool(replay_cmd["has_aim"])
+		aim = Vector2.from_angle(float(replay_cmd["angle"])) * 100.0 if has_aim else Vector2.ZERO
+	elif has_aim:
+		aim = Vector2.from_angle(Replay.quantize_angle(aim.angle())) * 100.0
+	if has_aim:
 		rotation = lerp_angle(rotation, aim.angle(), 18.0 * delta)
 	aim_assist_dir = Vector2.from_angle(rotation) if manual_touch_aim else Vector2.ZERO
 	if dash_cd > 0.0:
@@ -210,11 +239,25 @@ func _physics_process(delta: float) -> void:
 	if _muzzle_t > 0.0:
 		_muzzle_t -= delta
 	var want_fire := Input.is_action_pressed("fire") or touch_fire
+	var want_dash := Input.is_action_just_pressed("dash") or touch_dash
+	var want_overclock := Input.is_action_just_pressed("overclock") or touch_overclock
+	# Consumidas no quadro em que são lidas: são de um disparo só.
+	touch_dash = false
+	touch_overclock = false
+	if replaying:
+		var keys: Dictionary = Replay.command()
+		want_fire = bool(keys["fire"])
+		want_dash = bool(keys["dash"])
+		want_overclock = bool(keys["overclock"])
+	# Gravado ANTES de agir: o que entra no arquivo é a intenção do quadro, e a
+	# reprodução a aplica no mesmo ponto, com o mesmo estado à frente dela.
+	if Replay.is_recording():
+		Replay.push(input_vec, aim.angle(), has_aim, want_fire, want_dash, want_overclock)
 	if want_fire and fire_cd <= 0.0:
 		_shoot()
-	if Input.is_action_just_pressed("dash"):
+	if want_dash:
 		request_dash(input_vec)
-	if Input.is_action_just_pressed("overclock"):
+	if want_overclock:
 		try_overclock()
 	if overclock_active:
 		oc_t -= delta
