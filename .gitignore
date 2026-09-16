@@ -9,6 +9,10 @@ export_credentials.cfg
 *.aab
 build/
 
+# Banco do placar: dado local da jogadora, nunca do repositório
+server/leaderboard/board.sqlite3
+server/leaderboard/*.sqlite3*
+
 # Local files
 .nomedia
 .DS_Store
