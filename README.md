@@ -28,7 +28,18 @@ Somehow, it worked.
 
 ## Play it
 
-Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v3.0.0`.
+Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v3.1.0`.
+
+### What's new in 3.1.0
+
+- **A fourth act: macOS.** `/System`, `/Applications`, `/Library/Updates` and `kernel_task`, with `BEACHBALL` — which plants a spinning wheel that costs you time instead of health — and `GENIUS`, the lancer that blinks to a better angle when you dodge too early. Its boss flips the colour of the whole field mid-dodge.
+- **Story mode has a voice.** The process you are purging answers three times per stage, in both languages. Every stage publishes a target time, announces its contract on the intro card, and grades the clear S, A or B. Clearing an act unlocks a field tint for the endless modes.
+- **Three processes that change the rules, not the numbers.** `ZOMBIE` dies into a defunct husk and returns unless you reap it in time. `CRON` never attacks — it schedules, and the cycle will not end while it lives. `SWAP` drags you and the loose motes toward itself; only dash ignores the well.
+- **Waves attack in turns.** There is a ceiling on how many enemies commit at once, so a pack of lancers no longer charges simultaneously, and lancers and spewers lead their target instead of aiming where you already were.
+- **`rm -rf /` ends the run instead of freezing it** — the pause panel no longer comes back on top of the ending.
+- **The Win11 stage stopped hurting to look at.** Its field was blowing out to pure white; it is dark glass now, and every stage theme is measured so it cannot happen again.
+- **The combat HUD takes the colour of the arena** and anything walking under a module shows through as a silhouette instead of disappearing.
+- **Switching language no longer leaves half the menu behind** — or brings the old button frames back with it.
 
 ### What's new in 3.0.0
 
@@ -42,7 +53,7 @@ Grab the Android, Linux, or Windows build from the [latest release](https://gith
 ### What's new in 2.5.0
 
 - A complete tactical UI pass across the menu, settings, program/story/bestiary selectors, combat HUD, patch selection, boss encounters, pause screen, and diagnostic terminal.
-- New UNIX, Windows, macOS, and TempleOS story acts, with era-specific CRT treatments, bosses, enemies, and arena rules.
+- New UNIX, Windows, and TempleOS story acts, with era-specific CRT treatments, bosses, enemies, and arena rules.
 - A desktop debug console for skipping cycles, spawning enemies and bosses, forcing ROOT split states, and clearing combatants while testing movement and AI.
 - Portable save transfer, achievement/event-log reporting, speedrun diagnostics, and the in-game terminal recovery tools.
 - Better desktop input safety, responsive layouts, clearer action icons, aligned controls, and refined pause/terminal behavior on compact windows.
@@ -52,11 +63,12 @@ Grab the Android, Linux, or Windows build from the [latest release](https://gith
 
 ### Android
 
-1. Download `KERNEL-PANIC-v3.0.0-release.apk` from the latest release and open it from your browser or file manager.
-> **Updating from 2.5.0?** The original release key was lost, so 3.0.0 is
-> signed with a new key: Android will NOT install it as an update. Export
-> your progress first (Settings → Save transfer → Export), uninstall 2.5.0,
-> install 3.0.0, then import the transfer string.
+1. Download `KERNEL-PANIC-v3.1.0-release.apk` from the latest release and open it from your browser or file manager.
+> **Updating from 2.5.0 or older?** The original release key was lost, so
+> everything from 3.0.0 on is signed with a new key: Android will NOT install
+> it as an update. Export your progress first (Settings → Save transfer →
+> Export), uninstall the old version, install this one, then import the
+> transfer string. Updating from 3.0.0 needs none of this.
 2. If Android blocks the installation, allow that app to **Install unknown apps** in the system settings, then open the APK again.
 3. Confirm **Install**. The current export targets 64-bit ARM devices (`arm64-v8a`).
 
