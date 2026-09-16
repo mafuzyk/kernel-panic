@@ -33,7 +33,9 @@ func _on_ready() -> void:
 
 func _move(delta: float) -> void:
 	_wob += delta * 5.0
-	var desired := steer_approach(aim_at_player(), 1.0, 0.35)
+	# Cada drone tem o próprio lado e a própria curvatura; quando o jogador
+	# encosta na parede, o lado passa a ser o que corta a saída dele.
+	var desired := steer_approach(aim_at_player(), cutoff_sign(), flank_weight)
 	desired += steer_separation(2.2) * 0.7
 	_v = _v.move_toward(desired.limit_length(1.0) * speed, 620.0 * delta)
 

@@ -110,6 +110,64 @@ const STAGES := [
 		"theme": {"base_col": Color("0e141c"), "grid_col": Color("2a3f55"), "glow_col": Color("18354d"), "accent": Color("4aa3e8"), "grid_style": "clean"},
 		"watermark": true
 	},
+	# ── ATO 3 // macOS ──────────────────────────────────────────────────
+	#
+	# O ato não exige export para macOS: é conteúdo, e roda nos três alvos
+	# oficiais. A identidade é o oposto da do Windows — nada de CRT, nada de
+	# ruído: superfícies calmas, azul aqua, grafite. A piada é que a máquina
+	# educada é a que menos te deixa fazer o que você quer.
+	#
+	# Todos os quatro temas passam pela varredura de luminância de campo que o
+	# `Win11` reprovou, INCLUSIVE invertidos — o boss deste ato inverte o matiz
+	# do campo como ataque.
+	{
+		"id": "mac_system",
+		"act": "macos",
+		"path": "/System",
+		"title": "SYSTEM INTEGRITY",
+		"intro": "The volume is read-only and very polite about it. Something is spinning.",
+		"klog": ["sip: system integrity protection enabled", "beachball: not responding", "launchd: everything is fine"],
+		"waves": [["drone", "drone"], ["beachball", "drone"], ["beachball", "spewer", "drone"], ["beachball", "beachball", "lancer", "drone"]],
+		"scale": 1.04,
+		"theme": {"base_col": Color("0d1117"), "grid_col": Color("33506e"), "glow_col": Color("1c3c5c"), "accent": Color("5ac8fa"), "grid_style": "clean"}
+	},
+	{
+		"id": "mac_apps",
+		"act": "macos",
+		"path": "/Applications",
+		"title": "THE GENIUS BAR",
+		"intro": "Every process here knows what you meant to do. None of them asked.",
+		"klog": ["genius: let me correct that for you", "gatekeeper: this process cannot be opened", "dock: magnification enabled"],
+		"waves": [["genius", "drone"], ["genius", "beachball", "drone"], ["genius", "genius", "spewer"], ["genius", "beachball", "bulwark", "lancer"]],
+		"scale": 1.07,
+		"theme": {"base_col": Color("121018"), "grid_col": Color("4b4166"), "glow_col": Color("2e2450"), "accent": Color("c08cff"), "grid_style": "clean"}
+	},
+	{
+		"id": "mac_updates",
+		"act": "macos",
+		"path": "/Library/Updates",
+		"title": "SOFTWARE UPDATE",
+		"intro": "The update is ready to install. It has been ready to install for eleven months.",
+		"klog": ["softwareupdated: restart required", "beachball: still not responding", "update: remind me tomorrow"],
+		"waves": [["update_loop", "beachball", "drone"], ["genius", "update_loop", "spewer"], ["beachball", "genius", "update_loop", "splitter"], ["update_loop", "update_loop", "genius", "beachball", "trojan"]],
+		"scale": 1.10,
+		"theme": {"base_col": Color("0b1414"), "grid_col": Color("2f5f59"), "glow_col": Color("153f3e"), "accent": Color("4fd8c0"), "grid_style": "clean"}
+	},
+	{
+		"id": "mac_kernel_task",
+		"act": "macos",
+		"path": "kernel_task",
+		"title": "KERNEL TASK",
+		"intro": "The machine has decided the problem is you. It would like you to restart.",
+		"klog": ["kernel_task: thermal pressure nominal", "panic: you need to restart your computer", "watchdog: reboot in 3... 3... 3..."],
+		"waves": [["genius", "beachball", "spewer"], ["update_loop", "genius", "bulwark", "beachball"], ["genius", "genius", "beachball", "update_loop", "recursor"], ["kernel_task"]],
+		"boss": "KERNEL_TASK",
+		"boss_kind": "kernel_task",
+		"boss_index": 1,
+		"boss_scale": 1.08,
+		"scale": 1.12,
+		"theme": {"base_col": Color("16121a"), "grid_col": Color("5a4a5e"), "glow_col": Color("3a2440"), "accent": Color("ff6f8f"), "grid_style": "clean"}
+	},
 	{
 		"id": "temple_boot",
 		"act": "templeos",
@@ -144,7 +202,13 @@ static func stage_count() -> int:
 	return STAGES.size()
 
 static func act_stage_count(act_id: String) -> int:
-	return 6 if act_id == "unix" else 3 if act_id == "windows" else 2 if act_id == "templeos" else 0
+	# Contado do próprio STAGES: a tabela manual dizia "3 windows" e teria de ser
+	# editada de novo a cada fase nova, num lugar longe de onde a fase nasce.
+	var total := 0
+	for stage in STAGES:
+		if str(stage.get("act", "unix")) == act_id:
+			total += 1
+	return total
 
 static func stage_at(index: int) -> Dictionary:
 	if index < 0 or index >= STAGES.size():
@@ -175,18 +239,25 @@ static func localized_klog(stage_id: String, line_index: int) -> String:
 	var fallback := str(raw_klog[line_index % raw_klog.size()]) if not raw_klog.is_empty() else ""
 	return _localized(key, fallback)
 
+const ACT_FALLBACK_LABELS := {
+	"unix": "ACT 1 // UNIX RECOVERY LOG",
+	"windows": "ACT 2 // WINDOWS RECOVERY LOG",
+	"macos": "ACT 3 // MACOS RECOVERY LOG",
+	"templeos": "BONUS ACT // TEMPLEOS ORACLE LOG",
+}
+
 static func localized_act_label(act_id: String) -> String:
-	var key := "STORY_ACT_UNIX"
-	if act_id == "windows":
-		key = "STORY_ACT_WINDOWS"
-	elif act_id == "templeos":
-		key = "STORY_ACT_TEMPLEOS"
-	var fallback := "ACT 1 // UNIX RECOVERY LOG"
-	if act_id == "windows":
-		fallback = "ACT 2 // WINDOWS RECOVERY LOG"
-	elif act_id == "templeos":
-		fallback = "BONUS ACT // TEMPLEOS ORACLE LOG"
-	return _localized(key, fallback)
+	var act := act_id if ACT_FALLBACK_LABELS.has(act_id) else "unix"
+	return _localized("STORY_ACT_%s" % act.to_upper(), str(ACT_FALLBACK_LABELS[act]))
+
+## Ordem em que os atos aparecem, derivada do próprio STAGES.
+static func act_ids() -> Array:
+	var ids: Array = []
+	for stage in STAGES:
+		var act := str(stage.get("act", "unix"))
+		if not ids.has(act):
+			ids.append(act)
+	return ids
 
 static func stage_id_of(index: int) -> String:
 	return str(stage_at(index).get("id", ""))

@@ -27,8 +27,53 @@ var player: Node2D
 var glow: Sprite2D
 var era_accent := Color(0, 0, 0, 0)
 var dead := false
+## Lado por onde ESTE inimigo contorna o jogador, e com quanta lateralidade.
+##
+## Drone, splitter, bulwark e lancer passavam `1.0` e `0.35` fixos para
+## `steer_approach`: todos contornavam o jogador pelo mesmo lado, com a mesma
+## curvatura, e a onda inteira virava uma fila indiana atrás do outro. Sorteado
+## por inimigo, o mesmo código produz um cerco.
+var flank_sign := 1.0
+var flank_weight := 0.35
+
+## ── vagas de ataque ───────────────────────────────────────────────────
+##
+## `instance_id -> tempo restante da vaga`. A arena envelhece o mapa a cada
+## quadro físico; quem morre devolve a vaga em `die()`.
+static var attack_slots: Dictionary = {}
+static var attack_slot_limit := Balance.ATTACK_SLOTS_BASE
+
+static func reset_attack_slots() -> void:
+	attack_slots.clear()
+	attack_slot_limit = Balance.ATTACK_SLOTS_BASE
+
+static func tick_attack_slots(delta: float, wave: int) -> void:
+	attack_slot_limit = Balance.attack_slot_limit(wave)
+	for id in attack_slots.keys():
+		var left: float = float(attack_slots[id]) - delta
+		if left <= 0.0:
+			attack_slots.erase(id)
+		else:
+			attack_slots[id] = left
+
+## Pede permissão para se comprometer com um ataque pelos próximos `duration`
+## segundos. Quem já tem vaga só a renova.
+func claim_attack_slot(duration: float) -> bool:
+	var id := get_instance_id()
+	if attack_slots.has(id):
+		attack_slots[id] = maxf(float(attack_slots[id]), duration)
+		return true
+	if attack_slots.size() >= attack_slot_limit:
+		return false
+	attack_slots[id] = duration
+	return true
+
+func release_attack_slot() -> void:
+	attack_slots.erase(get_instance_id())
 
 func configure(wave_scale_f: float, is_elite: bool) -> void:
+	flank_sign = 1.0 if Game.rng.randf() < 0.5 else -1.0
+	flank_weight = Game.rng.randf_range(0.22, 0.58)
 	hp = int(ceil(hp * wave_scale_f * (2.0 if is_elite else 1.0)))
 	max_hp = hp
 	speed *= wave_scale_f * (1.22 if is_elite else 1.0)
@@ -41,11 +86,12 @@ func configure(wave_scale_f: float, is_elite: bool) -> void:
 		else:
 			_volatile_pulse_t = 0.15
 
-func elite_steering(to_target: Vector2, lateral_sign: float = 1.0) -> Vector2:
-	var lateral_weight := 0.35
+func elite_steering(to_target: Vector2, lateral_sign: float = 0.0) -> Vector2:
+	var sign_used := flank_sign if is_zero_approx(lateral_sign) else lateral_sign
+	var lateral_weight := flank_weight
 	if elite and elite_kind == "swift":
 		lateral_weight = 0.9
-	return steer_approach(to_target, lateral_sign, lateral_weight)
+	return steer_approach(to_target, sign_used, lateral_weight)
 
 func elite_reacquire_interval(base_interval: float) -> float:
 	if elite and elite_kind == "swift":
@@ -147,6 +193,7 @@ func die() -> void:
 	if dead:
 		return
 	dead = true
+	release_attack_slot()
 	died.emit(self)
 	if volatile_burst_count() > 0:
 		for i in volatile_burst_count():
@@ -163,6 +210,49 @@ func aim_at_player() -> Vector2:
 	if player == null or not is_instance_valid(player):
 		return Vector2.RIGHT
 	return (player.global_position - global_position).normalized()
+
+## Onde o jogador ESTARÁ daqui a `lead_time` segundos.
+##
+## Sem isto o lancer mirava o lunge onde o jogador estava no início do telegrafo
+## — depois de 0.6s parado — e passava sempre atrás dele. A antecipação sobe com
+## a onda (`Balance.aim_lead_factor`) e fica presa ao retângulo da arena, para
+## ninguém mirar uma posição fora do mapa quando o jogador corre para a parede.
+func predict_player_position(lead_time: float) -> Vector2:
+	if player == null or not is_instance_valid(player):
+		return global_position
+	var player_velocity := Vector2.ZERO
+	var raw_velocity = player.get("vel")
+	if raw_velocity is Vector2:
+		player_velocity = raw_velocity
+	var lead := lead_time * Balance.aim_lead_factor(threat_wave)
+	var predicted: Vector2 = player.global_position + player_velocity * lead
+	var bounds := Balance.arena_rect().grow(-4.0)
+	return Vector2(
+		clampf(predicted.x, bounds.position.x, bounds.end.x),
+		clampf(predicted.y, bounds.position.y, bounds.end.y))
+
+func aim_predicted(lead_time: float) -> Vector2:
+	var to_target := predict_player_position(lead_time) - global_position
+	return to_target.normalized() if to_target.length_squared() > 0.0001 else aim_at_player()
+
+## De que lado contornar para CORTAR a saída do jogador em vez de empurrá-lo
+## para o campo aberto. Quando ele está no meio da arena não há lado melhor e o
+## inimigo mantém o próprio flanco.
+func cutoff_sign() -> float:
+	if player == null or not is_instance_valid(player):
+		return flank_sign
+	var to_open := Balance.arena_rect().get_center() - player.global_position
+	# No meio da arena não existe lado melhor: o inimigo mantém o próprio flanco.
+	if to_open.length() < 200.0:
+		return flank_sign
+	var radial := player.global_position - global_position
+	if radial.length_squared() <= 0.0001:
+		return flank_sign
+	# O tangente que aponta para o campo aberto é o lado que fecha a saída.
+	var alignment := radial.normalized().orthogonal().dot(to_open.normalized())
+	if absf(alignment) < 0.15:
+		return flank_sign
+	return signf(alignment)
 
 func dist_to_player() -> float:
 	if player == null or not is_instance_valid(player):

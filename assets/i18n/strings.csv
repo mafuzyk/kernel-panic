@@ -118,7 +118,7 @@ PROGRAM_VALUE_ROOTLET_RANGE,MEDIUM,MÉDIO
 PROGRAM_VALUE_ROOTLET_DASH_SHIELD,1 DASH // SHIELD,1 DASH // ESCUDO
 STORY_STATE,MOUNT POINT,PONTO DE MONTAGEM
 STORY_TITLE,SELECT MOUNT POINT,SELECIONAR PONTO DE MONTAGEM
-STORY_SUBTITLE,trace the infection across three operating systems,rastreie a infecção pelos três sistemas operacionais
+STORY_SUBTITLE,trace the infection across four operating systems,rastreie a infecção pelos quatro sistemas operacionais
 STORY_MOUNT,Mount {0},Montar {0}
 STORY_DETAIL_TAG,MOUNT POINT // {0},PONTO DE MONTAGEM // {0}
 STORY_STATE_CLEARED,CLEARED,CONCLUÍDA
@@ -132,9 +132,6 @@ STORY_WAVES,WAVES,ONDAS
 STORY_SCALE,SCALE,ESCALA
 STORY_BEST,STAGE BEST,MELHOR DA FASE
 STORY_KLOG,KERNEL LOG,LOG DO KERNEL
-STORY_ACT_UNIX,UNIX,UNIX
-STORY_ACT_WINDOWS,WINDOWS,WINDOWS
-STORY_ACT_TEMPLEOS,TEMPLEOS,TEMPLEOS
 STORY_TITLE_BOOT,BOOT SEQUENCE,SEQUÊNCIA DE BOOT
 STORY_TITLE_VAR_LOG,THE LOG PARTITION,A PARTIÇÃO DE LOG
 STORY_TITLE_NET,NETWORK NAMESPACE,NAMESPACE DE REDE
@@ -369,11 +366,24 @@ BEST_DESC_BLOATWARE,fat process. drops static popup orbs and spawns background d
 BEST_BUGS_BLOATWARE,47 background processes terminated on exit.,47 processos de fundo encerrados na saída.
 BEST_DESC_GOD,oracle process. chooses its next attack by literal random roll.,processo oráculo. escolhe o próximo ataque por rolagem literal de aleatório.
 BEST_BUGS_GOD,the attack pattern is not a pattern. it is a result.,o padrão de ataque não é um padrão. é um resultado.
+BEST_DESC_ZOMBIE,dies into a defunct husk. shoot it again to reap it, or it comes back.,morre numa casca defunta. atire de novo para colher, ou ele volta.
+BEST_BUGS_ZOMBIE,exit status never collected. parent is busy.,status de saída nunca coletado. o pai está ocupado.
+BEST_DESC_CRON,schedules reinforcements on a visible clock. kill it to clear the table.,agenda reforços num relógio visível. mate para limpar a tabela.
+BEST_BUGS_CRON,runs on time. that is the whole problem.,roda no horário. o problema é exatamente esse.
+BEST_DESC_SWAP,pulls you and loose motes toward it. dash ignores the well.,puxa você e os motes soltos. o dash ignora o poço.
+BEST_BUGS_SWAP,thrashing. everything is slower and nothing is lost.,thrashing. tudo mais lento e nada se perde.
+BEST_DESC_BEACHBALL,plants a spinning wheel under you. it does not hurt. the wave does.,planta uma roda de espera embaixo de você. ela não machuca. a onda machuca.
+BEST_BUGS_BEACHBALL,not responding. also not leaving.,não está respondendo. também não está indo embora.
+BEST_DESC_GENIUS,lancer that blinks to a better angle when you dodge too early.,lancer que pisca para um ângulo melhor quando você desvia cedo demais.
+BEST_BUGS_GENIUS,corrects your aim. was not asked to.,corrige a sua mira. ninguém pediu.
+BEST_DESC_KERNEL_TASK,flips the field's colors mid-dodge and prints its stack at you.,inverte as cores do campo no meio da esquiva e imprime a pilha em você.
+BEST_BUGS_KERNEL_TASK,you need to restart your computer.,você precisa reiniciar o seu computador.
 PATCH_SELECT_ONE,SELECT ONE // [1] [2] [3],ESCOLHA UM // [1] [2] [3]
 BUILD_NO_PATCHES,NO PATCHES,SEM PATCHES
 TERMINAL_TYPE_HELP,Type 'help' for available commands.,Digite 'help' para ver os comandos.
 STORY_ACT_UNIX,ACT 1 // UNIX RECOVERY LOG,ATO 1 // REGISTRO DE RECUPERAÇÃO UNIX
 STORY_ACT_WINDOWS,ACT 2 // WINDOWS RECOVERY LOG,ATO 2 // REGISTRO DE RECUPERAÇÃO WINDOWS
+STORY_ACT_MACOS,ACT 3 // MACOS RECOVERY LOG,ATO 3 // REGISTRO DE RECUPERAÇÃO MACOS
 STORY_ACT_TEMPLEOS,BONUS ACT // TEMPLEOS ORACLE LOG,ATO BÔNUS // REGISTRO DO ORÁCULO TEMPLEOS
 STORY_KLOG_BOOT_0,init: mounting /boot,init: montando /boot
 STORY_KLOG_BOOT_1,watchdog: first signal acquired,watchdog: primeiro sinal adquirido
@@ -459,4 +469,25 @@ TERM_MAN_THREAT,THREAT %d,AMEAÇA %d
 PATCH_SELECT_TOUCH,TAP A CARD TO INSTALL,TOQUE NUM CARD PARA INSTALAR
 STORY_TAB_UNIX,UNIX,UNIX
 STORY_TAB_WINDOWS,WINDOWS,WINDOWS
+STORY_TAB_MACOS,MACOS,MACOS
 STORY_TAB_TEMPLEOS,TEMPLEOS,TEMPLEOS
+STORY_TITLE_MAC_SYSTEM,SYSTEM INTEGRITY,INTEGRIDADE DO SISTEMA
+STORY_INTRO_MAC_SYSTEM,The volume is read-only and very polite about it. Something is spinning.,O volume é somente leitura e muito educado a respeito. Alguma coisa está girando.
+STORY_KLOG_MAC_SYSTEM_0,sip: system integrity protection enabled,sip: proteção de integridade do sistema ativa
+STORY_KLOG_MAC_SYSTEM_1,beachball: not responding,beachball: não está respondendo
+STORY_KLOG_MAC_SYSTEM_2,launchd: everything is fine,launchd: está tudo bem
+STORY_TITLE_MAC_APPS,THE GENIUS BAR,A BARRA DOS GÊNIOS
+STORY_INTRO_MAC_APPS,Every process here knows what you meant to do. None of them asked.,Todo processo aqui sabe o que você queria fazer. Nenhum perguntou.
+STORY_KLOG_MAC_APPS_0,genius: let me correct that for you,genius: deixa que eu corrijo isso pra você
+STORY_KLOG_MAC_APPS_1,gatekeeper: this process cannot be opened,gatekeeper: este processo não pode ser aberto
+STORY_KLOG_MAC_APPS_2,dock: magnification enabled,dock: ampliação ativada
+STORY_TITLE_MAC_UPDATES,SOFTWARE UPDATE,ATUALIZAÇÃO DE SOFTWARE
+STORY_INTRO_MAC_UPDATES,The update is ready to install. It has been ready to install for eleven months.,A atualização está pronta para instalar. Está pronta para instalar há onze meses.
+STORY_KLOG_MAC_UPDATES_0,softwareupdated: restart required,softwareupdated: reinício necessário
+STORY_KLOG_MAC_UPDATES_1,beachball: still not responding,beachball: continua sem responder
+STORY_KLOG_MAC_UPDATES_2,update: remind me tomorrow,update: lembre-me amanhã
+STORY_TITLE_MAC_KERNEL_TASK,KERNEL TASK,KERNEL TASK
+STORY_INTRO_MAC_KERNEL_TASK,The machine has decided the problem is you. It would like you to restart.,A máquina decidiu que o problema é você. Ela gostaria que você reiniciasse.
+STORY_KLOG_MAC_KERNEL_TASK_0,kernel_task: thermal pressure nominal,kernel_task: pressão térmica nominal
+STORY_KLOG_MAC_KERNEL_TASK_1,panic: you need to restart your computer,panic: você precisa reiniciar o seu computador
+STORY_KLOG_MAC_KERNEL_TASK_2,watchdog: reboot in 3... 3... 3...,watchdog: reiniciando em 3... 3... 3...

@@ -25,6 +25,8 @@ var story_stage: Dictionary = {}
 var story_wave_index := -1
 var _story_wave_scale := 1.0
 var _story_boss_kind := "boss"
+## O que, numa lista de ondas do STAGES, significa "aqui vem o boss".
+const BOSS_KINDS := ["boss", "god", "kernel_task"]
 
 func start(arena_node: Node2D, container_node: Node2D, first_wave: int) -> void:
 	arena_ref = arena_node
@@ -106,7 +108,7 @@ func _begin_story_wave() -> void:
 	_story_wave_scale = float(story_stage.get("scale", 1.0))
 	var boss_kind := ""
 	for raw_kind in _queue:
-		if str(raw_kind) == "boss" or str(raw_kind) == "god":
+		if str(raw_kind) in BOSS_KINDS:
 			boss_kind = str(raw_kind)
 	if not boss_kind.is_empty():
 		_story_boss_kind = boss_kind
@@ -182,6 +184,15 @@ func _build_queue() -> void:
 		pool.append(["recursor", 3, 0.9 + wave * 0.06])
 	if wave >= 5:
 		pool.append(["oom", 2, 0.4 + (wave - 4) * 0.05])
+	# Elenco de 3.1. Entram tarde e com peso baixo: cada um muda uma REGRA da
+	# arena (matar duas vezes, priorizar alvo, perder o controle do recuo), e
+	# três regras novas chegando juntas seriam ruído em vez de pressão.
+	if wave >= 8:
+		pool.append(["cron", 3, 0.5 + (wave - 7) * 0.06])
+	if wave >= 10:
+		pool.append(["zombie", 3, 0.6 + (wave - 9) * 0.08])
+	if wave >= 12:
+		pool.append(["swap", 5, 0.45 + (wave - 11) * 0.05])
 	var guard := 200
 	while budget > 0 and guard > 0:
 		guard -= 1
@@ -234,7 +245,7 @@ func _spawn_story_boss() -> void:
 		if generation != _spawn_generation or not _running or not is_instance_valid(container):
 			return
 		_awaiting_boss = false
-		_boss = GodBoss.new() if _story_boss_kind == "god" else RootBoss.new()
+		_boss = _make_story_boss()
 		_boss.boss_index = idx
 		_boss.threat_wave = wave
 		_boss.configure(float(story_stage.get("boss_scale", _story_wave_scale)), false)
@@ -242,6 +253,15 @@ func _spawn_story_boss() -> void:
 		container.add_child(_boss)
 		boss_spawned.emit(_boss)
 	)
+
+## O boss da fase vem do `boss_kind` do STAGES; `boss` é o ROOT.exe padrão.
+func _make_story_boss() -> RootBoss:
+	match _story_boss_kind:
+		"god":
+			return GodBoss.new()
+		"kernel_task":
+			return load("res://src/enemies/kernel_task.gd").new()
+	return RootBoss.new()
 
 func _physics_process(delta: float) -> void:
 	if not _running:
@@ -320,6 +340,12 @@ func _telegraph_spawn(pos: Vector2, kind: String, generation: int) -> void:
 		if kind == "oom" and get_tree().get_nodes_in_group("oom").size() >= 2:
 			e = DroneEnemy.new()
 			kind = "drone"
+		# Dois CRONs em campo dobram a agenda e a onda deixa de terminar.
+		# Mesma válvula do OOM: vira drone em vez de não nascer, para o
+		# orçamento da onda continuar valendo o que diz.
+		if kind == "cron" and _live_count_of("CRON") >= 1:
+			e = DroneEnemy.new()
+			kind = "drone"
 		if kind == "drone" and wave_event == "swarm":
 			e.setup_mini()
 		e.position = pos
@@ -329,6 +355,14 @@ func _telegraph_spawn(pos: Vector2, kind: String, generation: int) -> void:
 			_configure_enemy(e, Game.rng.randf() < Balance.difficulty_elite_chance(wave))
 		container.add_child(e)
 	)
+
+## Quantos inimigos vivos têm este `display_name`.
+func _live_count_of(display: String) -> int:
+	var total := 0
+	for enemy in EnemyBase.shared_list:
+		if is_instance_valid(enemy) and str(enemy.display_name) == display:
+			total += 1
+	return total
 
 func _configure_enemy(e: EnemyBase, is_elite: bool) -> void:
 	e.threat_wave = wave
@@ -367,8 +401,20 @@ func _make_enemy(kind: String) -> EnemyBase:
 			return load("res://src/enemies/update_loop.gd").new()
 		"bloatware":
 			return load("res://src/enemies/bloatware.gd").new()
+		"zombie":
+			return load("res://src/enemies/zombie.gd").new()
+		"cron":
+			return load("res://src/enemies/cron.gd").new()
+		"swap":
+			return load("res://src/enemies/swap.gd").new()
+		"beachball":
+			return load("res://src/enemies/beachball.gd").new()
+		"genius":
+			return load("res://src/enemies/genius.gd").new()
 		"god":
 			return load("res://src/enemies/god_boss.gd").new()
+		"kernel_task":
+			return load("res://src/enemies/kernel_task.gd").new()
 	return null
 
 func _edge_point(min_player_dist := 250.0) -> Vector2:

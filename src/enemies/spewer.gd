@@ -9,6 +9,7 @@ var _orbit_flip_t := 0.0
 
 const BAND_MIN := 250.0
 const BAND_MAX := 340.0
+const ORB_SPEED := 265.0
 
 func _init() -> void:
 	display_name = "SPEWER"
@@ -42,13 +43,19 @@ func _move(delta: float) -> void:
 				desired += cover_delta.normalized() * 0.75
 	_v = _v.move_toward(desired.limit_length(1.0) * speed, 420.0 * delta)
 	_fire_t -= delta
+	# Cuspir também gasta vaga: um muro de quatro spewers disparando junto não
+	# é leitura, é sorte. Quem não pega vaga espera meio segundo e tenta de novo.
 	if _fire_t <= 0.0 and _telegraph <= 0.0 and d < 620.0:
-		_telegraph = 0.42
+		if claim_attack_slot(telegraph_duration() + 0.2):
+			_telegraph = telegraph_duration()
+		else:
+			_fire_t = 0.45
 	if _telegraph > 0.0:
 		_telegraph -= delta
 		_v = _v.move_toward(Vector2.ZERO, 700.0 * delta)
 		if _telegraph <= 0.0:
 			_fire()
+			release_attack_slot()
 
 func _fire() -> void:
 	if player == null or not is_instance_valid(player):
@@ -56,11 +63,16 @@ func _fire() -> void:
 	if not EnemyOrb.can_spawn(self):
 		_fire_t = repeated_fire_interval(0.8)
 		return
+	# A orbe viaja a 265 px/s: mirar a posição atual do jogador é mirar onde ele
+	# já não está quando ela chega. O tempo de voo é a distância sobre a
+	# velocidade, e `aim_predicted` limita o quanto disso vira antecipação.
+	var flight := dist_to_player() / ORB_SPEED
+	var shot_dir := aim_predicted(flight)
 	var orb := EnemyOrb.new()
-	orb.setup(global_position + aim_at_player() * (radius + 10.0), aim_at_player(), 265.0, col)
+	orb.setup(global_position + shot_dir * (radius + 10.0), shot_dir, ORB_SPEED, col)
 	get_parent().add_child(orb)
 	Sfx.play("shoot", 0.55, -7.0, 0.08)
-	Fx.sparks(global_position + aim_at_player() * radius, col, 5, 120.0, 0.3, 2.4)
+	Fx.sparks(global_position + shot_dir * radius, col, 5, 120.0, 0.3, 2.4)
 	_fire_t = repeated_fire_interval(Game.rng.randf_range(1.9, 2.5))
 
 func repeated_fire_interval(base_interval: float) -> float:

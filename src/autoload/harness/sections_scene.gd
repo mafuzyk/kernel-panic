@@ -538,6 +538,13 @@ func _story_intro_layout_test() -> void:
 			var fit: Dictionary = tui.call("fit_block", mono, intro, 344.0, cap, 15, 12)
 			h._check(bool(fit.get("fits", false)) and int(fit.get("font_size", 0)) >= 12, "story intro %d measures inside the intro panel at %dx%d" % [stage_index + 1, int(vp.x), int(vp.y)])
 
+func _stage_index_of(stage_id: String) -> int:
+	for index in Game.story_stage_count():
+		if Game.story_stage_id(index) == stage_id:
+			return index
+	return -1
+
+
 func _temple_scene_test() -> void:
 	print("AT_STEP temple_scene")
 	var saved_mode := Game.mode
@@ -550,9 +557,12 @@ func _temple_scene_test() -> void:
 	Game.story_cleared = {}
 	Game.story_best = {}
 	Game.temple_rainbow_unlocked = false
-	for i in 9:
+	# Pelo ID, não pelo índice: o ato macOS entrou antes do bônus e o 9 fixo
+	# passou a apontar para outra fase.
+	var temple_index := _stage_index_of("temple_boot")
+	for i in maxi(temple_index, 0):
 		Game.story_cleared[Game.story_stage_id(i)] = true
-	h._check(bool(Game.start_story(9)), "TempleOS scene accepts the unlocked bonus act")
+	h._check(bool(Game.start_story(temple_index)), "TempleOS scene accepts the unlocked bonus act")
 	var loaded: bool = await h._until(func() -> bool:
 		return h.get_tree().current_scene != null and h.get_tree().current_scene.name == "Arena", 6.0, "TempleOS arena")
 	if not loaded:

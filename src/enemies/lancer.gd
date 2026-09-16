@@ -3,6 +3,10 @@ extends EnemyBase
 
 enum Phase { APPROACH, AIM, LUNGE, RECOVER }
 
+const LUNGE_DURATION := 0.28
+## Quanto tempo a vaga de ataque fica reservada: telegrafo + voo, com folga.
+const COMMIT_WINDOW := 1.0
+
 var phase: int = Phase.APPROACH
 var phase_t := 0.0
 var _v := Vector2.ZERO
@@ -24,19 +28,26 @@ func _move(delta: float) -> void:
 	phase_t -= delta
 	match phase:
 		Phase.APPROACH:
-			var desired := elite_steering(aim_at_player(), 1.0)
+			var desired := elite_steering(aim_at_player(), cutoff_sign())
 			desired += steer_separation(2.2) * 0.7
 			_v = _v.move_toward(desired.limit_length(1.0) * speed, 500.0 * delta)
-			if phase_t <= 0.0 and dist_to_player() < 520.0:
+			# Carregar exige VAGA. Sem isso os cinco lancers do campo carregavam
+			# no mesmo instante e não havia o que ler: quem não pega vaga
+			# continua se reposicionando e tenta no ciclo seguinte.
+			if phase_t <= 0.0 and dist_to_player() < 520.0 and claim_attack_slot(COMMIT_WINDOW):
 				phase = Phase.AIM
-				phase_t = 0.6
+				phase_t = telegraph_duration()
 				Sfx.play("charge", 1.4, -10.0)
+			elif phase_t <= 0.0:
+				phase_t = phase_reentry_interval(Game.rng.randf_range(0.25, 0.5))
 		Phase.AIM:
 			_v = _v.move_toward(Vector2.ZERO, 900.0 * delta)
-			_aim = aim_at_player()
+			# Mira onde o jogador ESTARÁ no fim do telegrafo somado ao voo do
+			# lunge. Mirando onde ele está, o lunge passava sempre por trás.
+			_aim = aim_predicted(phase_t + LUNGE_DURATION)
 			if phase_t <= 0.0:
 				phase = Phase.LUNGE
-				phase_t = 0.28
+				phase_t = LUNGE_DURATION
 				_v = _aim * 780.0
 				Sfx.play("dash", 0.8, -8.0)
 		Phase.LUNGE:
@@ -47,8 +58,9 @@ func _move(delta: float) -> void:
 			if phase_t <= 0.0:
 				phase = Phase.RECOVER
 				phase_t = 0.85
+				release_attack_slot()
 		Phase.RECOVER:
-			var desired := elite_steering(aim_at_player(), 1.0)
+			var desired := elite_steering(aim_at_player(), cutoff_sign())
 			desired += steer_separation(2.2) * 0.7
 			_v = _v.move_toward(desired.limit_length(1.0) * speed * 0.4, 400.0 * delta)
 			if phase_t <= 0.0:

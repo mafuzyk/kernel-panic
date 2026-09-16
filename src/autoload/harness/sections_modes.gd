@@ -492,6 +492,43 @@ func _capture() -> void:
 				if rm_terminal != null:
 					rm_terminal.call("submit_command", "rm -rf /")
 				await h._ticks(140)
+			# O boss do ato macOS no estado de pânico, que é quando ele inverte
+			# o matiz do campo.
+			"panic":
+				arena.spawner.stop()
+				if arena.has_method("story_intro_active"):
+					for _panic_wait in 240:
+						if not bool(arena.call("story_intro_active")):
+							break
+						arena.call("dismiss_story_intro")
+						await h._ticks(1)
+				var panic_boss: KernelTaskBoss = KernelTaskBoss.new()
+				panic_boss.configure(1.0, false)
+				panic_boss.position = arena.player.global_position + Vector2(0.0, -200.0)
+				arena.enemy_container.add_child(panic_boss)
+				arena.hud.boss = panic_boss
+				await h._ticks(4)
+				panic_boss.call("_flip_mode")
+				panic_boss.speed = 0.0
+				await h._ticks(4)
+			# Vitrine do elenco de 3.1, para conferir silhueta e telegrafo lado
+			# a lado com o que já existia.
+			"new_cast":
+				arena.spawner.stop()
+				var cast_kinds: Array[String] = ["zombie", "cron", "swap", "beachball", "genius"]
+				var cast_origin: Vector2 = arena.player.global_position + Vector2(-380.0, -150.0)
+				for cast_index in cast_kinds.size():
+					var member: EnemyBase = arena.spawner.call("_make_enemy", cast_kinds[cast_index])
+					if member == null:
+						continue
+					member.position = cast_origin + Vector2(float(cast_index) * 190.0, 0.0)
+					member.configure(1.4, false)
+					member.speed = 0.0
+					arena.enemy_container.add_child(member)
+				await h._ticks(4)
+				for parked_member in EnemyBase.shared_list:
+					if is_instance_valid(parked_member):
+						parked_member.speed = 0.0
 			"hud_contacts":
 				# Numa fase de story o card de intro cobre a tela; a prova é do
 				# CAMPO e do HUD, então ele sai antes da foto.

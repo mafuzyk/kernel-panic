@@ -34,7 +34,8 @@ signal back_pressed
 const LIST_RATIO := 0.40
 const ROW_HEIGHT := 72.0
 const THREAT_GLYPH := 30.0
-const ACTS := ["unix", "windows", "templeos"]
+## Derivada do STAGES: um ato novo aparece na aba sem tocar nesta tela.
+static var ACTS: Array = StoryData.act_ids()
 
 var scroll_y := 0.0
 var t := 0.0
@@ -245,6 +246,7 @@ func _stage_color(index: int) -> Color:
 static func _act_color(act: String) -> Color:
 	match act:
 		"windows": return Color("b46bff")
+		"macos": return Color("5ac8fa")
 		"templeos": return Design.WARNING
 		_: return Design.ACCENT
 
@@ -809,7 +811,7 @@ func _fill_detail() -> void:
 
 ## As ameaças da fase, desenhadas pela mesma biblioteca que a arena usa, cada
 ## uma na cor de identidade que ela tem em jogo. Substitui o "ARENA PREVIEW",
-## que era a mesma grade estática para todas as onze fases.
+## que era a mesma grade estática para todas as fases da corrente.
 func _build_threats(parent: Node, index: int, unlocked: bool) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", Design.SPACE_LG)

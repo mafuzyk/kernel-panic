@@ -29,6 +29,12 @@ const ENTRIES := [
 	{"id": "update_loop", "name": "UPDATE_LOOP", "desc": "reinstalls once after death. finish the update before celebrating.", "threat": 190, "bugs": "dies, says 'reinstalling', returns with fewer excuses."},
 	{"id": "bloatware", "name": "BLOATWARE", "desc": "fat process. drops static popup orbs and spawns background drones.", "threat": 450, "bugs": "47 background processes terminated on exit."},
 	{"id": "god", "name": "GOD", "desc": "oracle process. chooses its next attack by literal random roll.", "threat": 777, "bugs": "the attack pattern is not a pattern. it is a result."},
+	{"id": "zombie", "name": "ZOMBIE", "desc": "dies into a defunct husk. shoot it again to reap it, or it comes back.", "threat": 150, "bugs": "exit status never collected. parent is busy."},
+	{"id": "cron", "name": "CRON", "desc": "schedules reinforcements on a visible clock. kill it to clear the table.", "threat": 200, "bugs": "runs on time. that is the whole problem."},
+	{"id": "swap", "name": "SWAP", "desc": "pulls you and loose motes toward it. dash ignores the well.", "threat": 320, "bugs": "thrashing. everything is slower and nothing is lost."},
+	{"id": "beachball", "name": "BEACHBALL", "desc": "plants a spinning wheel under you. it does not hurt. the wave does.", "threat": 170, "bugs": "not responding. also not leaving."},
+	{"id": "genius", "name": "GENIUS", "desc": "lancer that blinks to a better angle when you dodge too early.", "threat": 160, "bugs": "corrects your aim. was not asked to."},
+	{"id": "kernel_task", "name": "KERNEL_TASK", "desc": "flips the field's colors mid-dodge and prints its stack at you.", "threat": 9000, "bugs": "you need to restart your computer."},
 ]
 
 const ROW_HEIGHT := 68.0

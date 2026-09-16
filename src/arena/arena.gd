@@ -89,6 +89,9 @@ const RESTART_HOLD_DURATION := 0.75
 
 func _ready() -> void:
 	add_to_group("arena")
+	# Estático e compartilhado entre cenas: sem zerar, uma arena nova nasceria
+	# com as vagas da anterior ocupadas por ids mortos.
+	EnemyBase.reset_attack_slots()
 	_panel_kit = PanelKitScript.new(self)
 	_intro_kit = IntroKitScript.new(self)
 	_stage_kit = StageKitScript.new(self)
@@ -269,8 +272,11 @@ func _route_enemy_hint(enemy: EnemyBase) -> void:
 func _on_enemy_exit(n: Node) -> void:
 	enemy_list.erase(n)
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	EnemyBase.shared_list = enemy_list
+	# Envelhece as vagas de ataque: é o que impede a onda inteira de carregar
+	# ao mesmo tempo. O teto vem da onda e da dificuldade.
+	EnemyBase.tick_attack_slots(delta, Game.wave)
 
 func debug_controls_enabled() -> bool:
 	return OS.is_debug_build() and Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
@@ -493,6 +499,23 @@ func _on_wave_started(wave: int, is_boss: bool) -> void:
 func show_event_banner(txt: String) -> void:
 	if _intro_kit != null:
 		_intro_kit.show_event_banner(txt)
+
+## Troca o matiz do campo enquanto o KERNEL_TASK está em pânico.
+##
+## O boss diz QUANDO; a arena é quem sabe o tema da fase. Fora do story não há
+## tema para inverter e a chamada é silenciosa — o boss existe num ato, mas o
+## debug pode invocá-lo em qualquer lugar.
+var _field_inverted := false
+
+func field_inverted() -> bool:
+	return _field_inverted
+
+func set_field_inverted(inverted: bool) -> void:
+	if inverted == _field_inverted or _story_stage.is_empty():
+		return
+	_field_inverted = inverted
+	var theme: Dictionary = _story_stage.get("theme", {})
+	_intro_kit._apply_story_theme(Balance.invert_field_theme(theme) if inverted else theme)
 
 func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 	wave_signal_count += 1

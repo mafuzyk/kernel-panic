@@ -5,7 +5,7 @@ extends RefCounted
 ## Pure canvas drawing: no state, no Game.rng, no node allocation.
 
 static func glyph_kinds() -> Array:
-	return ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "recursor", "firewall", "bloatware", "update_loop", "page", "root", "boss", "segfault", "bluescreen", "pagefault", "god", "kernel", "daemon", "rootlet"]
+	return ["drone", "lancer", "spewer", "splitter", "bulwark", "trojan", "oom", "recursor", "firewall", "bloatware", "update_loop", "beachball", "genius", "zombie", "cron", "swap", "page", "root", "boss", "segfault", "bluescreen", "pagefault", "god", "kernel_task", "kernel", "daemon", "rootlet"]
 
 ## Maximum silhouette reach per kind, in multiples of the draw radius.
 ## Conservative outer bounds (lancer's lance tip reaches 2.4x, oom horns 1.6x,
@@ -16,6 +16,8 @@ const GLYPH_EXTENT := {
 	"update_loop": 1.05, "page": 1.25, "root": 1.05, "boss": 1.05, "segfault": 1.45,
 	"bluescreen": 1.30, "pagefault": 1.15, "god": 1.35, "kernel": 1.5, "daemon": 1.45,
 	"rootlet": 1.1,
+	"beachball": 1.05, "genius": 2.1, "zombie": 1.15, "cron": 1.1, "swap": 1.2,
+	"kernel_task": 1.2,
 }
 
 static func glyph_extent(kind: String) -> float:
@@ -222,6 +224,111 @@ static func draw_glyph(canvas: CanvasItem, kind: String, center: Vector2, radius
 			])
 			canvas.draw_colored_polygon(head_u, c)
 			canvas.draw_circle(center, radius * 0.22, Color(1, 1, 1, 0.85))
+		"beachball":
+			# Roda de espera: o disco é o contorno e os SETORES são a leitura.
+			# Nada mais no elenco é um círculo cheio fatiado, então ele se
+			# separa de tudo mesmo pequeno e em movimento.
+			var wedges := 8
+			for i in wedges:
+				var a0 := t * 1.6 + TAU * float(i) / float(wedges)
+				var a1 := a0 + TAU / float(wedges)
+				var wedge := PackedVector2Array([center])
+				for step in 5:
+					wedge.push_back(center + Vector2.from_angle(lerpf(a0, a1, float(step) / 4.0)) * radius * 0.92)
+				# Fatias alternadas e bem marcadas: sem contraste entre elas o
+				# disco lia como um círculo qualquer e sumia no meio do elenco.
+				var shade := 0.20 + 0.34 * float(i % 2)
+				canvas.draw_colored_polygon(wedge, Color(c.r, c.g, c.b, shade))
+			canvas.draw_arc(center, radius * 0.92, 0.0, TAU, 34, c, 2.6, true)
+			# Raios que separam as fatias: é isso que diz "roda girando".
+			for i in wedges:
+				var spoke_a := t * 1.6 + TAU * float(i) / float(wedges)
+				canvas.draw_line(center + Vector2.from_angle(spoke_a) * radius * 0.22,
+					center + Vector2.from_angle(spoke_a) * radius * 0.92,
+					Color(c.r, c.g, c.b, 0.55), 1.6)
+			canvas.draw_circle(center, radius * 0.20, Color(1, 1, 1, 0.82))
+		"genius":
+			# Lancer arrogante: a lança do LANCER mais um chanfro reto no dorso
+			# e um prumo no lugar do olho. Mesma família de silhueta — é o que
+			# ensina o jogador que o ciclo é o mesmo — com a quina que diz que
+			# este aqui corrige a mira.
+			var blade := PackedVector2Array([
+				center + Vector2(radius * 2.05, 0.0),
+				center + Vector2(radius * 0.30, radius * 0.22),
+				center + Vector2(-radius * 0.55, radius * 0.22),
+				center + Vector2(-radius * 0.55, radius * 0.86),
+				center + Vector2(-radius * 1.05, radius * 0.86),
+				center + Vector2(-radius * 1.05, -radius * 0.86),
+				center + Vector2(-radius * 0.55, -radius * 0.86),
+				center + Vector2(-radius * 0.55, -radius * 0.22),
+				center + Vector2(radius * 0.30, -radius * 0.22),
+			])
+			canvas.draw_colored_polygon(blade, Color(c.r, c.g, c.b, 0.20))
+			canvas.draw_polyline(blade + PackedVector2Array([blade[0]]), c, 2.2, true)
+			canvas.draw_circle(center + Vector2(-radius * 0.80, 0.0), radius * 0.20, Color(1, 1, 1, 0.85))
+		"zombie":
+			# Processo defunto: anel QUEBRADO. O corte é a silhueta — o único do
+			# elenco cujo contorno não fecha — e diz que ele ainda está aberto na
+			# tabela de processos.
+			var gap := 0.62
+			var spin_z := t * 0.5
+			canvas.draw_arc(center, radius * 0.86, spin_z + gap, spin_z + TAU - gap, 30, c, 3.0, true)
+			for side in [-1.0, 1.0]:
+				var stub := center + Vector2.from_angle(spin_z + gap * side) * radius * 0.86
+				canvas.draw_line(stub, stub + Vector2.from_angle(spin_z + gap * side) * radius * 0.34,
+					Color(c.r, c.g, c.b, 0.55), 2.4)
+			# Cruz partida no miolo: o processo que ninguém colheu.
+			canvas.draw_line(center + Vector2(-radius * 0.30, -radius * 0.30), center + Vector2(radius * 0.30, radius * 0.30), c, 2.4)
+			canvas.draw_line(center + Vector2(radius * 0.30, -radius * 0.30), center + Vector2(radius * 0.06, -radius * 0.06), c, 2.4)
+		"cron":
+			# Agendador: mostrador quadrado com ponteiros. É o único RELÓGIO do
+			# elenco e o único que combina quadrado externo com hastes internas.
+			var half := radius * 0.80
+			var face := PackedVector2Array([
+				center + Vector2(-half, -half), center + Vector2(half, -half),
+				center + Vector2(half, half), center + Vector2(-half, half),
+			])
+			canvas.draw_colored_polygon(face, Color(c.r, c.g, c.b, 0.16))
+			canvas.draw_polyline(face + PackedVector2Array([face[0]]), c, 2.6, true)
+			for i in 4:
+				var tick := Vector2.from_angle(TAU * float(i) / 4.0) * half * 0.86
+				canvas.draw_circle(center + tick, radius * 0.07, Color(c.r, c.g, c.b, 0.7))
+			canvas.draw_line(center, center + Vector2.from_angle(-PI * 0.5 + t * 0.9) * half * 0.66, c, 2.6)
+			canvas.draw_line(center, center + Vector2.from_angle(-PI * 0.5 + t * 0.15) * half * 0.44, Color(c.r, c.g, c.b, 0.8), 2.0)
+		"swap":
+			# Poço de troca: um funil. Anéis concêntricos que ENCOLHEM para o
+			# centro — a única forma do elenco que lê como profundidade, e é
+			# exatamente o que ele faz com quem chega perto.
+			for i in 4:
+				var ring := radius * (0.96 - 0.22 * float(i))
+				var wobble := 1.0 + 0.05 * sin(t * 1.8 + float(i) * 1.1)
+				canvas.draw_arc(center, ring * wobble, 0.0, TAU, 28, Color(c.r, c.g, c.b, 0.28 + 0.16 * float(i)), 2.2, true)
+			# Duas setas opostas: entra e sai, que é o que swap significa.
+			for side in [-1.0, 1.0]:
+				var tip := center + Vector2(0.0, side * radius * 0.30)
+				canvas.draw_line(center + Vector2(side * radius * 0.52, side * radius * 0.62), tip, c, 2.4)
+				canvas.draw_line(center + Vector2(-side * radius * 0.52, side * radius * 0.62), tip, c, 2.4)
+		"kernel_task":
+			# O pânico literal: moldura de janela com a barra de título cheia e
+			# um corte na diagonal. Nenhum outro boss é retangular.
+			var bw2 := radius * 0.86
+			var bh2 := radius * 0.70
+			var frame := PackedVector2Array([
+				center + Vector2(-bw2, -bh2), center + Vector2(bw2, -bh2),
+				center + Vector2(bw2, bh2), center + Vector2(-bw2, bh2),
+			])
+			canvas.draw_colored_polygon(frame, Color(c.r, c.g, c.b, 0.14))
+			canvas.draw_polyline(frame + PackedVector2Array([frame[0]]), c, 3.0, true)
+			var title := PackedVector2Array([
+				center + Vector2(-bw2, -bh2), center + Vector2(bw2, -bh2),
+				center + Vector2(bw2, -bh2 + radius * 0.24), center + Vector2(-bw2, -bh2 + radius * 0.24),
+			])
+			canvas.draw_colored_polygon(title, Color(c.r, c.g, c.b, 0.62))
+			for i in 3:
+				canvas.draw_circle(center + Vector2(-bw2 + radius * (0.16 + 0.16 * float(i)), -bh2 + radius * 0.12), radius * 0.05, Color(0, 0, 0, 0.7))
+			var cut := radius * 0.50
+			var jitter := sin(t * 11.0) * radius * 0.06
+			canvas.draw_line(center + Vector2(-cut, cut * 0.5 + jitter), center + Vector2(cut, -cut * 0.5 + jitter), Color(1, 1, 1, 0.9), 3.0)
 		"page":
 			# Documento com canto dobrado — a dobra é CONTORNO, não detalhe
 			# interno. Antes era um quadrilátero torto que parecia descuido.

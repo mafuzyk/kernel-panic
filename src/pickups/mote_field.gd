@@ -84,6 +84,23 @@ func alive_at(idx: int) -> bool:
 func pos_of(idx: int) -> Vector2:
 	return _pos[idx]
 
+## Arrasta os motes VIVOS e não roubados na direção de um ponto.
+##
+## Existe para o poço do SWAP: sem isto ele puxava o jogador e deixava os motes
+## parados, e o campo dizia duas coisas contraditórias sobre a mesma gravidade.
+## Mote roubado é do OOM_KILLER e não responde — dono já tem.
+func attract_toward(center: Vector2, reach: float, strength: float, delta: float) -> void:
+	if reach <= 0.0 or strength <= 0.0 or delta <= 0.0:
+		return
+	for idx in MAX:
+		if not alive_at(idx) or is_stolen(idx):
+			continue
+		var to_center: Vector2 = center - _pos[idx]
+		var distance := to_center.length()
+		if distance <= 0.01 or distance >= reach:
+			continue
+		_vel[idx] += to_center / distance * strength * (1.0 - distance / reach) * delta
+
 func set_slot_position(idx: int, pos: Vector2) -> void:
 	if idx >= 0 and idx < MAX and alive_at(idx):
 		_pos[idx] = pos

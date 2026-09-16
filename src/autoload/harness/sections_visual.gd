@@ -151,7 +151,16 @@ func _story_test(arena: Arena) -> void:
 	if story_script == null or not Game.has_method("story_stage_count") or not Game.has_method("story_stage_def") or not arena.spawner.has_method("start_story"):
 		return
 	var count := int(Game.story_stage_count())
-	h._check(count == 11 and Game.STORY_DATA.act_stage_count("unix") == 6 and Game.STORY_DATA.act_stage_count("windows") == 3 and Game.STORY_DATA.act_stage_count("templeos") == 2, "Story contains UNIX, Windows, and TempleOS stages")
+	# Contagem por ATO, não por total: um ato novo não deve reprovar um teste
+	# que só queria saber se os atos antigos continuam inteiros.
+	h._check(Game.STORY_DATA.act_stage_count("unix") == 6
+		and Game.STORY_DATA.act_stage_count("windows") == 3
+		and Game.STORY_DATA.act_stage_count("macos") == 4
+		and Game.STORY_DATA.act_stage_count("templeos") == 2,
+		"Story contains UNIX, Windows, macOS and TempleOS stages")
+	h._check(count == 15, "Story has every act's stages on the chain (%d)" % count)
+	h._check(Game.STORY_DATA.act_ids() == ["unix", "windows", "macos", "templeos"],
+		"the acts run in narrative order with the bonus act last")
 	var expected_ids := ["boot", "var_log", "net", "mem", "quarantine", "kernel"]
 	var expected_paths := ["/boot", "/var/log", "/net", "/mem", "/quarantine", "/kernel"]
 	for i in mini(count, expected_ids.size()):
@@ -203,7 +212,7 @@ func _windows_test(arena: Arena) -> void:
 	var crt_script: Script = load("res://src/arena/crt_overlay.gd")
 	h._check(update_script != null and bloat_script != null and popup_script != null, "Windows enemy scripts load")
 	h._check(crt_script != null, "CRT overlay script loads")
-	h._check(Game.story_stage_count() == 11, "Story includes three Windows and two TempleOS stages")
+	h._check(Game.STORY_DATA.act_stage_count("windows") == 3, "Story includes three Windows stages")
 	var paths := ["C:\\98", "C:\\XP", "Win11"]
 	for i in paths.size():
 		var stage: Dictionary = Game.story_stage_def(6 + i)
@@ -225,18 +234,30 @@ func _windows_test(arena: Arena) -> void:
 		bloat_enemy.free()
 	h._check(arena.has_method("windows_stage_profile"), "arena exposes Windows stage profile")
 
+## Onde a fase com este id está na corrente. -1 quando ela não existe.
+func _stage_index_of(stage_id: String) -> int:
+	for index in Game.story_stage_count():
+		if Game.story_stage_id(index) == stage_id:
+			return index
+	return -1
+
+
 func _temple_test(arena: Arena) -> void:
 	print("AT_STEP temple")
 	var god_script: Script = load("res://src/enemies/god_boss.gd")
 	h._check(god_script != null, "GOD boss script loads")
-	h._check(Game.story_stage_count() == 11, "Story includes two TempleOS stages")
+	h._check(Game.STORY_DATA.act_stage_count("templeos") == 2, "Story includes two TempleOS stages")
 	h._check(Game.STORY_DATA.act_stage_count("templeos") == 2, "TempleOS act exposes two stages")
+	# Localizadas pelo ID, não pelo índice: inserir um ato antes do bônus
+	# reprovava sete asserções que não tinham nada a ver com a mudança.
+	var temple_index := _stage_index_of("temple_boot")
+	var god_index := _stage_index_of("temple_god")
 	var paths := ["TempleOS::BOOT", "TempleOS::GOD"]
 	for i in paths.size():
-		var stage: Dictionary = Game.story_stage_def(9 + i)
+		var stage: Dictionary = Game.story_stage_def(temple_index + i)
 		h._check(str(stage.get("path", "")) == paths[i], "TempleOS stage %d has the expected path" % (i + 1))
-	var temple_stage := Game.story_stage_def(9)
-	var god_stage := Game.story_stage_def(10)
+	var temple_stage := Game.story_stage_def(temple_index)
+	var god_stage := Game.story_stage_def(god_index)
 	h._check(str(temple_stage.get("theme", {}).get("grid_style", "")) == "holy", "TempleOS uses the holy CRT profile")
 	Sfx.set_music_variant("holy")
 	h._check(Sfx.music_variant == "holy", "templeos holy music variant is recognized")

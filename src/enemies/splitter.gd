@@ -17,7 +17,7 @@ func _on_ready() -> void:
 
 func _move(delta: float) -> void:
 	_pulse += delta * 6.0
-	var desired := steer_approach(aim_at_player(), 1.0, 0.35)
+	var desired := steer_approach(aim_at_player(), cutoff_sign(), flank_weight)
 	desired += steer_separation(2.2) * 0.7
 	_v = _v.move_toward(desired.limit_length(1.0) * speed, 380.0 * delta)
 

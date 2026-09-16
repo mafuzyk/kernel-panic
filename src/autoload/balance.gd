@@ -172,6 +172,64 @@ static func story_field_peak_color(theme: Dictionary) -> Color:
 		theme.get("grid_col", COL_GRID),
 		theme.get("glow_col", STORY_GLOW_DEFAULT))
 
+## Tema de fase com o MATIZ invertido e a luz preservada.
+##
+## É o ataque do KERNEL_TASK: a tela de pânico troca as cores do campo no meio
+## de uma esquiva. Girar o matiz meia volta muda a luminância junto (azul e
+## amarelo têm o mesmo V e brilhos muito diferentes), então cada cor é
+## reescalada de volta para a própria luminância original. Sem isso a inversão
+## seria um clarão — exatamente o erro que o `Win11` já cometeu uma vez.
+const FIELD_INVERT_KEYS := ["base_col", "grid_col", "glow_col", "accent"]
+
+static func invert_field_theme(theme: Dictionary) -> Dictionary:
+	var inverted := theme.duplicate(true)
+	for key in FIELD_INVERT_KEYS:
+		if not theme.has(key):
+			continue
+		inverted[key] = invert_hue_keeping_light(theme[key])
+	# Preservar a luminância COR A COR não basta: o campo satura no framebuffer,
+	# e girar o matiz troca QUAL canal satura. Um tema que estourava no vermelho
+	# (peso 0.21) e passava raspando podia, invertido, estourar no verde (peso
+	# 0.72) e ficar visivelmente mais claro. A garantia que interessa é sobre o
+	# campo montado, então ela é medida no campo montado e corrigida ali.
+	var reference := field_display_color(story_field_peak_color(theme)).get_luminance()
+	for _pass_index in 4:
+		var current := field_display_color(story_field_peak_color(inverted)).get_luminance()
+		if current <= reference + 0.001:
+			break
+		var k := reference / maxf(current, 0.0001)
+		for key in FIELD_INVERT_KEYS:
+			if not inverted.has(key):
+				continue
+			var ink: Color = inverted[key]
+			inverted[key] = Color(ink.r * k, ink.g * k, ink.b * k, ink.a)
+	return inverted
+
+## Gira o matiz meia volta e devolve a cor à MESMA luminância.
+##
+## Luminância é linear em RGB, então preservá-la cor a cor preserva a do campo
+## inteiro — é isso que faz o campo invertido passar pela mesma varredura do
+## campo normal, sem uma segunda calibração.
+##
+## Dois caminhos, porque um matiz não alcança qualquer luminância: escurecer é
+## só multiplicar, mas CLAREAR saturado bate no teto do canal (azul puro não
+## passa de 0.07 por mais que se multiplique). Quando falta luz, a cor é
+## misturada com branco, que a empurra para a luminância certa desbotando em vez
+## de estourar — e um pânico desbotado é exatamente a leitura que se quer.
+static func invert_hue_keeping_light(source: Color) -> Color:
+	var rotated := Color.from_hsv(fmod(source.h + 0.5, 1.0), source.s, source.v, source.a)
+	var before := source.get_luminance()
+	var after := rotated.get_luminance()
+	if after <= 0.0001 or before <= 0.0001:
+		return rotated
+	if after >= before:
+		var k := before / after
+		return Color(rotated.r * k, rotated.g * k, rotated.b * k, source.a)
+	var t := clampf((before - after) / maxf(1.0 - after, 0.0001), 0.0, 1.0)
+	var lifted := rotated.lerp(Color(1.0, 1.0, 1.0, rotated.a), t)
+	lifted.a = source.a
+	return lifted
+
 ## Um campo ESTOURA quando os três canais saturam juntos: aí ele perde o matiz e
 ## vira tela branca. Um canal sozinho acima de 1.0 é cor forte — a saturação
 ## vermelha do TempleOS e o azul do XP são escolhas de ato. Três canais é luz, e
@@ -268,6 +326,42 @@ static func difficulty_cadence(wave: int) -> float:
 	var scale: float = DIFF_CADENCE_SCALE.get(Game.difficulty, 1.0)
 	var floor_v: float = DIFF_CADENCE_FLOOR.get(Game.difficulty, 0.78)
 	return clampf(base * scale, floor_v, 1.0)
+
+## ── coordenação de ataque ─────────────────────────────────────────────
+##
+## Antes disto todo inimigo decidia atacar sozinho, olhando só para o próprio
+## relógio. Com cinco lancers em campo os cinco carregavam ao mesmo tempo e o
+## jogador não tinha o que ler: ou dava sorte no dash, ou tomava. A pressão
+## vinha do NÚMERO, não da leitura.
+##
+## Agora existe um teto de quantos podem estar COMPROMETIDOS com um ataque no
+## mesmo instante. Quem não pega vaga continua se reposicionando — a onda
+## inteira não para, ela se organiza. O teto cresce com a onda e com a
+## dificuldade, que é onde a pressão deve crescer.
+const ATTACK_SLOTS_BASE := 2
+const ATTACK_SLOTS_CAP := 5
+const DIFF_ATTACK_SLOTS := {"easy": -1, "normal": 0, "hard": 1}
+
+static func attack_slot_limit(wave: int) -> int:
+	var slots := ATTACK_SLOTS_BASE + int(floor(float(maxi(wave, 1) - 1) / 6.0))
+	if difficulty_applies():
+		slots += int(DIFF_ATTACK_SLOTS.get(Game.difficulty, 0))
+	return clampi(slots, 1, ATTACK_SLOTS_CAP)
+
+## Quanto o inimigo mira ADIANTE do jogador, como fração da velocidade dele.
+##
+## Mirar onde o jogador está é mirar onde ele não vai estar: um lancer telegrafa
+## 0.6s e o jogador percorre mais de 200px nesse tempo, então o lunge sempre
+## passava atrás. A antecipação começa em zero — nas primeiras ondas o jogo
+## ainda está ensinando o tell — e sobe até um teto que deixa o desvio possível.
+const AIM_LEAD_CAP := 0.72
+const DIFF_AIM_LEAD := {"easy": 0.6, "normal": 1.0, "hard": 1.25}
+
+static func aim_lead_factor(wave: int) -> float:
+	var lead := clampf(float(maxi(wave, 1) - 2) * 0.09, 0.0, AIM_LEAD_CAP)
+	if difficulty_applies():
+		lead *= float(DIFF_AIM_LEAD.get(Game.difficulty, 1.0))
+	return clampf(lead, 0.0, AIM_LEAD_CAP)
 
 static func arena_rect() -> Rect2:
 	var arena_size := Vector2(ARENA_W, ARENA_H)

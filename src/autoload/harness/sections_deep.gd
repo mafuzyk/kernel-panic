@@ -110,12 +110,20 @@ func _deferred_orb_cap_test(arena: Arena) -> void:
 	boss.queue_free()
 	await h._ticks(3)
 
+func _stage_by_id(stage_id: String) -> Dictionary:
+	for index in Game.story_stage_count():
+		if Game.story_stage_id(index) == stage_id:
+			return Game.story_stage_def(index)
+	return {}
+
+
 func _temple_god_spawn_test() -> void:
 	print("AT_STEP deep_temple_god_spawn")
 	var arena_stub := Node2D.new()
 	var container := Node2D.new()
 	var spawner := Spawner.new()
-	var stage := Game.story_stage_def(10)
+	# Pelo ID: o índice mudou quando o ato macOS entrou antes do bônus.
+	var stage := _stage_by_id("temple_god")
 	stage["waves"] = [["god"]]
 	h.add_child(arena_stub)
 	h.add_child(container)
@@ -125,6 +133,47 @@ func _temple_god_spawn_test() -> void:
 	await h._ticks(110)
 	var boss := spawner._boss
 	h._check(boss is GodBoss, "TempleOS GOD stage spawns the GOD boss")
+	spawner.stop()
+	for child in container.get_children():
+		if is_instance_valid(child):
+			child.queue_free()
+	spawner.queue_free()
+	container.queue_free()
+	arena_stub.queue_free()
+	await h._ticks(3)
+
+## O boss do ato macOS nasce do `boss_kind` da fase, como o GOD.
+func _kernel_task_spawn_test() -> void:
+	print("AT_STEP deep_kernel_task_spawn")
+	var arena_stub := Node2D.new()
+	var container := Node2D.new()
+	var spawner := Spawner.new()
+	var stage := _stage_by_id("mac_kernel_task")
+	h._check(not stage.is_empty(), "the macOS act ends on a stage with its own boss")
+	if stage.is_empty():
+		arena_stub.free()
+		container.free()
+		spawner.free()
+		return
+	stage["waves"] = [["kernel_task"]]
+	h.add_child(arena_stub)
+	h.add_child(container)
+	h.add_child(spawner)
+	var started := spawner.start_story(arena_stub, container, stage)
+	h._check(started, "the KERNEL_TASK stage starts scripted spawning")
+	await h._ticks(110)
+	var boss := spawner._boss
+	h._check(boss is KernelTaskBoss, "the macOS final stage spawns KERNEL_TASK, not ROOT.exe")
+	if boss is KernelTaskBoss:
+		var panic_boss: KernelTaskBoss = boss
+		h._check(not panic_boss.in_panic(), "KERNEL_TASK opens in its reporting state")
+		h._check(panic_boss.trace_interval_for_phase(3) < panic_boss.trace_interval_for_phase(1),
+			"the stack dump tightens as it loses integrity")
+		panic_boss.call("_flip_mode")
+		h._check(panic_boss.in_panic() and panic_boss.panics_triggered == 1,
+			"flipping the mode enters panic and counts it")
+		panic_boss.call("_flip_mode")
+		h._check(not panic_boss.in_panic(), "panic ends on its own instead of latching")
 	spawner.stop()
 	for child in container.get_children():
 		if is_instance_valid(child):
@@ -235,6 +284,288 @@ func _terminal_rm_rf_test() -> void:
 	h._check(not h.get_tree().paused, "the run summary is reachable without a frozen tree")
 	Game.mode = saved_mode
 	await h._ticks(3)
+
+## A coordenação de ataque e a antecipação de mira.
+##
+## Antes disto cada inimigo decidia atacar olhando só para o próprio relógio, e
+## todo mundo contornava o jogador pelo mesmo lado com a mesma curvatura: a onda
+## virava fila indiana e as investidas chegavam todas no mesmo instante.
+func _enemy_ai_test(arena: Arena) -> void:
+	print("AT_STEP deep_enemy_ai")
+	var saved_mode := Game.mode
+	var saved_difficulty := Game.difficulty
+	Game.mode = "classic"
+	Game.difficulty = "normal"
+
+	# Teto de atacantes simultâneos: cresce com a onda, com a dificuldade, e tem
+	# piso e teto para nunca virar "nenhum ataca" nem "todos atacam".
+	h._check(Balance.attack_slot_limit(1) == Balance.ATTACK_SLOTS_BASE,
+		"wave 1 opens with the base number of attack slots")
+	h._check(Balance.attack_slot_limit(20) > Balance.attack_slot_limit(1),
+		"later waves let more enemies commit at once")
+	h._check(Balance.attack_slot_limit(999) <= Balance.ATTACK_SLOTS_CAP,
+		"the attack slot count stays capped")
+	Game.difficulty = "hard"
+	var hard_slots := Balance.attack_slot_limit(10)
+	Game.difficulty = "easy"
+	var easy_slots := Balance.attack_slot_limit(10)
+	Game.difficulty = "normal"
+	h._check(hard_slots > easy_slots, "hard commits more attackers at once than easy")
+	h._check(Balance.attack_slot_limit(1) >= 1, "at least one enemy can always attack")
+
+	# Antecipação de mira: zero no começo, sobe, e para de subir.
+	h._check(Balance.aim_lead_factor(1) == 0.0, "the first waves do not lead their shots")
+	h._check(Balance.aim_lead_factor(12) > Balance.aim_lead_factor(4),
+		"later waves lead the player more")
+	h._check(Balance.aim_lead_factor(999) <= Balance.AIM_LEAD_CAP,
+		"aim lead stays under the cap that keeps dodging possible")
+
+	# As vagas em si.
+	var claimants: Array = []
+	for _slot_index in Balance.ATTACK_SLOTS_CAP + 3:
+		var claimant := DroneEnemy.new()
+		arena.enemy_container.add_child(claimant)
+		claimants.append(claimant)
+	await h._ticks(2)
+	# Sem `await` daqui até a contagem: o `_physics_process` da arena reescreve
+	# `attack_slot_limit` pela onda corrente a cada quadro.
+	EnemyBase.reset_attack_slots()
+	EnemyBase.tick_attack_slots(0.0, 1)
+	var limit: int = EnemyBase.attack_slot_limit
+	var granted := 0
+	for raw_claimant in claimants:
+		if raw_claimant.claim_attack_slot(1.0):
+			granted += 1
+	h._check(granted == limit, "only as many enemies commit as there are slots (%d of %d asked)" % [granted, claimants.size()])
+	h._check(claimants[0].claim_attack_slot(1.0), "an enemy that holds a slot can renew it")
+	claimants[0].release_attack_slot()
+	h._check(claimants[limit].claim_attack_slot(1.0), "releasing a slot hands it to whoever was waiting")
+	EnemyBase.tick_attack_slots(5.0, 1)
+	h._check(EnemyBase.attack_slots.is_empty(), "slots expire on their own, so a stuck attacker never holds one forever")
+	# Morrer devolve a vaga: sem isso um id morto seguraria o teto para sempre.
+	var dying: EnemyBase = claimants[1]
+	h._check(dying.claim_attack_slot(9.0), "the probe enemy takes a slot before dying")
+	dying.die()
+	h._check(not EnemyBase.attack_slots.has(dying.get_instance_id()), "dying returns the attack slot")
+	for raw_claimant in claimants:
+		if is_instance_valid(raw_claimant):
+			raw_claimant.queue_free()
+	EnemyBase.reset_attack_slots()
+	await h._ticks(2)
+
+	# Variedade de flanco: `configure()` sorteia lado e curvatura por inimigo.
+	var signs := {}
+	var weights := {}
+	for _flank_index in 24:
+		var probe := DroneEnemy.new()
+		probe.configure(1.0, false)
+		signs[probe.flank_sign] = true
+		weights[snappedf(probe.flank_weight, 0.01)] = true
+		probe.free()
+	h._check(signs.size() == 2, "enemies do not all orbit the player on the same side")
+	h._check(weights.size() > 4, "enemies do not all orbit with the same curvature")
+
+	Game.mode = saved_mode
+	Game.difficulty = saved_difficulty
+
+## Antecipação e corte de saída medidos sobre um jogador de verdade.
+func _enemy_aim_test(arena: Arena) -> void:
+	print("AT_STEP deep_enemy_aim")
+	var player: Player = arena.player
+	if player == null or not is_instance_valid(player):
+		return
+	var saved_mode := Game.mode
+	var saved_wave := Game.wave
+	Game.mode = "classic"
+	var probe := DroneEnemy.new()
+	arena.enemy_container.add_child(probe)
+	await h._ticks(2)
+	probe.threat_wave = 20
+	probe.player = player
+	var saved_velocity := player.vel
+	var saved_position := player.global_position
+	var arena_rect := Balance.arena_rect()
+	player.global_position = arena_rect.get_center()
+	player.vel = Vector2(300.0, 0.0)
+	probe.global_position = arena_rect.get_center() + Vector2(0.0, -260.0)
+	var predicted := probe.predict_player_position(0.6)
+	h._check(predicted.x > player.global_position.x + 40.0,
+		"a moving player is aimed ahead of, not at, where they stand")
+	h._check(arena_rect.grow(-3.0).has_point(predicted),
+		"the predicted point never leaves the arena")
+	player.vel = Vector2.ZERO
+	h._check(probe.predict_player_position(0.6).is_equal_approx(player.global_position),
+		"a still player is aimed exactly at")
+
+	# Corte de saída: com o jogador na parede esquerda, o inimigo contorna pelo
+	# lado que fecha a fuga em vez de empurrá-lo para o campo aberto.
+	# O inimigo vem de cima; o campo aberto está à direita. Os dois flancos têm
+	# de convergir para o mesmo lado — o que fecha a fuga.
+	player.global_position = Vector2(arena_rect.position.x + 30.0, arena_rect.get_center().y)
+	probe.global_position = player.global_position + Vector2(0.0, -200.0)
+	probe.flank_sign = 1.0
+	var sign_a := probe.cutoff_sign()
+	probe.flank_sign = -1.0
+	var sign_b := probe.cutoff_sign()
+	h._check(sign_a == sign_b and not is_zero_approx(sign_a),
+		"a cornered player gets the same cutting side from every attacker")
+	# De frente para o campo aberto nenhum lado corta melhor, e aí o inimigo
+	# não deve fingir que corta: mantém o próprio flanco.
+	probe.global_position = player.global_position + Vector2(200.0, 0.0)
+	probe.flank_sign = -1.0
+	h._check(probe.cutoff_sign() == -1.0,
+		"an attacker already between the player and open field keeps its flank")
+	player.global_position = arena_rect.get_center()
+	probe.flank_sign = -1.0
+	h._check(probe.cutoff_sign() == -1.0,
+		"in open field the enemy keeps its own flank instead of forcing one")
+	player.vel = saved_velocity
+	player.global_position = saved_position
+	probe.queue_free()
+	Game.mode = saved_mode
+	Game.wave = saved_wave
+	await h._ticks(2)
+
+## O elenco de 3.1. Cada um muda uma REGRA da arena, e é a regra que o teste
+## afirma — não a animação.
+func _new_cast_test(arena: Arena) -> void:
+	print("AT_STEP deep_new_cast")
+	var saved_mode := Game.mode
+	var saved_difficulty := Game.difficulty
+	Game.mode = "classic"
+	Game.difficulty = "normal"
+
+	# ZOMBIE: a primeira morte não é morte.
+	var zombie := ZombieEnemy.new()
+	arena.enemy_container.add_child(zombie)
+	await h._ticks(2)
+	zombie.configure(1.0, false)
+	h._check(not zombie.defunct and not zombie.dead, "a zombie starts as a live process")
+	zombie.die()
+	h._check(zombie.defunct and not zombie.dead and is_instance_valid(zombie),
+		"killing a zombie leaves a defunct husk instead of removing it")
+	h._check(zombie.hp == 1, "the husk takes exactly one more shot to reap")
+	h._check(zombie.revive_hp() >= 1 and zombie.revive_hp() < zombie.max_hp,
+		"an unreaped zombie returns weaker than it was")
+	# Deixar a janela fechar traz ele de volta.
+	zombie.reap_t = 0.0
+	zombie._move(0.016)
+	h._check(not zombie.defunct and zombie.revivals() == 1 and zombie.hp == zombie.revive_hp(),
+		"letting the reap window close brings the zombie back")
+	# Colher dentro da janela mata de verdade.
+	zombie.die()
+	h._check(zombie.defunct, "the revived zombie can go defunct again")
+	zombie.die()
+	h._check(zombie.dead, "a second shot inside the window reaps the zombie for good")
+	if is_instance_valid(zombie):
+		zombie.queue_free()
+
+	# CRON: relógio visível, cadência ligada à dificuldade, e nunca enche o campo.
+	var cron := CronEnemy.new()
+	arena.enemy_container.add_child(cron)
+	await h._ticks(2)
+	cron.threat_wave = 20
+	h._check(cron.period() > 0.0 and cron.period() <= CronEnemy.PERIOD,
+		"the cron period never grows past its base")
+	cron.tick_t = cron.period()
+	h._check(is_zero_approx(cron.schedule_fraction()), "a fresh cron reads as zero on its clock")
+	cron.tick_t = 0.0
+	h._check(cron.schedule_fraction() >= 0.999, "a cron about to fire reads as full on its clock")
+	h._check(cron.jobs_run() == 0, "a cron that never ticked ran no jobs")
+	cron.queue_free()
+
+	# SWAP: o poço cai com a distância e some na borda do raio.
+	var swap := SwapEnemy.new()
+	arena.enemy_container.add_child(swap)
+	await h._ticks(2)
+	swap.global_position = Vector2.ZERO
+	var near_pull := swap.pull_at(Vector2(40.0, 0.0))
+	var far_pull := swap.pull_at(Vector2(260.0, 0.0))
+	h._check(near_pull.length() > far_pull.length(), "the swap well pulls harder up close")
+	h._check(near_pull.normalized().is_equal_approx(Vector2.LEFT),
+		"the pull points at the well, not away from it")
+	h._check(swap.pull_at(Vector2(SwapEnemy.PULL_RADIUS + 1.0, 0.0)) == Vector2.ZERO,
+		"outside the radius the swap does nothing at all")
+	h._check(swap.pull_at(Vector2.ZERO) == Vector2.ZERO, "the well never divides by zero at its own centre")
+	swap.queue_free()
+
+	# BEACHBALL: a roda não machuca, ela atrasa — e tem teto.
+	var zone := SpinnerZone.new()
+	arena.add_child(zone)
+	await h._ticks(2)
+	zone.global_position = Vector2.ZERO
+	h._check(zone.covers(Vector2(10.0, 0.0)) and not zone.covers(Vector2(zone.radius + 5.0, 0.0)),
+		"the spinning wheel covers a disc and nothing outside it")
+	h._check(not zone.is_in_group("corruption"),
+		"the spinning wheel is not a damage pool — it costs time, not integrity")
+	var beachball := BeachballEnemy.new()
+	arena.enemy_container.add_child(beachball)
+	await h._ticks(2)
+	h._check(not beachball.zones_at_cap(), "one wheel on the field is under the cap")
+	var extra_zones: Array = []
+	for _zone_index in BeachballEnemy.ZONE_CAP:
+		var filler := SpinnerZone.new()
+		arena.add_child(filler)
+		extra_zones.append(filler)
+	await h._ticks(2)
+	h._check(beachball.zones_at_cap(), "the wheels stop stacking once the field is covered")
+	for filler in extra_zones:
+		if is_instance_valid(filler):
+			filler.queue_free()
+	zone.queue_free()
+	beachball.queue_free()
+
+	# GENIUS: só pisca quando o jogador realmente saiu da linha.
+	var genius := GeniusEnemy.new()
+	arena.enemy_container.add_child(genius)
+	await h._ticks(2)
+	genius.configure(1.0, false)
+	genius.player = arena.player
+	h._check(not genius.aim_has_drifted(Vector2.RIGHT, Vector2.RIGHT),
+		"a player still on the line does not earn a blink")
+	h._check(genius.aim_has_drifted(Vector2.RIGHT, Vector2(1.0, 1.0)),
+		"a player who left the line does")
+	h._check(genius.can_blink(), "a fresh lunge has its blink available")
+	var destination := genius.blink_destination()
+	h._check(Balance.arena_rect().grow(-2.0).has_point(destination),
+		"the blink never lands outside the arena")
+	genius.queue_free()
+
+	Game.mode = saved_mode
+	Game.difficulty = saved_difficulty
+	await h._ticks(3)
+
+## A inversão de campo do KERNEL_TASK: troca o MATIZ, não acende a luz.
+func _field_inversion_test() -> void:
+	print("AT_STEP deep_field_inversion")
+	var brightest: float = Balance.brightest_entity_luminance()
+	for raw_stage in StoryData.STAGES:
+		var stage: Dictionary = raw_stage
+		var theme: Dictionary = stage.get("theme", {})
+		if theme.is_empty():
+			continue
+		var flipped: Dictionary = Balance.invert_field_theme(theme)
+		var stage_id := str(stage.get("id", ""))
+		var hue_moved := false
+		for key in Balance.FIELD_INVERT_KEYS:
+			if not theme.has(key):
+				continue
+			var before: Color = theme[key]
+			var after: Color = flipped[key]
+			if before.s >= 0.05 and absf(fposmod(after.h - before.h + 0.5, 1.0) - 0.5) > 0.02:
+				hue_moved = true
+		h._check(hue_moved, "inverting the %s field actually moves its hue" % stage_id)
+		# A garantia é sobre o campo MONTADO, que é o que a tela mostra: o
+		# pânico troca a cor e nunca acende a luz. Medir cor a cor não bastaria,
+		# porque girar o matiz troca qual canal satura no framebuffer.
+		var peak: Color = Balance.story_field_peak_color(flipped)
+		var reference: float = Balance.field_display_color(Balance.story_field_peak_color(theme)).get_luminance()
+		h._check(Balance.field_display_color(peak).get_luminance() <= reference + 0.002,
+			"the panic never brightens the %s field, only recolours it" % stage_id)
+		h._check(not Balance.field_whites_out(peak),
+			"the inverted %s field never washes out to white" % stage_id)
+		h._check(Balance.field_display_color(peak).get_luminance() <= brightest,
+			"the inverted %s field never out-glows the brightest entity" % stage_id)
 
 func _oom_ownership_test(arena: Arena) -> void:
 	print("AT_STEP deep_oom_ownership")
