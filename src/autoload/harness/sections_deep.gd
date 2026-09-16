@@ -296,6 +296,12 @@ func _enemy_ai_test(arena: Arena) -> void:
 	var saved_difficulty := Game.difficulty
 	Game.mode = "classic"
 	Game.difficulty = "normal"
+	# Os inimigos-sonda são REAIS e ficam vivos entre os `await`. Sem blindar o
+	# jogador, este teste sangra integridade para dentro dos testes seguintes,
+	# que assumem uma run intacta.
+	var ai_saved_hp: int = arena.player.hp
+	var ai_saved_invuln: float = arena.player.invuln
+	arena.player.invuln = 9999.0
 
 	# Teto de atacantes simultâneos: cresce com a onda, com a dificuldade, e tem
 	# piso e teto para nunca virar "nenhum ataca" nem "todos atacam".
@@ -365,6 +371,8 @@ func _enemy_ai_test(arena: Arena) -> void:
 	h._check(signs.size() == 2, "enemies do not all orbit the player on the same side")
 	h._check(weights.size() > 4, "enemies do not all orbit with the same curvature")
 
+	arena.player.hp = ai_saved_hp
+	arena.player.invuln = ai_saved_invuln
 	Game.mode = saved_mode
 	Game.difficulty = saved_difficulty
 
@@ -434,6 +442,11 @@ func _new_cast_test(arena: Arena) -> void:
 	var saved_difficulty := Game.difficulty
 	Game.mode = "classic"
 	Game.difficulty = "normal"
+	# Mesma regra do teste de IA: sondas vivas não podem cobrar integridade de
+	# quem vem depois.
+	var cast_saved_hp: int = arena.player.hp
+	var cast_saved_invuln: float = arena.player.invuln
+	arena.player.invuln = 9999.0
 
 	# ZOMBIE: a primeira morte não é morte.
 	var zombie := ZombieEnemy.new()
@@ -531,6 +544,8 @@ func _new_cast_test(arena: Arena) -> void:
 		"the blink never lands outside the arena")
 	genius.queue_free()
 
+	arena.player.hp = cast_saved_hp
+	arena.player.invuln = cast_saved_invuln
 	Game.mode = saved_mode
 	Game.difficulty = saved_difficulty
 	await h._ticks(3)
@@ -686,6 +701,60 @@ func _story_completion_test() -> void:
 	Game.story_best = saved_best
 	h._restore_config_section("story", disk)
 	await h._ticks(2)
+
+## O elenco novo em MOVIMENTO, não parado.
+##
+## Os testes de regra acima são estáticos; este solta um de cada na arena real e
+## deixa rodar. É o que pega erro de runtime que só aparece com um alvo vivo, um
+## `get_parent()` nulo ou uma zona nascendo enquanto a onda troca.
+##
+## Roda no FIM do bloco da arena2 de propósito: ele esvazia o campo, e um campo
+## vazio faz o spawner fechar a onda e abrir a próxima inteira de uma vez — o
+## que cobrava integridade de todo teste que viesse depois.
+func _new_cast_live_test(arena: Arena) -> void:
+	print("AT_STEP deep_new_cast_live")
+	# O teste POSSUI a arena por nove segundos e tem de devolvê-la intacta: o
+	# resto da suíte continua na mesma cena, com o mesmo jogador e a mesma onda.
+	var was_running: bool = arena.spawner.get("_running")
+	var saved_hp: int = arena.player.hp
+	var saved_invuln: float = arena.player.invuln
+	arena.player.invuln = 9999.0
+	arena.spawner.stop()
+	for kind in ["zombie", "cron", "swap", "beachball", "genius"]:
+		var member: EnemyBase = arena.spawner.call("_make_enemy", str(kind))
+		if member == null:
+			continue
+		member.threat_wave = 14
+		member.position = arena.player.global_position + Vector2.from_angle(Game.rng.randf() * TAU) * 260.0
+		member.configure(1.3, false)
+		arena.enemy_container.add_child(member)
+	await h._ticks(2)
+	var spawned := EnemyBase.shared_list.size()
+	h._check(spawned >= 5, "the whole new cast reaches the arena (%d)" % spawned)
+	# Tempo real de física com o jogador vivo: cada um exercita o próprio ciclo
+	# completo, incluindo a agenda do CRON e a roda do BEACHBALL.
+	await h._simulation_seconds(9.0)
+	var alive := 0
+	for member in EnemyBase.shared_list:
+		if is_instance_valid(member):
+			alive += 1
+	h._check(alive > 0, "the cast survives nine seconds of live physics")
+	h._check(arena.player != null and is_instance_valid(arena.player), "and so does the player they are chasing")
+	for member in EnemyBase.shared_list.duplicate():
+		if is_instance_valid(member):
+			member.queue_free()
+	for zone in h.get_tree().get_nodes_in_group("spinner_zone"):
+		if is_instance_valid(zone):
+			zone.queue_free()
+	await h._ticks(3)
+	EnemyBase.reset_attack_slots()
+	arena.player.hp = saved_hp
+	arena.player.invuln = saved_invuln
+	# Religa o spawner onde ele estava em vez de chamar `start()`: um `start()`
+	# recomeça a ONDA do zero, e reabrir uma onda 7 inteira em cima do jogador
+	# cobrava integridade dos testes seguintes.
+	arena.spawner.set("_running", was_running)
+	await h._ticks(3)
 
 func _oom_ownership_test(arena: Arena) -> void:
 	print("AT_STEP deep_oom_ownership")

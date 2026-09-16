@@ -42,7 +42,7 @@ Grab the Android, Linux, or Windows build from the [latest release](https://gith
 ### What's new in 2.5.0
 
 - A complete tactical UI pass across the menu, settings, program/story/bestiary selectors, combat HUD, patch selection, boss encounters, pause screen, and diagnostic terminal.
-- New UNIX, Windows, and TempleOS story acts, with era-specific CRT treatments, bosses, enemies, and arena rules.
+- New UNIX, Windows, macOS, and TempleOS story acts, with era-specific CRT treatments, bosses, enemies, and arena rules.
 - A desktop debug console for skipping cycles, spawning enemies and bosses, forcing ROOT split states, and clearing combatants while testing movement and AI.
 - Portable save transfer, achievement/event-log reporting, speedrun diagnostics, and the in-game terminal recovery tools.
 - Better desktop input safety, responsive layouts, clearer action icons, aligned controls, and refined pause/terminal behavior on compact windows.
@@ -109,6 +109,19 @@ game's separate local save data.
 - Fight a different ROOT process every fifth cycle.
 - Learn enemy behavior in the built-in bestiary.
 
+Later cycles bring processes that change the rules rather than the numbers.
+`ZOMBIE` dies into a `<defunct>` husk and comes back at half integrity unless a
+second shot reaps it in time. `CRON` never attacks: it schedules reinforcements
+on a visible clock, and the cycle will not end while it lives. `SWAP` drags you
+and the loose motes toward itself, and dash is the only thing that ignores the
+well.
+
+A wave no longer charges all at once, either. There is a ceiling on how many
+enemies commit to an attack at the same time — it rises with the cycle and the
+difficulty — and whoever misses the window keeps repositioning instead. Lancers
+and spewers lead their target now, by an amount that starts at zero and stops
+where dodging is still possible.
+
 Your first arena run introduces movement and dash timing, then surfaces a short tactical hint the first time key threats appear. Bestiary records unlock when a daemon enters the arena, so you can learn what you are facing before you purge it.
 
 Three run modes change the rules:
@@ -123,17 +136,32 @@ chance, and attack cadence, and it is stored locally; Story keeps its fixed
 per-stage curve and weekly runs stay seed-deterministic.
 
 The separate **STORY // ACTS** entry contains fixed stages with hand-authored
-waves, an intro log, and an individual best score. Act 1 covers the UNIX paths
-`/boot`, `/var/log`, `/net`, `/mem`, `/quarantine`, and `/kernel`; clearing
-`/mem` unlocks the ROOTLET program. The Windows act follows with `C:\98`,
-`C:\XP`, and `Win11`: heavy CRT, soft CRT/Luna, and clean glass eras. It adds
-the reinstalling `UPDATE_LOOP`, the fat `BLOATWARE` process, and destructible
-static POPUP orbs. Clearing a stage mounts the next path.
+waves, an intro log, and an individual best score. Every stage publishes a
+**target time**, announces its contract on the intro card — no damage, inside
+the time — and grades the clear **S / A / B**. The rank is saved per stage and
+never downgraded by a lazier replay; it is a target, not a gate, so a B still
+mounts the next path. The process you are purging **talks back** three times
+per stage: when it opens, halfway through, and when it falls.
+
+Act 1 covers the UNIX paths `/boot`, `/var/log`, `/net`, `/mem`, `/quarantine`,
+and `/kernel`; clearing `/mem` unlocks the ROOTLET program. The Windows act
+follows with `C:\98`, `C:\XP`, and `Win11`: heavy CRT, soft CRT/Luna, and a
+clean dark-glass era. It adds the reinstalling `UPDATE_LOOP`, the fat
+`BLOATWARE` process, and destructible static POPUP orbs.
+
+Act 3 is **macOS**: `/System`, `/Applications`, `/Library/Updates`, and
+`kernel_task`. It brings `BEACHBALL`, which plants a spinning wheel that costs
+you time instead of integrity, and `GENIUS`, a lancer that blinks to a better
+angle when you dodge too early. Its boss `KERNEL_TASK` flips the hue of the
+whole field mid-dodge while it prints its stack at you.
 
 The bonus TempleOS act adds `TempleOS::BOOT` and `TempleOS::GOD`. Its arena is
 deliberately compact (640×640), cycles through a rainbow palette, and uses a
 golden/coral “holy CRT” treatment. GOD is an oracle boss: every attack is
 chosen by the run RNG, so the encounter is intentionally unpredictable.
+
+Clearing the **last stage of an act** unlocks a field tint for the endless
+modes, picked under Settings → Video. TempleOS's rainbow is one of them.
 
 ## Controls
 

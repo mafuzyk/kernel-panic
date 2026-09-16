@@ -498,6 +498,7 @@ func _autotest() -> void:
 	await _sec_deep._vampic_reset_test()
 	arena2 = get_tree().current_scene as Arena
 	await _sec_modes._reticle_modal_test(arena2)
+	await _sec_deep._new_cast_live_test(arena2)
 	await _sec_deep._story_hold_restart_test()
 	await _sec_deep._terminal_rm_rf_test()
 	Game.to_menu()
