@@ -90,23 +90,54 @@ func active_roster() -> String:
 func has_trait(id: String) -> bool:
 	return active_traits().has(id)
 
-## Produto dos traits ativos para uma chave. `1.0` quando ninguém mexe nela.
-func factor(key: String, neutral: float = 1.0) -> float:
-	var value := neutral
+## ── multiplicadores resolvidos ────────────────────────────────────────
+##
+## `factor()` é caminho quente: `Balance.arena_rect()` passa por ele, e todo
+## inimigo consulta o retângulo da arena a cada passo de física. Percorrer a
+## lista de traits e o dicionário a cada chamada era refazer o mesmo produto
+## dezenas de vezes por quadro.
+##
+## O plano só muda quando a semana ou o modo mudam, então os produtos são
+## resolvidos uma vez e guardados. A verificação são duas comparações, sem
+## alocar nada.
+var _factors: Dictionary = {}
+var _offsets: Dictionary = {}
+var _factor_week := -1
+var _factor_mode := ""
+
+func _ensure_resolved() -> void:
+	var week := Game.week_number()
+	if week == _factor_week and Game.mode == _factor_mode:
+		return
+	_factor_week = week
+	_factor_mode = Game.mode
+	_factors = {}
+	_offsets = {}
 	for id in active_traits():
 		var entry: Dictionary = TRAITS.get(str(id), {})
-		if entry.has(key):
-			value *= float(entry[key])
-	return value
+		for key in entry:
+			var value := float(entry[key])
+			# `max_hp` é o único aditivo; o resto multiplica.
+			if str(key) == "max_hp":
+				_offsets[key] = float(_offsets.get(key, 0.0)) + value
+			else:
+				_factors[key] = float(_factors.get(key, 1.0)) * value
+
+## Produto dos traits ativos para uma chave. `1.0` quando ninguém mexe nela.
+func factor(key: String, neutral: float = 1.0) -> float:
+	_ensure_resolved()
+	return float(_factors.get(key, neutral))
 
 ## Soma dos traits ativos para uma chave, para o que é aditivo (integridade).
 func offset(key: String) -> float:
-	var total := 0.0
-	for id in active_traits():
-		var entry: Dictionary = TRAITS.get(str(id), {})
-		if entry.has(key):
-			total += float(entry[key])
-	return total
+	_ensure_resolved()
+	return float(_offsets.get(key, 0.0))
+
+## O autotest troca o plano na mão para afirmar cada trait; sem isto ele leria
+## os multiplicadores do plano anterior.
+func invalidate_resolved() -> void:
+	_factor_week = -1
+	_factor_mode = ""
 
 ## Elenco liberado. Vazio significa "sem restrição".
 func roster_kinds() -> Array:

@@ -49,9 +49,22 @@ MAX_FRAMES = 60 * 60 * 90
 BYTES_PER_FRAME = 5
 NAME_RE = re.compile(r"^[A-Za-z0-9 _.\-]{1,24}$")
 
-# Janela de envio por endereço: verificação é cara e não há login para limitar.
+# ── limites de envio ──────────────────────────────────────────────────
+#
+# Atrás de um túnel — que é o jeito recomendado de expor isto — TODA requisição
+# chega de 127.0.0.1. Um limite só por endereço virava um balde global: o sexto
+# envio de qualquer pessoa em dez minutos levava 429.
+#
+# São dois limites, então. O por NOME é o de jogadora, que é a única identidade
+# que existe aqui. O por endereço fica largo e serve de teto de CPU para o
+# serviço inteiro.
 RATE_WINDOW = 600
-RATE_LIMIT = 5
+RATE_LIMIT_NAME = 5
+RATE_LIMIT_TOTAL = 40
+# O túnel põe o endereço real em `X-Forwarded-For`. Confiar nesse cabeçalho só
+# faz sentido quando quem fala com o serviço é o túnel; ligado sem isso,
+# qualquer pessoa forja o próprio limite.
+TRUST_FORWARDED = os.environ.get("KP_BOARD_TRUST_FORWARDED", "") == "1"
 
 
 def week_number(now: float | None = None) -> int:
@@ -177,6 +190,11 @@ class Verifier:
             packet_path.write_text(json.dumps(packet))
             # Ambiente mínimo e descartável: o processo não enxerga o save de
             # ninguém, não escreve em HOME e não herda nada da sessão.
+            #
+            # O isolamento vem inteiro de HOME e das XDG_* apontando para este
+            # diretório temporário. Havia um `KP_CLEAN_SAVE=1` aqui que o jogo
+            # não lê — só o script da sessão virtual lê — e mantê-lo sugeria uma
+            # segunda camada de proteção que nunca existiu.
             env = {
                 "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
                 "HOME": str(work),
@@ -185,7 +203,6 @@ class Verifier:
                 "XDG_CACHE_HOME": str(work / "cache"),
                 "KP_WEEK": str(week),
                 "KP_VERIFY_IN": str(packet_path),
-                "KP_CLEAN_SAVE": "1",
             }
             try:
                 done = subprocess.run(
@@ -225,20 +242,29 @@ def _tagged_int(text: str, tag: str) -> int | None:
 
 
 class RateLimiter:
+    """Janelas deslizantes independentes, uma por chave."""
+
     def __init__(self) -> None:
         self._hits: dict[str, list[float]] = {}
         self._lock = threading.Lock()
 
-    def allow(self, who: str) -> bool:
+    def allow(self, key: str, limit: int) -> bool:
         now = time.time()
         with self._lock:
-            hits = [t for t in self._hits.get(who, []) if now - t < RATE_WINDOW]
-            if len(hits) >= RATE_LIMIT:
-                self._hits[who] = hits
+            hits = [t for t in self._hits.get(key, []) if now - t < RATE_WINDOW]
+            if len(hits) >= limit:
+                self._hits[key] = hits
                 return False
             hits.append(now)
-            self._hits[who] = hits
+            self._hits[key] = hits
             return True
+
+    def rollback(self, key: str) -> None:
+        """Devolve a vaga quando o envio não chegou a ser enfileirado."""
+        with self._lock:
+            hits = self._hits.get(key, [])
+            if hits:
+                hits.pop()
 
 
 def validate_packet(packet: dict) -> tuple[bool, str, int]:
@@ -287,6 +313,20 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt: str, *args) -> None:
         sys.stderr.write("[board] %s\n" % (fmt % args))
+
+    def _origin(self) -> str:
+        """Quem está falando, para o teto de CPU do serviço.
+
+        Atrás de um túnel o endereço do socket é sempre 127.0.0.1, e o endereço
+        real vem em `X-Forwarded-For`. Ele só é lido quando `TRUST_FORWARDED`
+        diz que quem fala com este serviço é o túnel — caso contrário qualquer
+        pessoa escolheria o próprio balde.
+        """
+        if TRUST_FORWARDED:
+            forwarded = self.headers.get("X-Forwarded-For", "")
+            if forwarded:
+                return forwarded.split(",")[0].strip()[:64]
+        return self.client_address[0]
 
     def _json(self, status: HTTPStatus, payload: dict) -> None:
         body = json.dumps(payload).encode("utf-8")
@@ -354,8 +394,13 @@ class Handler(BaseHTTPRequestHandler):
         # malformado é um regex; re-simular uma run é um processo do jogo
         # inteiro. Contar as recusas deixava um envio honesto sem vaga porque
         # alguém mandou lixo antes.
-        if not self.limiter.allow(self.client_address[0]):
-            self._json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "too many submissions, try later"})
+        if not self.limiter.allow("name:%s" % name.lower(), RATE_LIMIT_NAME):
+            self._json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "too many submissions for that name, try later"})
+            return
+        origin = self._origin()
+        if not self.limiter.allow("addr:%s" % origin, RATE_LIMIT_TOTAL):
+            self.limiter.rollback("name:%s" % name.lower())
+            self._json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "the board is saturated, try later"})
             return
         sub_id = os.urandom(12).hex()
         self.db.submission_open(sub_id, week, name)

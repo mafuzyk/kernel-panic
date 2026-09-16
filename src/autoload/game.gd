@@ -224,10 +224,21 @@ func _cfg_dict(cf: ConfigFile, section: String, key: String, fallback: Dictionar
 ## ele re-simula uma run enviada dias depois, e tanto a seed quanto os traits da
 ## semana saem daqui — sem forçar, ele reconferiria a partida errada. É lido do
 ## ambiente do processo, então nada que chegue pela rede o alcança.
+## `-1` = ainda não lido. O ambiente é lido UMA vez: `week_number()` está no
+## caminho quente (todo inimigo consulta `Balance.arena_rect()` a cada passo) e
+## um `OS.get_environment` por chamada é uma leitura de ambiente e uma String
+## alocada por inimigo por quadro. Ler uma vez também garante que ninguém mude
+## a semana no meio de uma run.
+var _forced_week := -1
+var _forced_week_read := false
+
 func week_number() -> int:
-	var forced := OS.get_environment("KP_WEEK")
-	if forced != "" and forced.is_valid_int():
-		return int(forced)
+	if not _forced_week_read:
+		_forced_week_read = true
+		var forced := OS.get_environment("KP_WEEK")
+		_forced_week = int(forced) if forced != "" and forced.is_valid_int() else -1
+	if _forced_week >= 0:
+		return _forced_week
 	var days := int(Time.get_unix_time_from_system() / 86400.0)
 	return int(float(days + 3) / 7.0)
 
@@ -298,6 +309,9 @@ func start_story(index: int = 0) -> bool:
 	mult = 1
 	combo_left = 0.0
 	combo_window = Balance.COMBO_WINDOW
+	# O Story não é gravado: só o Weekly entra no placar.
+	if not Replay.is_replaying():
+		Replay.stop()
 	# A FASE entrega o build, montado à mão e sempre o mesmo. O endless sorteia o
 	# dele e é isso que faz o jogo dele; aqui o build é a premissa, e o jogo é o
 	# que a regra da fase faz com ela. Antes o Story rodava com `{}` — sem
@@ -343,7 +357,10 @@ func should_offer_patch(cleared_wave: int) -> bool:
 	var every := maxi(int(round(float(Balance.BOSS_EVERY) * Weekly.factor("patch_every"))), 1)
 	return cleared_wave > 0 and (cleared_wave + 1) % every == 0
 
-const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "UPDATE_LOOP": "update_loop", "BLOATWARE": "bloatware", "GOD": "god", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault"}
+## `display_name` do inimigo -> id no bestiário. É por aqui que `mark_bestiary()`
+## resolve o que foi visto, e `export_save_string`/`import_save_string` filtram
+## por estes valores — um id fora daqui nunca destrava e nem sobrevive ao save.
+const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "UPDATE_LOOP": "update_loop", "BLOATWARE": "bloatware", "GOD": "god", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault", "ZOMBIE": "zombie", "CRON": "cron", "SWAP": "swap", "BEACHBALL": "beachball", "GENIUS": "genius", "KERNEL_TASK": "kernel_task"}
 
 func _bestiary_id_for_display(display: String) -> String:
 	var normalized := display.strip_edges()
@@ -517,10 +534,22 @@ func start_run() -> void:
 			# Só o Weekly grava: é o único modo em que todo mundo joga a MESMA
 			# partida, logo o único que dá para comparar e para reconferir.
 			# Cinco bytes por passo de física — uma run de meia hora dá ~540 KB.
-			Replay.begin_record()
+			#
+			# REPRODUZINDO, não. O verificador carrega o buffer e só então manda
+			# a run começar; gravar aqui apagaria exatamente o que ele acabou de
+			# receber, e o servidor recusaria toda run honesta por falta de
+			# entrada. Medido: a reprodução parava em 448 quadros de 1367.
+			if not Replay.is_replaying():
+				Replay.begin_record()
 		_:
 			rng.randomize()
 			run_seed = int(rng.seed)
+			# Sem isto o gravador ficava ligado depois da primeira run semanal e
+			# seguia empilhando 5 bytes por passo — e uma entrada de prova a cada
+			# cinco segundos — em toda partida seguinte, de qualquer modo, até a
+			# próxima semanal zerar o buffer.
+			if not Replay.is_replaying():
+				Replay.stop()
 	new_best = false
 	stats = {"kills": 0, "shots": 0, "hits": 0, "damage": 0, "time": 0.0, "wave": 1, "boss_kills": 0, "heals": {}}
 	log_event("BOOT // %s // SEED %d" % [program_def()["name"], run_seed])

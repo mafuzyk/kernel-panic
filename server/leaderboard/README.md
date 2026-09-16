@@ -30,6 +30,7 @@ KP_PROJECT=/home/mafu/kernel-panic python3 server/leaderboard/server.py
 | `KP_BOARD_DB` | `server/leaderboard/board.sqlite3` | Banco |
 | `KP_PROJECT` | raiz do repositório | Projeto que o verificador roda |
 | `KP_GODOT` | `godot` | Executável do Godot |
+| `KP_BOARD_TRUST_FORWARDED` | desligado | Ler `X-Forwarded-For` do túnel para o teto total |
 
 Como serviço runit, veja `runit/run`.
 
@@ -63,11 +64,16 @@ Com o túnel no ar, aponte o cliente para a URL que ele imprimir.
   disso um processo do jogo é gasto.
 - **Fila curta (32) com um trabalhador.** Re-simular custa um processo inteiro;
   fila longa só esconderia sobrecarga. Cheia, responde 503.
-- **Cinco envios por endereço a cada dez minutos**, contados só quando o envio
-  chega a custar CPU. Recusar um corpo malformado é um regex e não consome vaga.
-- **Verificador isolado.** Roda com `HOME` e `XDG_*` num diretório temporário
-  descartável, com `KP_CLEAN_SAVE=1`: não enxerga o save de ninguém, não escreve
-  em `HOME`, e tem tempo limite de 5 minutos.
+- **Dois limites, porque atrás de um túnel todo mundo chega de `127.0.0.1`.**
+  Cinco envios por NOME a cada dez minutos — a única identidade que existe aqui
+  — e quarenta no total, como teto de CPU do serviço. Contados só quando o envio
+  chega a custar alguma coisa: recusar um corpo malformado é um regex e não
+  consome vaga. Com `KP_BOARD_TRUST_FORWARDED=1` o teto total passa a usar o
+  `X-Forwarded-For` do túnel; **só ligue isso se o túnel for mesmo quem fala com
+  o serviço**, senão qualquer pessoa escolhe o próprio balde.
+- **Verificador isolado.** Roda com `HOME` e `XDG_*` apontando para um diretório
+  temporário descartável: não enxerga o save de ninguém, não escreve em `HOME`,
+  e tem tempo limite de 5 minutos.
 - **SQL parametrizado** em toda consulta.
 - **Nome de 1 a 24 caracteres simples**, porque ele é mostrado para outras
   pessoas.

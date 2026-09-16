@@ -142,6 +142,7 @@ func _task2_test(arena: Arena) -> void:
 	var saved_week: int = Weekly._cache_week
 	var saved_plan: Dictionary = Weekly._cache.duplicate(true)
 	Weekly._cache_week = Game.week_number()
+	Weekly.invalidate_resolved()
 	Weekly._cache = {"traits": [], "roster": ""}
 	for mode_name in ["classic", "weekly", "onehp"]:
 		Game.mode = mode_name
@@ -149,6 +150,7 @@ func _task2_test(arena: Arena) -> void:
 			h._check(_task2_should_offer_patch(cadence_waves[i]) == cadence_expected[mode_name][i], "%s patch cadence wave %d" % [mode_name, cadence_waves[i]])
 	# E a cadência espaçada do trait, afirmada onde ela é a regra.
 	Game.mode = "weekly"
+	Weekly.invalidate_resolved()
 	Weekly._cache = {"traits": ["frugal"], "roster": "mixed"}
 	h._check(not _task2_should_offer_patch(Balance.BOSS_EVERY - 1),
 		"frugal skips the patch the base cadence would have offered")

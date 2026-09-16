@@ -193,7 +193,12 @@ func _drive_once(record: bool, data: PackedByteArray, picks: Array, sample_every
 	arena.add_child(driver)
 	var done: bool = await h._until(func() -> bool: return driver.finished, 200.0, "replay pass")
 	var result := {
-		"frames": driver.frame,
+		# O contador da ARENA, que é o mesmo que `Game.run_packet()` envia numa
+		# run de verdade. Usar o do motorista fazia harness bater com harness e
+		# recusar toda submissão vinda do jogo: o motorista só começa a contar
+		# depois da âncora, 30 passos atrás da arena.
+		"frames": Replay.frame,
+		"driver_frames": driver.frame,
 		# A prova vem do JOGO, não do motorista: é a mesma que uma run de
 		# verdade produz, e é essa que o servidor compara.
 		"digest": Replay.digest_json(),

@@ -24,6 +24,9 @@ const BYTES_PER_FRAME := 5
 const MOVE_SCALE := 127.0
 const ANGLE_STEPS := 65536.0
 
+## Movimento parado, codificado. `0` não é neutro: decodifica para -1.008.
+const NEUTRAL_MOVE_BYTE := 128
+
 const FLAG_FIRE := 1
 const FLAG_DASH := 2
 const FLAG_OVERCLOCK := 4
@@ -147,8 +150,12 @@ func push(move: Vector2, aim_angle: float, has_aim: bool, fire: bool, dash: bool
 	# um quadro sem jogador vivo simplesmente não escreve, e a reprodução
 	# continua encontrando cada comando no lugar certo.
 	var slot := frame * BYTES_PER_FRAME
+	# Preenchido com o byte NEUTRO, não com zero. `_from_byte(0)` é -1.008: um
+	# quadro pulado — a arena avança e o `_physics_process` do jogador sai cedo —
+	# reproduziria como diagonal a toda velocidade em vez de parado.
 	while _buffer.size() < slot + BYTES_PER_FRAME:
-		_buffer.append(0)
+		var offset := _buffer.size() % BYTES_PER_FRAME
+		_buffer.append(NEUTRAL_MOVE_BYTE if offset < 2 else 0)
 	# `move` já vem quantizado de `_resolve_move`; codificar de novo devolve os
 	# mesmos bytes porque a quantização é idempotente.
 	_buffer[slot] = _to_byte(move.x)

@@ -803,6 +803,7 @@ func _weekly_traits_test() -> void:
 	for trait_id in Weekly.TRAITS.keys():
 		var id := str(trait_id)
 		Weekly._cache_week = Game.week_number()
+		Weekly.invalidate_resolved()
 		Weekly._cache = {"traits": [id], "roster": "mixed"}
 		match id:
 			"swift":
@@ -837,6 +838,7 @@ func _weekly_traits_test() -> void:
 	# Um trait sozinho não pode zerar o orçamento da onda.
 	for trait_id in Weekly.TRAITS.keys():
 		Weekly._cache_week = Game.week_number()
+		Weekly.invalidate_resolved()
 		Weekly._cache = {"traits": [str(trait_id)], "roster": "mixed"}
 		h._check(Balance.difficulty_wave_budget(9) >= 1,
 			"%s still leaves a wave worth spawning" % trait_id)
@@ -853,6 +855,7 @@ func _weekly_traits_test() -> void:
 	h.add_child(roster_probe)
 	for roster_id in Weekly.ROSTERS.keys():
 		Weekly._cache_week = Game.week_number()
+		Weekly.invalidate_resolved()
 		Weekly._cache = {"traits": [], "roster": str(roster_id)}
 		var allowed: Array = Weekly.ROSTERS[roster_id]
 		var intruders := {}
@@ -1121,6 +1124,53 @@ func _replay_recorder_test(arena: Arena) -> void:
 		"past the end of a recording the command reads as standing still")
 	Replay.stop()
 	h._check(Replay.mode == Replay.Mode.OFF, "stopping puts the recorder back to idle")
+
+	# Começar uma run semanal liga a gravação — MENOS quando já se está
+	# reproduzindo. O verificador carrega o buffer e só então manda a run
+	# começar; gravar ali apagaria o que ele acabou de receber, e o servidor
+	# recusaria toda run honesta por falta de entrada. Isto passa despercebido
+	# na suíte inteira e só aparece no servidor, então mora aqui.
+	var saved_board_mode := Game.mode
+	Replay.begin_replay(data, [])
+	var loaded := Replay.recorded_frames()
+	Game.mode = "weekly"
+	# O trecho de `start_run()` que decide gravar, sem trocar de cena.
+	if not Replay.is_replaying():
+		Replay.begin_record()
+	h._check(Replay.is_replaying(), "starting a weekly run while replaying stays in replay")
+	h._check(Replay.recorded_frames() == loaded,
+		"and it keeps the loaded input instead of wiping it (%d of %d)" % [Replay.recorded_frames(), loaded])
+	Replay.stop()
+	Game.mode = saved_board_mode
+
+	# Um slot NUNCA escrito tem de ler como parado. `0` não é neutro: decodifica
+	# para -1.008, e um quadro pulado — a arena avança e o `_physics_process` do
+	# jogador sai cedo — viraria uma arrancada diagonal a toda velocidade.
+	Replay.begin_record()
+	Replay.frame = 5
+	Replay.push(Vector2.ZERO, 0.0, false, false, false, false)
+	var gap_data: PackedByteArray = Replay.buffer()
+	Replay.begin_replay(gap_data, [])
+	Replay.frame = 2
+	var gap: Dictionary = Replay.command()
+	h._check((gap["move"] as Vector2).is_equal_approx(Vector2.ZERO),
+		"a frame that was never written replays as standing still, not as a full-speed dash")
+	Replay.stop()
+
+	# Os inimigos do 3.1 têm de conseguir entrar no bestiário: `mark_bestiary`
+	# resolve pelo nome de exibição, e o save filtra pelos valores do mapa.
+	var missing: Array[String] = []
+	for probe_kind in ["zombie", "cron", "swap", "beachball", "genius", "kernel_task"]:
+		if not Game.BESTIARY_MAP.values().has(str(probe_kind)):
+			missing.append(str(probe_kind))
+	h._check(missing.is_empty(), "every new enemy can reach the bestiary (%s)" % ", ".join(missing))
+	# E todo id do painel tem de existir no mapa, senão ele nasce impossível.
+	var orphan: Array[String] = []
+	for entry in BestiaryPanel.ENTRIES:
+		var entry_id := str(entry["id"])
+		if not Game.BESTIARY_MAP.values().has(entry_id):
+			orphan.append(entry_id)
+	h._check(orphan.is_empty(), "no bestiary entry is unreachable (%s)" % ", ".join(orphan))
 
 	# TODO input passa pelo mesmo ponto. O toque chamava `request_dash()` direto,
 	# o que no celular deixava o dash fora da gravação inteira.

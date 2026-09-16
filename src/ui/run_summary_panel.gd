@@ -327,7 +327,11 @@ func _action_block(primary: bool, extra: bool = false) -> Control:
 		Design.SURFACE if primary else Design.TEXT_PRIMARY)
 	label.text = _extra_text if extra else (_primary_text if primary else _secondary_text)
 	line.add_child(label)
-	line.add_child(_mono("" if Design.touch_input() else ("[ENTER]" if primary else "[ESC]"), Design.TEXT_CAPTION,
+	# A ação extra não anuncia tecla. O ramo não-primário sugere `[ESC]`, que
+	# nesta tela ABANDONA a run — um botão de enviar oferecendo a tecla que joga
+	# a run fora é pior que um botão sem atalho nenhum.
+	var key_hint := "" if (Design.touch_input() or extra) else ("[ENTER]" if primary else "[ESC]")
+	line.add_child(_mono(key_hint, Design.TEXT_CAPTION,
 		Design.alpha(Design.SURFACE, 0.7) if primary else Design.TEXT_MUTED))
 
 	if primary:
