@@ -407,6 +407,11 @@ func _configure_enemy(e: EnemyBase, is_elite: bool) -> void:
 func _configure_story_enemy(e: EnemyBase) -> void:
 	e.threat_wave = wave
 	e.configure(_story_wave_scale, false)
+	# `haste`: o perigo da fase entra DEPOIS do `configure`, que é onde a escala
+	# da fase já foi aplicada — assim a aceleração multiplica o valor final em
+	# vez de brigar com a escala.
+	if arena_ref != null and is_instance_valid(arena_ref) and arena_ref.get("_hazard_kit") != null:
+		e.speed *= float(arena_ref.get("_hazard_kit").call("haste_factor"))
 	var theme: Dictionary = story_stage.get("theme", {})
 	if str(story_stage.get("act", "")) == "templeos":
 		e.era_accent = Color.from_hsv(fmod(float(Game.stats.get("time", 0.0)) * 0.08, 1.0), 0.78, 1.0)

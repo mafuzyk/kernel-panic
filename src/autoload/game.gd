@@ -289,7 +289,11 @@ func start_story(index: int = 0) -> bool:
 	mult = 1
 	combo_left = 0.0
 	combo_window = Balance.COMBO_WINDOW
-	patch_levels = {}
+	# A FASE entrega o build, montado à mão e sempre o mesmo. O endless sorteia o
+	# dele e é isso que faz o jogo dele; aqui o build é a premissa, e o jogo é o
+	# que a regra da fase faz com ela. Antes o Story rodava com `{}` — sem
+	# nenhuma ferramenta e sem nenhuma oferta.
+	patch_levels = STORY_DATA.stage_build(str(stage.get("id", "")))
 	wave = 1
 	_max_chain_seen = 1
 	event_log.clear()

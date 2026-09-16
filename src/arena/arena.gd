@@ -8,6 +8,7 @@ const TacticalIconScript = preload("res://src/ui/tactical_icon.gd")
 const PauseInputRouterScript = preload("res://src/arena/pause_input_router.gd")
 const PanelKitScript = preload("res://src/arena/panel_kit.gd")
 const IntroKitScript = preload("res://src/arena/intro_kit.gd")
+const HazardKitScript = preload("res://src/arena/hazard_kit.gd")
 const StageKitScript = preload("res://src/arena/stage_kit.gd")
 
 var player: Player
@@ -85,6 +86,7 @@ var _restart_triggered := false
 var _panel_kit
 var _intro_kit
 var _stage_kit
+var _hazard_kit
 const RESTART_HOLD_DURATION := 0.75
 
 func _ready() -> void:
@@ -95,6 +97,7 @@ func _ready() -> void:
 	_panel_kit = PanelKitScript.new(self)
 	_intro_kit = IntroKitScript.new(self)
 	_stage_kit = StageKitScript.new(self)
+	_hazard_kit = HazardKitScript.new(self)
 	if Game.mode == "story":
 		var opening_stage := Game.story_stage_def(Game.story_stage_index)
 		var opening_size = opening_stage.get("arena_size", Vector2.ZERO)
@@ -164,6 +167,9 @@ func _ready() -> void:
 		_story_stage = Game.story_stage_def(Game.story_stage_index)
 		_intro_kit._build_story_intro()
 		_intro_kit._apply_story_theme(_story_stage.get("theme", {}))
+		# Depois do tema: o kit guarda o tamanho FINAL do campo como base do
+		# encolhimento, e o TempleOS já escolheu o dele aqui.
+		_hazard_kit.configure(_story_stage)
 		_stage_kit._build_windows_visuals()
 		_stage_kit._build_temple_visuals()
 	if debug_controls_enabled():
@@ -278,6 +284,8 @@ func _physics_process(delta: float) -> void:
 	# Envelhece as vagas de ataque: é o que impede a onda inteira de carregar
 	# ao mesmo tempo. O teto vem da onda e da dificuldade.
 	EnemyBase.tick_attack_slots(delta, Game.wave)
+	if Game.mode == "story" and _hazard_kit != null:
+		_hazard_kit.tick(delta)
 
 func debug_controls_enabled() -> bool:
 	return OS.is_debug_build() and Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
@@ -535,6 +543,7 @@ func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 	Game.stats["wave"] = current_wave
 	walls.pulse()
 	_intro_kit._apply_story_theme(_story_stage.get("theme", {}))
+	_hazard_kit.on_wave_started(current_wave)
 	Game.log_event("STORY // %s // WAVE %02d START" % [_story_stage.get("path", ""), current_wave])
 	if is_boss:
 		Game.log_event("STORY BOSS INBOUND // %s" % _story_stage.get("boss", "ROOT DAEMON"))
@@ -546,7 +555,10 @@ func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 	# A fala entra pela FILA do HUD, não por cima: ela só sobe quando o banner
 	# da onda termina, para as duas não disputarem o mesmo pixel.
 	_maybe_speak_beat_for_wave(current_wave)
-	if current_wave > 1 and (current_wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp:
+	# `no_heal`: a fase não devolve integridade. É o que transforma uma fase
+	# longa numa fase de recurso em vez de uma de resistência.
+	if current_wave > 1 and (current_wave - 1) % Balance.HEAL_EVERY == 0 and player.hp < player.max_hp \
+			and not _hazard_kit.blocks_heal():
 		player.heal(1, "story")
 		Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY", Balance.COL_PLAYER, 14)
 

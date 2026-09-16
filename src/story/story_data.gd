@@ -6,6 +6,8 @@ extends RefCounted
 const STAGES := [
 	{
 		"id": "boot",
+		"build": {},
+		"hazard": "none",
 		"path": "/boot",
 		"title": "BOOT SEQUENCE",
 		"intro": "The machine wakes with a clean process table. Something is already moving.",
@@ -16,6 +18,8 @@ const STAGES := [
 	},
 	{
 		"id": "var_log",
+		"build": {"rapid": 1},
+		"hazard": "spill",
 		"path": "/var/log",
 		"title": "THE LOG PARTITION",
 		"intro": "Old warnings spill out of storage. The spewers are not interested in being archived.",
@@ -26,6 +30,8 @@ const STAGES := [
 	},
 	{
 		"id": "net",
+		"build": {"threads": 1, "light": 1},
+		"hazard": "surge",
 		"path": "/net",
 		"title": "NETWORK NAMESPACE",
 		"intro": "Every connection is hostile. Lancers have claimed the shortest route to your position.",
@@ -36,6 +42,8 @@ const STAGES := [
 	},
 	{
 		"id": "mem",
+		"build": {"magnet": 1, "frag": 1},
+		"hazard": "shrink",
 		"path": "/mem",
 		"title": "MEMORY PRESSURE",
 		"intro": "Free memory is a lie. The OOM killer is harvesting motes while splitters multiply the mess.",
@@ -46,6 +54,8 @@ const STAGES := [
 	},
 	{
 		"id": "quarantine",
+		"build": {"light": 1, "dash": 1, "shield": 1},
+		"hazard": "spill",
 		"path": "/quarantine",
 		"title": "QUARANTINE",
 		"intro": "The infected processes were isolated. They kept their routes, their teeth, and their opinions.",
@@ -56,6 +66,8 @@ const STAGES := [
 	},
 	{
 		"id": "kernel",
+		"build": {"heavy": 1, "core": 1, "shield": 1},
+		"hazard": "no_heal",
 		"path": "/kernel",
 		"title": "KERNEL PANIC",
 		"intro": "All paths terminate here. The root daemon has reserved the last clean address.",
@@ -69,6 +81,8 @@ const STAGES := [
 	},
 	{
 		"id": "win98",
+		"build": {"rapid": 2, "chain": 1},
+		"hazard": "none",
 		"act": "windows",
 		"path": "C:\\98",
 		"title": "WINDOWS 98",
@@ -81,6 +95,8 @@ const STAGES := [
 	},
 	{
 		"id": "winxp",
+		"build": {"threads": 2, "dash": 1, "shield": 1},
+		"hazard": "surge",
 		"act": "windows",
 		"path": "C:\\XP",
 		"title": "WINDOWS XP",
@@ -100,6 +116,8 @@ const STAGES := [
 	# suaves, azul corporativo, watermark — e nada disso depende de fundo claro.
 	{
 		"id": "win11",
+		"build": {"ricochet": 1, "heavy": 1, "light": 1},
+		"hazard": "haste",
 		"act": "windows",
 		"path": "Win11",
 		"title": "WINDOWS 11",
@@ -122,6 +140,8 @@ const STAGES := [
 	# do campo como ataque.
 	{
 		"id": "mac_system",
+		"build": {"light": 2, "dash": 2},
+		"hazard": "no_heal",
 		"act": "macos",
 		"path": "/System",
 		"title": "SYSTEM INTEGRITY",
@@ -133,6 +153,8 @@ const STAGES := [
 	},
 	{
 		"id": "mac_apps",
+		"build": {"core": 1, "threads": 2, "turbo": 1},
+		"hazard": "none",
 		"act": "macos",
 		"path": "/Applications",
 		"title": "THE GENIUS BAR",
@@ -144,6 +166,8 @@ const STAGES := [
 	},
 	{
 		"id": "mac_updates",
+		"build": {"splitshot": 1, "rapid": 2, "shield": 1},
+		"hazard": "shrink",
 		"act": "macos",
 		"path": "/Library/Updates",
 		"title": "SOFTWARE UPDATE",
@@ -155,6 +179,8 @@ const STAGES := [
 	},
 	{
 		"id": "mac_kernel_task",
+		"build": {"heavy": 2, "core": 1, "pdash": 1},
+		"hazard": "no_heal",
 		"act": "macos",
 		"path": "kernel_task",
 		"title": "KERNEL TASK",
@@ -170,6 +196,8 @@ const STAGES := [
 	},
 	{
 		"id": "temple_boot",
+		"build": {"ricochet": 1, "chain": 2},
+		"hazard": "haste",
 		"act": "templeos",
 		"path": "TempleOS::BOOT",
 		"title": "THE HOLY BOOT",
@@ -182,6 +210,8 @@ const STAGES := [
 	},
 	{
 		"id": "temple_god",
+		"build": {"staticf": 1, "core": 2, "shield": 2},
+		"hazard": "no_heal",
 		"act": "templeos",
 		"path": "TempleOS::GOD",
 		"title": "ORACLE PROCESS",
@@ -206,6 +236,22 @@ const STAGES := [
 
 ## Tempo-alvo da fase, em segundos. Derivado das ondas para não virar uma tabela
 ## paralela que envelhece sozinha; uma fase pode sobrescrever com `"par"`.
+## Build FIXO da fase.
+##
+## O Story rodava sem build nenhum: nenhuma oferta de patch, nenhum patch
+## ativo. Isso deixava a fase mecanicamente rasa e — pior — igual à anterior,
+## porque o único eixo que mudava era a lista de ondas.
+##
+## Agora a FASE entrega as ferramentas, montadas à mão e sempre as mesmas. É o
+## oposto do endless de propósito: lá o build é sorteado e é o jogo; aqui ele é
+## a premissa, e o jogo é o que a fase faz com ela.
+static func stage_build(stage_id: String) -> Dictionary:
+	return _stage_of(stage_id).get("build", {}).duplicate(true)
+
+## Regra de campo da fase. Ver `src/arena/hazard_kit.gd`.
+static func stage_hazard(stage_id: String) -> String:
+	return str(_stage_of(stage_id).get("hazard", "none"))
+
 static func stage_par_seconds(stage_id: String) -> float:
 	var stage := _stage_of(stage_id)
 	if stage.is_empty():

@@ -63,6 +63,11 @@ func _show_story_intro() -> void:
 	var footer := StoryData.localized_act_label(str(a._story_stage.get("act", "")))
 	if par > 0.0:
 		footer += "   //   " + tr("STORY_OBJECTIVE") % ("%d:%02d" % [int(par / 60.0), int(par) % 60])
+	# A regra do campo é anunciada com o alvo: ela muda como a fase se joga, e
+	# descobrir isso no meio da terceira onda não é surpresa, é emboscada.
+	var hazard := StoryData.stage_hazard(stage_id)
+	if hazard != "none" and hazard != "":
+		footer += "   //   " + tr("STORY_HAZARD_%s" % hazard.to_upper())
 	a._story_intro_panel.set_story(
 		str(a._story_stage.get("path", "")),
 		StoryData.localized_title(stage_id),

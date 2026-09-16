@@ -810,6 +810,22 @@ func _fill_detail() -> void:
 		Design.TEXT_MICRO, Design.TEXT_MUTED)
 	target_line.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_detail.add_child(target_line)
+	# O que a fase IMPÕE e o que ela ENTREGA. As duas coisas que separam uma
+	# fase de story de uma lista de ondas, e as duas que a jogadora precisa
+	# saber antes de montar a cabeça para a tentativa.
+	var hazard := StoryData.stage_hazard(stage_id)
+	if hazard != "none" and hazard != "":
+		var rule_line := ScreenKit.mono(
+			"%s // %s — %s" % [tr("STORY_STAT_RULE"), tr("STORY_HAZARD_%s" % hazard.to_upper()),
+				tr("STORY_HAZARD_DESC_%s" % hazard.to_upper())],
+			Design.TEXT_MICRO, Design.WARNING)
+		rule_line.autowrap_mode = TextServer.AUTOWRAP_WORD
+		_detail.add_child(rule_line)
+	var build_line := ScreenKit.mono(
+		"%s // %s" % [tr("STORY_STAT_BUILD"), _build_text(stage_id)],
+		Design.TEXT_MICRO, Design.TEXT_MUTED)
+	build_line.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_detail.add_child(build_line)
 	if StoryData.is_act_final_stage(stage_id):
 		var reward := StoryData.act_reward(str(stage.get("act", "unix")))
 		var reward_line := ScreenKit.mono(
@@ -838,6 +854,25 @@ func _fill_detail() -> void:
 ## As ameaças da fase, desenhadas pela mesma biblioteca que a arena usa, cada
 ## uma na cor de identidade que ela tem em jogo. Substitui o "ARENA PREVIEW",
 ## que era a mesma grade estática para todas as fases da corrente.
+## Build da fase em uma linha, pelos títulos dos patches. Vazio tem nome
+## próprio: "processo nu" diz que a fase é assim de propósito, enquanto uma
+## linha em branco pareceria dado faltando.
+func _build_text(stage_id: String) -> String:
+	var build: Dictionary = StoryData.stage_build(stage_id)
+	if build.is_empty():
+		return tr("STORY_BUILD_NONE")
+	var parts: Array[String] = []
+	for patch_id in build:
+		var title := str(patch_id).to_upper()
+		for definition in Game.PATCH_DEFS:
+			if str(definition["id"]) == str(patch_id):
+				title = str(definition["title"])
+				break
+		var level := int(build[patch_id])
+		parts.append(title if level <= 1 else "%s x%d" % [title, level])
+	return ", ".join(parts)
+
+
 func _build_threats(parent: Node, index: int, unlocked: bool) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", Design.SPACE_LG)

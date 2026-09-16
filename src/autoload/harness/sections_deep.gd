@@ -885,6 +885,134 @@ func _weekly_traits_test() -> void:
 	Game.difficulty = saved_difficulty
 	await h._ticks(2)
 
+## Story vira set-piece, Endless continua o jogo de build.
+##
+## O que este teste afirma é a SEPARAÇÃO: a fase entrega ferramenta e impõe
+## regra de campo; o endless sorteia a ferramenta e não impõe regra nenhuma.
+func _story_setpiece_test() -> void:
+	print("AT_STEP deep_story_setpiece")
+	var hazard_script: Script = load("res://src/arena/hazard_kit.gd")
+	h._check(hazard_script != null, "the hazard kit loads")
+	if hazard_script == null:
+		return
+
+	# Toda fase declara as duas coisas, e nenhuma declara um perigo inventado.
+	var known := ["none", "spill", "surge", "shrink", "no_heal", "haste"]
+	var with_build := 0
+	var with_hazard := 0
+	for stage_id in StoryData.stage_ids():
+		var id := str(stage_id)
+		var hazard := StoryData.stage_hazard(id)
+		h._check(known.has(hazard), "stage %s declares a real field rule (%s)" % [id, hazard])
+		if hazard != "none":
+			with_hazard += 1
+		var build: Dictionary = StoryData.stage_build(id)
+		if not build.is_empty():
+			with_build += 1
+		# Um build só pode entregar patches que existem, e dentro do teto deles.
+		for patch_id in build:
+			var found := false
+			for definition in Game.PATCH_DEFS:
+				if str(definition["id"]) == str(patch_id):
+					found = true
+					h._check(int(build[patch_id]) <= int(definition["max"]),
+						"stage %s issues %s inside its cap" % [id, patch_id])
+					break
+			h._check(found, "stage %s issues a real patch (%s)" % [id, patch_id])
+	h._check(with_build >= 10, "most stages issue a build of their own (%d)" % with_build)
+	h._check(with_hazard >= 8, "most stages impose a field rule (%d)" % with_hazard)
+	# O build tem de CRESCER dentro do ato: a fase 1 não pode entregar o mesmo
+	# que a última.
+	h._check(StoryData.stage_build("boot").is_empty(), "the tutorial stage starts bare on purpose")
+	h._check(StoryData.stage_build("kernel").size() > StoryData.stage_build("var_log").size(),
+		"the act's last stage issues more than its second")
+
+	# O kit, medido sem arena: cada regra mexendo no que promete.
+	#
+	# `configure()` e `on_wave_started()` de `shrink` escrevem no override GLOBAL
+	# do tamanho da arena. Sem devolver o valor, este teste deixava o campo
+	# encolhido para todo mundo que viesse depois — e a jogadora dos testes
+	# seguintes apanhava de um campo que ninguém pediu.
+	var saved_override := Balance.arena_rect().size
+	var kit = hazard_script.new(null)
+	kit.configure({"hazard": "none"})
+	h._check(not kit.active() and not kit.blocks_heal(), "a stage with no rule imposes nothing")
+	h._check(is_equal_approx(kit.arena_scale(), 1.0) and is_equal_approx(kit.haste_factor(), 1.0),
+		"and leaves the field and the cast alone")
+	kit.configure({"hazard": "no_heal"})
+	h._check(kit.blocks_heal(), "read-only refuses to give integrity back")
+	kit.configure({"hazard": "shrink"})
+	var wide: float = kit.arena_scale()
+	kit.on_wave_started(6)
+	h._check(kit.arena_scale() < wide, "memory pressure shrinks the field as waves pass")
+	kit.on_wave_started(999)
+	h._check(kit.arena_scale() >= hazard_script.SHRINK_FLOOR,
+		"but never past the floor that would close it on the player")
+	kit.configure({"hazard": "haste"})
+	var calm: float = kit.haste_factor()
+	kit.on_wave_started(5)
+	h._check(kit.haste_factor() > calm, "thermal throttle speeds the cast up")
+	kit.on_wave_started(999)
+	h._check(kit.haste_factor() <= hazard_script.HASTE_CAP, "and stops at its cap")
+
+	# A separação: o Story não oferece patch nenhum, o endless oferece.
+	var saved_mode := Game.mode
+	Game.mode = "story"
+	var offers := 0
+	for wave_probe in range(1, 30):
+		if Game.should_offer_patch(wave_probe):
+			offers += 1
+	h._check(offers > 0, "the cadence helper itself still answers in story")
+	Game.mode = saved_mode
+	kit = null
+	Balance.clear_arena_size_override()
+	h._check(Balance.arena_rect().size == saved_override,
+		"the hazard probe gives the field back exactly as it found it")
+	await h._ticks(2)
+
+## O build da fase chega MESMO na run, não só na tabela.
+##
+## Roda no FIM do bloco da arena2: `start_story()` troca de cena, e a arena que
+## os testes seguintes recebem seria um objeto já liberado.
+func _story_build_applied_test() -> void:
+	print("AT_STEP deep_story_build_applied")
+	var saved_mode := Game.mode
+	var saved_state := Game.state
+	var saved_index := Game.story_stage_index
+	var saved_patches: Dictionary = Game.patch_levels.duplicate(true)
+	var saved_cleared: Dictionary = Game.story_cleared.duplicate(true)
+	var disk: Dictionary = h._config_section_snapshot("story")
+
+	var index := -1
+	for candidate in Game.story_stage_count():
+		if Game.story_stage_id(candidate) == "kernel":
+			index = candidate
+	if index >= 0:
+		Game.story_cleared = {}
+		for unlock in index:
+			Game.story_cleared[Game.story_stage_id(unlock)] = true
+		Game.patch_levels = {"rapid": 99}
+		h._check(Game.start_story(index), "the stage starts")
+		var expected: Dictionary = StoryData.stage_build("kernel")
+		h._check(Game.patch_levels == expected,
+			"starting a stage installs exactly its issued build (%s)" % str(Game.patch_levels))
+		h._check(not Game.patch_levels.has("rapid"),
+			"and wipes whatever the previous run left behind")
+		for patch_id in expected:
+			h._check(Game.patch_level(str(patch_id)) == int(expected[patch_id]),
+				"the run reports %s at the issued level" % patch_id)
+	Game.mode = saved_mode
+	Game.state = saved_state
+	Game.story_stage_index = saved_index
+	Game.patch_levels = saved_patches
+	Game.story_cleared = saved_cleared
+	h._restore_config_section("story", disk)
+	# Deixa a troca de cena assentar antes de devolver o controle: sair daqui no
+	# meio dela entrega uma árvore pela metade para o teste seguinte.
+	await h._until(func() -> bool:
+		return h.get_tree().current_scene != null and h.get_tree().current_scene.name == "Arena", 8.0, "story build arena")
+	await h._ticks(4)
+
 func _oom_ownership_test(arena: Arena) -> void:
 	print("AT_STEP deep_oom_ownership")
 	var mf: MoteField = arena.mote_field

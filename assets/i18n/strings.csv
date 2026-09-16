@@ -578,3 +578,16 @@ WEEKLY_TRAIT_DESC_FRUGAL,fewer patches, richer motes,menos patches, motes mais g
 WEEKLY_TRAIT_VOLATILE,VOLATILE,VOLÁTIL
 WEEKLY_TRAIT_DESC_VOLATILE,everything bursts into orbs on death,tudo estoura em orbes ao morrer
 ARENA_WEEKLY_TRAITS,WEEK %s,SEMANA %s
+STORY_HAZARD_SPILL,LOG SPILL,VAZAMENTO DE LOG
+STORY_HAZARD_DESC_SPILL,corruption pools bloom on their own,poças de corrupção brotam sozinhas
+STORY_HAZARD_SURGE,PACKET SURGE,SURTO DE PACOTES
+STORY_HAZARD_DESC_SURGE,rings of orbs close in from the edge,anéis de orbes fecham pela borda
+STORY_HAZARD_SHRINK,MEMORY PRESSURE,PRESSÃO DE MEMÓRIA
+STORY_HAZARD_DESC_SHRINK,the field shrinks with every wave,o campo encolhe a cada onda
+STORY_HAZARD_NO_HEAL,READ-ONLY,SOMENTE LEITURA
+STORY_HAZARD_DESC_NO_HEAL,the stage gives no integrity back,a fase não devolve integridade
+STORY_HAZARD_HASTE,THERMAL THROTTLE,ACELERAÇÃO TÉRMICA
+STORY_HAZARD_DESC_HASTE,every process speeds up as the stage runs,todo processo acelera conforme a fase corre
+STORY_STAT_RULE,FIELD RULE,REGRA DO CAMPO
+STORY_STAT_BUILD,ISSUED BUILD,BUILD ENTREGUE
+STORY_BUILD_NONE,BARE PROCESS,PROCESSO NU

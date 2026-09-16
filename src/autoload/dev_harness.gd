@@ -477,6 +477,7 @@ func _autotest() -> void:
 	await _sec_deep._new_cast_test(arena2)
 	await _sec_deep._field_inversion_test()
 	await _sec_deep._weekly_traits_test()
+	await _sec_deep._story_setpiece_test()
 	await _sec_deep._story_substance_test()
 	await _sec_deep._story_completion_test()
 	await _sec_deep._oom_ownership_test(arena2)
@@ -506,6 +507,7 @@ func _autotest() -> void:
 	arena2 = get_tree().current_scene as Arena
 	await _sec_modes._reticle_modal_test(arena2)
 	await _sec_deep._new_cast_live_test(arena2)
+	await _sec_deep._story_build_applied_test()
 	await _sec_deep._story_hold_restart_test()
 	await _sec_deep._terminal_rm_rf_test()
 	Game.to_menu()
