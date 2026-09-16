@@ -613,7 +613,9 @@ func _warn_and_rebuild_shield() -> void:
 	var tree := get_tree()
 	if tree == null:
 		return
-	await tree.create_timer(0.8).timeout
+	# Passo fixo: ver a nota em `Spawner.SPAWN_TIMER_IN_PHYSICS`. No laço de
+	# render isto media tempo diferente em cada taxa de quadros.
+	await tree.create_timer(0.8, false, true, false).timeout
 	if not is_instance_valid(self):
 		return
 	var shield_missing := 6 - _pages_alive()

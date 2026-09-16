@@ -11,6 +11,7 @@ const HSectionScene = preload("res://src/autoload/harness/sections_scene.gd")
 const HSectionModes = preload("res://src/autoload/harness/sections_modes.gd")
 const HSectionPolish = preload("res://src/autoload/harness/sections_polish.gd")
 const HSectionDeep = preload("res://src/autoload/harness/sections_deep.gd")
+const HSectionReplay = preload("res://src/autoload/harness/sections_replay.gd")
 
 var active := false
 const LEAK_GUARD_MAX_ORPHANS := 40
@@ -27,6 +28,7 @@ var _sec_scene
 var _sec_modes
 var _sec_polish
 var _sec_deep
+var _sec_replay
 
 func _ready() -> void:
 	_init_sections()
@@ -48,6 +50,9 @@ func _ready() -> void:
 	elif OS.get_environment("KP_DEEP") != "":
 		active = true
 		_sec_deep._probe.call_deferred()
+	elif OS.get_environment("KP_DETERMINISM") != "":
+		active = true
+		_sec_replay.probe.call_deferred()
 
 func _pass(msg: String) -> void:
 	print("AT_PASS ", msg)
@@ -130,6 +135,7 @@ func _init_sections() -> void:
 	_sec_modes = HSectionModes.new(self)
 	_sec_polish = HSectionPolish.new(self)
 	_sec_deep = HSectionDeep.new(self)
+	_sec_replay = HSectionReplay.new(self)
 
 func _autotest() -> void:
 	_watchdog()

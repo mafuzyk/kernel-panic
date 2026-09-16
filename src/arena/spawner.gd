@@ -220,10 +220,25 @@ func _build_queue() -> void:
 		_queue[i] = _queue[j]
 		_queue[j] = tmp
 
+## Cronômetros de spawn correm na FÍSICA, não no laço de render.
+##
+## `create_timer(t)` sozinho usa os defaults do Godot, e um deles é
+## `process_in_physics = false`: o cronômetro avança junto com os quadros
+## desenhados. Isso fazia o telegrafo de 0.55s resolver depois de um número de
+## PASSOS DE FÍSICA diferente em cada máquina — e como a arena inteira anda na
+## física, a run divergia de uma máquina para outra com a mesma seed e os
+## mesmos comandos. Medido: uma sessão com tela e uma headless separavam antes
+## do primeiro abate.
+##
+## `true` no terceiro argumento prende o cronômetro ao passo fixo. O quarto
+## segue `false` de propósito: o congelamento de acerto deve atrasar o spawn
+## junto com o resto do jogo.
+const SPAWN_TIMER_IN_PHYSICS := true
+
 func _spawn_boss() -> void:
 	var idx := int(wave / float(Balance.BOSS_EVERY))
 	var generation := _spawn_generation
-	var t := get_tree().create_timer(1.5)
+	var t := get_tree().create_timer(1.5, false, SPAWN_TIMER_IN_PHYSICS, false)
 	t.timeout.connect(func() -> void:
 		if generation != _spawn_generation or not _running or not is_instance_valid(container):
 			return
@@ -240,7 +255,7 @@ func _spawn_boss() -> void:
 func _spawn_story_boss() -> void:
 	var idx := int(story_stage.get("boss_index", 1))
 	var generation := _spawn_generation
-	var t := get_tree().create_timer(1.5)
+	var t := get_tree().create_timer(1.5, false, SPAWN_TIMER_IN_PHYSICS, false)
 	t.timeout.connect(func() -> void:
 		if generation != _spawn_generation or not _running or not is_instance_valid(container):
 			return
@@ -327,7 +342,7 @@ func _telegraph_spawn(pos: Vector2, kind: String, generation: int) -> void:
 	var col := Balance.COL_DANGER
 	Fx.ring(pos, col, 30.0, 6.0, 0.55, 2.0, true)
 	Fx.sparks(pos, col, 4, 60.0, 0.5, 2.0)
-	var t := get_tree().create_timer(0.55)
+	var t := get_tree().create_timer(0.55, false, SPAWN_TIMER_IN_PHYSICS, false)
 	t.timeout.connect(func() -> void:
 		if generation != _spawn_generation:
 			return
