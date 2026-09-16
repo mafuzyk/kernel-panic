@@ -32,7 +32,27 @@ KP_PROJECT=/home/mafu/kernel-panic python3 server/leaderboard/server.py
 | `KP_GODOT` | `godot` | Executável do Godot |
 | `KP_BOARD_TRUST_FORWARDED` | desligado | Ler `X-Forwarded-For` do túnel para o teto total |
 
-Como serviço runit, veja `runit/run`.
+### Como serviço runit (sobe no boot)
+
+```sh
+sudo cp -r server/leaderboard/runit /etc/sv/kernel-panic-board
+sudo ln -s /etc/sv/kernel-panic-board /var/service/
+```
+
+O `run` cria o diretório do banco em `~/.local/share/kernel-panic-board` e
+troca para o usuário antes de subir o serviço. O `log/run` manda a saída para
+`/var/log/kernel-panic-board` com `svlogd` — sem ele a saída iria para o console
+do `runsvdir` e se perderia.
+
+```sh
+sudo sv status kernel-panic-board   # estado
+sudo sv restart kernel-panic-board  # depois de mexer no código
+sudo sv down kernel-panic-board     # parar
+tail -f /var/log/kernel-panic-board/current
+```
+
+Subir no boot **não publica nada**: o serviço escuta só em `127.0.0.1`. Quem
+expõe é o túnel, que é um serviço à parte.
 
 ## Exposição: use um túnel, nunca abra porta
 

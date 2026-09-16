@@ -1,10 +1,25 @@
 #!/bin/sh
-# Serviço runit do placar. Instale em /etc/sv/kernel-panic-board e ative com
-# `ln -s /etc/sv/kernel-panic-board /var/service/`.
+# Serviço runit do placar semanal.
+#
+# Instalação:
+#   cp -r runit /etc/sv/kernel-panic-board
+#   ln -s /etc/sv/kernel-panic-board /var/service/
+#
+# Escuta só em 127.0.0.1. O acesso de fora é do túnel, que é um serviço à parte
+# — ver README.md. Subir isto no boot NÃO publica nada na rede.
 exec 2>&1
-exec chpst -u mafu:mafu \
-  env KP_PROJECT=/home/mafu/kernel-panic \
-      KP_BOARD_DB=/var/lib/kernel-panic-board/board.sqlite3 \
-      KP_BOARD_HOST=127.0.0.1 \
-      KP_BOARD_PORT=8710 \
+
+# O banco é da usuária, não do sistema: fica no XDG dela, e assim nada aqui
+# precisa de um diretório de root para funcionar.
+install -d -o mafu -g mafu -m 0755 /home/mafu/.local/share/kernel-panic-board
+
+# `chpst -u` troca o usuário mas não define HOME, e o verificador precisa de um
+# HOME para os diretórios temporários dele.
+exec chpst -u mafu:mafu env \
+  HOME=/home/mafu \
+  PATH=/usr/bin:/bin \
+  KP_PROJECT=/home/mafu/kernel-panic \
+  KP_BOARD_DB=/home/mafu/.local/share/kernel-panic-board/board.sqlite3 \
+  KP_BOARD_HOST=127.0.0.1 \
+  KP_BOARD_PORT=8710 \
   python3 /home/mafu/kernel-panic/server/leaderboard/server.py

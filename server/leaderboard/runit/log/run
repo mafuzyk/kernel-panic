@@ -1,0 +1,5 @@
+#!/bin/sh
+# Sem isto a saída do serviço vai para o console do runsvdir e se perde.
+exec 2>&1
+install -d -m 0755 /var/log/kernel-panic-board
+exec svlogd -tt /var/log/kernel-panic-board
