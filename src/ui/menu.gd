@@ -469,6 +469,9 @@ func refresh_shell() -> void:
 	var best := Game.best_for_mode()
 	var best_text := "%s %07d" % [tr("MENU_BEST"), best] if best > 0 else tr("MENU_NO_RECORD")
 	_shell.set_run_config(mode_text, best_text, str(Game.program_def()["name"]))
+	# O briefing da semana só existe no Weekly; nos outros modos a linha some.
+	if _shell.has_method("set_run_note"):
+		_shell.call("set_run_note", tr("WEEKLY_BRIEFING") % [Game.week_id(), Weekly.summary_line()] if Game.mode == "weekly" else "")
 	var cycle_modes := {"classic": "MENU_MODE_CLASSIC", "weekly": "MENU_MODE_WEEKLY", "onehp": "MENU_MODE_ONEHP", "story": "MENU_MODE_STORY"}
 	var cycle_mode_text := tr(str(cycle_modes.get(Game.mode, "MENU_MODE_CLASSIC")))
 	var cycle_diff_text := tr("MENU_DIFFICULTY_FIXED") if Game.mode == "story" else tr("MENU_DIFFICULTY") % Game.difficulty.to_upper()

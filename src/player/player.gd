@@ -71,6 +71,13 @@ func _ready() -> void:
 	dash_available = dash_charges
 	shield_ready = bool(prog.get("shield_mode", false))
 	max_hp = 1 if Game.mode == "onehp" else int(prog.get("hp", Balance.PLAYER_MAX_HP))
+	# Traits da semana. `glass` tira integridade e `nodash` zera a carga; os dois
+	# são aplicados aqui, onde o programa já escolheu os próprios números, para
+	# a semana morder POR CIMA do programa em vez de brigar com ele.
+	max_hp = maxi(max_hp + int(Weekly.offset("max_hp")), 1)
+	if Weekly.has_trait("nodash"):
+		dash_charges = 0
+		dash_available = 0
 	hp = max_hp
 	add_to_group("player")
 	collision_layer = Balance.LAYER_PLAYER
@@ -275,7 +282,7 @@ func fire_interval() -> float:
 	return 1.0 / (rate * slow_factor)
 
 func oc_duration() -> float:
-	return Balance.OC_DURATION + 2.0 * Game.patch_level("cell")
+	return (Balance.OC_DURATION + 2.0 * Game.patch_level("cell")) * Weekly.factor("oc_duration")
 
 func _shoot() -> void:
 	var fire_cd_len := fire_interval()
@@ -302,6 +309,10 @@ func _shoot() -> void:
 
 func request_dash(input_vec: Vector2) -> void:
 	if dead or dash_t > 0.0:
+		return
+	# `nodash`: a semana tirou o dash. Sai antes de qualquer cooldown para que
+	# nenhum caminho (toque, teclado, autopiloto) contorne a regra.
+	if dash_charges <= 0:
 		return
 	if dash_charges > 1 and _avail_charges() <= 0:
 		return
@@ -365,7 +376,7 @@ func collect_mote() -> void:
 		return
 	if bool(prog.get("shield_mode", false)):
 		if not shield_ready_full():
-			shield_meter = minf(shield_meter + Balance.MOTE_VALUE, Balance.OC_METER_MAX)
+			shield_meter = minf(shield_meter + Balance.MOTE_VALUE * Weekly.factor("oc_fill"), Balance.OC_METER_MAX)
 			if shield_meter >= Balance.OC_METER_MAX:
 				shield_ready = true
 				Sfx.play("ready", 1.0, -4.0)
@@ -385,7 +396,7 @@ func collect_mote() -> void:
 		Game.add_score(5)
 		_register_scrap_overflow()
 		return
-	meter = minf(meter + Balance.MOTE_VALUE, Balance.OC_METER_MAX)
+	meter = minf(meter + Balance.MOTE_VALUE * Weekly.factor("oc_fill"), Balance.OC_METER_MAX)
 	if meter >= Balance.OC_METER_MAX:
 		oc_ready = true
 		Sfx.play("ready", 1.0, -4.0)
@@ -481,7 +492,7 @@ func take_damage(from: Vector2, killer := "DAEMON") -> void:
 		return
 	if absorb_charges > 0:
 		absorb_charges -= 1
-		meter = minf(meter + Balance.MOTE_VALUE, Balance.OC_METER_MAX)
+		meter = minf(meter + Balance.MOTE_VALUE * Weekly.factor("oc_fill"), Balance.OC_METER_MAX)
 		if meter >= Balance.OC_METER_MAX and not oc_ready:
 			oc_ready = true
 			Sfx.play("ready", 1.0, -4.0)

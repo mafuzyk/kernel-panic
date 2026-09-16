@@ -74,9 +74,12 @@ func release_attack_slot() -> void:
 func configure(wave_scale_f: float, is_elite: bool) -> void:
 	flank_sign = 1.0 if Game.rng.randf() < 0.5 else -1.0
 	flank_weight = Game.rng.randf_range(0.22, 0.58)
-	hp = int(ceil(hp * wave_scale_f * (2.0 if is_elite else 1.0)))
+	# Traits da semana entram junto com a escala da onda, antes de `max_hp` ser
+	# tirado do `hp`: um inimigo blindado tem de NASCER blindado, não ganhar
+	# vida depois de a barra já ter sido medida.
+	hp = int(ceil(hp * wave_scale_f * Weekly.factor("enemy_hp") * (2.0 if is_elite else 1.0)))
 	max_hp = hp
-	speed *= wave_scale_f * (1.22 if is_elite else 1.0)
+	speed *= wave_scale_f * Weekly.factor("enemy_speed") * (1.22 if is_elite else 1.0)
 	elite = is_elite
 	if is_elite:
 		pts *= 3
@@ -98,8 +101,12 @@ func elite_reacquire_interval(base_interval: float) -> float:
 		return maxf(base_interval * Balance.difficulty_cadence(threat_wave) * 0.82, 0.35)
 	return base_interval * Balance.difficulty_cadence(threat_wave)
 
+## O trait `volatile` promove a semana inteira ao comportamento que hoje é só
+## do elite volátil: todo mundo estoura em orbes ao morrer.
 func volatile_burst_count() -> int:
-	return 6 if elite and elite_kind == "volatile" else 0
+	if elite and elite_kind == "volatile":
+		return 6
+	return 4 if Weekly.has_trait("volatile") else 0
 
 func _ready() -> void:
 	add_to_group("enemies")

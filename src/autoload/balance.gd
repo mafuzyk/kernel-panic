@@ -309,13 +309,15 @@ static func difficulty_wave_budget(wave: int) -> int:
 	if not difficulty_applies():
 		return wave_budget(wave)
 	var mult: float = DIFF_BUDGET_MULT.get(Game.difficulty, 1.0)
-	return maxi(1, int(floor(float(wave_budget(wave)) * mult)))
+	# Os traits da semana entram DEPOIS da dificuldade: o Weekly roda sempre em
+	# NORMAL, então na prática eles são o único multiplicador ali.
+	return maxi(1, int(floor(float(wave_budget(wave)) * mult * Weekly.factor("budget"))))
 
 static func difficulty_elite_chance(wave: int) -> float:
 	if not difficulty_applies():
 		return elite_chance(wave)
 	var mult: float = DIFF_ELITE_MULT.get(Game.difficulty, 1.0)
-	return clampf(elite_chance(wave) * mult, 0.0, 1.0)
+	return clampf(elite_chance(wave) * mult * Weekly.factor("elite_chance"), 0.0, 1.0)
 
 static func difficulty_cadence(wave: int) -> float:
 	if not difficulty_applies():
@@ -422,6 +424,9 @@ static func arena_rect() -> Rect2:
 	var arena_size := Vector2(ARENA_W, ARENA_H)
 	if _arena_size_override.x > 0.0 and _arena_size_override.y > 0.0:
 		arena_size = _arena_size_override
+	# O trait `cramped` encolhe o campo. Fica DEPOIS do override porque o
+	# TempleOS já escolheu um tamanho e a semana só o aperta mais.
+	arena_size *= Weekly.factor("arena")
 	return Rect2(-arena_size * 0.5, arena_size)
 
 static func set_arena_size_override(arena_size: Vector2) -> void:

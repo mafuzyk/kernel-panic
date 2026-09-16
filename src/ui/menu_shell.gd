@@ -31,6 +31,7 @@ var _hero: Control
 var _purge_label: Label
 var _mode_label: Label
 var _best_label: Label
+var _note_label: Label
 var _program_label: Label
 var _version_label: Label
 var _story_block: PanelContainer
@@ -160,6 +161,14 @@ func set_run_config(mode_text: String, best_text: String, program_name: String) 
 	_mode_label.text = mode_text
 	_best_label.text = best_text
 	_program_label.text = program_name
+
+## Briefing da run. Texto vazio esconde a linha inteira em vez de deixar um
+## buraco de altura fixa no meio da coluna.
+func set_run_note(text: String) -> void:
+	if not is_instance_valid(_note_label):
+		return
+	_note_label.text = text
+	_note_label.visible = not text.strip_edges().is_empty()
 
 
 ## Rótulos das fileiras de MODE/DIFFICULTY, atualizados a cada refresh do menu.
@@ -352,6 +361,13 @@ func _build_actions(parent: Node) -> void:
 	col.add_child(_mode_label)
 	_best_label = ScreenKit.mono("", Design.TEXT_CAPTION, Design.TEXT_MUTED)
 	col.add_child(_best_label)
+	# Linha de briefing da run. Hoje só o Weekly a usa, para anunciar os traits
+	# e o elenco da semana ANTES de entrar — uma semana que só se revela dentro
+	# da arena não dá para planejar, e planejar é o ponto de um placar semanal.
+	_note_label = ScreenKit.mono("", Design.TEXT_MICRO, Design.ACCENT)
+	_note_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_note_label.visible = false
+	col.add_child(_note_label)
 
 	ScreenKit.gap(col, Design.SPACE_SM)
 	# Run config real: MODE e DIFFICULTY são fileiras acionáveis, não texto.

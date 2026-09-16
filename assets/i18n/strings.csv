@@ -551,3 +551,30 @@ STORY_BEAT_TEMPLE_BOOT_CLEAR,640 by 640 and not one pixel of doubt.,640 por 640 
 STORY_BEAT_TEMPLE_GOD_OPEN,i do not choose the next attack. i roll for it.,eu não escolho o próximo ataque. eu rolo o dado.
 STORY_BEAT_TEMPLE_GOD_MID,you are reading a pattern into a result. keep going.,você está lendo um padrão num resultado. continue.
 STORY_BEAT_TEMPLE_GOD_CLEAR,the roll went your way. that is all it ever was.,o dado caiu a seu favor. sempre foi só isso.
+WEEKLY_BRIEFING,%s // %s,%s // %s
+WEEKLY_ROSTER_SWARM,SWARM ROSTER,ELENCO ENXAME
+WEEKLY_ROSTER_RANGED,RANGED ROSTER,ELENCO À DISTÂNCIA
+WEEKLY_ROSTER_HEAVY,HEAVY ROSTER,ELENCO PESADO
+WEEKLY_ROSTER_TRICKY,TRICKY ROSTER,ELENCO TRAIÇOEIRO
+WEEKLY_ROSTER_MIXED,MIXED ROSTER,ELENCO MISTO
+WEEKLY_TRAIT_SWIFT,SWIFT,VELOZ
+WEEKLY_TRAIT_DESC_SWIFT,every process moves faster,todo processo se move mais rápido
+WEEKLY_TRAIT_ARMORED,ARMORED,BLINDADO
+WEEKLY_TRAIT_DESC_ARMORED,tougher processes, fewer of them,processos mais duros, e menos deles
+WEEKLY_TRAIT_SWARM,SWARM,ENXAME
+WEEKLY_TRAIT_DESC_SWARM,many more processes, each one frail,muito mais processos, cada um frágil
+WEEKLY_TRAIT_ELITE,ELITE,ELITE
+WEEKLY_TRAIT_DESC_ELITE,elites everywhere,elites por toda parte
+WEEKLY_TRAIT_CRAMPED,CRAMPED,APERTADO
+WEEKLY_TRAIT_DESC_CRAMPED,the arena is smaller,a arena é menor
+WEEKLY_TRAIT_NODASH,NO DASH,SEM DASH
+WEEKLY_TRAIT_DESC_NODASH,the dash is gone. walk it off,o dash sumiu. resolve andando
+WEEKLY_TRAIT_GLASS,GLASS,VIDRO
+WEEKLY_TRAIT_DESC_GLASS,one less integrity,uma integridade a menos
+WEEKLY_TRAIT_OVERDRIVE,OVERDRIVE,OVERDRIVE
+WEEKLY_TRAIT_DESC_OVERDRIVE,overclock arms faster and burns out sooner,o overclock arma mais rápido e apaga antes
+WEEKLY_TRAIT_FRUGAL,FRUGAL,FRUGAL
+WEEKLY_TRAIT_DESC_FRUGAL,fewer patches, richer motes,menos patches, motes mais generosos
+WEEKLY_TRAIT_VOLATILE,VOLATILE,VOLÁTIL
+WEEKLY_TRAIT_DESC_VOLATILE,everything bursts into orbs on death,tudo estoura em orbes ao morrer
+ARENA_WEEKLY_TRAITS,WEEK %s,SEMANA %s

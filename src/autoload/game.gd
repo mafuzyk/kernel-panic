@@ -309,7 +309,9 @@ func start_story(index: int = 0) -> bool:
 func should_offer_patch(cleared_wave: int) -> bool:
 	if mode == "onehp":
 		return cleared_wave > 0 and cleared_wave % 3 == 0
-	return cleared_wave > 0 and (cleared_wave + 1) % Balance.BOSS_EVERY == 0
+	# O trait `frugal` espaça a oferta: menos build, mais o que a arena deu.
+	var every := maxi(int(round(float(Balance.BOSS_EVERY) * Weekly.factor("patch_every"))), 1)
+	return cleared_wave > 0 and (cleared_wave + 1) % every == 0
 
 const BESTIARY_MAP := {"DRONE": "drone", "LANCER": "lancer", "SPEWER": "spewer", "SPLITTER": "splitter", "BULWARK": "bulwark", "TROJAN": "trojan", "OOM_KILLER": "oom", "ROOT": "boss", "RECURSOR": "recursor", "FIREWALL": "firewall", "UPDATE_LOOP": "update_loop", "BLOATWARE": "bloatware", "GOD": "god", "ROOT.exe": "root", "SEGFAULT": "segfault", "BLUE SCREEN": "bluescreen", "PAGE FAULT": "pagefault"}
 

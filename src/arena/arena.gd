@@ -195,6 +195,7 @@ func _ready() -> void:
 	spawner.wave_cleared.connect(_on_wave_cleared)
 	spawner.boss_spawned.connect(_on_boss_spawned)
 	spawner.story_cleared.connect(_on_story_cleared)
+	_announce_weekly()
 	if Game.mode == "story":
 		_intro_kit._show_story_intro.call_deferred()
 	else:
@@ -516,6 +517,17 @@ func set_field_inverted(inverted: bool) -> void:
 	_field_inverted = inverted
 	var theme: Dictionary = _story_stage.get("theme", {})
 	_intro_kit._apply_story_theme(Balance.invert_field_theme(theme) if inverted else theme)
+
+## O briefing da semana também entra no klog da run: o menu anuncia antes, e o
+## registro guarda depois, que é onde se confere o que a semana era.
+func _announce_weekly() -> void:
+	if Game.mode != "weekly":
+		return
+	var summary := Weekly.summary_line()
+	if summary.is_empty():
+		return
+	Game.log_event("%s // %s" % [tr("ARENA_WEEKLY_TRAITS") % Game.week_id(), summary])
+	hud.queue_hint("weekly_briefing", tr("ARENA_WEEKLY_TRAITS") % Game.week_id(), 3.0, summary, true)
 
 func _on_story_wave_started(current_wave: int, is_boss: bool) -> void:
 	wave_signal_count += 1

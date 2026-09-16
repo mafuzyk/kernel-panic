@@ -193,6 +193,10 @@ func _build_queue() -> void:
 		pool.append(["zombie", 3, 0.6 + (wave - 9) * 0.08])
 	if wave >= 12:
 		pool.append(["swap", 5, 0.45 + (wave - 11) * 0.05])
+	# Roster da semana: o Weekly restringe o elenco. Filtrar DEPOIS de montar a
+	# piscina por onda preserva as regras de quando cada tipo entra — a semana
+	# escolhe entre os que já estariam disponíveis, nunca antecipa ninguém.
+	pool = _restrict_to_roster(pool)
 	var guard := 200
 	while budget > 0 and guard > 0:
 		guard -= 1
@@ -370,6 +374,23 @@ func _telegraph_spawn(pos: Vector2, kind: String, generation: int) -> void:
 			_configure_enemy(e, Game.rng.randf() < Balance.difficulty_elite_chance(wave))
 		container.add_child(e)
 	)
+
+## Mantém na piscina só o que o roster da semana libera.
+##
+## Se o filtro esvaziasse a piscina, a onda não teria como gastar o orçamento e
+## o `guard` giraria em falso; por isso um resultado vazio devolve a piscina
+## inteira. Todo roster já inclui uma unidade barata justamente para isso não
+## acontecer, mas a regra tem de ser verdadeira mesmo quando alguém editar a
+## tabela errado.
+func _restrict_to_roster(pool: Array) -> Array:
+	var allowed: Array = Weekly.roster_kinds()
+	if allowed.is_empty():
+		return pool
+	var kept: Array = []
+	for entry in pool:
+		if allowed.has(str(entry[0])):
+			kept.append(entry)
+	return kept if not kept.is_empty() else pool
 
 ## Quantos inimigos vivos têm este `display_name`.
 func _live_count_of(display: String) -> int:

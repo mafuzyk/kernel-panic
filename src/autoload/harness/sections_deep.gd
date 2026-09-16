@@ -756,6 +756,135 @@ func _new_cast_live_test(arena: Arena) -> void:
 	arena.spawner.set("_running", was_running)
 	await h._ticks(3)
 
+## Traits da semana. O contrato é: sorteio determinístico, e cada trait mordendo
+## exatamente o botão que ele promete.
+func _weekly_traits_test() -> void:
+	print("AT_STEP deep_weekly_traits")
+	var saved_mode := Game.mode
+	var saved_difficulty := Game.difficulty
+	Game.difficulty = "normal"
+
+	# Determinismo: a mesma semana devolve o mesmo plano, sempre, e semanas
+	# diferentes não devolvem todas a mesma coisa.
+	var plan_a: Dictionary = Weekly.plan_for_week(2959)
+	var plan_b: Dictionary = Weekly.plan_for_week(2959)
+	h._check(plan_a == plan_b, "the same week always rolls the same plan")
+	var seen_traits := {}
+	var seen_rosters := {}
+	for week in range(2900, 2960):
+		var plan: Dictionary = Weekly.plan_for_week(week)
+		var ids: Array = plan["traits"]
+		h._check(ids.size() == Weekly.TRAIT_COUNT, "week %d rolls exactly %d traits" % [week, Weekly.TRAIT_COUNT])
+		h._check(ids[0] != ids[1], "week %d rolls two different traits" % week)
+		for id in ids:
+			h._check(Weekly.TRAITS.has(str(id)), "week %d rolls a real trait (%s)" % [week, id])
+			seen_traits[str(id)] = true
+		h._check(Weekly.ROSTERS.has(str(plan["roster"])), "week %d rolls a real roster" % week)
+		seen_rosters[str(plan["roster"])] = true
+	h._check(seen_traits.size() >= 6, "sixty weeks visit most of the trait table (%d)" % seen_traits.size())
+	h._check(seen_rosters.size() >= 3, "sixty weeks visit most of the roster table (%d)" % seen_rosters.size())
+
+	# O sorteio NÃO pode consumir a sequência que compõe as ondas: a composição
+	# semanal tem teste de determinismo em cima da `Game.rng`.
+	var rng_before := Game.rng.state
+	Weekly.plan_for_week(1234)
+	h._check(Game.rng.state == rng_before, "rolling the week never touches the gameplay rng")
+
+	# Fora do Weekly, tudo neutro.
+	Game.mode = "classic"
+	h._check(Weekly.active_traits().is_empty(), "classic runs carry no weekly traits")
+	h._check(Weekly.roster_kinds().is_empty(), "classic runs carry no weekly roster")
+	h._check(is_equal_approx(Weekly.factor("enemy_hp"), 1.0), "every factor is neutral outside the weekly")
+	h._check(is_equal_approx(Weekly.factor("arena"), 1.0), "including the one that resizes the arena")
+	var open_arena := Balance.arena_rect()
+
+	# Cada trait, medido no botão que ele promete.
+	Game.mode = "weekly"
+	for trait_id in Weekly.TRAITS.keys():
+		var id := str(trait_id)
+		Weekly._cache_week = Game.week_number()
+		Weekly._cache = {"traits": [id], "roster": "mixed"}
+		match id:
+			"swift":
+				var fast := DroneEnemy.new()
+				var base_speed: float = fast.speed
+				fast.configure(1.0, false)
+				h._check(fast.speed > base_speed, "swift makes enemies faster")
+				fast.free()
+			"armored":
+				var tough := DroneEnemy.new()
+				var base_hp: int = tough.hp
+				tough.configure(1.0, false)
+				h._check(tough.hp > base_hp and tough.max_hp == tough.hp,
+					"armored raises enemy integrity before the bar is measured")
+			"swarm":
+				var frail := DroneEnemy.new()
+				var frail_base: int = frail.hp
+				frail.configure(1.0, false)
+				h._check(frail.hp <= frail_base, "swarm makes each process frailer")
+				frail.free()
+			"cramped":
+				h._check(Balance.arena_rect().size.x < open_arena.size.x, "cramped shrinks the field")
+			"volatile":
+				var popper := DroneEnemy.new()
+				h._check(popper.volatile_burst_count() > 0, "volatile makes ordinary processes burst")
+				popper.free()
+			"frugal":
+				h._check(not Game.should_offer_patch(Balance.BOSS_EVERY - 1),
+					"frugal skips the patch the classic cadence would have offered")
+			"elite":
+				h._check(Balance.difficulty_elite_chance(20) > 0.0, "elite keeps a live elite chance")
+	# Um trait sozinho não pode zerar o orçamento da onda.
+	for trait_id in Weekly.TRAITS.keys():
+		Weekly._cache_week = Game.week_number()
+		Weekly._cache = {"traits": [str(trait_id)], "roster": "mixed"}
+		h._check(Balance.difficulty_wave_budget(9) >= 1,
+			"%s still leaves a wave worth spawning" % trait_id)
+
+	# Todo roster tem de conseguir gastar o orçamento: sem unidade barata o
+	# spawner gira em falso até o guard estourar.
+	for roster_id in Weekly.ROSTERS.keys():
+		var kinds: Array = Weekly.ROSTERS[roster_id]
+		h._check(kinds.has("drone"), "roster %s keeps a cheap unit the budget can always afford" % roster_id)
+
+	# O contrato que importa: a FILA da onda só contém o que o roster libera.
+	# Sem isto o roster seria só uma etiqueta bonita no menu.
+	var roster_probe := Spawner.new()
+	h.add_child(roster_probe)
+	for roster_id in Weekly.ROSTERS.keys():
+		Weekly._cache_week = Game.week_number()
+		Weekly._cache = {"traits": [], "roster": str(roster_id)}
+		var allowed: Array = Weekly.ROSTERS[roster_id]
+		var intruders := {}
+		var produced := 0
+		for wave_probe in [6, 10, 14]:
+			roster_probe.wave = wave_probe
+			roster_probe.wave_event = ""
+			roster_probe.call("_build_queue")
+			for kind in roster_probe._queue:
+				produced += 1
+				if not allowed.has(str(kind)):
+					intruders[str(kind)] = true
+		h._check(produced > 0, "roster %s still fills a wave" % roster_id)
+		h._check(intruders.is_empty(),
+			"roster %s spawns only what it allows (%s)" % [roster_id, ", ".join(intruders.keys())])
+	# E sem semana ativa a fila volta a usar o elenco inteiro.
+	Game.mode = "classic"
+	var open_kinds := {}
+	for wave_probe in [10, 14, 18]:
+		roster_probe.wave = wave_probe
+		roster_probe.wave_event = ""
+		roster_probe.call("_build_queue")
+		for kind in roster_probe._queue:
+			open_kinds[str(kind)] = true
+	h._check(open_kinds.size() > 4, "classic keeps the whole cast available (%d kinds)" % open_kinds.size())
+	Game.mode = "weekly"
+	roster_probe.queue_free()
+	Weekly._cache_week = -1
+	Game.mode = saved_mode
+	Game.difficulty = saved_difficulty
+	await h._ticks(2)
+
 func _oom_ownership_test(arena: Arena) -> void:
 	print("AT_STEP deep_oom_ownership")
 	var mf: MoteField = arena.mote_field

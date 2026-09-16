@@ -366,6 +366,14 @@ func _capture() -> void:
 		for c in h.get_tree().current_scene.get_children():
 			if c is Label and c.text.begins_with("BEST"):
 				print("PROBE stray=", c.text, " gpos=", c.global_position, " size=", c.size, " parent=", c.get_parent().name)
+	# `KP_MODE` captura o menu (e a run) num modo específico. Sem isso não havia
+	# como olhar para o briefing da semana, que só existe no Weekly.
+	if OS.get_environment("KP_MODE") != "":
+		Game.mode = OS.get_environment("KP_MODE")
+		var live_menu := h.get_tree().current_scene
+		if live_menu != null and live_menu.has_method("refresh_shell"):
+			live_menu.call("refresh_shell")
+		await h._ticks(2)
 	if mode == "menu":
 		var menu := h.get_tree().current_scene
 		if OS.get_environment("KP_PROGRAM") != "" and menu.has_method("_open_program_selector"):
