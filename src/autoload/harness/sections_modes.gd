@@ -385,10 +385,32 @@ func _capture() -> void:
 			menu._open_settings()
 		elif OS.get_environment("KP_AWARDS") != "" and menu.has_method("_open_achievements"):
 			menu._open_achievements()
+		elif OS.get_environment("KP_LANG_CYCLE") != "" and menu.has_method("_open_settings"):
+			# Prova visual do menu depois de trocar de idioma e fechar settings:
+			# era aqui que a moldura e os rótulos antigos voltavam por cima do
+			# shell novo.
+			menu._open_settings()
+			await h._ticks(3)
+			var lang_kit: RefCounted = menu.get("_settings_kit")
+			if lang_kit != null and lang_kit.has_method("language_button"):
+				lang_kit.call("set_active_section", "ACCESSIBILITY")
+				await h._ticks(2)
+				var lang_button: Button = lang_kit.call("language_button")
+				if is_instance_valid(lang_button):
+					lang_button.pressed.emit()
+					await h._ticks(5)
+			menu.call("_close_settings")
+			await h._ticks(5)
 	else:
-		if mode == "story_intro":
+		# `KP_STORY_STAGE` captura QUALQUER fase do story, não só a primeira: sem
+		# isso não havia como olhar para o campo do Win11, que é onde o estouro
+		# branco vivia.
+		var story_stage := int(OS.get_environment("KP_STORY_STAGE")) if OS.get_environment("KP_STORY_STAGE") != "" else -1
+		if mode == "story_intro" or story_stage >= 0:
 			Game.story_cleared = {}
-			Game.start_story(0)
+			for unlock_index in maxi(story_stage, 0):
+				Game.story_cleared[Game.story_stage_id(unlock_index)] = true
+			Game.start_story(maxi(story_stage, 0))
 		else:
 			Game.start_run()
 		await h._until(func() -> bool:
@@ -454,6 +476,49 @@ func _capture() -> void:
 				await h._ticks(20)
 				arena._set_paused(true)
 				arena._open_terminal()
+			# Prova visual do chão do HUD: um inimigo parado embaixo de cada
+			# módulo. `speed = 0` porque a captura espera 40 quadros e um drone
+			# vivo já teria atravessado meia arena.
+			# Prova visual do B1: o `rm -rf /` digitado dentro do terminal tem de
+			# encerrar a run DESPAUSADA, sem o painel de pause por cima.
+			"rm_rf":
+				h._populate(arena, 2)
+				await h._ticks(20)
+				arena._set_paused(true)
+				await h._ticks(3)
+				arena._open_terminal()
+				await h._ticks(3)
+				var rm_terminal: Control = arena.get("_terminal_panel")
+				if rm_terminal != null:
+					rm_terminal.call("submit_command", "rm -rf /")
+				await h._ticks(140)
+			"hud_contacts":
+				# Numa fase de story o card de intro cobre a tela; a prova é do
+				# CAMPO e do HUD, então ele sai antes da foto.
+				if arena.has_method("story_intro_active"):
+					for _intro_wait in 240:
+						if not bool(arena.call("story_intro_active")):
+							break
+						arena.call("dismiss_story_intro")
+						await h._ticks(1)
+				arena.spawner.stop()
+				var hud_layout: Dictionary = arena.hud.layout_snapshot()
+				var to_world := arena.get_viewport().get_canvas_transform().affine_inverse()
+				var contact_kinds: Array[String] = ["drone", "spewer", "lancer", "splitter"]
+				var contact_slots: Array[String] = ["integrity", "score", "encounter", "patches"]
+				for contact_index in contact_slots.size():
+					var slot_rect: Rect2 = hud_layout[contact_slots[contact_index]]
+					var contact: EnemyBase = arena.spawner.call("_make_enemy", contact_kinds[contact_index])
+					if contact == null:
+						continue
+					contact.position = to_world * slot_rect.get_center()
+					contact.configure(1.6, false)
+					contact.speed = 0.0
+					arena.enemy_container.add_child(contact)
+				await h._ticks(2)
+				for parked in EnemyBase.shared_list:
+					if is_instance_valid(parked):
+						parked.speed = 0.0
 	await h._ticks(frames)
 	await RenderingServer.frame_post_draw
 	var img := h.get_viewport().get_texture().get_image()

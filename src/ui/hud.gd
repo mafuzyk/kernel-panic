@@ -248,16 +248,48 @@ func status_surface_points(rect: Rect2) -> PackedVector2Array:
 func primary_surface_points(rect: Rect2) -> PackedVector2Array:
 	return status_surface_points(rect)
 
-## Chão dos módulos de combate.
+## Chão dos módulos de combate, na cor do campo.
 ##
-## Opaco por contrato. A versão anterior usava alpha 0.055 para "o campo
-## continuar visível através do módulo" — regra escrita para um fundo parado.
-## O fundo não está parado: a câmera segue o jogador, então a parede da arena,
-## as réguas da grade e os setores corrompidos passam por baixo de cada módulo
-## o tempo todo, e o texto de status ficava sobre o que calhasse de passar.
-## HUD é leitura periférica; tem que ser lido sem foco e sem sorte.
+## Duas correções vivem nesta função e na `_draw_understage_contacts()` abaixo.
+##
+## 1. O chão era `Color(0.012, 0.020, 0.045)` FIXO. O acento de era/fase só
+##    entrava como tinta de 2% e nas linhas de borda, então o HUD ficava azul
+##    marinho em toda fase — inclusive nas que pintam o campo de laranja, roxo
+##    ou dourado. Agora ele nasce do acento vivo: mesmo matiz, luminância
+##    travada no teto, para o texto de status continuar ganhando do fundo.
+##
+## 2. Ele era opaco por contrato (alpha 0.92). A regra original — alpha 0.055
+##    "para o campo continuar visível" — tinha sido escrita para um fundo
+##    parado, e o fundo não está parado: a câmera segue o jogador. A resposta
+##    foi tapar tudo, e junto com a grade passaram a sumir os INIMIGOS. Num jogo
+##    que é sobre ler formas em movimento, isso é pior que a régua por baixo do
+##    texto. Agora o chão é translúcido e quem passa por baixo é redesenhado
+##    como silhueta por cima dele — e por baixo do texto.
+const GROUND_ALPHA := 0.72
+const GROUND_LUMINANCE_CEILING := 0.055
+
 func primary_surface_fill() -> Color:
-	return Color(0.012, 0.020, 0.045, 0.92)
+	return surface_fill_for_accent(_era_accent)
+
+## Pura para o autotest poder afirmar a regra sem montar uma arena.
+static func surface_fill_for_accent(accent: Color) -> Color:
+	var tinted := Color.from_hsv(accent.h, minf(accent.s, 0.78), 1.0)
+	# O chão continua sendo uma SUPERFÍCIE, não um vidro colorido: o matiz entra
+	# a 22% sobre o preto azulado que o módulo sempre teve.
+	var ground := Color(0.012, 0.020, 0.045).lerp(tinted, 0.22)
+	var luminance := ground.get_luminance()
+	if luminance > GROUND_LUMINANCE_CEILING:
+		var k := GROUND_LUMINANCE_CEILING / maxf(luminance, 0.0001)
+		ground = Color(ground.r * k, ground.g * k, ground.b * k)
+	ground.a = GROUND_ALPHA
+	return ground
+
+## Profundidade de um ponto dentro de um retângulo: positiva dentro, negativa
+## fora. É o que faz a silhueta ENTRAR gradualmente em vez de piscar na borda.
+static func module_cover_depth(rect: Rect2, point: Vector2) -> float:
+	return minf(
+		minf(point.x - rect.position.x, rect.end.x - point.x),
+		minf(point.y - rect.position.y, rect.end.y - point.y))
 
 func outer_frame_segments(_viewport: Vector2 = size) -> Array[PackedVector2Array]:
 	return []
@@ -656,6 +688,13 @@ func _draw_combat_shell(f: Font) -> void:
 	if not touch_layout():
 		_draw_primary_surface(dash_rect, _era_accent, 0.022)
 	_draw_status_surface(patch_rect, _era_accent, 0.028)
+	# Entre o chão e o texto: a ameaça aparece, o status continua legível.
+	var covered_rects: Array[Rect2] = [integrity_rect, encounter_rect, score_rect, patch_rect]
+	if not touch_layout():
+		covered_rects.append(dash_rect)
+	if event_log_visible():
+		covered_rects.append(event_log_rect(size))
+	_draw_understage_contacts(covered_rects)
 	draw_string(f, Vector2(integrity_rect.position.x + 16.0, float(meter_label_baselines()["integrity"]["label"])),
 		tr("HUD_INTEGRITY"), HORIZONTAL_ALIGNMENT_LEFT, integrity_rect.size.x - 32.0, 12, status_label_ink())
 	var cycle_label := tr("ARENA_CYCLE") % Game.wave
@@ -672,6 +711,43 @@ func _draw_combat_shell(f: Font) -> void:
 		for line in visible_event_lines():
 			event_y += 15.0
 			draw_string(f, Vector2(score_rect.position.x + 14.0, event_y), line, HORIZONTAL_ALIGNMENT_LEFT, score_rect.size.x - 28.0, 11, TacticalUIHelper.MUTED)
+
+## Redesenha, por cima do chão dos módulos, quem estiver passando por baixo.
+##
+## Inimigos e orbes inimigas viram contorno na própria cor, com opacidade
+## proporcional a quanto já entraram no módulo — entram e saem sem piscar na
+## borda. O que se perde é o preenchimento; o que se ganha é nunca perder uma
+## ameaça de vista porque ela escolheu atravessar o canto da tela.
+func _draw_understage_contacts(rects: Array[Rect2]) -> void:
+	if rects.is_empty() or not is_inside_tree():
+		return
+	var canvas := get_viewport().get_canvas_transform()
+	for raw_enemy in EnemyBase.shared_list:
+		if not is_instance_valid(raw_enemy):
+			continue
+		var enemy: EnemyBase = raw_enemy
+		_draw_contact(rects, canvas * enemy.global_position,
+			maxf(enemy.radius * absf(enemy.scale.x), 5.0), enemy.col)
+	for raw_orb in get_tree().get_nodes_in_group("enemy_orbs"):
+		if not is_instance_valid(raw_orb) or not (raw_orb is Node2D):
+			continue
+		var orb: Node2D = raw_orb
+		var orb_ink = orb.get("col")
+		_draw_contact(rects, canvas * orb.global_position, ORB_CONTACT_RADIUS,
+			orb_ink if orb_ink is Color else Balance.COL_SPEWER)
+
+const ORB_CONTACT_RADIUS := 8.0
+
+func _draw_contact(rects: Array[Rect2], screen: Vector2, body_radius: float, ink: Color) -> void:
+	var depth := -INF
+	for rect in rects:
+		depth = maxf(depth, module_cover_depth(rect, screen))
+	# A opacidade acompanha o quanto o corpo já entrou: sem degrau na borda.
+	var reveal := clampf((depth + body_radius) / maxf(body_radius * 2.0, 1.0), 0.0, 1.0)
+	if reveal <= 0.01:
+		return
+	draw_arc(screen, body_radius, 0.0, TAU, 20, Color(ink.r, ink.g, ink.b, 0.85 * reveal), 1.6, true)
+	draw_circle(screen, body_radius * 0.34, Color(ink.r, ink.g, ink.b, 0.34 * reveal))
 
 func _hp_pips(f: Font) -> void:
 	var integrity_rect: Rect2 = layout_snapshot()["integrity"]

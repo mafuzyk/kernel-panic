@@ -132,19 +132,65 @@ const ERA_MIX_STORY := 0.28
 const ERA_TINT_GAIN_GRID := 0.45
 const ERA_TINT_GAIN_GLOW := 0.32
 
+## Defaults do `bg_grid.gdshader` no modo endless. Existem como constantes para
+## o modelo de pico abaixo medir o MESMO campo que o shader desenha.
+const FIELD_BASE_DEFAULT := Color(0.012, 0.014, 0.033)
+const FIELD_GRID_DEFAULT := Color(0.075, 0.13, 0.24)
+const FIELD_GLOW_DEFAULT := Color(0.05, 0.13, 0.2)
+## Defaults de `intro_kit._apply_story_theme` quando a fase omite a chave.
+const STORY_BASE_DEFAULT := Color("080b18")
+const STORY_GLOW_DEFAULT := Color("0d4160")
+
 ## Pico de cor do campo: o que o shader produz no centro, onde a grade cheia e
 ## o brilho central somam. É sobre isto que a asserção de legibilidade mede.
-static func field_peak_color(era_tint: Color, era_mix: float) -> Color:
-	var grid_base := Color(0.075, 0.13, 0.24)
-	var glow_base := Color(0.05, 0.13, 0.2)
-	var grid_ink := grid_base.lerp(shade(era_tint, ERA_TINT_GAIN_GRID), era_mix * 0.7)
-	var glow_ink := glow_base.lerp(shade(era_tint, ERA_TINT_GAIN_GLOW), era_mix * 0.9)
+##
+## O resultado NÃO é saturado de propósito: um canal acima de 1.0 é exatamente
+## a informação que interessa para detectar estouro.
+static func field_peak_color(era_tint: Color, era_mix: float,
+		base_col: Color = FIELD_BASE_DEFAULT,
+		grid_col: Color = FIELD_GRID_DEFAULT,
+		glow_col: Color = FIELD_GLOW_DEFAULT) -> Color:
+	var grid_ink := grid_col.lerp(shade(era_tint, ERA_TINT_GAIN_GRID), era_mix * 0.7)
+	var glow_ink := glow_col.lerp(shade(era_tint, ERA_TINT_GAIN_GLOW), era_mix * 0.9)
 	# grade primária (0.55) + secundária, e o brilho central a 0.9.
 	var g: float = 0.55 + BG_SUBGRID_WEIGHT
 	return Color(
-		0.012 + grid_ink.r * g + glow_ink.r * 0.9,
-		0.014 + grid_ink.g * g + glow_ink.g * 0.9,
-		0.033 + grid_ink.b * g + glow_ink.b * 0.9)
+		base_col.r + grid_ink.r * g + glow_ink.r * 0.9,
+		base_col.g + grid_ink.g * g + glow_ink.g * 0.9,
+		base_col.b + grid_ink.b * g + glow_ink.b * 0.9)
+
+## O mesmo pico para um tema de fase do Story, lido como `_apply_story_theme` lê.
+##
+## Sem isto nenhum tema de fase era medido: o modelo antigo tinha base, grade e
+## brilho FIXOS do endless, então o `Win11` podia nascer com `base_col #dfe9f2`
+## — quase branco — e o centro da arena estourava sem nenhum teste reclamar.
+static func story_field_peak_color(theme: Dictionary) -> Color:
+	return field_peak_color(
+		theme.get("accent", COL_PLAYER),
+		ERA_MIX_STORY,
+		theme.get("base_col", STORY_BASE_DEFAULT),
+		theme.get("grid_col", COL_GRID),
+		theme.get("glow_col", STORY_GLOW_DEFAULT))
+
+## Um campo ESTOURA quando os três canais saturam juntos: aí ele perde o matiz e
+## vira tela branca. Um canal sozinho acima de 1.0 é cor forte — a saturação
+## vermelha do TempleOS e o azul do XP são escolhas de ato. Três canais é luz, e
+## luz branca no fundo é o que machuca o olho.
+static func field_whites_out(peak: Color) -> bool:
+	return peak.r >= 1.0 and peak.g >= 1.0 and peak.b >= 1.0
+
+## O que a tela realmente mostra: o framebuffer satura em 1.0. O pico cru serve
+## para detectar estouro; a luminância percebida mede sobre o valor saturado.
+static func field_display_color(peak: Color) -> Color:
+	return Color(minf(peak.r, 1.0), minf(peak.g, 1.0), minf(peak.b, 1.0))
+
+static func brightest_entity_luminance() -> float:
+	var brightest := 0.0
+	for entity in [COL_DRONE, COL_LANCER, COL_SPEWER, COL_SPLITTER, COL_BULWARK,
+		COL_MOTE, COL_PLAYER, COL_DANGER]:
+		var entity_color: Color = entity
+		brightest = maxf(brightest, entity_color.get_luminance())
+	return brightest
 
 
 static func shade(base: Color, mult: float) -> Color:

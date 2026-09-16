@@ -118,6 +118,44 @@ func _apply_layout_mode() -> void:
 
 # ── estado vindo do menu ──────────────────────────────────────────────
 
+## Retradução em tempo de execução.
+##
+## O shell é construído UMA vez e resolve cada `tr()` naquele instante. Trocar
+## de idioma pelo menu chamava só `refresh_shell()`, que reescreve modo, recorde
+## e programa — então PURGE, Story, Archives, ACTIVE PROGRAM, Swap, Start,
+## Settings, Awards, Quit e a tagline ficavam presos ao idioma do boot e o menu
+## aparecia metade em cada língua.
+##
+## Cada rótulo que nasce de uma chave guarda a CHAVE nesta meta; `retranslate()`
+## varre a árvore e reescreve todos. MODE e DIFFICULTY ficam de fora de
+## propósito: quem manda neles é `set_cycle_labels()`.
+const TR_KEY_META := "kp_tr_key"
+
+func retranslate() -> void:
+	_retranslate_node(self)
+
+func _retranslate_node(node: Node) -> void:
+	if node is Label and node.has_meta(TR_KEY_META):
+		(node as Label).text = tr(str(node.get_meta(TR_KEY_META)))
+	for child in node.get_children():
+		_retranslate_node(child)
+
+## Marca o primeiro `Label` sob `root` com a chave que o gerou.
+static func _tag_tr(root: Node, key: String) -> void:
+	var label := _first_label(root)
+	if label != null:
+		label.set_meta(TR_KEY_META, key)
+
+static func _first_label(root: Node) -> Label:
+	if root is Label:
+		return root as Label
+	for child in root.get_children():
+		var found := _first_label(child)
+		if found != null:
+			return found
+	return null
+
+
 func set_run_config(mode_text: String, best_text: String, program_name: String) -> void:
 	_mode_label.text = mode_text
 	_best_label.text = best_text
@@ -246,7 +284,9 @@ func _build_masthead(parent: Node) -> HBoxContainer:
 	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mark.add_child(ScreenKit.grot("KERNEL", 26, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY))
 	mark.add_child(ScreenKit.grot("PANIC", 26, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY))
-	mark.add_child(ScreenKit.mono(tr("TAGLINE"), Design.TEXT_MICRO, Design.TEXT_MUTED))
+	var tagline := ScreenKit.mono(tr("TAGLINE"), Design.TEXT_MICRO, Design.TEXT_MUTED)
+	tagline.set_meta(TR_KEY_META, "TAGLINE")
+	mark.add_child(tagline)
 	row.add_child(mark)
 
 	ScreenKit.grow_h(row)
@@ -299,6 +339,7 @@ func _build_actions(parent: Node) -> void:
 	purge_row.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	purge_row.add_child(ScreenKit.grot("→", 44, Design.WEIGHT_BLACK, Design.ACCENT))
 	_purge_label = ScreenKit.grot(tr("MENU_PURGE"), 54, Design.WEIGHT_BLACK, Design.ACCENT)
+	_purge_label.set_meta(TR_KEY_META, "MENU_PURGE")
 	purge_row.add_child(_purge_label)
 	var purge_pad := Control.new()
 	purge_pad.custom_minimum_size = Vector2(Design.SPACE_LG, 0)
@@ -334,20 +375,25 @@ func _build_actions(parent: Node) -> void:
 	ScreenKit.gap(col, Design.SPACE_SM)
 
 	_story_block = ScreenKit.action(tr("MENU_STORY"), "", "text", func() -> void: story_pressed.emit())
+	_tag_tr(_story_block, "MENU_STORY")
 	col.add_child(_story_block)
 	_archives_block = ScreenKit.action(tr("MENU_ARCHIVES"), "", "text", func() -> void: archives_pressed.emit())
+	_tag_tr(_archives_block, "MENU_ARCHIVES")
 	col.add_child(_archives_block)
 
 	ScreenKit.gap(col, Design.SPACE_MD)
 	var prog := VBoxContainer.new()
 	prog.add_theme_constant_override("separation", Design.SPACE_XS)
 	col.add_child(prog)
-	prog.add_child(ScreenKit.mono(tr("MENU_ACTIVE_PROGRAM"), Design.TEXT_MICRO, Design.TEXT_MUTED))
+	var prog_caption := ScreenKit.mono(tr("MENU_ACTIVE_PROGRAM"), Design.TEXT_MICRO, Design.TEXT_MUTED)
+	prog_caption.set_meta(TR_KEY_META, "MENU_ACTIVE_PROGRAM")
+	prog.add_child(prog_caption)
 	var prog_row := HBoxContainer.new()
 	prog_row.add_theme_constant_override("separation", Design.SPACE_MD)
 	_program_label = ScreenKit.grot("", 22, Design.WEIGHT_BLACK, Design.TEXT_PRIMARY)
 	prog_row.add_child(_program_label)
 	_swap_link = _link(tr("MENU_SWAP"), func() -> void: configure_pressed.emit())
+	_tag_tr(_swap_link, "MENU_SWAP")
 	prog_row.add_child(_swap_link)
 	prog.add_child(prog_row)
 
@@ -423,7 +469,9 @@ func _build_footer(parent: Node) -> void:
 	var left_box := HBoxContainer.new()
 	left_box.add_theme_constant_override("separation", Design.SPACE_MD)
 	left_box.add_child(enter_hint)
-	left_box.add_child(ScreenKit.mono(tr("MENU_START"), Design.TEXT_CAPTION, Design.TEXT_SECONDARY))
+	var start_hint := ScreenKit.mono(tr("MENU_START"), Design.TEXT_CAPTION, Design.TEXT_SECONDARY)
+	start_hint.set_meta(TR_KEY_META, "MENU_START")
+	left_box.add_child(start_hint)
 	row.add_child(left_box)
 	ScreenKit.grow_h(row)
 
@@ -432,9 +480,9 @@ func _build_footer(parent: Node) -> void:
 	row.add_child(right_box)
 
 	for spec in [
-		[tr("MENU_SETTINGS"), func() -> void: settings_pressed.emit()],
-		[tr("MENU_AWARDS"), func() -> void: awards_pressed.emit()],
-		[tr("MENU_QUIT"), func() -> void: quit_pressed.emit()],
+		["MENU_SETTINGS", func() -> void: settings_pressed.emit()],
+		["MENU_AWARDS", func() -> void: awards_pressed.emit()],
+		["MENU_QUIT", func() -> void: quit_pressed.emit()],
 	]:
 		# HBox dimensiona pelo conteúdo: medir `get_minimum_size()` aqui
 		# (antes do layout) devolvia zero e o anel de foco saía menor que
@@ -445,7 +493,9 @@ func _build_footer(parent: Node) -> void:
 		pad_l.custom_minimum_size = Vector2(Design.SPACE_SM, 0)
 		pad_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		cell.add_child(pad_l)
-		cell.add_child(ScreenKit.mono(str(spec[0]), Design.TEXT_CAPTION, Design.TEXT_PRIMARY))
+		var cell_label := ScreenKit.mono(tr(str(spec[0])), Design.TEXT_CAPTION, Design.TEXT_PRIMARY)
+		cell_label.set_meta(TR_KEY_META, str(spec[0]))
+		cell.add_child(cell_label)
 		var pad_r := Control.new()
 		pad_r.custom_minimum_size = Vector2(Design.SPACE_SM, 0)
 		pad_r.mouse_filter = Control.MOUSE_FILTER_IGNORE

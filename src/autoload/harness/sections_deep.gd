@@ -188,6 +188,54 @@ func _story_hold_restart_test() -> void:
 	Game.story_stage_index = saved_stage
 	await h._ticks(5)
 
+## `rm -rf /` mata a run de DENTRO do terminal, e o terminal só existe com a
+## árvore congelada. O defeito era terminar congelado: ninguém despausava, e
+## `_on_player_died` fechava o terminal antes de `_state` virar "dead", o que
+## fazia o painel de pause voltar por cima da tela de fim.
+func _terminal_rm_rf_test() -> void:
+	print("AT_STEP deep_terminal_rm_rf")
+	_sterilize_arena()
+	var saved_mode := Game.mode
+	Game.mode = "classic"
+	Game.start_run()
+	var entered: bool = await h._until(func() -> bool:
+		var cur := h.get_tree().current_scene
+		return cur != null and cur.name == "Arena" and cur.get("player") != null, 8.0, "rm -rf arena")
+	if not entered:
+		Game.mode = saved_mode
+		return
+	await h._ticks(6)
+	var arena: Arena = h.get_tree().current_scene
+	if arena.spawner != null and is_instance_valid(arena.spawner):
+		arena.spawner.stop()
+	arena._set_paused(true)
+	await h._ticks(3)
+	arena.call("_open_terminal")
+	await h._ticks(3)
+	var terminal: Control = arena.get("_terminal_panel")
+	var pause_screen: Control = arena.get("_pause_screen")
+	h._check(terminal != null and terminal.visible and h.get_tree().paused,
+		"terminal opens over a frozen run")
+	if terminal == null:
+		Game.mode = saved_mode
+		return
+	var result := str(terminal.call("submit_command", "rm -rf /"))
+	h._check(result.contains("KERNEL PANIC"), "rm -rf / answers with the panic")
+	await h._ticks(4)
+	h._check(not h.get_tree().paused, "rm -rf / leaves the tree running")
+	h._check(not terminal.visible, "rm -rf / closes the terminal it was typed in")
+	h._check(pause_screen != null and not pause_screen.visible,
+		"rm -rf / does not resurrect the pause panel over the ending")
+	h._check(str(arena.get("_state")) == "dead", "rm -rf / ends the run")
+	h._check(str(Game.stats.get("killer", "")) == "RM -RF /", "the run records rm -rf / as its killer")
+	var summary_shown: bool = await h._until(func() -> bool:
+		var panel: Control = arena.get("_run_summary")
+		return panel != null and is_instance_valid(panel) and panel.visible, 6.0, "rm -rf run summary")
+	h._check(summary_shown, "rm -rf / reaches the run summary")
+	h._check(not h.get_tree().paused, "the run summary is reachable without a frozen tree")
+	Game.mode = saved_mode
+	await h._ticks(3)
+
 func _oom_ownership_test(arena: Arena) -> void:
 	print("AT_STEP deep_oom_ownership")
 	var mf: MoteField = arena.mote_field

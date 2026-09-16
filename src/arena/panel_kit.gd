@@ -122,12 +122,31 @@ func _open_terminal() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Sfx.play("ui", 1.1, -6.0)
 
+## Fechar o terminal devolve o pause SÓ quando a run ainda é jogável.
+##
+## Quando `rm -rf /` mata o processo de dentro do próprio terminal,
+## `_on_player_died` fecha o terminal no mesmo quadro. A versão anterior
+## ressuscitava o pause ali, porque olhava apenas para `_state == "play"` e para
+## a árvore pausada — e naquele instante os dois ainda eram verdadeiros. A run
+## terminava congelada, com o pause por cima da tela de fim.
 func _close_terminal() -> void:
+	# O pause reaparece ANTES do `close_focus`: ele devolve o foco ao botão que
+	# abriu o terminal, e só faz isso se o dono anterior já estiver visível.
+	if is_instance_valid(a._pause_screen) and run_is_pausable():
+		a._pause_screen.visible = true
 	if a._terminal_panel != null and is_instance_valid(a._terminal_panel):
 		a._terminal_panel.visible = false
-	if is_instance_valid(a._pause_screen) and a._state == "play" and a.get_tree().paused:
-		a._pause_screen.visible = true
 		ScreenKit.close_focus(a._terminal_panel)
+
+## A run aceita pause quando o processo do jogador ainda existe. `_state` sozinho
+## não basta: ele só vira "dead" DEPOIS que o jogador morre, e há um quadro em
+## que os dois discordam.
+func run_is_pausable() -> bool:
+	if a._state != "play" or not a.get_tree().paused:
+		return false
+	if Game.state != Game.State.PLAYING:
+		return false
+	return a.player != null and is_instance_valid(a.player) and not a.player.dead
 
 func _make_volume_row(label_text: String, value: float, y: float, on_change: Callable) -> Control:
 	var row := HBoxContainer.new()

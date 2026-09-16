@@ -300,6 +300,16 @@ func _settings_focus_test(menu: Node) -> void:
 	menu.call("_close_settings")
 	await h._ticks(1)
 
+## `[Label, chave]` de cada rótulo do shell que nasceu de uma tradução.
+func _tagged_labels(root: Node) -> Array:
+	var found: Array = []
+	if root is Label and root.has_meta(MenuShell.TR_KEY_META):
+		found.append([root as Label, str(root.get_meta(MenuShell.TR_KEY_META))])
+	for child in root.get_children():
+		found.append_array(_tagged_labels(child))
+	return found
+
+
 func _language_selector_test(menu: Node) -> void:
 	print("AT_STEP language_selector")
 	var saved_lang := Game.language()
@@ -329,6 +339,36 @@ func _language_selector_test(menu: Node) -> void:
 	h._check(is_instance_valid(lang_btn), "language control exists after rebuild")
 	menu.call("_close_settings")
 	await h._ticks(1)
+	# Os widgets legacy do menu nascem escondidos e ninguém os desenha desde que
+	# o MenuShell assumiu. Fechar settings voltou a exibi-los durante o 3.0 —
+	# moldura e rótulos antigos por cima do shell — e trocar de idioma era o
+	# gatilho, porque reconstruir settings passa pelo par abrir/fechar.
+	var resurrected: Array[String] = []
+	for child in menu.get_children():
+		if not (child is Control) or child is ColorRect:
+			continue
+		var control := child as Control
+		if control.visible:
+			resurrected.append(control.get_class() + ":" + str(control.name))
+	h._check(resurrected.is_empty(),
+		"closing settings does not resurrect the legacy menu widgets (%s)" % ", ".join(resurrected))
+	# O shell resolve cada `tr()` uma vez, na construção. Sem retradução em
+	# tempo de execução, trocar de idioma deixava PURGE, Story, Archives,
+	# ACTIVE PROGRAM, Swap, Start, Settings, Awards e Quit no idioma do boot,
+	# ao lado de modo e recorde já traduzidos: menu metade em cada língua.
+	var shell_node: Control = menu.get("_shell")
+	var stale_labels: Array[String] = []
+	var tagged := 0
+	if is_instance_valid(shell_node):
+		for entry in _tagged_labels(shell_node):
+			tagged += 1
+			var label: Label = entry[0]
+			var key: String = entry[1]
+			if label.text != tr(key):
+				stale_labels.append("%s=%s" % [key, label.text])
+	h._check(tagged >= 8, "the menu shell tags its translated labels (%d found)" % tagged)
+	h._check(stale_labels.is_empty(),
+		"the whole menu shell speaks the language just selected (%s)" % ", ".join(stale_labels))
 	var post_close: Control = h.get_viewport().gui_get_focus_owner()
 	# O teste possui a própria higiene de foco: restaura o PURGE de forma
 	# síncrona para não vazar estado para o desktop_focus.

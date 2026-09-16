@@ -40,20 +40,41 @@ func _hud_style_test(arena: Arena) -> void:
 		var fill: Color = hud_ref.call("primary_surface_fill")
 		h._check(points.size() == 4 and points[0] == probe.position and points[2] == probe.end,
 			"primary combat modules use rectangular editorial geometry instead of cut corners")
-		# Regra revista em 2026-09-12 depois de medir o capture.
+		# Regra revista em 2026-09-16, terceira versão.
 		#
-		# A regra anterior era "fundo fraco (alpha <= 0.08) para o campo
-		# continuar visível através do módulo". Ela foi escrita para um fundo
-		# parado. O fundo NÃO está parado: a câmera segue o jogador, então a
-		# parede da arena, as réguas da grade e os setores corrompidos passam
-		# por baixo de cada módulo o tempo todo. Com alpha 0.055 o texto de
-		# status fica sobre o que passar — e o capture mostra "DASH READY"
-		# cortado pela marca de canto da parede.
+		# v1 era "fundo fraco (alpha <= 0.08) para o campo continuar visível
+		# através do módulo" — escrita para um fundo parado, e o fundo não está
+		# parado: a câmera segue o jogador, então parede, réguas e setores
+		# corrompidos passam por baixo de cada módulo o tempo todo.
 		#
-		# HUD é leitura periférica: tem que ser lido sem foco e sem sorte. O
-		# fundo passa a ser chão de verdade.
-		h._check(fill.a >= 0.85, "combat modules carry a real ground, not a tint")
+		# v2 respondeu tapando tudo (alpha 0.92, cor fixa). Resolveu a régua e
+		# criou dois problemas: o chão ficava azul marinho em TODA fase, e os
+		# inimigos que cruzavam um módulo sumiam da tela.
+		#
+		# v3: o chão tinge com o campo, fica translúcido, e quem passa por baixo
+		# é redesenhado como silhueta entre o chão e o texto.
+		h._check(fill.a >= 0.65, "combat modules carry a real ground, not a tint")
+		h._check(fill.a <= 0.85, "that ground stays translucent enough to show what crosses it")
 		h._check(fill.get_luminance() < 0.08, "that ground stays dark enough for the status ink")
+		h._check(hud_ref.has_method("surface_fill_for_accent") and hud_ref.has_method("module_cover_depth"),
+			"combat HUD exposes the ground tint and the cover math as pure functions")
+		# O chão segue o acento vivo: mesma família de matiz, luminância travada.
+		for probe_accent in [Balance.COL_PLAYER, Balance.COL_LANCER, Balance.COL_MOTE, Balance.COL_SPEWER]:
+			var accent: Color = probe_accent
+			var ground: Color = hud_ref.call("surface_fill_for_accent", accent)
+			h._check(ground.get_luminance() < 0.08,
+				"the %s ground stays dark enough for the status ink" % accent.to_html(false))
+			h._check(absf(fposmod(ground.h - accent.h + 0.5, 1.0) - 0.5) < 0.06,
+				"the %s ground keeps the hue of the field it sits on" % accent.to_html(false))
+		var stale: Color = hud_ref.call("surface_fill_for_accent", Balance.COL_MOTE)
+		h._check(not stale.is_equal_approx(hud_ref.call("surface_fill_for_accent", Balance.COL_SPEWER)),
+			"two different field accents do not produce the same ground")
+		# A silhueta entra pela profundidade, não por um teste de dentro/fora.
+		var probe_rect := Rect2(0.0, 0.0, 100.0, 40.0)
+		h._check(float(hud_ref.call("module_cover_depth", probe_rect, Vector2(50.0, 20.0))) == 20.0,
+			"cover depth peaks at the centre of a module")
+		h._check(float(hud_ref.call("module_cover_depth", probe_rect, Vector2(-10.0, 20.0))) == -10.0,
+			"cover depth goes negative outside the module")
 	h._check(hud_ref != null and hud_ref.has_method("outer_frame_segments"), "combat HUD exposes outer-frame geometry")
 	if hud_ref != null and hud_ref.has_method("outer_frame_segments"):
 		h._check(hud_ref.call("outer_frame_segments", Vector2(1366, 768)).is_empty(), "combat HUD no longer encloses the arena in a decorative outer frame")
@@ -728,6 +749,26 @@ func _arena_field_test() -> void:
 			"the %s era field stays darker than the dimmest entity" % era_tint.to_html(false))
 	h._check(Balance.ERA_MIX_STORY <= Balance.ERA_MIX_ENDLESS,
 		"story keeps the calmer field of the two")
+
+	# Até aqui a regra de campo só media o ENDLESS: `field_peak_color()` tinha
+	# base, grade e brilho fixos, então nenhum tema de fase do Story passava por
+	# nenhuma asserção. Foi assim que o `Win11` chegou ao 3.0 com
+	# `base_col #dfe9f2` e um centro de arena em (1.67, 1.89, 2.06) — branco
+	# estourado nos três canais.
+	#
+	# Os atos PODEM saturar um canal: é o vermelho do TempleOS e o azul do XP,
+	# escolha de identidade. O que nenhum deles pode é saturar os três juntos,
+	# porque aí o campo perde o matiz e vira luz branca; nem pode brilhar mais
+	# que a coisa mais clara que anda em cima dele.
+	var brightest_entity: float = Balance.brightest_entity_luminance()
+	for raw_stage in StoryData.STAGES:
+		var stage: Dictionary = raw_stage
+		var stage_id := str(stage.get("id", ""))
+		var stage_peak: Color = Balance.story_field_peak_color(stage.get("theme", {}))
+		h._check(not Balance.field_whites_out(stage_peak),
+			"the %s field never washes out to white" % stage_id)
+		h._check(Balance.field_display_color(stage_peak).get_luminance() <= brightest_entity,
+			"the %s field never out-glows the brightest entity" % stage_id)
 
 
 ## A matemática da prova de silhueta, testada sem GPU.

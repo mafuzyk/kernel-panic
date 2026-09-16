@@ -704,12 +704,21 @@ func _on_boss_split(minis: Array) -> void:
 func _on_player_hp(hp: int, _max_hp: int) -> void:
 	overlay.set_low_hp(1.0 if hp <= 1 else (0.45 if hp == 2 else 0.0))
 
+## A ordem aqui importa. `_close_terminal()` pergunta se a run ainda é jogável
+## para decidir se devolve o pause; rodando ANTES de `_state = "dead"` ela
+## respondia que sim e ressuscitava o pause sobre a tela de fim. E a árvore
+## precisa sair do pause explicitamente: a morte pode vir de dentro do terminal
+## (`rm -rf /`), que só existe com a run congelada.
 func _on_player_died() -> void:
 	if _state != "play":
 		return
+	_state = "dead"
 	_clear_abandon_confirmation()
 	_panel_kit._close_terminal()
-	_state = "dead"
+	if is_instance_valid(_pause_screen):
+		_pause_screen.visible = false
+		ScreenKit.close_focus(_pause_screen)
+	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	spawner.stop()
 	overlay.aberrate(1.4)
@@ -1104,10 +1113,19 @@ func _terminal_heal() -> String:
 	Fx.text(player.global_position + Vector2(0, -30), "+INTEGRITY // SUDO", Balance.COL_PLAYER, 14)
 	return "sudo: heal granted // integrity +1"
 
+## O comando mata a run de dentro do terminal, que só existe com a árvore
+## pausada. Ele desfaz esse estado ANTES de matar: fecha terminal e pause e
+## despausa, para a morte seguir o mesmo caminho de qualquer outra morte.
 func _terminal_rm_rf() -> String:
 	if _state != "play" or Game.state != Game.State.PLAYING:
 		return "rm: process already stopped"
 	Game.log_event("PANIC // rm -rf / // filesystem destroyed")
+	_clear_abandon_confirmation()
+	_panel_kit._close_terminal()
+	if is_instance_valid(_pause_screen):
+		_pause_screen.visible = false
+		ScreenKit.close_focus(_pause_screen)
+	get_tree().paused = false
 	for combatant in enemy_list.duplicate():
 		if is_instance_valid(combatant):
 			combatant.queue_free()

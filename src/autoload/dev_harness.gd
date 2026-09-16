@@ -492,6 +492,7 @@ func _autotest() -> void:
 	arena2 = get_tree().current_scene as Arena
 	await _sec_modes._reticle_modal_test(arena2)
 	await _sec_deep._story_hold_restart_test()
+	await _sec_deep._terminal_rm_rf_test()
 	Game.to_menu()
 	ok = await _until(func() -> bool:
 		return get_tree().current_scene != null and get_tree().current_scene.name == "Menu", 6.0, "menu return")

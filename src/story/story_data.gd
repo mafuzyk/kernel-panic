@@ -91,6 +91,13 @@ const STAGES := [
 		"theme": {"base_col": Color("10223c"), "grid_col": Color("3e7db3"), "glow_col": Color("1f5e9e"), "accent": Color("74b9ff"), "grid_style": "crt_soft", "crt": {"curvature": 0.035, "noise": 0.035, "scanline": 0.10, "aberration": 0.28}},
 		"watermark": true
 	},
+	# Vidro ESCURO, não light mode.
+	#
+	# O tema original nascia com `base_col #dfe9f2` (luminância 0.91). O shader
+	# soma luz sobre a base (`col = base_col + grade` e depois o brilho central),
+	# então o centro da arena saía em (1.67, 1.89, 2.06): branco puro, sem matiz,
+	# doloroso de olhar. A identidade da fase é "limpo demais" — sem CRT, cantos
+	# suaves, azul corporativo, watermark — e nada disso depende de fundo claro.
 	{
 		"id": "win11",
 		"act": "windows",
@@ -100,7 +107,7 @@ const STAGES := [
 		"klog": ["shell: rounded corners enabled", "telemetry: everything is fine", "bloatware: 47 background processes active"],
 		"waves": [["drone", "update_loop", "drone"], ["bloatware", "spewer", "lancer"], ["bloatware", "update_loop", "splitter", "drone"], ["bloatware", "bloatware", "trojan", "oom", "spewer"]],
 		"scale": 1.10,
-		"theme": {"base_col": Color("dfe9f2"), "grid_col": Color("8ca7bd"), "glow_col": Color("b9d9ee"), "accent": Color("2e77b8"), "grid_style": "clean"},
+		"theme": {"base_col": Color("0e141c"), "grid_col": Color("2a3f55"), "glow_col": Color("18354d"), "accent": Color("4aa3e8"), "grid_style": "clean"},
 		"watermark": true
 	},
 	{

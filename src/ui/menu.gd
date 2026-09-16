@@ -117,6 +117,10 @@ func _apply_language(code: String) -> void:
 		section = _settings_kit.active_section()
 	Game.set_language(code)
 	_invalidate_lazy_panels()
+	# O shell é construído uma vez; sem isto PURGE, Story, Archives, Swap e o
+	# rodapé ficavam no idioma do boot enquanto modo e recorde já falavam o novo.
+	if is_instance_valid(_shell) and _shell.has_method("retranslate"):
+		_shell.call("retranslate")
 	refresh_shell()
 	if _settings_kit != null:
 		_settings_kit.rebuild_settings()
@@ -570,12 +574,43 @@ func _refresh_mode_ui() -> void:
 	_update_best()
 	_refresh_difficulty_label()
 
+## Esconde o menu atrás de um overlay e devolve DEPOIS exatamente o que
+## escondeu.
+##
+## A versão anterior ligava `visible = true` em todo filho `Control` que não
+## fosse `ColorRect` ao reexibir — inclusive nos nós legacy, que nascem
+## escondidos no laço de `legacy_first` em `_ready` e não são desenhados por
+## ninguém desde que o `MenuShell` assumiu o menu. Fechar settings ressuscitava
+## a moldura e os rótulos antigos por cima do shell novo; trocar de idioma era
+## o gatilho mais visível porque `_apply_language` reconstrói settings e passa
+## pelo par abrir/fechar.
+##
+## `_overlay_active` existe para a reentrância: `rebuild_settings()` reabre o
+## painel com o menu JÁ escondido, e sem a guarda a segunda varredura gravaria
+## uma lista vazia e o menu nunca voltaria.
+var _overlay_hidden: Array[Control] = []
+var _overlay_active := false
+
 func _set_main_menu_controls_visible(visible: bool) -> void:
-	for child in get_children():
-		if child == _settings_panel:
-			continue
-		if child is Control and not child is ColorRect:
-			child.visible = visible
+	if not visible:
+		if _overlay_active:
+			return
+		_overlay_active = true
+		_overlay_hidden.clear()
+		for child in get_children():
+			if child == _settings_panel or not (child is Control) or child is ColorRect:
+				continue
+			var control := child as Control
+			if not control.visible:
+				continue
+			_overlay_hidden.append(control)
+			control.visible = false
+		return
+	_overlay_active = false
+	for control in _overlay_hidden:
+		if is_instance_valid(control):
+			control.visible = true
+	_overlay_hidden.clear()
 
 func _export_save_to_clipboard() -> void:
 	if _save_transfer_field == null or not is_instance_valid(_save_transfer_field):
