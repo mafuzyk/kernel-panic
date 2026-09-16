@@ -286,6 +286,19 @@ func _physics_process(delta: float) -> void:
 	EnemyBase.tick_attack_slots(delta, Game.wave)
 	if Game.mode == "story" and _hazard_kit != null:
 		_hazard_kit.tick(delta)
+	# O relógio da run anda com a SIMULAÇÃO, não com o render.
+	#
+	# Ele vivia no `_process`, somando o delta dos quadros desenhados. Três
+	# consequências, e a do meio é a que machuca quem joga:
+	#
+	# 1. Duas máquinas com a mesma seed e os mesmos comandos mediam tempos
+	#    diferentes já no primeiro passo de física — medido: 0.083s contra
+	#    0.109s entre uma sessão headless e uma com tela.
+	# 2. A NOTA da fase do Story é calculada sobre este relógio. Com ele preso
+	#    à taxa de quadros, o S/A/B passava a depender do monitor de quem joga.
+	# 3. O cronômetro de speedrun do HUD mostrava a mesma mentira.
+	if _state == "play":
+		Game.stats["time"] += delta
 
 func debug_controls_enabled() -> bool:
 	return OS.is_debug_build() and Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
@@ -1309,7 +1322,6 @@ func _process(delta: float) -> void:
 			Balance.ERA_MIX_STORY if Game.mode == "story" else Balance.ERA_MIX_ENDLESS)
 		_bg_mat.set_shader_parameter("corruption", 0.0 if Game.mode == "story" else _stage_kit.background_corruption_for_wave(Game.wave))
 	if _state == "play":
-		Game.stats["time"] += delta
 		var level := 0
 		if hud.boss != null and is_instance_valid(hud.boss):
 			level = 2

@@ -477,6 +477,7 @@ func _autotest() -> void:
 	await _sec_deep._new_cast_test(arena2)
 	await _sec_deep._field_inversion_test()
 	await _sec_deep._weekly_traits_test()
+	await _sec_deep._run_clock_test(arena2)
 	await _sec_deep._story_setpiece_test()
 	await _sec_deep._story_substance_test()
 	await _sec_deep._story_completion_test()

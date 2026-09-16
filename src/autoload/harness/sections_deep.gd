@@ -1013,6 +1013,47 @@ func _story_build_applied_test() -> void:
 		return h.get_tree().current_scene != null and h.get_tree().current_scene.name == "Arena", 8.0, "story build arena")
 	await h._ticks(4)
 
+## O relógio da run anda com a SIMULAÇÃO, não com o render.
+##
+## Ele vivia no `_process` da arena, somando o delta dos quadros desenhados.
+## Como a NOTA da fase do Story é calculada sobre ele — e o cronômetro de
+## speedrun do HUD o mostra — o S/A/B e o tempo exibido dependiam da taxa de
+## quadros da máquina. Medido entre uma sessão headless e uma com tela: 0.083s
+## contra 0.109s no mesmo passo de física.
+func _run_clock_test(arena: Arena) -> void:
+	print("AT_STEP deep_run_clock")
+	var source := ""
+	var script: Script = load("res://src/arena/arena.gd")
+	if script != null:
+		source = str(script.source_code)
+	if source.length() > 1000:
+		# O incremento tem de estar no `_physics_process`. Afirmado sobre o
+		# texto porque o efeito — quantos segundos cabem num quadro — não é
+		# observável de dentro de uma única execução.
+		var physics_body := source.split("func _physics_process(")
+		var process_body := source.split("func _process(")
+		var in_physics := physics_body.size() > 1 and physics_body[1].split("\nfunc ")[0].contains('Game.stats["time"] += delta')
+		var in_render := process_body.size() > 1 and process_body[1].split("\nfunc ")[0].contains('Game.stats["time"] += delta')
+		h._check(in_physics, "the run clock advances on the physics step")
+		h._check(not in_render, "and never on the rendered frame")
+	else:
+		print("AT_SKIP source-only check needs script text: run clock loop")
+
+	# O relógio avança em passos de física exatos. Um relógio presa ao render
+	# daria qualquer fração aqui.
+	var saved_time: float = float(Game.stats.get("time", 0.0))
+	var step := 1.0 / float(Engine.physics_ticks_per_second)
+	Game.stats["time"] = 0.0
+	var before: float = float(Game.stats.get("time", 0.0))
+	await h._simulation_seconds(0.5)
+	var elapsed: float = float(Game.stats.get("time", 0.0)) - before
+	# Tolerância de um passo: a contagem começa e termina dentro de um quadro.
+	h._check(elapsed > 0.0, "the clock actually runs while a run is live (%.4f)" % elapsed)
+	h._check(absf(elapsed - snappedf(elapsed, step)) < step * 0.01,
+		"and it lands on whole physics steps (%.6f)" % elapsed)
+	Game.stats["time"] = saved_time
+	await h._ticks(2)
+
 func _oom_ownership_test(arena: Arena) -> void:
 	print("AT_STEP deep_oom_ownership")
 	var mf: MoteField = arena.mote_field

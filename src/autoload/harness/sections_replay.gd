@@ -36,8 +36,24 @@ class ScriptedDriver extends Node:
 	func _ready() -> void:
 		process_mode = Node.PROCESS_MODE_PAUSABLE
 
+	## Âncora no TEMPO SIMULADO, não no relógio de parede nem na hora em que
+	## este nó entrou na árvore.
+	##
+	## O motorista é adicionado de dentro de uma corrotina, e isso cai num ponto
+	## imprevisível do quadro: em algumas execuções ele pegava o primeiro passo
+	## de física junto com a arena, em outras só o sétimo. Um comando entrando um
+	## passo adiantado muda a run inteira.
+	##
+	## Esperar o relógio DA RUN chegar a um valor fixo resolve: ele avança
+	## exatamente um passo de física por vez, então `>= ANCHOR_TIME` é sempre o
+	## mesmo passo em qualquer máquina. Um gravador de verdade não precisa disto
+	## — ele nasce com a arena — mas a sonda precisa.
+	const ANCHOR_TIME := 0.5
+
 	func _physics_process(_delta: float) -> void:
 		if finished or arena == null or not is_instance_valid(arena):
+			return
+		if float(Game.stats.get("time", 0.0)) < ANCHOR_TIME:
 			return
 		var player = arena.get("player")
 		if player == null or not is_instance_valid(player) or player.dead:
@@ -61,6 +77,10 @@ class ScriptedDriver extends Node:
 		finished = true
 		digest.append(snapshot(player))
 		print("DET_FRAMES ", frame)
+		# Fora do digest de propósito: o quadro global em que a arena entrou na
+		# árvore varia com o carregamento da cena e não é simulação. Dentro do
+		# digest ele fazia duas runs idênticas parecerem diferentes.
+		print("DET_START_FRAME ", Engine.get_physics_frames() - frame)
 		print("DET_DIGEST ", JSON.stringify(digest))
 		get_tree().quit(0)
 
@@ -82,12 +102,15 @@ class ScriptedDriver extends Node:
 			"score": Game.score,
 			"wave": Game.wave,
 			"hp": player.hp if alive else -1,
-			"px": snappedf(player.global_position.x, 0.001) if alive else 0.0,
-			"py": snappedf(player.global_position.y, 0.001) if alive else 0.0,
+			"px": ("%.9f" % player.global_position.x) if alive else "",
+			"py": ("%.9f" % player.global_position.y) if alive else "",
 			"alive": EnemyBase.shared_list.size(),
 			"kills": int(Game.stats.get("kills", 0)),
 			"shots": int(Game.stats.get("shots", 0)),
 			"rng": str(Game.rng.state),
+			"tm": "%.9f" % float(Game.stats.get("time", 0.0)),
+			"vx": ("%.9f" % player.vel.x) if alive else "",
+			"vy": ("%.9f" % player.vel.y) if alive else "",
 		}
 
 
