@@ -30,12 +30,17 @@ var _bestiary_panel: BestiaryPanel
 var _ach_panel: Control
 var _program_panel: ProgramPanel
 var _story_panel: StoryPanel
+var _board_panel: BoardPanel
 var _program_btn: Button
 var _story_btn: Button
 var _aim_btn_ref: Button
 var _color_assist_btn: Button
 var _language_btn: Button
 var _field_tint_btn: Button
+var _board_toggle_btn: Button
+var _board_url_field: LineEdit
+var _board_name_field: LineEdit
+var _board_status: Label
 var _boot: BootOverlay
 var _keybind_box: VBoxContainer
 var _keybind_status: Label
@@ -129,7 +134,7 @@ func _apply_language(code: String) -> void:
 		_settings_kit.focus_language_control()
 
 func _invalidate_lazy_panels() -> void:
-	for key in ["_program_panel", "_story_panel", "_bestiary_panel", "_ach_panel"]:
+	for key in ["_program_panel", "_story_panel", "_bestiary_panel", "_ach_panel", "_board_panel"]:
 		var panel: Control = get(key)
 		if panel != null and is_instance_valid(panel):
 			panel.queue_free()
@@ -373,6 +378,27 @@ func _open_story_selector() -> void:
 	_story_panel.scroll_y = 0.0
 	Sfx.play("ui", 1.1, -8.0)
 
+## Placar: painel preguiçoso como os outros, e recriado ao trocar de idioma.
+func _open_board() -> void:
+	if _board_panel == null:
+		_board_panel = BoardPanel.new()
+		_board_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_board_panel.back_pressed.connect(_close_board)
+		var layer := CanvasLayer.new()
+		layer.layer = 70
+		layer.add_child(_board_panel)
+		add_child(layer)
+	ScreenKit.open_focus(_board_panel)
+	_board_panel.visible = true
+	_board_panel.refresh()
+	Sfx.play("ui", 1.1, -8.0)
+
+func _close_board() -> void:
+	if _board_panel != null:
+		_board_panel.visible = false
+		ScreenKit.close_focus(_board_panel)
+	Sfx.play("ui", 0.9, -8.0)
+
 func _close_story_selector() -> void:
 	if _story_panel != null:
 		_story_panel.visible = false
@@ -438,6 +464,7 @@ func _build_shell() -> void:
 	_shell.purge_pressed.connect(_start)
 	_shell.story_pressed.connect(_open_story_selector)
 	_shell.archives_pressed.connect(_open_bestiary)
+	_shell.board_pressed.connect(_open_board)
 	_shell.configure_pressed.connect(_open_program_selector)
 	_shell.mode_cycled.connect(_cycle_mode)
 	_shell.difficulty_cycled.connect(_cycle_difficulty)
@@ -726,6 +753,9 @@ func _input(event: InputEvent) -> void:
 	elif _story_panel != null and _story_panel.visible:
 		_close_story_selector()
 		get_viewport().set_input_as_handled()
+	elif _board_panel != null and _board_panel.visible:
+		_close_board()
+		get_viewport().set_input_as_handled()
 	elif _bestiary_panel != null and _bestiary_panel.visible:
 		_close_bestiary()
 		get_viewport().set_input_as_handled()
@@ -765,6 +795,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _story_panel != null and _story_panel.visible:
 		if event.is_action_pressed("pause"):
 			_close_story_selector()
+			get_viewport().set_input_as_handled()
+		return
+	if _board_panel != null and _board_panel.visible:
+		if event.is_action_pressed("pause"):
+			_close_board()
 			get_viewport().set_input_as_handled()
 		return
 	if _bestiary_panel != null and _bestiary_panel.visible:

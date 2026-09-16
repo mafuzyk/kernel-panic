@@ -7,10 +7,10 @@ extends RefCounted
 
 var m
 
-const SETTINGS_SECTIONS := ["AUDIO", "VIDEO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "SAVE DATA"]
+const SETTINGS_SECTIONS := ["AUDIO", "VIDEO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "BOARD", "SAVE DATA"]
 const SECTION_CHIP_KEYS := {
 	"AUDIO": "SET_CHIP_AUDIO", "VIDEO": "SET_CHIP_VIDEO", "GAMEPLAY": "SET_CHIP_GAMEPLAY", "CONTROLS": "SET_CHIP_CONTROLS",
-	"ACCESSIBILITY": "SET_CHIP_ACCESSIBILITY", "SAVE DATA": "SET_CHIP_SAVEDATA",
+	"ACCESSIBILITY": "SET_CHIP_ACCESSIBILITY", "BOARD": "SET_CHIP_BOARD", "SAVE DATA": "SET_CHIP_SAVEDATA",
 }
 
 
@@ -26,6 +26,7 @@ const SECTION_KEYS := {
 	"GAMEPLAY": "SET_NAV_GAMEPLAY",
 	"CONTROLS": "SET_NAV_CONTROLS",
 	"ACCESSIBILITY": "SET_NAV_ACCESSIBILITY",
+	"BOARD": "SET_NAV_BOARD",
 	"SAVE DATA": "SET_NAV_SAVEDATA",
 }
 
@@ -366,6 +367,78 @@ func _build_settings() -> void:
 	_refresh_language_label()
 	assign_section(m._language_btn, "ACCESSIBILITY")
 	box.add_child(m._language_btn)
+	# ── placar semanal ────────────────────────────────────────────────
+	#
+	# Enviar uma pontuação manda a run inteira para um servidor. Isso sai da
+	# máquina de quem joga, então a seção começa DESLIGADA e sem endereço, e o
+	# aviso fica junto do interruptor em vez de escondido num README.
+	var board_label := _settings_group_label(tr("SET_HEAD_BOARD"))
+	assign_section(board_label, "BOARD")
+	box.add_child(board_label)
+
+	var board_note := _settings_group_label(tr("SET_BOARD_NOTE"))
+	board_note.add_theme_font_size_override("font_size", 12)
+	board_note.add_theme_color_override("font_color", Design.TEXT_FAINT)
+	assign_section(board_note, "BOARD")
+	box.add_child(board_note)
+
+	m._board_toggle_btn = _cycle_button(_board_enabled_label())
+	m._board_toggle_btn.pressed.connect(func() -> void:
+		Board.set_enabled(not Board.enabled)
+		m._board_toggle_btn.text = _board_enabled_label()
+		_refresh_board_status()
+	)
+	assign_section(m._board_toggle_btn, "BOARD")
+	box.add_child(m._board_toggle_btn)
+
+	var url_title := _settings_group_label(tr("SET_BOARD_URL"))
+	url_title.add_theme_font_size_override("font_size", 12)
+	assign_section(url_title, "BOARD")
+	box.add_child(url_title)
+	m._board_url_field = LineEdit.new()
+	m._board_url_field.text = Board.url
+	m._board_url_field.placeholder_text = "https://"
+	m._board_url_field.custom_minimum_size = Vector2(Design.SLIDER_WIDTH * 2.0, Design.CLICK_TARGET_MIN)
+	m._board_url_field.add_theme_font_override("font", Design.FONT_MONO)
+	m._board_url_field.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	m._board_url_field.text_submitted.connect(func(value: String) -> void:
+		Board.set_url(value)
+		_refresh_board_status()
+	)
+	m._board_url_field.focus_exited.connect(func() -> void:
+		Board.set_url(m._board_url_field.text)
+		_refresh_board_status()
+	)
+	assign_section(m._board_url_field, "BOARD")
+	box.add_child(_bounded_row(m._board_url_field))
+
+	var name_title := _settings_group_label(tr("SET_BOARD_NAME"))
+	name_title.add_theme_font_size_override("font_size", 12)
+	assign_section(name_title, "BOARD")
+	box.add_child(name_title)
+	m._board_name_field = LineEdit.new()
+	m._board_name_field.text = Board.player_name
+	m._board_name_field.max_length = 24
+	m._board_name_field.custom_minimum_size = Vector2(Design.SLIDER_WIDTH, Design.CLICK_TARGET_MIN)
+	m._board_name_field.add_theme_font_override("font", Design.FONT_MONO)
+	m._board_name_field.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	m._board_name_field.text_submitted.connect(func(value: String) -> void:
+		Board.set_player_name(value)
+		_refresh_board_status()
+	)
+	m._board_name_field.focus_exited.connect(func() -> void:
+		Board.set_player_name(m._board_name_field.text)
+		_refresh_board_status()
+	)
+	assign_section(m._board_name_field, "BOARD")
+	box.add_child(_bounded_row(m._board_name_field))
+
+	m._board_status = _settings_group_label("")
+	m._board_status.add_theme_font_size_override("font_size", 12)
+	assign_section(m._board_status, "BOARD")
+	box.add_child(m._board_status)
+	_refresh_board_status()
+
 	var save_label := _settings_group_label(tr("SET_TRANSFER_HEAD"))
 	assign_section(save_label, "SAVE DATA")
 	box.add_child(save_label)
@@ -840,6 +913,23 @@ func _close_settings() -> void:
 	m._set_main_menu_controls_visible(true)
 	ScreenKit.close_focus(m._settings_panel)
 	Sfx.play("ui", 0.9, -6.0)
+
+func _board_enabled_label() -> String:
+	return tr("SET_BOARD_ENABLED") % (tr("SET_VAL_ON") if Board.enabled else tr("SET_VAL_OFF"))
+
+## Diz em uma linha o que falta para o envio funcionar, em vez de deixar a
+## jogadora descobrir no fim de uma run que o endereço estava errado.
+func _refresh_board_status() -> void:
+	if m._board_status == null or not is_instance_valid(m._board_status):
+		return
+	if not Board.enabled:
+		m._board_status.text = tr("SET_BOARD_STATE_OFF")
+	elif not Board.is_valid_url(Board.url):
+		m._board_status.text = tr("SET_BOARD_STATE_URL")
+	elif not Board.is_valid_name(Board.player_name):
+		m._board_status.text = tr("SET_BOARD_STATE_NAME")
+	else:
+		m._board_status.text = tr("SET_BOARD_STATE_READY")
 
 func _refresh_color_assist_label() -> void:
 	if m._color_assist_btn != null:

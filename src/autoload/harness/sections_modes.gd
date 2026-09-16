@@ -391,6 +391,19 @@ func _capture() -> void:
 			menu._open_bestiary()
 		elif OS.get_environment("KP_SETTINGS") != "" and menu.has_method("_open_settings"):
 			menu._open_settings()
+			var wanted_section := OS.get_environment("KP_SETTINGS_SECTION")
+			if wanted_section != "":
+				var section_kit: RefCounted = menu.get("_settings_kit")
+				if section_kit != null and section_kit.has_method("set_active_section"):
+					section_kit.call("set_active_section", wanted_section)
+					await h._ticks(2)
+		elif OS.get_environment("KP_BOARD_URL") != "" and menu.has_method("_open_board"):
+			Board.enabled = true
+			Board.url = OS.get_environment("KP_BOARD_URL")
+			Board.player_name = "mafu"
+			menu._open_board()
+			# Espera a resposta do servidor chegar antes da foto.
+			await h._ticks(120)
 		elif OS.get_environment("KP_AWARDS") != "" and menu.has_method("_open_achievements"):
 			menu._open_achievements()
 		elif OS.get_environment("KP_LANG_CYCLE") != "" and menu.has_method("_open_settings"):

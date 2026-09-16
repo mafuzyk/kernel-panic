@@ -591,3 +591,26 @@ STORY_HAZARD_DESC_HASTE,every process speeds up as the stage runs,todo processo 
 STORY_STAT_RULE,FIELD RULE,REGRA DO CAMPO
 STORY_STAT_BUILD,ISSUED BUILD,BUILD ENTREGUE
 STORY_BUILD_NONE,BARE PROCESS,PROCESSO NU
+SET_NAV_BOARD,BOARD,PLACAR
+SET_CHIP_BOARD,BOARD,PLACAR
+SET_HEAD_BOARD,WEEKLY BOARD,PLACAR SEMANAL
+SET_BOARD_NOTE,"submitting sends your whole run, and your name, to the server you set below. off by default.","enviar manda a sua run inteira, e o seu nome, para o servidor que você configurar abaixo. desligado por padrão."
+SET_BOARD_ENABLED,SUBMIT SCORES: %s,ENVIAR PONTUAÇÃO: %s
+SET_BOARD_URL,SERVER ADDRESS,ENDEREÇO DO SERVIDOR
+SET_BOARD_NAME,NAME ON THE BOARD,NOME NO PLACAR
+SET_BOARD_STATE_OFF,off — nothing leaves this machine,desligado — nada sai desta máquina
+SET_BOARD_STATE_URL,set an http:// or https:// address,informe um endereço http:// ou https://
+SET_BOARD_STATE_NAME,set a name of 1-24 plain characters,informe um nome de 1 a 24 caracteres simples
+SET_BOARD_STATE_READY,ready — weekly runs can be submitted,pronto — runs semanais podem ser enviadas
+BOARD_NOT_CONFIGURED,board is not configured,placar não está configurado
+BOARD_NO_RUN,this run was not recorded,esta run não foi gravada
+BOARD_BUSY,a submission is already in flight,já existe um envio em andamento
+BOARD_UNREACHABLE,could not reach the board,não foi possível alcançar o placar
+BOARD_REFUSED,the board refused the run,o placar recusou a run
+BOARD_QUEUED,sent — the server is re-simulating it,enviado — o servidor está re-simulando
+BOARD_SUBMIT,SUBMIT TO BOARD,ENVIAR AO PLACAR
+BOARD_TITLE,WEEKLY BOARD,PLACAR SEMANAL
+BOARD_EMPTY,no verified scores this week,nenhuma pontuação verificada nesta semana
+BOARD_LOADING,asking the server...,perguntando ao servidor...
+BOARD_OFFLINE,board unreachable — the game does not need it,placar inacessível — o jogo não precisa dele
+MENU_BOARD,Board,Placar

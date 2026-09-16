@@ -319,6 +319,23 @@ func start_story(index: int = 0) -> bool:
 	get_tree().call_deferred("change_scene_to_file", "res://src/arena/arena.tscn")
 	return true
 
+## Pacote da run recém-terminada, no formato que o servidor do placar espera.
+## Vazio quando não há nada gravado — nada é enviado por acidente.
+func run_packet() -> Dictionary:
+	if Replay.recorded_frames() <= 0 or mode != "weekly":
+		return {}
+	return {
+		"week": week_number(),
+		"seed": run_seed,
+		"sample_every": Replay.SAMPLE_EVERY,
+		"input_frames": Replay.recorded_frames(),
+		"frames": Replay.frame,
+		"score": score,
+		"input": Replay.to_base64(),
+		"picks": Replay.patch_picks(),
+		"digest": Replay.digest_json(),
+	}
+
 func should_offer_patch(cleared_wave: int) -> bool:
 	if mode == "onehp":
 		return cleared_wave > 0 and cleared_wave % 3 == 0
@@ -497,6 +514,10 @@ func start_run() -> void:
 		"weekly":
 			run_seed = week_number() * 7919 + 13
 			rng.seed = run_seed
+			# Só o Weekly grava: é o único modo em que todo mundo joga a MESMA
+			# partida, logo o único que dá para comparar e para reconferir.
+			# Cinco bytes por passo de física — uma run de meia hora dá ~540 KB.
+			Replay.begin_record()
 		_:
 			rng.randomize()
 			run_seed = int(rng.seed)

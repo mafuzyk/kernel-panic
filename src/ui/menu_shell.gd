@@ -17,6 +17,7 @@ extends Control
 signal purge_pressed
 signal story_pressed
 signal archives_pressed
+signal board_pressed
 signal configure_pressed
 signal settings_pressed
 signal awards_pressed
@@ -36,6 +37,7 @@ var _program_label: Label
 var _version_label: Label
 var _story_block: PanelContainer
 var _archives_block: PanelContainer
+var _board_block: PanelContainer
 var _mode_block: PanelContainer
 var _diff_block: PanelContainer
 var _cfg_row: BoxContainer
@@ -396,6 +398,9 @@ func _build_actions(parent: Node) -> void:
 	_archives_block = ScreenKit.action(tr("MENU_ARCHIVES"), "", "text", func() -> void: archives_pressed.emit())
 	_tag_tr(_archives_block, "MENU_ARCHIVES")
 	col.add_child(_archives_block)
+	_board_block = ScreenKit.action(tr("MENU_BOARD"), "", "text", func() -> void: board_pressed.emit())
+	_tag_tr(_board_block, "MENU_BOARD")
+	col.add_child(_board_block)
 
 	ScreenKit.gap(col, Design.SPACE_MD)
 	var prog := VBoxContainer.new()

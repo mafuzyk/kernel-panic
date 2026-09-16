@@ -1141,6 +1141,71 @@ func _replay_recorder_test(arena: Arena) -> void:
 		print("AT_SKIP source-only check needs script text: touch input routing")
 	await h._ticks(2)
 
+## O cliente do placar. Enviar manda a run inteira e o nome para fora da
+## máquina, então o que este teste afirma é sobretudo o que NÃO acontece sozinho.
+func _board_client_test() -> void:
+	print("AT_STEP deep_board_client")
+	var saved_enabled := Board.enabled
+	var saved_url := Board.url
+	var saved_name := Board.player_name
+
+	Board.enabled = false
+	Board.url = ""
+	Board.player_name = ""
+	h._check(not Board.is_configured(), "the board starts off, with nothing configured")
+
+	# Endereço: só http e https. Um esquema qualquer colado por engano não vira
+	# uma chamada.
+	h._check(Board.is_valid_url("http://127.0.0.1:8710"), "a plain http address is accepted")
+	h._check(Board.is_valid_url("https://board.example"), "and so is https")
+	for bad in ["", "board.example", "ftp://board", "javascript:alert(1)", "file:///etc/passwd"]:
+		h._check(not Board.is_valid_url(str(bad)), "the address %s is refused" % [bad if bad != "" else "(empty)"])
+
+	# Nome: aparece para outras pessoas, então segue a mesma regra do servidor.
+	h._check(Board.is_valid_name("mafu") and Board.is_valid_name("root.exe"), "a plain name is accepted")
+	for bad_name in ["", "   ", "<script>", "nome com ç", "x".repeat(25)]:
+		h._check(not Board.is_valid_name(str(bad_name)), "the name %s is refused" % [bad_name if bad_name.strip_edges() != "" else "(blank)"])
+
+	# Configurado exige as TRÊS coisas, e a mais importante é o interruptor.
+	Board.url = "https://board.example"
+	Board.player_name = "mafu"
+	h._check(not Board.is_configured(), "an address and a name are not enough while it is switched off")
+	Board.enabled = true
+	h._check(Board.is_configured(), "with the switch on and both fields valid it is ready")
+	Board.player_name = ""
+	h._check(not Board.is_configured(), "and it stops being ready the moment a field goes bad")
+
+	Board.enabled = saved_enabled
+	Board.url = saved_url
+	Board.player_name = saved_name
+	await h._ticks(2)
+
+## O pacote só existe quando há uma run semanal gravada. Nada é montado, nem
+## poderia ser enviado, a partir de uma partida que ninguém registrou.
+func _run_packet_test() -> void:
+	print("AT_STEP deep_run_packet")
+	var saved_mode := Game.mode
+	Game.mode = "classic"
+	h._check(Game.run_packet().is_empty(), "a classic run produces no packet")
+	Game.mode = "weekly"
+	Replay.stop()
+	Replay.begin_record()
+	h._check(Game.run_packet().is_empty(), "an empty recording produces no packet either")
+	for step in 8:
+		Replay.frame = step
+		Replay.push(Vector2(0.5, -0.25), 1.0, true, true, false, false)
+	var packet: Dictionary = Game.run_packet()
+	h._check(not packet.is_empty(), "a recorded weekly run produces a packet")
+	for key in ["week", "seed", "sample_every", "input_frames", "frames", "score", "input", "picks", "digest"]:
+		h._check(packet.has(key), "the packet carries %s" % key)
+	h._check(int(packet["input_frames"]) == Replay.recorded_frames(),
+		"the packet describes its own buffer length")
+	h._check(Marshalls.base64_to_raw(str(packet["input"])).size() == int(packet["input_frames"]) * Replay.BYTES_PER_FRAME,
+		"and the encoded input matches that length exactly")
+	Replay.stop()
+	Game.mode = saved_mode
+	await h._ticks(2)
+
 func _oom_ownership_test(arena: Arena) -> void:
 	print("AT_STEP deep_oom_ownership")
 	var mf: MoteField = arena.mote_field

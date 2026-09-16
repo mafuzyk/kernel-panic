@@ -158,6 +158,8 @@ func _ready() -> void:
 	_run_summary.visible = false
 	_run_summary.primary_pressed.connect(_handle_over_primary)
 	_run_summary.secondary_pressed.connect(_handle_over_secondary)
+	_run_summary.extra_pressed.connect(_submit_run_to_board)
+	Board.submit_finished.connect(_on_board_submit_finished)
 	var summary_layer := CanvasLayer.new()
 	summary_layer.layer = 60
 	summary_layer.add_child(_run_summary)
@@ -302,6 +304,7 @@ func _physics_process(delta: float) -> void:
 		# Antes do jogador ler: a arena é o pai, então o `_physics_process` dela
 		# roda primeiro e os dois enxergam o mesmo número de quadro.
 		Replay.advance()
+		Replay.sample(self)
 
 func debug_controls_enabled() -> bool:
 	return OS.is_debug_build() and Balance.is_desktop_display() and not DisplayServer.is_touchscreen_available() and OS.get_environment("KP_FORCE_TOUCH") == ""
@@ -849,6 +852,9 @@ func _show_game_over() -> void:
 		],
 		"primary": tr("OVER_REBOOT"),
 		"secondary": tr("OVER_ABANDON"),
+		# Só no Weekly, e só com o placar configurado: é o único modo em que
+		# todo mundo joga a mesma partida, e o único que o servidor reconfere.
+		"extra": tr("BOARD_SUBMIT") if Game.mode == "weekly" and Board.is_configured() else "",
 	})
 	_show_run_summary()
 	Sfx.play("gameover", 0.9, 0.0)
@@ -924,6 +930,23 @@ func _show_story_victory(stage_id: String) -> void:
 	_show_run_summary()
 	Sfx.play("ready", 1.2, -2.0)
 
+
+## Envio ao placar: só aparece quando a jogadora configurou, e só quando aperta.
+## Uma pontuação não sai da máquina dela por conta própria.
+func _submit_run_to_board() -> void:
+	if not Board.is_configured():
+		return
+	_run_summary.set_extra_action(tr("BOARD_LOADING"))
+	Board.submit_run(Game.run_packet())
+
+func _on_board_submit_finished(ok: bool, message: String) -> void:
+	if not is_instance_valid(_run_summary):
+		return
+	Game.log_event("board: %s" % message)
+	# Aceito some com o botão: a run já foi. Recusado devolve o botão, porque
+	# tentar de novo é a coisa certa a oferecer.
+	_run_summary.set_extra_action("" if ok else tr("BOARD_SUBMIT"))
+	hud.queue_hint("board_result", tr("BOARD_TITLE"), 2.6, message, true)
 
 func _heals_line(s: Dictionary) -> String:
 	var heals: Dictionary = s.get("heals", {})

@@ -194,7 +194,9 @@ func _drive_once(record: bool, data: PackedByteArray, picks: Array, sample_every
 	var done: bool = await h._until(func() -> bool: return driver.finished, 200.0, "replay pass")
 	var result := {
 		"frames": driver.frame,
-		"digest": JSON.stringify(driver.digest),
+		# A prova vem do JOGO, não do motorista: é a mesma que uma run de
+		# verdade produz, e é essa que o servidor compara.
+		"digest": Replay.digest_json(),
 		"bytes": Replay.buffer(),
 		"picks": Replay.patch_picks(),
 	}

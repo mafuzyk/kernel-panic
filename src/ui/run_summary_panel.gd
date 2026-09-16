@@ -20,6 +20,7 @@ extends Control
 
 signal primary_pressed
 signal secondary_pressed
+signal extra_pressed
 
 const BADGE_GAP := 34.0
 
@@ -38,6 +39,11 @@ var _accent := Design.DANGER
 ## de membro eles rodariam antes do TranslationServer estar no locale certo.
 var _primary_text := ""
 var _secondary_text := ""
+## Ação opcional, hoje usada só pelo envio ao placar. Texto vazio = sem bloco,
+## e a fileira volta a ter as duas de sempre.
+var _extra_text := ""
+var _extra_label: Label
+var _extra_block: Control
 
 
 func _ready() -> void:
@@ -90,6 +96,7 @@ func show_summary(data: Dictionary) -> void:
 
 	_primary_text = str(data.get("primary", "REBOOT"))
 	_secondary_text = str(data.get("secondary", "ABANDON PROCESS"))
+	set_extra_action(str(data.get("extra", "")))
 	_primary_label.text = _primary_text
 	_secondary_label.text = _secondary_text
 
@@ -271,12 +278,24 @@ func _build_hero(parent: Node) -> void:
 	row.add_child(right)
 
 
+## Rótulo da ação extra. Vazio esconde o bloco inteiro em vez de deixar um
+## botão sem texto no meio da fileira.
+func set_extra_action(text: String) -> void:
+	_extra_text = text
+	if is_instance_valid(_extra_label):
+		_extra_label.text = text
+	if is_instance_valid(_extra_block):
+		_extra_block.visible = not text.strip_edges().is_empty()
+
 func _build_actions(parent: Node) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", Design.SPACE_2XL)
 	parent.add_child(row)
 	row.add_child(_action_block(true))
 	row.add_child(_action_block(false))
+	_extra_block = _action_block(false, true)
+	_extra_block.visible = not _extra_text.strip_edges().is_empty()
+	row.add_child(_extra_block)
 	var grow := Control.new()
 	grow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grow.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -286,7 +305,7 @@ func _build_actions(parent: Node) -> void:
 ## Um bloco de ação. `Button` não dispõe filhos Control — quem dimensiona é o
 ## PanelContainer; o Button entra por cima, invisível, só para clique e foco.
 ## Sem isso o conteúdo fica com tamanho zero e o rótulo sai cortado ("REB").
-func _action_block(primary: bool) -> Control:
+func _action_block(primary: bool, extra: bool = false) -> Control:
 	var stack := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
 	if primary:
@@ -306,7 +325,7 @@ func _action_block(primary: bool) -> Control:
 
 	var label := _grot(26 if primary else 22, Design.WEIGHT_HEAVY if primary else Design.WEIGHT_BOLD,
 		Design.SURFACE if primary else Design.TEXT_PRIMARY)
-	label.text = _primary_text if primary else _secondary_text
+	label.text = _extra_text if extra else (_primary_text if primary else _secondary_text)
 	line.add_child(label)
 	line.add_child(_mono("" if Design.touch_input() else ("[ENTER]" if primary else "[ESC]"), Design.TEXT_CAPTION,
 		Design.alpha(Design.SURFACE, 0.7) if primary else Design.TEXT_MUTED))
@@ -332,7 +351,10 @@ func _action_block(primary: bool) -> Control:
 	var glow := StyleBoxFlat.new()
 	glow.bg_color = Design.alpha(Design.TEXT_PRIMARY, 0.10)
 	hit.add_theme_stylebox_override("hover", glow)
-	if primary:
+	if extra:
+		_extra_label = label
+		hit.pressed.connect(func() -> void: extra_pressed.emit())
+	elif primary:
 		hit.pressed.connect(func() -> void: primary_pressed.emit())
 	else:
 		hit.pressed.connect(func() -> void: secondary_pressed.emit())

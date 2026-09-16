@@ -124,12 +124,21 @@ func trait_blurb(id: String) -> String:
 func roster_label(id: String) -> String:
 	return tr("WEEKLY_ROSTER_%s" % id.to_upper())
 
-## Uma linha para o menu e para o klog da arena.
+## Uma linha para o menu e para o klog da arena. Vazia fora do Weekly.
 func summary_line() -> String:
-	var ids := active_traits()
+	if Game.mode != "weekly":
+		return ""
+	return summary_for_week(Game.week_number())
+
+## O plano de uma semana QUALQUER, independente do modo em que se está. O
+## placar precisa disto: ele fala do Weekly mesmo para quem acabou de jogar
+## Classic, e `summary_line()` devolveria vazio ali.
+func summary_for_week(week: int) -> String:
+	var plan: Dictionary = plan_for_week(week)
+	var ids: Array = plan.get("traits", [])
 	if ids.is_empty():
 		return ""
 	var names: Array[String] = []
 	for id in ids:
 		names.append(trait_label(str(id)))
-	return "%s // %s" % [" + ".join(names), roster_label(active_roster())]
+	return "%s // %s" % [" + ".join(names), roster_label(str(plan.get("roster", "")))]

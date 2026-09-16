@@ -37,6 +37,39 @@ var _buffer := PackedByteArray()
 var _patch_picks: Array = []
 var _patch_cursor := 0
 
+## ── prova da run ──────────────────────────────────────────────────────
+##
+## O servidor confere uma pontuação comparando a PROVA: um resumo do estado da
+## simulação tirado a cada N passos de física. Ela é produzida aqui, pelo jogo,
+## nos dois sentidos — gravando e reproduzindo — porque uma prova que só o
+## harness sabe montar não serviria para uma run de verdade, que não tem
+## motorista nenhum dirigindo.
+const SAMPLE_EVERY := 300
+
+var digest: Array = []
+
+func digest_json() -> String:
+	return JSON.stringify(digest)
+
+## Chamada pela arena a cada passo, depois de `advance()`.
+func sample(arena: Node) -> void:
+	if mode == Mode.OFF or frame % SAMPLE_EVERY != 0:
+		return
+	var player: Node = arena.get("player")
+	var alive := player != null and is_instance_valid(player) and not bool(player.get("dead"))
+	digest.append({
+		"f": frame,
+		"score": Game.score,
+		"wave": Game.wave,
+		"hp": int(player.get("hp")) if alive else -1,
+		"px": ("%.9f" % float(player.get("global_position").x)) if alive else "",
+		"py": ("%.9f" % float(player.get("global_position").y)) if alive else "",
+		"alive": EnemyBase.shared_list.size(),
+		"kills": int(Game.stats.get("kills", 0)),
+		"shots": int(Game.stats.get("shots", 0)),
+		"rng": str(Game.rng.state),
+	})
+
 func is_recording() -> bool:
 	return mode == Mode.RECORD
 
@@ -52,6 +85,7 @@ func begin_record() -> void:
 	_buffer = PackedByteArray()
 	_patch_picks.clear()
 	_patch_cursor = 0
+	digest.clear()
 
 func begin_replay(data: PackedByteArray, picks: Array = []) -> void:
 	mode = Mode.REPLAY
@@ -59,6 +93,7 @@ func begin_replay(data: PackedByteArray, picks: Array = []) -> void:
 	_buffer = data.duplicate()
 	_patch_picks = picks.duplicate(true)
 	_patch_cursor = 0
+	digest.clear()
 
 func recorded_frames() -> int:
 	return int(_buffer.size() / BYTES_PER_FRAME)
