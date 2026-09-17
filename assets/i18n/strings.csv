@@ -175,6 +175,18 @@ SET_SHAKE,SCREEN SHAKE: %s,TREMOR DE TELA: %s
 SET_FLASH,FLASH: %s,FLASH: %s
 SET_TEXT_SIZE,TEXT SIZE: %s,TAMANHO DO TEXTO: %s
 PAUSE_ADJUST,ADJUST WITHOUT LEAVING,AJUSTAR SEM SAIR
+SET_HEAD_UPDATE,UPDATES // DESKTOP,ATUALIZAÇÕES // DESKTOP
+SET_CHIP_UPDATE,UPDATE,ATUALIZAR
+SET_NAV_UPDATE,UPDATE,ATUALIZAR
+SET_UPDATE_CHECK,CHECK FOR UPDATES,PROCURAR ATUALIZAÇÃO
+SET_UPDATE_ON_LAUNCH,CHECK ON LAUNCH: %s,PROCURAR AO ABRIR: %s
+SET_UPDATE_NOTE,nothing is contacted until you ask,nada é consultado até você pedir
+SET_UPDATE_CHECKING,checking...,procurando...
+SET_UPDATE_CURRENT,you are on the latest version,você está na versão mais recente
+SET_UPDATE_AVAILABLE,%s is out — open the release page,saiu a %s — abra a página do release
+SET_UPDATE_MANAGED,installed by a package manager: update with it,instalado por gerenciador de pacotes: atualize por ele
+SET_UPDATE_UNSUPPORTED,in-game updates are desktop only,atualização no jogo é só no desktop
+SET_UPDATE_ERROR,could not reach the release feed,não foi possível consultar o feed de releases
 SET_VAL_LARGER,LARGER,MAIOR
 SET_SPEEDRUN,SPEEDRUN HUD: %s,HUD DE SPEEDRUN: %s
 SET_AIM,AIM MODE: %s,MODO DE MIRA: %s

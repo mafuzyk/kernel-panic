@@ -66,6 +66,11 @@ const ENTRIES := [
 	{"id": "save_transfer", "section": "SAVE DATA", "platforms": BOTH},
 	{"id": "lifetime_stats", "section": "SAVE DATA", "platforms": BOTH},
 	{"id": "reset_score", "section": "SAVE DATA", "platforms": BOTH},
+
+	# Atualização no jogo só existe onde ela pode significar alguma coisa: no
+	# Android quem atualiza é a loja ou o APK baixado à mão.
+	{"id": "update_check", "section": "UPDATE", "platforms": DESKTOP_ONLY},
+	{"id": "update_on_launch", "section": "UPDATE", "platforms": DESKTOP_ONLY},
 ]
 
 
@@ -76,8 +81,8 @@ const ENTRIES := [
 ## No desktop a ordem histórica é mantida — quem já sabe onde as coisas estão
 ## não ganha nada com a mudança.
 const SECTION_ORDER := {
-	Platform.TOUCH: ["CONTROLS", "ACCESSIBILITY", "AUDIO", "VIDEO", "GAMEPLAY", "BOARD", "SAVE DATA"],
-	Platform.DESKTOP: ["AUDIO", "VIDEO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "BOARD", "SAVE DATA"],
+	Platform.TOUCH: ["CONTROLS", "ACCESSIBILITY", "AUDIO", "VIDEO", "GAMEPLAY", "BOARD", "SAVE DATA", "UPDATE"],
+	Platform.DESKTOP: ["AUDIO", "VIDEO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "BOARD", "UPDATE", "SAVE DATA"],
 }
 
 

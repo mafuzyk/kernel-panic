@@ -36,6 +36,8 @@ var _story_btn: Button
 var _aim_btn_ref: Button
 var _color_assist_btn: Button
 var _language_btn: Button
+## Estado da última checagem de atualização, escrito pelo kit de settings.
+var _update_status: Label
 var _field_tint_btn: Button
 var _board_toggle_btn: Button
 var _board_url_field: LineEdit

@@ -1128,3 +1128,46 @@ func _pause_fits_test() -> void:
 		OS.set_environment("KP_FORCE_TOUCH", "")
 	else:
 		OS.set_environment("KP_FORCE_TOUCH", saved_force)
+
+## Updater de desktop.
+##
+## O jogo promete, no README e nas notas de versão, que não faz requisição de
+## rede por conta própria. Um updater é exatamente o tipo de coisa que quebra
+## essa promessa em silêncio, então o contrato é testado, não prometido.
+func _updater_test() -> void:
+	print("AT_STEP updater")
+
+	# Comparação de versão: é ela que decide se alguém vê "saiu uma nova".
+	h._check(Updater.compare_versions("3.2.0", "3.1.0") > 0, "a higher minor is newer")
+	h._check(Updater.compare_versions("v3.2.0", "3.2.0") == 0, "the leading v is not part of the number")
+	h._check(Updater.compare_versions("3.1.0", "3.10.0") < 0, "10 is not compared as a digit")
+	h._check(Updater.compare_versions("3.2.0", "3.2.0-rc1") > 0, "a release beats its own candidate")
+	h._check(Updater.compare_versions("3.2.0-rc2", "3.2.0-rc1") > 0, "later candidates win over earlier ones")
+	h._check(Updater.compare_versions("3.2.1", "3.2.0") > 0, "a higher patch is newer")
+	# O caso que importa: um build ATUAL não pode se achar desatualizado.
+	h._check(Updater.compare_versions(Updater.current_version(), Updater.current_version()) == 0,
+		"this build never reports itself as out of date")
+
+	# Nada sai sozinho.
+	h._check(not Updater.check_on_launch, "checking on launch is off until someone turns it on")
+	var updater_src := str((load("res://src/autoload/updater.gd") as Script).source_code)
+	h._check_source(updater_src.contains("if check_on_launch and supported():"),
+		"the launch check is gated on the opt-in, not on being desktop")
+
+	# Onde o gerenciador de pacotes manda, o updater não mexe.
+	h._check(Updater.has_method("package_managed"), "the updater can tell it was installed by a package manager")
+	var managed_src := updater_src.contains("/nix/store/") and updater_src.contains("/usr/")
+	h._check_source(managed_src, "it recognises the prefixes a package manager owns")
+
+	# E não troca o binário em execução: não há escrita de executável aqui.
+	h._check_source(not updater_src.contains("FileAccess.WRITE") and not updater_src.contains("OS.execute"),
+		"the updater never writes or runs anything on its own")
+
+	# Só desktop, e a opção nem aparece no celular.
+	h._check(not SettingsManifest.shows("update_check", Platform.TOUCH),
+		"the update rows stay off the phone, where they could not install anything")
+	h._check(SettingsManifest.shows("update_check", Platform.DESKTOP), "and are offered on desktop")
+
+	# Erro de rede não pode virar "está tudo certo".
+	h._check(Updater.STATUS_ERROR != Updater.STATUS_CURRENT,
+		"a failed check is a distinct state from being up to date")

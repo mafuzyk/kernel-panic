@@ -7,10 +7,11 @@ extends RefCounted
 
 var m
 
-const SETTINGS_SECTIONS := ["AUDIO", "VIDEO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "BOARD", "SAVE DATA"]
+const SETTINGS_SECTIONS := ["AUDIO", "VIDEO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "BOARD", "UPDATE", "SAVE DATA"]
 const SECTION_CHIP_KEYS := {
 	"AUDIO": "SET_CHIP_AUDIO", "VIDEO": "SET_CHIP_VIDEO", "GAMEPLAY": "SET_CHIP_GAMEPLAY", "CONTROLS": "SET_CHIP_CONTROLS",
 	"ACCESSIBILITY": "SET_CHIP_ACCESSIBILITY", "BOARD": "SET_CHIP_BOARD", "SAVE DATA": "SET_CHIP_SAVEDATA",
+	"UPDATE": "SET_CHIP_UPDATE",
 }
 
 
@@ -28,6 +29,7 @@ const SECTION_KEYS := {
 	"ACCESSIBILITY": "SET_NAV_ACCESSIBILITY",
 	"BOARD": "SET_NAV_BOARD",
 	"SAVE DATA": "SET_NAV_SAVEDATA",
+	"UPDATE": "SET_NAV_UPDATE",
 }
 
 
@@ -449,6 +451,44 @@ func _build_settings() -> void:
 	assign_section(m._board_status, "BOARD")
 	box.add_child(m._board_status)
 	_refresh_board_status()
+
+	# ── atualização ───────────────────────────────────────────────────
+	#
+	# O jogo promete não falar com a rede sozinho. A checagem é um BOTÃO, e a
+	# checagem ao abrir nasce desligada — o aviso fica ao lado do interruptor,
+	# não escondido num README.
+	var update_label := _settings_group_label(tr("SET_HEAD_UPDATE"))
+	assign_section(update_label, "UPDATE")
+	box.add_child(update_label)
+	var update_note := _settings_group_label(tr("SET_UPDATE_NOTE"))
+	update_note.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
+	update_note.add_theme_color_override("font_color", Design.TEXT_FAINT)
+	assign_section(update_note, "UPDATE")
+	box.add_child(update_note)
+
+	var update_btn := _setting_button(tr("SET_UPDATE_CHECK"))
+	update_btn.pressed.connect(func() -> void:
+		if m._update_status != null and is_instance_valid(m._update_status):
+			m._update_status.text = tr("SET_UPDATE_CHECKING")
+		if not Updater.check_finished.is_connected(_on_update_checked):
+			Updater.check_finished.connect(_on_update_checked, CONNECT_ONE_SHOT)
+		Updater.check_now()
+	)
+	assign_section(update_btn, "UPDATE", "update_check")
+	box.add_child(update_btn)
+
+	var launch_btn := _setting_button(_update_launch_label())
+	launch_btn.pressed.connect(func() -> void:
+		Updater.set_check_on_launch(not Updater.check_on_launch)
+		_set_row_text(launch_btn, _update_launch_label())
+	)
+	assign_section(launch_btn, "UPDATE", "update_on_launch")
+	box.add_child(launch_btn)
+
+	m._update_status = _settings_group_label(_update_status_text())
+	m._update_status.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
+	assign_section(m._update_status, "UPDATE")
+	box.add_child(m._update_status)
 
 	var save_label := _settings_group_label(tr("SET_TRANSFER_HEAD"))
 	assign_section(save_label, "SAVE DATA")
@@ -941,6 +981,33 @@ func _close_settings() -> void:
 	m._set_main_menu_controls_visible(true)
 	ScreenKit.close_focus(m._settings_panel)
 	Sfx.play("ui", 0.9, -6.0)
+
+func _update_launch_label() -> String:
+	return tr("SET_UPDATE_ON_LAUNCH") % (tr("SET_VAL_ON") if Updater.check_on_launch else tr("SET_VAL_OFF"))
+
+
+## Texto do estado da última checagem.
+##
+## Erro de rede NÃO vira "está atualizado": dizer que está tudo certo quando
+## não se conseguiu perguntar é a pior resposta possível.
+func _update_status_text() -> String:
+	match Updater.last_status:
+		Updater.STATUS_CURRENT: return tr("SET_UPDATE_CURRENT")
+		Updater.STATUS_AVAILABLE: return tr("SET_UPDATE_AVAILABLE") % Updater.last_version
+		Updater.STATUS_MANAGED: return tr("SET_UPDATE_MANAGED")
+		Updater.STATUS_UNSUPPORTED: return tr("SET_UPDATE_UNSUPPORTED")
+		Updater.STATUS_ERROR: return tr("SET_UPDATE_ERROR")
+	return ""
+
+
+## A página do release só abre por ação de quem apertou o botão, e só quando
+## existe versão nova de verdade.
+func _on_update_checked(status: String, version: String, _notes: String) -> void:
+	if m._update_status != null and is_instance_valid(m._update_status):
+		m._update_status.text = _update_status_text()
+	if status == Updater.STATUS_AVAILABLE and version != "":
+		OS.shell_open(Updater.RELEASE_PAGE)
+
 
 func _board_enabled_label() -> String:
 	return tr("SET_BOARD_ENABLED") % (tr("SET_VAL_ON") if Board.enabled else tr("SET_VAL_OFF"))
