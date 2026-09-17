@@ -178,8 +178,12 @@ static func touch_input() -> bool:
 
 
 ## Alvo mínimo de interação para o dispositivo atual.
+##
+## Passa por `touch_input()` e não por `DisplayServer` direto: senão
+## `KP_FORCE_TOUCH` mudava o que a UI MOSTRA sem mudar o tamanho do alvo, e o
+## contrato de 56px ficava impossível de afirmar sem aparelho de verdade.
 static func target_min() -> float:
-	return TOUCH_TARGET_MIN if DisplayServer.is_touchscreen_available() else CLICK_TARGET_MIN
+	return TOUCH_TARGET_MIN if touch_input() else CLICK_TARGET_MIN
 
 
 ## Margens da safe area em unidades de canvas. Zero no desktop ou sem cutout.

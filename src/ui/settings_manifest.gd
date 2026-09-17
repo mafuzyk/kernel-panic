@@ -40,13 +40,13 @@ const ENTRIES := [
 	{"id": "vsync", "section": "VIDEO", "platforms": BOTH},
 	{"id": "field_tint", "section": "VIDEO", "platforms": BOTH},
 
-	# Háptico é vibração do aparelho; mira de toque só é lida pelo
-	# `touch_controls.gd`; tamanho de toque dimensiona os botões na tela.
-	# Nenhum dos três tem efeito com mouse e teclado.
-	{"id": "haptics", "section": "GAMEPLAY", "platforms": TOUCH_ONLY},
-	{"id": "aim_mode", "section": "GAMEPLAY", "platforms": TOUCH_ONLY},
-	{"id": "touch_scale", "section": "GAMEPLAY", "platforms": TOUCH_ONLY},
-	{"id": "shake", "section": "GAMEPLAY", "platforms": BOTH},
+	# CONTROLS é a seção de controles DE CADA PLATAFORMA: teclas no desktop,
+	# toque no celular. Estes três só são lidos pelo `touch_controls.gd` e
+	# não têm efeito nenhum com mouse e teclado.
+	{"id": "haptics", "section": "CONTROLS", "platforms": TOUCH_ONLY},
+	{"id": "aim_mode", "section": "CONTROLS", "platforms": TOUCH_ONLY},
+	{"id": "touch_scale", "section": "CONTROLS", "platforms": TOUCH_ONLY},
+	{"id": "shake", "section": "ACCESSIBILITY", "platforms": BOTH},
 	{"id": "run_info", "section": "GAMEPLAY", "platforms": BOTH},
 
 	{"id": "color_assist", "section": "ACCESSIBILITY", "platforms": BOTH},
@@ -63,6 +63,23 @@ const ENTRIES := [
 	{"id": "lifetime_stats", "section": "SAVE DATA", "platforms": BOTH},
 	{"id": "reset_score", "section": "SAVE DATA", "platforms": BOTH},
 ]
+
+
+## Ordem das seções POR PLATAFORMA.
+##
+## No celular o que mais importa vem primeiro: os controles de toque, que são
+## a razão de alguém abrir esta tela no aparelho, e logo depois acessibilidade.
+## No desktop a ordem histórica é mantida — quem já sabe onde as coisas estão
+## não ganha nada com a mudança.
+const SECTION_ORDER := {
+	Platform.TOUCH: ["CONTROLS", "ACCESSIBILITY", "AUDIO", "VIDEO", "GAMEPLAY", "BOARD", "SAVE DATA"],
+	Platform.DESKTOP: ["AUDIO", "VIDEO", "GAMEPLAY", "CONTROLS", "ACCESSIBILITY", "BOARD", "SAVE DATA"],
+}
+
+
+## Ordem declarada do perfil, caindo na do desktop se o perfil for desconhecido.
+static func order_for(profile: String) -> Array:
+	return SECTION_ORDER.get(profile, SECTION_ORDER[Platform.DESKTOP])
 
 
 ## A opção `id` aparece no perfil dado? Id desconhecido responde `true`: a
@@ -87,7 +104,9 @@ static func ids_for(profile: String) -> Array[String]:
 ## Seções que têm ao menos UMA opção no perfil, preservando a ordem de
 ## `order`. Uma seção sem nada para mostrar não vira aba vazia: hoje é o caso
 ## de CONTROLS no toque, que só contém keybinds.
-static func sections_for(profile: String, order: Array) -> Array[String]:
+static func sections_for(profile: String, order: Array = []) -> Array[String]:
+	if order.is_empty():
+		order = order_for(profile)
 	var served := {}
 	for entry in ENTRIES:
 		if Platform.serves(entry["platforms"], profile):

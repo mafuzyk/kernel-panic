@@ -564,20 +564,31 @@ func _settings_manifest_test() -> void:
 		h._check(SettingsManifest.shows(id, touch) and SettingsManifest.shows(id, desktop),
 			"%s is offered on both platforms" % id)
 
-	# Uma seção sem nada para mostrar não vira aba vazia. Hoje é o caso de
-	# CONTROLS no toque, que só contém keybinds.
-	# O kit não declara `class_name`, então a lista de seções vem pelo mapa de
-	# constantes do script em vez de ser reescrita aqui — reescrever criaria
-	# uma segunda ordem que envelheceria sozinha.
+	# CONTROLS é a MESMA seção com conteúdo diferente: teclas no desktop,
+	# toque no celular. Era aqui que o mobile não tinha casa — mira, háptico e
+	# tamanho de toque moravam em GAMEPLAY.
 	var kit_script: GDScript = load("res://src/ui/menu_settings_kit.gd")
-	var order: Array = kit_script.get_script_constant_map()["SETTINGS_SECTIONS"]
-	var touch_sections: Array = SettingsManifest.sections_for(touch, order)
-	var desktop_sections: Array = SettingsManifest.sections_for(desktop, order)
-	h._check(not touch_sections.has("CONTROLS"), "touch drops a section with nothing to show")
-	h._check(desktop_sections.has("CONTROLS"), "desktop keeps its keybind section")
+	var touch_sections: Array = SettingsManifest.sections_for(touch)
+	var desktop_sections: Array = SettingsManifest.sections_for(desktop)
+	h._check(touch_sections.has("CONTROLS") and desktop_sections.has("CONTROLS"),
+		"both platforms get a controls section")
+	for id in ["aim_mode", "touch_scale", "haptics"]:
+		h._check(SettingsManifest.section_of(id) == "CONTROLS", "%s lives in the controls section" % id)
+	h._check(SettingsManifest.section_of("keybinds") == "CONTROLS", "keybinds live in the controls section")
+	h._check(SettingsManifest.section_of("shake") == "ACCESSIBILITY", "screen shake sits with the comfort settings")
 	for section in ["AUDIO", "VIDEO", "ACCESSIBILITY", "BOARD", "SAVE DATA"]:
 		h._check(touch_sections.has(section) and desktop_sections.has(section),
 			"%s survives on both platforms" % section)
+
+	# A regra "seção sem nada não vira aba" continua valendo — provada direto,
+	# com uma seção que o manifesto não serve em plataforma nenhuma.
+	var with_ghost: Array = SettingsManifest.sections_for(touch, ["CONTROLS", "SECAO_FANTASMA", "AUDIO"])
+	h._check(with_ghost == ["CONTROLS", "AUDIO"], "a section with nothing to show never becomes an empty tab")
+
+	# No celular o que se veio ajustar abre primeiro; no desktop a ordem
+	# histórica fica de pé.
+	h._check(str(touch_sections[0]) == "CONTROLS", "touch opens settings on the controls it came for")
+	h._check(str(desktop_sections[0]) == "AUDIO", "desktop keeps the order people already know")
 
 	# Controle declarado na tela mas não no manifesto passaria despercebido e
 	# voltaria a decidir plataforma sozinho. Isto cobra a declaração.
@@ -622,3 +633,86 @@ func _settings_manifest_test() -> void:
 	Sfx.touch_scale = saved_scale
 	Sfx.haptics_enabled = saved_haptics
 	Sfx.save_settings()
+
+## Alvo de toque das linhas de settings.
+##
+## Só é afirmável porque `Design.target_min()` passou a respeitar
+## `KP_FORCE_TOUCH`: antes ele lia `DisplayServer` direto, então o harness
+## mudava o que a tela MOSTRA sem mudar o tamanho do alvo, e este contrato era
+## impossível de provar sem aparelho de verdade.
+func _settings_touch_target_test(menu: Node) -> void:
+	print("AT_STEP settings_touch_targets")
+	var saved_force := OS.get_environment("KP_FORCE_TOUCH")
+	OS.set_environment("KP_FORCE_TOUCH", "1")
+	h._check(is_equal_approx(Design.target_min(), Design.TOUCH_TARGET_MIN),
+		"forcing touch raises the minimum interaction target to 56px")
+
+	var kit = menu.get("_settings_kit")
+	if kit == null:
+		h._check(false, "menu exposes its settings kit")
+		OS.set_environment("KP_FORCE_TOUCH", saved_force)
+		return
+	kit.call("rebuild_settings")
+	await h._ticks(2)
+
+	# Rótulo e nota não são alvo; o contrato vale para quem o dedo pressiona.
+	var members: Dictionary = kit.get("_section_members")
+	var small: Array[String] = []
+	var checked := 0
+	for section in members:
+		for control in members[section]:
+			if control == null or not is_instance_valid(control):
+				continue
+			if not (control is Button or control is LineEdit):
+				continue
+			checked += 1
+			if control.custom_minimum_size.y < Design.TOUCH_TARGET_MIN:
+				small.append("%s/%s@%.0f" % [section, control.get_class(), control.custom_minimum_size.y])
+	h._check(checked > 0, "settings expose pressable rows to measure (%d)" % checked)
+	h._check(small.is_empty(), "every pressable settings row meets the touch target (short: %s)" % str(small))
+
+	OS.set_environment("KP_FORCE_TOUCH", saved_force)
+	kit.call("rebuild_settings")
+	await h._ticks(2)
+
+
+## Catraca contra reincidência do número mágico de fonte.
+##
+## O `Design` já declara a regra — "nenhum arquivo de UI deve conter número
+## mágico de tamanho" — e o projeto a violava 43 vezes. Settings, que sozinho
+## respondia por 28, está zerado; o resto das telas ainda não foi refeito,
+## então o teto só pode CAIR. Ao zerar tudo, isto vira `== 0`.
+func _ui_font_scale_ratchet_test() -> void:
+	print("AT_STEP ui_font_scale_ratchet")
+	const CEILING := 16
+	const CLEAN_FILES := ["res://src/ui/menu_settings_kit.gd"]
+	var dir := DirAccess.open("res://src/ui")
+	var offenders := {}
+	var total := 0
+	var pattern := RegEx.new()
+	pattern.compile("add_theme_font_size_override\\(\"font_size\", [0-9]")
+	var stack: Array[String] = ["res://src/ui"]
+	while not stack.is_empty():
+		var at: String = stack.pop_back()
+		var d := DirAccess.open(at)
+		if d == null:
+			continue
+		for name in d.get_files():
+			if not name.ends_with(".gd"):
+				continue
+			var path := "%s/%s" % [at, name]
+			var script: Script = load(path)
+			if script == null:
+				continue
+			var hits := pattern.search_all(str(script.source_code)).size()
+			if hits > 0:
+				offenders[path] = hits
+				total += hits
+		for sub in d.get_directories():
+			stack.append("%s/%s" % [at, sub])
+	h._check_source(total <= CEILING,
+		"hardcoded UI font sizes stay at or below the ratchet (%d <= %d): %s" % [total, CEILING, str(offenders)])
+	for clean in CLEAN_FILES:
+		h._check_source(not offenders.has(clean), "%s stays free of magic font sizes" % clean)
+	if total < CEILING:
+		print("AT_NOTE lower the font-size ratchet to ", total)
