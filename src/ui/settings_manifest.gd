@@ -49,6 +49,7 @@ const ENTRIES := [
 	{"id": "touch_handed", "section": "CONTROLS", "platforms": TOUCH_ONLY},
 	{"id": "touch_opacity", "section": "CONTROLS", "platforms": TOUCH_ONLY},
 	{"id": "shake", "section": "ACCESSIBILITY", "platforms": BOTH},
+	{"id": "flash", "section": "ACCESSIBILITY", "platforms": BOTH},
 	{"id": "run_info", "section": "GAMEPLAY", "platforms": BOTH},
 
 	{"id": "color_assist", "section": "ACCESSIBILITY", "platforms": BOTH},

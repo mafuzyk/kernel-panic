@@ -267,6 +267,128 @@ static func dimmest_entity_luminance() -> float:
 static func era_color(wave: int) -> Color:
 	return ERA_TINTS[clampi((wave - 1) / 5, 0, ERA_TINTS.size() - 1)]
 
+## Cor de cada entidade do bestiário, num lugar só.
+##
+## Antes isto vivia espalhado: cada inimigo no próprio `_init`, e o bestiário
+## num `match` paralelo que caía no default para SETE ids — GOD e os seis que
+## entraram no 3.1 apareciam todos com a mesma cor de texto na lista.
+const ENTITY_COLORS := {
+	"drone": COL_DRONE,
+	"lancer": COL_LANCER,
+	"spewer": COL_SPEWER,
+	"splitter": COL_SPLITTER,
+	"bulwark": COL_BULWARK,
+	"trojan": Color("c23a5e"),
+	"oom": Color("9a4dff"),
+	"boss": Color("ff3d81"),
+	"root": Color("ff3d81"),
+	"segfault": Color("ff9a3d"),
+	"bluescreen": Color("4f8cff"),
+	"pagefault": Color("b46bff"),
+	"recursor": Color("52ff7a"),
+	"firewall": Color("37d8ff"),
+	"update_loop": Color("0c70f2"),
+	"bloatware": Color("4b9ee8"),
+	"god": Color("ffd24f"),
+	"zombie": Color("7bd88f"),
+	"cron": Color("66ffb2"),
+	"swap": Color("5f7fd8"),
+	"beachball": Color("ff9ad2"),
+	"genius": Color("d8dee9"),
+	"kernel_task": Color("cfd6e4"),
+}
+
+## Quem é boss. Não dá para deduzir da ameaça: GOD vale 777 no bestiário, que
+## é piada do ato TempleOS, e ficaria classificado como inimigo comum.
+##
+## Importa porque bosses REUSAM a cor da própria família de propósito — ROOT
+## herda de DRONE, SEGFAULT de LANCER — e chegam sozinhos, no dobro do
+## tamanho. Exigir que fossem distintos apagaria um sinal em vez de criar um.
+const BOSS_IDS := ["boss", "root", "segfault", "bluescreen", "pagefault",
+	"recursor", "firewall", "god", "kernel_task"]
+
+
+static func is_boss_id(id: String) -> bool:
+	return BOSS_IDS.has(id)
+
+
+## Substituições de cor do color assist. VAZIO, e de propósito.
+##
+## Havia duas — SPLITTER e BULWARK — escolhidas quando o elenco tinha metade
+## do tamanho de hoje. Medindo a paleta em protanopia, deuteranopia e
+## tritanopia (ver `simulate_cvd`), elas PIORAM 36 combinações de par e
+## deficiência. A pior: com a assistência ligada, BULWARK e OOM_KILLER ficam a
+## 0.009 de distância em deuteranopia — praticamente a mesma cor, para
+## justamente quem liga a opção. Sem assistência, o mesmo par está a 0.312.
+##
+## Não é um ajuste malfeito, é um beco. Sob dicromacia o matiz colapsa num
+## eixo quase unidimensional: catorze inimigos comuns não cabem ali, e nenhuma
+## combinação de cores testada melhora o par alvo sem afastar outro.
+##
+## Por isso o color assist deixou de ser troca de paleta e passou a ser o que
+## funciona sem depender de cor: o MARCADOR, em `ENTITY_MARKERS`, desenhado
+## por `EnemyBase`. O mapa fica como ponto de extensão, e o harness impede que
+## alguém reintroduza uma cor que aproxime duas entidades.
+const ENTITY_ASSIST := {}
+
+
+## Simulação de daltonismo (matrizes de Viénot 1999, em RGB linear).
+##
+## Existe para o teste poder MEDIR em vez de supor. Distância em RGB não diz
+## nada sobre confusão real: duas cores longe em RGB podem ser idênticas para
+## quem tem protanopia, e foi exatamente o que aconteceu aqui.
+const CVD_MATRICES := {
+	"protan": [Vector3(0.11238, 0.88762, 0.0), Vector3(0.11238, 0.88762, 0.0), Vector3(0.00401, -0.00401, 1.0)],
+	"deutan": [Vector3(0.29275, 0.70725, 0.0), Vector3(0.29275, 0.70725, 0.0), Vector3(-0.02234, 0.02234, 1.0)],
+	"tritan": [Vector3(1.0, 0.14461, -0.14461), Vector3(0.0, 0.85653, 0.14347), Vector3(0.0, 0.85653, 0.14347)],
+}
+
+
+static func _to_linear(v: float) -> float:
+	return v / 12.92 if v <= 0.04045 else pow((v + 0.055) / 1.055, 2.4)
+
+
+static func _to_srgb(v: float) -> float:
+	var out := v * 12.92 if v <= 0.0031308 else 1.055 * pow(v, 1.0 / 2.4) - 0.055
+	return clampf(out, 0.0, 1.0)
+
+
+## Como `color` é vista por quem tem a deficiência `kind`.
+static func simulate_cvd(color: Color, kind: String) -> Color:
+	if not CVD_MATRICES.has(kind):
+		return color
+	var lin := Vector3(_to_linear(color.r), _to_linear(color.g), _to_linear(color.b))
+	var m: Array = CVD_MATRICES[kind]
+	return Color(
+		_to_srgb((m[0] as Vector3).dot(lin)),
+		_to_srgb((m[1] as Vector3).dot(lin)),
+		_to_srgb((m[2] as Vector3).dot(lin))
+	)
+
+
+## Cor de uma entidade, com ou sem assistência.
+static func entity_color(id: String, color_assist: bool = false) -> Color:
+	if color_assist and ENTITY_ASSIST.has(id):
+		return ENTITY_ASSIST[id]
+	return ENTITY_COLORS.get(id, COL_TEXT)
+
+
+## Marcador textual do color assist. Quem não enxerga a diferença de matiz lê
+## a sigla; ela não depende de cor nenhuma.
+const ENTITY_MARKERS := {
+	"drone": "DRON", "lancer": "LANC", "spewer": "SPEW", "splitter": "SPLIT",
+	"bulwark": "BULW", "trojan": "TROJ", "oom": "OOM", "boss": "ROOT",
+	"root": "ROOT", "segfault": "SEGF", "bluescreen": "BSOD", "pagefault": "PAGE",
+	"recursor": "RECU", "firewall": "FIRE", "update_loop": "UPDT", "bloatware": "BLOAT",
+	"god": "GOD", "zombie": "ZOMB", "cron": "CRON", "swap": "SWAP",
+	"beachball": "BALL", "genius": "GENI", "kernel_task": "KTASK",
+}
+
+
+static func entity_marker(id: String) -> String:
+	return str(ENTITY_MARKERS.get(id, ""))
+
+
 static func threat_palette(color_assist: bool = false) -> Dictionary:
 	if color_assist:
 		return {

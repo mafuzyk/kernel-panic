@@ -542,7 +542,12 @@ var _field_inverted := false
 func field_inverted() -> bool:
 	return _field_inverted
 
+## O KERNEL_TASK inverte a paleta da fase inteira no meio da esquiva. É o maior
+## evento de luminância do jogo, e com o flash desligado ele não acontece — o
+## boss continua atacando, só não vira a tela do avesso.
 func set_field_inverted(inverted: bool) -> void:
+	if inverted and Fx.flash_scale() <= 0.0:
+		inverted = false
 	if inverted == _field_inverted or _story_stage.is_empty():
 		return
 	_field_inverted = inverted

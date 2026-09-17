@@ -20,17 +20,6 @@ func _move(delta: float) -> void:
 func vel() -> Vector2:
 	return _v
 
-func color_assist_marker() -> String:
-	return "BULW"
-
-func _draw_color_assist_marker(c: Color) -> void:
-	if not Sfx.color_assist:
-		return
-	var center := Vector2(radius + 22.0, -radius - 12.0)
-	draw_circle(center, 12.0, Color(c.r, c.g, c.b, 0.14))
-	draw_arc(center, 12.0, 0.0, TAU, 20, c, 1.5, true)
-	draw_string(ThemeDB.fallback_font, center + Vector2(-24.0, 4.0), color_assist_marker(), HORIZONTAL_ALIGNMENT_CENTER, 48.0, 9, c)
-
 func take_hit(dmg: int, from: Vector2) -> void:
 	super.take_hit(dmg, from)
 	if hp > 0:
@@ -72,4 +61,3 @@ func _draw() -> void:
 	draw_arc(Vector2.ZERO, r + 7.0, -PI / 2, -PI / 2 + TAU * hp_frac, 28, Color(c.r, c.g, c.b, 0.5), 2.0, true)
 	if elite:
 		draw_arc(Vector2.ZERO, r + 11.0, 0, TAU, 32, Color(1, 1, 1, 0.75), 1.8, true)
-	_draw_color_assist_marker(c)

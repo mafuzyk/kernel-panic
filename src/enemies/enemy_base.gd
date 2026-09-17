@@ -108,6 +108,44 @@ func volatile_burst_count() -> int:
 		return 6
 	return 4 if Weekly.has_trait("volatile") else 0
 
+## Etiqueta curta desenhada ao lado do inimigo quando o color assist está
+## ligado.
+##
+## É o canal que NÃO depende de cor. Medindo a paleta em protanopia,
+## deuteranopia e tritanopia, catorze inimigos comuns não cabem no eixo que
+## sobra para um dicromata — nenhuma escolha de cores separa todos. A sigla
+## separa, sempre.
+class AssistMarker extends Node2D:
+	func _process(_delta: float) -> void:
+		visible = Sfx.color_assist
+		if visible:
+			queue_redraw()
+
+	func _draw() -> void:
+		var host := get_parent() as EnemyBase
+		if host == null or not Sfx.color_assist:
+			return
+		var text := host.color_assist_marker()
+		if text == "":
+			return
+		var c: Color = host.col
+		var at := Vector2(host.radius + 18.0, -host.radius - 10.0)
+		draw_circle(at, 12.0, Color(c.r, c.g, c.b, 0.14))
+		draw_arc(at, 12.0, 0.0, TAU, 20, c, 1.5, true)
+		draw_string(ThemeDB.fallback_font, at + Vector2(-24.0, 4.0), text,
+			HORIZONTAL_ALIGNMENT_CENTER, 48.0, 9, c)
+
+
+## Id do bestiário deste inimigo, derivado do nome que ele já declara.
+func bestiary_id() -> String:
+	return Game._bestiary_id_for_display(display_name)
+
+
+## Sigla do color assist. Vem do mapa único em `Balance`.
+func color_assist_marker() -> String:
+	return Balance.entity_marker(bestiary_id())
+
+
 func _ready() -> void:
 	add_to_group("enemies")
 	collision_layer = Balance.LAYER_ENEMY
@@ -122,6 +160,13 @@ func _ready() -> void:
 	glow = Fx.make_glow(radius * 1.5, col)
 	glow.modulate.a = 0.4
 	add_child(glow)
+	# O marcador do color assist é um FILHO, não um trecho do `_draw()` de cada
+	# inimigo. Antes ele existia copiado em dois arquivos — SPLITTER e BULWARK
+	# — e os outros 21, incluindo os seis que entraram no 3.1, não tinham
+	# nenhum. Como filho, todo inimigo herda sem editar nada.
+	var marker := AssistMarker.new()
+	marker.z_index = 3
+	add_child(marker)
 	z_index = 11
 	scale = Vector2.ONE * 0.05
 	var players := get_tree().get_nodes_in_group("player")

@@ -89,23 +89,11 @@ func title_font_size() -> int:
 	return Design.TEXT_HEADING if Design.breakpoint_for(size.x) == "compact" or Design.touch_input() else Design.TEXT_TITLE
 
 
+## A cor sai do `Balance`, que é dono da paleta de entidade. O `match` daqui
+## era uma segunda lista e caía no default para GOD, ZOMBIE, CRON, SWAP,
+## BEACHBALL, GENIUS e KERNEL_TASK.
 static func entry_color(id: String) -> Color:
-	match id:
-		"drone": return Balance.COL_DRONE
-		"lancer": return Balance.COL_LANCER
-		"spewer": return Balance.COL_SPEWER
-		"splitter", "bulwark": return Balance.threat_color(id, Sfx.color_assist)
-		"trojan": return Color("c23a5e")
-		"oom": return Color("9a4dff")
-		"boss", "root": return Color("ff3d81")
-		"segfault": return Color("ff9a3d")
-		"bluescreen": return Color("4f8cff")
-		"pagefault": return Color("b46bff")
-		"recursor": return Color("52ff7a")
-		"firewall": return Color("37d8ff")
-		"update_loop": return Color("67b8ff")
-		"bloatware": return Color("4b9ee8")
-		_: return Design.TEXT_PRIMARY
+	return Balance.entity_color(id, Sfx.color_assist)
 
 
 func _entry_color(id: String) -> Color:

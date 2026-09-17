@@ -25,7 +25,7 @@ func _init() -> void:
 	pts = 200
 	radius = 15.0
 	# Lima, não verde: o ZOMBIE já é verde e os dois nasceram vizinhos demais.
-	col = Color("c8e64a")
+	col = Color("66ffb2")
 	mote_count = 3
 
 func _on_ready() -> void:

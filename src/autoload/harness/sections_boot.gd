@@ -447,11 +447,19 @@ func _color_assist_test() -> void:
 	var bulwark := BulwarkEnemy.new()
 	# load(), não FileAccess: no artefato o .gd não existe como texto, mas o
 	# script compilado carrega e `source_code` vem vazio — sem ERROR no log.
+	# O marcador saiu de dentro de cada inimigo e virou um filho de
+	# `EnemyBase`: eram duas cópias da mesma função, e os outros 21 — os seis
+	# do 3.1 inclusive — não tinham nenhuma.
+	h._check(splitter.color_assist_marker() == "SPLIT", "Splitter still answers with its own marker")
+	h._check(bulwark.color_assist_marker() == "BULW", "Bulwark still answers with its own marker")
+	var base_source := str((load("res://src/enemies/enemy_base.gd") as Script).source_code)
+	h._check_source(base_source.contains("draw_string") and not base_source.contains(".png"),
+		"threat markers use code drawing without images")
 	var splitter_source := str((load("res://src/enemies/splitter.gd") as Script).source_code)
 	var bulwark_source := str((load("res://src/enemies/bulwark.gd") as Script).source_code)
-	h._check(splitter.has_method("color_assist_marker") and splitter.color_assist_marker() == "SPLIT", "Splitter exposes code-drawn assist marker")
-	h._check(bulwark.has_method("color_assist_marker") and bulwark.color_assist_marker() == "BULW", "Bulwark exposes code-drawn assist marker")
-	h._check_source(splitter_source.contains("draw_string") and bulwark_source.contains("draw_string") and not splitter_source.contains(".png") and not bulwark_source.contains(".png"), "threat markers use code drawing without images")
+	h._check_source(not splitter_source.contains("_draw_color_assist_marker") \
+		and not bulwark_source.contains("_draw_color_assist_marker"),
+		"no enemy carries its own copy of the marker drawing any more")
 	var bestiary_probe := BestiaryPanel.new()
 	h._check(bestiary_probe.has_method("assist_marker_text") \
 		and bestiary_probe.call("assist_marker_text", "splitter") == ("SPLIT" if Sfx.color_assist else "") \
@@ -764,3 +772,153 @@ func _ui_is_vector_test() -> void:
 		for sub in d.get_directories():
 			stack.append("%s/%s" % [at, sub])
 	h._check_source(offenders.is_empty(), "no UI script draws from a hand-made raster icon (%s)" % str(offenders))
+
+## Intensidade de luz: um fator, quatro consumidores.
+##
+## O jogo dispara branco puro a 0.55 na tela inteira (`root_boss.gd`), inverte
+## a paleta da fase no KERNEL_TASK, distorce tudo no dano e cintila no CRT —
+## e até aqui nada disso tinha controle. Só o shake tinha.
+func _flash_intensity_test() -> void:
+	print("AT_STEP flash_intensity")
+	var saved := Sfx.flash_level
+
+	Sfx.flash_level = 2
+	h._check(is_equal_approx(Fx.flash_scale(), 1.0), "full intensity leaves the light events untouched")
+	Sfx.flash_level = 1
+	var reduced := Fx.flash_scale()
+	h._check(reduced > 0.0 and reduced < 1.0, "reduced intensity dims without removing the cue")
+	Sfx.flash_level = 0
+	h._check(is_equal_approx(Fx.flash_scale(), 0.0), "off silences the light events")
+
+	# Com o flash desligado o clarão não desenha NADA. Afirmado pelo estado do
+	# retângulo de flash, não pela ausência de erro.
+	var before_layer = Fx.get("_flash_layer")
+	Fx.flash(Color(1, 1, 1), 0.55, 0.4)
+	h._check(Fx.get("_flash_layer") == before_layer, "a silenced flash never even builds its layer")
+
+	# A inversão de paleta do KERNEL_TASK é o maior evento de luminância do
+	# jogo, e é o que mais assusta quem precisa deste controle.
+	var arena_src := str((load("res://src/arena/arena.gd") as Script).source_code)
+	h._check_source(arena_src.contains("if inverted and Fx.flash_scale() <= 0.0:"),
+		"the field inversion asks the light budget before flipping the stage")
+
+	# O que INFORMA não pode ser apagado junto com o que decora.
+	var overlay_src := str((load("res://src/arena/arena_overlay.gd") as Script).source_code)
+	h._check_source(overlay_src.contains('"aberr", aberr * Fx.flash_scale()'),
+		"the damage distortion obeys the light budget")
+	h._check_source(overlay_src.contains('"hurt", hurt)') and overlay_src.contains('"low_hp", low_hp)'),
+		"the damage and low-integrity cues stay readable at every setting")
+
+	# Shake e flash são incômodos diferentes e continuam separados.
+	var saved_shake := Sfx.shake_level
+	Sfx.shake_level = 2
+	Sfx.flash_level = 0
+	h._check(Sfx.shake_level == 2 and is_equal_approx(Fx.flash_scale(), 0.0),
+		"silencing the light never touches the screen shake")
+	Sfx.shake_level = saved_shake
+
+	# Atravessa o disco, como todo o resto.
+	Sfx.flash_level = 1
+	Sfx.save_settings()
+	Sfx.flash_level = 2
+	Sfx._load_settings()
+	h._check(Sfx.flash_level == 1, "the light setting survives a save/load round trip")
+
+	Sfx.flash_level = saved
+	Sfx.save_settings()
+
+## Color assist medido, não inventado.
+##
+## Até aqui a assistência cobria DOIS inimigos de 23; os seis que entraram no
+## 3.1 não tinham nada. Recolorir os 23 na mão trocaria um problema por outro,
+## então a regra é: mede a distância entre todos os pares e só exige troca
+## onde duas entidades são confusáveis de verdade.
+func _entity_palette_test() -> void:
+	print("AT_STEP entity_palette")
+	var ids: Array[String] = []
+	for entry in BestiaryPanel.ENTRIES:
+		ids.append(str(entry["id"]))
+	h._check(ids.size() == 23, "the bestiary still holds 23 entries (%d)" % ids.size())
+
+	# Nenhuma entidade pode cair no texto padrão: era o que acontecia com GOD
+	# e com os seis do 3.1, todos pintados da mesma cor na lista.
+	var defaulted: Array[String] = []
+	for id in ids:
+		if not Balance.ENTITY_COLORS.has(id):
+			defaulted.append(id)
+	h._check(defaulted.is_empty(), "every bestiary entry has its own colour (missing: %s)" % str(defaulted))
+
+	# Marcador para todo mundo: é ele que funciona sem depender de matiz.
+	var unmarked: Array[String] = []
+	for id in ids:
+		if Balance.entity_marker(id) == "":
+			unmarked.append(id)
+	h._check(unmarked.is_empty(), "every bestiary entry has an assist marker (missing: %s)" % str(unmarked))
+
+	# Pares confusáveis, com a assistência LIGADA.
+	#
+	# A regra vale entre os inimigos COMUNS, que é o que divide a tela num
+	# mesmo instante. Bosses reusam a cor da própria família de propósito
+	# (ROOT herda de DRONE, SEGFAULT de LANCER) e chegam sozinhos, no dobro do
+	# tamanho: exigir que fossem distintos apagaria um sinal de leitura em vez
+	# de criar um. O marcador, esse sim, todos têm.
+	const TOO_CLOSE := 0.14
+	var regulars: Array[String] = []
+	for entry in BestiaryPanel.ENTRIES:
+		if not Balance.is_boss_id(str(entry["id"])):
+			regulars.append(str(entry["id"]))
+	h._check(regulars.size() >= 12, "the regular roster is big enough to be worth sweeping (%d)" % regulars.size())
+	var clashes: Array[String] = []
+	for i in regulars.size():
+		for j in range(i + 1, regulars.size()):
+			var a := Balance.entity_color(regulars[i], true)
+			var b := Balance.entity_color(regulars[j], true)
+			var d: float = h._color_distance(a, b)
+			if d < TOO_CLOSE:
+				clashes.append("%s~%s=%.3f" % [regulars[i], regulars[j], d])
+	h._check(clashes.is_empty(), "no two regular enemies stay confusable with color assist on: %s" % str(clashes))
+
+	# ── daltonismo, medido ────────────────────────────────────────────────
+	#
+	# Distância em RGB não diz nada sobre confusão real: duas cores longe em
+	# RGB podem ser idênticas para quem tem protanopia. Foi assim que a
+	# assistência anterior passou despercebida — ela punha BULWARK e
+	# OOM_KILLER a 0.009 em deuteranopia, para justamente quem a liga.
+	const CVD_FLOOR := 0.07
+	var cvd_clashes: Array[String] = []
+	for kind in Balance.CVD_MATRICES:
+		for i in regulars.size():
+			for j in range(i + 1, regulars.size()):
+				var sa := Balance.simulate_cvd(Balance.entity_color(regulars[i], true), kind)
+				var sb := Balance.simulate_cvd(Balance.entity_color(regulars[j], true), kind)
+				var sd: float = h._color_distance(sa, sb)
+				if sd < CVD_FLOOR:
+					cvd_clashes.append("%s~%s(%s)=%.3f" % [regulars[i], regulars[j], kind, sd])
+	h._check(cvd_clashes.is_empty(), "the regular roster survives simulated colour blindness: %s" % str(cvd_clashes))
+
+	# O INVARIANTE que faltava: ligar a assistência nunca pode APROXIMAR duas
+	# entidades. A versão anterior piorava 36 combinações de par e deficiência,
+	# e nada no projeto impedia isso.
+	var regressions: Array[String] = []
+	for i in regulars.size():
+		for j in range(i + 1, regulars.size()):
+			var plain_a := Balance.entity_color(regulars[i], false)
+			var plain_b := Balance.entity_color(regulars[j], false)
+			var help_a := Balance.entity_color(regulars[i], true)
+			var help_b := Balance.entity_color(regulars[j], true)
+			for kind2 in Balance.CVD_MATRICES:
+				var off: float = h._color_distance(Balance.simulate_cvd(plain_a, kind2), Balance.simulate_cvd(plain_b, kind2))
+				var on: float = h._color_distance(Balance.simulate_cvd(help_a, kind2), Balance.simulate_cvd(help_b, kind2))
+				if on < off - 0.01:
+					regressions.append("%s~%s(%s) %.3f->%.3f" % [regulars[i], regulars[j], kind2, off, on])
+	h._check(regressions.is_empty(), "colour assist never pushes two entities closer together: %s" % str(regressions))
+
+	# A simulação em si tem que estar certa, senão os dois testes acima medem
+	# o nada. Cinza é acromático: nenhuma deficiência o desloca.
+	var grey := Color(0.5, 0.5, 0.5)
+	for kind3 in Balance.CVD_MATRICES:
+		h._check(h._color_distance(Balance.simulate_cvd(grey, kind3), grey) < 0.02,
+			"%s simulation leaves an achromatic colour where it is" % kind3)
+	var pure_red := Color(1, 0, 0)
+	h._check(h._color_distance(Balance.simulate_cvd(pure_red, "protan"), pure_red) > 0.3,
+		"protanopia visibly moves pure red, so the simulation is doing something")

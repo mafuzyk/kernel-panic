@@ -18,10 +18,14 @@ func configure(next_profile: Dictionary) -> void:
 	profile = next_profile.duplicate(true)
 	if _mat == null:
 		return
+	# Ruído e aberração cintilam quadro a quadro — é o que incomoda. Curvatura
+	# e scanline são geometria estática e ficam: sem elas a era perde a cara,
+	# e elas não piscam.
+	var gain := Fx.flash_scale()
 	_mat.set_shader_parameter("curvature", float(profile.get("curvature", 0.0)))
-	_mat.set_shader_parameter("noise", float(profile.get("noise", 0.0)))
+	_mat.set_shader_parameter("noise", float(profile.get("noise", 0.0)) * gain)
 	_mat.set_shader_parameter("scanline", float(profile.get("scanline", 0.0)))
-	_mat.set_shader_parameter("aberration", float(profile.get("aberration", 0.0)))
+	_mat.set_shader_parameter("aberration", float(profile.get("aberration", 0.0)) * gain)
 	_mat.set_shader_parameter("holy", float(profile.get("holy", 0.0)))
 
 func is_active() -> bool:

@@ -30,7 +30,11 @@ func set_low_hp(frac: float) -> void:
 func _process(delta: float) -> void:
 	hurt = maxf(hurt - delta * 2.4, 0.0)
 	aberr = maxf(aberr - delta * 2.6, 0.0)
-	_mat.set_shader_parameter("aberr", aberr)
+	# `aberr` é a distorção cromática: decoração de impacto, e passa pelo
+	# fator. `hurt` e `low_hp` NÃO passam — eles dizem "você levou dano" e
+	# "você está quase morrendo". Apagar informação para poupar os olhos
+	# trocaria um problema por outro.
+	_mat.set_shader_parameter("aberr", aberr * Fx.flash_scale())
 	_mat.set_shader_parameter("hurt", hurt)
 	_mat.set_shader_parameter("low_hp", low_hp)
 	_mat.set_shader_parameter("flash_white", 0.0)

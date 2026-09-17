@@ -330,6 +330,15 @@ func _build_settings() -> void:
 	)
 	assign_section(shake_btn, "ACCESSIBILITY", "shake")
 	box.add_child(shake_btn)
+
+	var flash_btn := _setting_button(_flash_label())
+	flash_btn.pressed.connect(func() -> void:
+		Sfx.flash_level = (Sfx.flash_level + 1) % 3
+		_set_row_text(flash_btn, _flash_label())
+		Sfx.save_settings()
+	)
+	assign_section(flash_btn, "ACCESSIBILITY", "flash")
+	box.add_child(flash_btn)
 	var gameplay_label := _settings_group_label(tr("SET_HEAD_GAMEPLAY"))
 	assign_section(gameplay_label, "GAMEPLAY")
 	box.add_child(gameplay_label)
@@ -867,6 +876,12 @@ func _set_row_text(button: Button, text: String) -> void:
 		name_label.text = str(parts[0])
 	if is_instance_valid(value_label):
 		value_label.text = str(parts[1])
+
+
+## Rótulo da intensidade de luz, na mesma escala do shake.
+func _flash_label() -> String:
+	var names := [tr("SET_VAL_OFF"), tr("SET_VAL_LOW"), tr("SET_VAL_FULL")]
+	return tr("SET_FLASH") % names[clampi(Sfx.flash_level, 0, 2)]
 
 
 ## Rótulo do lado que comanda. "DIREITA" é o histórico: ações à direita,

@@ -201,7 +201,22 @@ func ghost(pos: Vector2, rot: float, draw_fn: Callable, color: Color, life: floa
 	g.scale = Vector2.ONE * node_scale
 	_attach(g)
 
+## Fator ÚNICO dos eventos de luz. Tudo que estoura a tela — o clarão cheio, a
+## aberração cromática do dano, o ruído do CRT, a inversão de paleta do
+## KERNEL_TASK — passa por aqui em vez de decidir sozinho.
+##
+## Não gateia `hitstop()`: parar o tempo por 50ms é tato, não luminância, e
+## não é o que dispara fotossensibilidade. Mexer nele mudaria o toque do jogo
+## sem resolver o problema que este controle existe para resolver.
+static func flash_scale() -> float:
+	return float(Sfx.FLASH_SCALES[clampi(Sfx.flash_level, 0, 2)])
+
+
 func flash(color: Color, alpha: float, dur: float) -> void:
+	var gain := flash_scale()
+	if gain <= 0.0:
+		return
+	alpha *= gain
 	if _flash_layer == null or not is_instance_valid(_flash_layer) or not is_instance_valid(_flash_rect):
 		_flash_layer = CanvasLayer.new()
 		_flash_layer.layer = 90

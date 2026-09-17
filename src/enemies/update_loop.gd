@@ -12,7 +12,7 @@ func _init() -> void:
 	speed = 82.0
 	pts = 190
 	radius = 16.0
-	col = Color("67b8ff")
+	col = Color("0c70f2")
 	mote_count = 3
 
 func reinstall_duration() -> float:

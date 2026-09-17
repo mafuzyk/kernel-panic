@@ -16,6 +16,13 @@ var sfx_vol := 0.9
 var music_vol := 0.75
 var haptics_enabled := true
 var shake_level := 2
+## Intensidade dos eventos de LUZ: 0 desliga, 1 reduz, 2 mantém.
+##
+## Espelha `shake_level` de propósito — quem precisa de uma das duas coisas
+## costuma precisar da outra, mas não sempre: dá para querer flash baixo com
+## shake alto. São dois controles porque são dois incômodos diferentes.
+var flash_level := 2
+const FLASH_SCALES := [0.0, 0.45, 1.0]
 
 ## ── vídeo ─────────────────────────────────────────────────────────────
 ##
@@ -218,6 +225,7 @@ func _load_settings() -> void:
 	music_vol = cf.get_value("audio", "music_vol", 0.75)
 	haptics_enabled = cf.get_value("feel", "haptics", true)
 	shake_level = cf.get_value("feel", "shake", 2)
+	flash_level = clampi(int(cf.get_value("feel", "flash", 2)), 0, 2)
 	target_fps = cf.get_value("feel", "target_fps", 60)
 	Engine.max_fps = target_fps
 	touch_scale = cf.get_value("feel", "touch_scale", 1.0)
@@ -240,6 +248,7 @@ func save_settings() -> void:
 	cf.set_value("audio", "music_vol", music_vol)
 	cf.set_value("feel", "haptics", haptics_enabled)
 	cf.set_value("feel", "shake", shake_level)
+	cf.set_value("feel", "flash", flash_level)
 	cf.set_value("feel", "target_fps", target_fps)
 	cf.set_value("feel", "touch_scale", touch_scale)
 	cf.set_value("feel", "aim_mode", aim_mode)
