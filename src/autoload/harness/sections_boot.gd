@@ -975,3 +975,60 @@ func _text_scale_test(menu: Node) -> void:
 	if kit != null:
 		kit.call("rebuild_settings")
 		await h._ticks(2)
+
+## Alvo de toque em TODAS as telas, não só em settings.
+##
+## O 3.1 foi feito PC-first: a regra de 56px existia em `Design.target_min()`
+## mas quase nada a consultava. Esta varredura instancia cada painel com o
+## toque forçado e mede o que o dedo pressiona.
+func _panel_touch_target_test() -> void:
+	print("AT_STEP panel_touch_targets")
+	var saved_force := OS.get_environment("KP_FORCE_TOUCH")
+	OS.set_environment("KP_FORCE_TOUCH", "1")
+
+	var panels := {
+		"pause": "res://src/ui/pause_panel.gd",
+		"bestiary": "res://src/ui/bestiary_panel.gd",
+		"programs": "res://src/ui/program_panel.gd",
+		"story": "res://src/ui/story_panel.gd",
+		"summary": "res://src/ui/run_summary_panel.gd",
+		"awards": "res://src/ui/achievements_panel.gd",
+		"board": "res://src/ui/board_panel.gd",
+		"terminal": "res://src/ui/terminal_panel.gd",
+		"shell": "res://src/ui/menu_shell.gd",
+	}
+	var short: Array[String] = []
+	var measured := 0
+	for name in panels:
+		var script: Script = load(panels[name])
+		if script == null:
+			continue
+		var panel = script.new()
+		if not (panel is Control):
+			continue
+		panel.size = Vector2(900, 480)
+		h.add_child(panel)
+		await h._ticks(3)
+		for node in (panel as Control).find_children("*", "", true, false):
+			if not (node is BaseButton or node is LineEdit):
+				continue
+			var control := node as Control
+			# Só conta o que está realmente na tela: nó escondido não é alvo.
+			if not control.is_visible_in_tree():
+				continue
+			measured += 1
+			var height := maxf(control.custom_minimum_size.y, control.size.y)
+			if height < Design.TOUCH_TARGET_MIN - 0.5:
+				var who: String = str(control.get("text")) if control.has_method("get_text") else str(control.name)
+				var parent_h: float = (control.get_parent() as Control).size.y if control.get_parent() is Control else -1.0
+				short.append("%s/%s'%s'@%.0f(pai=%.0f)" % [name, control.get_class(), who.substr(0, 12), height, parent_h])
+		panel.queue_free()
+		await h._ticks(1)
+
+	h._check(measured > 0, "the sweep found pressable controls to measure (%d)" % measured)
+	h._check(short.is_empty(), "every on-screen control meets the touch target: %s" % str(short))
+
+	if saved_force.is_empty():
+		OS.set_environment("KP_FORCE_TOUCH", "")
+	else:
+		OS.set_environment("KP_FORCE_TOUCH", saved_force)

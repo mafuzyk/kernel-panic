@@ -312,16 +312,25 @@ func _action_block(primary: bool, extra: bool = false) -> Control:
 		sb.bg_color = Design.ACCENT
 	else:
 		sb.bg_color = Design.alpha(Design.TEXT_PRIMARY, 0.0)
-	sb.content_margin_left = Design.SPACE_2XL if primary else Design.SPACE_MD
-	sb.content_margin_right = Design.SPACE_2XL if primary else Design.SPACE_MD
-	sb.content_margin_top = Design.SPACE_LG
-	sb.content_margin_bottom = Design.SPACE_LG
+	# Mesmo motivo do `ScreenKit.action()`: margem no painel encolhe TODOS os
+	# filhos, inclusive o botão que recebe o toque. O bloco media 65px e
+	# respondia em 33.
 	stack.add_theme_stylebox_override("panel", sb)
+	if Platform.is_touch() and stack.custom_minimum_size.y < Design.target_min():
+		stack.custom_minimum_size.y = Design.target_min()
+
+	var pad := MarginContainer.new()
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pad.add_theme_constant_override("margin_left", Design.SPACE_2XL if primary else Design.SPACE_MD)
+	pad.add_theme_constant_override("margin_right", Design.SPACE_2XL if primary else Design.SPACE_MD)
+	pad.add_theme_constant_override("margin_top", Design.SPACE_LG)
+	pad.add_theme_constant_override("margin_bottom", Design.SPACE_LG)
+	stack.add_child(pad)
 
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", Design.SPACE_XL)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.add_child(line)
+	pad.add_child(line)
 
 	var label := _grot(26 if primary else 22, Design.WEIGHT_HEAVY if primary else Design.WEIGHT_BOLD,
 		Design.SURFACE if primary else Design.TEXT_PRIMARY)

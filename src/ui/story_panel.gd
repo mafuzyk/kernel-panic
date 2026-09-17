@@ -496,6 +496,10 @@ func _build_tabs(parent: Node) -> void:
 		var transparent := StyleBoxFlat.new()
 		transparent.bg_color = Color(0, 0, 0, 0)
 		cell.add_theme_stylebox_override("panel", transparent)
+		# A aba de ato tinha 26px de altura: metade do alvo mínimo, e é por
+		# onde se troca de ato inteiro no celular.
+		if Platform.is_touch():
+			cell.custom_minimum_size.y = Design.target_min()
 		_tabs_row.add_child(cell)
 
 		var stack := VBoxContainer.new()

@@ -440,6 +440,8 @@ func _overlay_button(content: Control, on_press: Callable) -> PanelContainer:
 	host.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	host.size_flags_horizontal = content.size_flags_horizontal
 	host.size_flags_vertical = content.size_flags_vertical
+	if Platform.is_touch() and host.custom_minimum_size.y < Design.target_min():
+		host.custom_minimum_size.y = Design.target_min()
 	host.add_child(content)
 	var hit := Button.new()
 	hit.flat = true

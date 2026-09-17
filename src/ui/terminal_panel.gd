@@ -119,7 +119,7 @@ func _build() -> void:
 	_header_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.add_child(_header_status)
 	var close := _make_button(tr("TERM_CLOSE"), Design.TEXT_CAPTION, Design.TEXT_SECONDARY)
-	close.custom_minimum_size = Vector2(112.0, Design.CLICK_TARGET_MIN)
+	close.custom_minimum_size = Vector2(112.0, Design.target_min())
 	close.pressed.connect(close_terminal)
 	header.add_child(close)
 	box.add_child(header)
@@ -195,7 +195,7 @@ func _build() -> void:
 	ScreenKit.rule(box, 0.24)
 
 	var row := HBoxContainer.new()
-	row.custom_minimum_size.y = Design.CLICK_TARGET_MIN
+	row.custom_minimum_size.y = Design.target_min()
 	row.add_theme_constant_override("separation", Design.SPACE_MD)
 	_prompt_label = ScreenKit.mono("kernel@panic:~$", Design.TEXT_SUBHEAD, Design.ACCENT)
 	_prompt_label.custom_minimum_size.x = 170.0
@@ -203,7 +203,7 @@ func _build() -> void:
 	row.add_child(_prompt_label)
 	_input = LineEdit.new()
 	_input.placeholder_text = tr("TERM_PLACEHOLDER")
-	_input.custom_minimum_size.y = Design.CLICK_TARGET_MIN
+	_input.custom_minimum_size.y = Design.target_min()
 	_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_input.add_theme_font_override("font", Design.FONT_MONO)
 	_input.add_theme_font_size_override("font_size", Design.px(Design.TEXT_BODY))
@@ -215,7 +215,7 @@ func _build() -> void:
 	_input.gui_input.connect(_on_input_gui)
 	row.add_child(_input)
 	_run_button = _make_button(tr("TERM_RUN"), Design.TEXT_BODY, Design.ACCENT)
-	_run_button.custom_minimum_size = Vector2(150.0, Design.CLICK_TARGET_MIN)
+	_run_button.custom_minimum_size = Vector2(150.0, Design.target_min())
 	_run_button.pressed.connect(_submit_input)
 	row.add_child(_run_button)
 	box.add_child(row)

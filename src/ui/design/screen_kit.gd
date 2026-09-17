@@ -145,17 +145,26 @@ static func action(label: String, key: String, emphasis: String, on_press: Calla
 	var stack := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Design.ACCENT if emphasis == "primary" else Color(0, 0, 0, 0)
-	var pad_x: int = Design.SPACE_2XL if emphasis == "primary" else Design.SPACE_MD
-	sb.content_margin_left = pad_x
-	sb.content_margin_right = pad_x
-	sb.content_margin_top = Design.SPACE_LG
-	sb.content_margin_bottom = Design.SPACE_LG
+	# O respiro vai para DENTRO, num MarginContainer, em vez de ficar na
+	# margem do stylebox. `PanelContainer` encolhe TODOS os filhos pela margem
+	# do painel — inclusive o botão invisível que recebe o toque. O bloco
+	# aparentava 67px de altura e respondia em 35: o alvo era metade do que a
+	# pessoa via.
 	stack.add_theme_stylebox_override("panel", sb)
+
+	var pad_x: int = Design.SPACE_2XL if emphasis == "primary" else Design.SPACE_MD
+	var pad := MarginContainer.new()
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pad.add_theme_constant_override("margin_left", pad_x)
+	pad.add_theme_constant_override("margin_right", pad_x)
+	pad.add_theme_constant_override("margin_top", Design.SPACE_LG)
+	pad.add_theme_constant_override("margin_bottom", Design.SPACE_LG)
+	stack.add_child(pad)
 
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", Design.SPACE_LG)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.add_child(line)
+	pad.add_child(line)
 
 	var color: Color = Design.SURFACE
 	if emphasis == "danger":
@@ -187,10 +196,12 @@ static func action(label: String, key: String, emphasis: String, on_press: Calla
 	# Alvos touch: fileiras de ação precisam de 56px (primária) e 48px
 	# (secundárias) em viewport real de telefone. Só em touch — o desktop
 	# mantém a densidade editorial atual.
-	if Design.touch_input():
-		var touch_min := 56.0 if emphasis == "primary" else 48.0
-		if stack.custom_minimum_size.y < touch_min:
-			stack.custom_minimum_size.y = touch_min
+	# 48px para ação secundária era um segundo mínimo, mais frouxo que o que o
+	# próprio projeto declara em `TOUCH_TARGET_MIN`. Não há alvo de segunda.
+	# Continua valendo só no toque: no desktop a densidade editorial é outra e
+	# impor altura mínima empurraria o menu para fora da janela.
+	if Design.touch_input() and stack.custom_minimum_size.y < Design.target_min():
+		stack.custom_minimum_size.y = Design.target_min()
 	stack.set_meta("label_node", line.get_child(0))
 	stack.set_meta("hit", hit)
 	bind_feedback(hit, line.get_child(0), sb if emphasis == "primary" else null)
@@ -223,12 +234,13 @@ static func bind_feedback(hit: Button, label: Label, primary_surface: StyleBoxFl
 static func set_action_density(block: PanelContainer, compact: bool) -> void:
 	if block == null:
 		return
-	var sb: StyleBoxFlat = block.get_theme_stylebox("panel")
-	if sb == null:
-		return
+	# O respiro mora no MarginContainer desde que o alvo de toque passou a
+	# ocupar o bloco inteiro; mexer no stylebox aqui não apertava mais nada.
 	var pad: int = Design.SPACE_SM if compact else Design.SPACE_LG
-	sb.content_margin_top = pad
-	sb.content_margin_bottom = pad
+	for child in block.get_children():
+		if child is MarginContainer:
+			(child as MarginContainer).add_theme_constant_override("margin_top", pad)
+			(child as MarginContainer).add_theme_constant_override("margin_bottom", pad)
 	if block.has_meta("label_node"):
 		var node: Label = block.get_meta("label_node")
 		if is_instance_valid(node):
