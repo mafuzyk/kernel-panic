@@ -64,16 +64,13 @@ Grab the Android, Linux, or Windows build from the [latest release](https://gith
 
 ### Android
 
-> **3.1.0 has no Android build yet.** The desktop builds shipped first; the APK
-> follows once the signing toolchain is back up. 3.0.0's APK still works and the
-> save transfers forward.
-
-1. Download the `KERNEL-PANIC-v<version>-release.apk` from the release and open it from your browser or file manager.
 > **Updating from 2.5.0 or older?** The original release key was lost, so
 > everything from 3.0.0 on is signed with a new key: Android will NOT install
 > it as an update. Export your progress first (Settings → Save transfer →
 > Export), uninstall the old version, install this one, then import the
 > transfer string. Updating from 3.0.0 needs none of this.
+
+1. Download the `KERNEL-PANIC-v<version>-release.apk` from the release and open it from your browser or file manager.
 2. If Android blocks the installation, allow that app to **Install unknown apps** in the system settings, then open the APK again.
 3. Confirm **Install**. The current export targets 64-bit ARM devices (`arm64-v8a`).
 

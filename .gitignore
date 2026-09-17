@@ -25,3 +25,5 @@ server/leaderboard/*.sqlite3*
 
 # Design references (never committed)
 media/concepts/
+result
+result-*
