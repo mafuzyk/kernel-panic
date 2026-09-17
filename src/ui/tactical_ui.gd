@@ -39,7 +39,7 @@ static func frame_margins(viewport: Vector2) -> Vector2:
 	var compact := viewport.x < 760.0
 	return Vector2(8.0, 12.0) if compact else Vector2(16.0, 20.0)
 
-static func layout(viewport: Vector2, touch: bool = false, touch_scale: float = 1.0) -> Dictionary:
+static func layout(viewport: Vector2, touch: bool = false, touch_scale: float = 1.0, left_handed: bool = false) -> Dictionary:
 	var compact := viewport.x < 760.0
 	var frame := frame_margins(viewport)
 	var side := frame.x
@@ -52,7 +52,11 @@ static func layout(viewport: Vector2, touch: bool = false, touch_scale: float = 
 	var encounter_y := top + 100.0 if compact else top
 	var boss_y := bottom - 148.0 if compact else bottom - 88.0
 	var patches := Rect2(viewport.x - side - bottom_w, bottom - 76.0, bottom_w, 76.0)
-	if touch:
+	# A doca de patches vive embaixo à direita. Com os botões de toque do mesmo
+	# lado ela precisa encolher; espelhados para a esquerda, o conflito deixa
+	# de existir — e o módulo de dash, que ocuparia aquele canto, não é
+	# desenhado no toque.
+	if touch and not left_handed:
 		var max_right := touch_dash_rect(viewport, touch_scale).position.x - 12.0
 		patches.size.x = clampf(max_right - patches.position.x, minf(120.0, bottom_w), bottom_w)
 		if patches.end.x > max_right:
@@ -67,15 +71,22 @@ static func layout(viewport: Vector2, touch: bool = false, touch_scale: float = 
 		"boss": Rect2((viewport.x - center_w) * 0.5, boss_y, center_w, 64.0),
 	}
 
-static func touch_dash_rect(viewport: Vector2, touch_scale: float = 1.0) -> Rect2:
-	var sc := maxf(touch_scale, 0.1)
-	var s := 120.0 * sc
-	return Rect2(viewport.x - s - 40.0 * sc, viewport.y - s - 36.0, s, s)
+## Espelha um retângulo no eixo X do viewport. O HUD precisa saber onde os
+## botões de toque VÃO ESTAR para não desenhar por baixo deles.
+static func mirror_x(rect: Rect2, viewport: Vector2) -> Rect2:
+	return Rect2(Vector2(viewport.x - rect.position.x - rect.size.x, rect.position.y), rect.size)
 
-static func touch_boost_rect(viewport: Vector2, touch_scale: float = 1.0) -> Rect2:
+static func touch_dash_rect(viewport: Vector2, touch_scale: float = 1.0, left_handed: bool = false) -> Rect2:
 	var sc := maxf(touch_scale, 0.1)
 	var s := 120.0 * sc
-	return Rect2(viewport.x - s - 40.0 * sc, viewport.y - s * 2.0 - 36.0 - 22.0, s, s)
+	var rect := Rect2(viewport.x - s - 40.0 * sc, viewport.y - s - 36.0, s, s)
+	return mirror_x(rect, viewport) if left_handed else rect
+
+static func touch_boost_rect(viewport: Vector2, touch_scale: float = 1.0, left_handed: bool = false) -> Rect2:
+	var sc := maxf(touch_scale, 0.1)
+	var s := 120.0 * sc
+	var rect := Rect2(viewport.x - s - 40.0 * sc, viewport.y - s * 2.0 - 36.0 - 22.0, s, s)
+	return mirror_x(rect, viewport) if left_handed else rect
 
 static func shell_rect(viewport: Vector2) -> Rect2:
 	var frame := frame_margins(viewport)

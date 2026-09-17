@@ -46,6 +46,8 @@ const ENTRIES := [
 	{"id": "haptics", "section": "CONTROLS", "platforms": TOUCH_ONLY},
 	{"id": "aim_mode", "section": "CONTROLS", "platforms": TOUCH_ONLY},
 	{"id": "touch_scale", "section": "CONTROLS", "platforms": TOUCH_ONLY},
+	{"id": "touch_handed", "section": "CONTROLS", "platforms": TOUCH_ONLY},
+	{"id": "touch_opacity", "section": "CONTROLS", "platforms": TOUCH_ONLY},
 	{"id": "shake", "section": "ACCESSIBILITY", "platforms": BOTH},
 	{"id": "run_info", "section": "GAMEPLAY", "platforms": BOTH},
 

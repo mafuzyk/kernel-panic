@@ -233,9 +233,13 @@ func _maybe_show_touch_hints() -> void:
 	hint_layer.layer = 40
 	add_child(hint_layer)
 	var hint_y := maxf(90.0, get_viewport_rect().size.y - 160.0)
+	# Cada metade da tela diz o que ELA faz. Com os controles espelhados o
+	# movimento passa para a direita, e os rótulos fixos passavam a mentir
+	# justamente para quem está aprendendo.
+	var hint_keys := TouchControls.hint_keys(Sfx.touch_handed == "left")
 	var texts := [
-		[tr("CTRL_LEFT_THUMB"), Vector2(0, 560)],
-		[tr("CTRL_RIGHT_THUMB"), Vector2(640, 560)],
+		[tr(hint_keys[0]), Vector2(0, 560)],
+		[tr(hint_keys[1]), Vector2(640, 560)],
 	]
 	for h in texts:
 		var l := Label.new()

@@ -665,27 +665,45 @@ func _touch_hud_layout_test() -> void:
 		h._check(not bool(idle_visual.get("aim", true)), "touch aim overlay stays hidden until aim is active")
 	var saved_touch_scale := Sfx.touch_scale
 	var saved_force := OS.get_environment("KP_FORCE_TOUCH")
-	for scale in [0.85, 1.0, 1.2]:
-		Sfx.touch_scale = scale
-		for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
-			var view := Rect2(Vector2.ZERO, vp)
-			var dash: Rect2 = tui.call("touch_dash_rect", vp, scale)
-			var boost: Rect2 = tui.call("touch_boost_rect", vp, scale)
-			h._check(view.encloses(dash.grow(-2.0)), "touch dash ring stays inside the safe area at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
-			h._check(view.encloses(boost.grow(-2.0)), "touch boost ring stays inside the safe area at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
-			if tc != null:
-				tc.size = vp
-				var tc_dash: Rect2 = tc.call("_dash_btn")
-				var tc_boost: Rect2 = tc.call("_oc_btn")
-				h._check(tc_dash.is_equal_approx(dash), "touch dash button metrics match the shared helper at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
-				h._check(tc_boost.is_equal_approx(boost), "touch boost button metrics match the shared helper at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
-			var layout_touch: Dictionary = tui.call("layout", vp, true, scale)
-			var layout_plain: Dictionary = tui.call("layout", vp)
-			var touch_patches: Rect2 = layout_touch["patches"]
-			var plain_patches_vp: Rect2 = layout_plain["patches"]
-			h._check(bool(layout_touch["compact"]) == bool(layout_plain["compact"]), "touch layout keeps the compact flag size-based at %dx%d" % [int(vp.x), int(vp.y)])
-			h._check(not touch_patches.intersects(dash), "compact+touch patch dock never intersects the touch dash button at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
-			h._check(touch_patches.size.x >= minf(120.0, plain_patches_vp.size.x) - 0.01, "touch patch dock keeps readable chips at %dx%d scale %.2f" % [int(vp.x), int(vp.y), scale])
+	# A varredura roda nas DUAS lateralidades: quem é canhota espelha os botões,
+	# e tudo que se arruma em volta deles — a doca de patches, o recorte da
+	# safe area — tem que continuar de pé do outro lado.
+	var saved_handed := Sfx.touch_handed
+	for handed in ["right", "left"]:
+		Sfx.touch_handed = handed
+		var left_handed: bool = str(handed) == "left"
+		for scale in [0.85, 1.0, 1.2]:
+			Sfx.touch_scale = scale
+			for vp in [Vector2(1366, 768), Vector2(720, 720), Vector2(432, 720)]:
+				var tag := "%s %dx%d scale %.2f" % [handed, int(vp.x), int(vp.y), scale]
+				var view := Rect2(Vector2.ZERO, vp)
+				var dash: Rect2 = tui.call("touch_dash_rect", vp, scale, left_handed)
+				var boost: Rect2 = tui.call("touch_boost_rect", vp, scale, left_handed)
+				h._check(view.encloses(dash.grow(-2.0)), "touch dash ring stays inside the safe area at %s" % tag)
+				h._check(view.encloses(boost.grow(-2.0)), "touch boost ring stays inside the safe area at %s" % tag)
+				h._check(dash.position.x < vp.x * 0.5 if left_handed else dash.position.x > vp.x * 0.5,
+					"touch dash button sits on the commanding hand's side at %s" % tag)
+				if tc != null:
+					tc.size = vp
+					var tc_dash: Rect2 = tc.call("_dash_btn")
+					var tc_boost: Rect2 = tc.call("_oc_btn")
+					h._check(tc_dash.is_equal_approx(dash), "touch dash button metrics match the shared helper at %s" % tag)
+					h._check(tc_boost.is_equal_approx(boost), "touch boost button metrics match the shared helper at %s" % tag)
+					# A zona que MOVE acompanha a mão: sem isso o polegar do
+					# movimento cairia em cima dos botões de ação.
+					var move_probe := Vector2(vp.x * (0.8 if left_handed else 0.2), vp.y * 0.6)
+					var aim_probe := Vector2(vp.x * (0.2 if left_handed else 0.8), vp.y * 0.6)
+					h._check(bool(tc.call("in_move_zone", move_probe)), "move zone follows the commanding hand at %s" % tag)
+					h._check(not bool(tc.call("in_move_zone", aim_probe)), "aim zone stays opposite the move zone at %s" % tag)
+				var layout_touch: Dictionary = tui.call("layout", vp, true, scale, left_handed)
+				var layout_plain: Dictionary = tui.call("layout", vp)
+				var touch_patches: Rect2 = layout_touch["patches"]
+				var plain_patches_vp: Rect2 = layout_plain["patches"]
+				h._check(bool(layout_touch["compact"]) == bool(layout_plain["compact"]), "touch layout keeps the compact flag size-based at %s" % tag)
+				h._check(not touch_patches.intersects(dash), "patch dock never intersects the touch dash button at %s" % tag)
+				h._check(not touch_patches.intersects(boost), "patch dock never intersects the touch boost button at %s" % tag)
+				h._check(touch_patches.size.x >= minf(120.0, plain_patches_vp.size.x) - 0.01, "touch patch dock keeps readable chips at %s" % tag)
+	Sfx.touch_handed = saved_handed
 	Sfx.touch_scale = saved_touch_scale
 	var banner_hud = hud_script.new()
 	h._check(banner_hud.has_method("banner_layout_snapshot"), "combat hud exposes live banner layout geometry")

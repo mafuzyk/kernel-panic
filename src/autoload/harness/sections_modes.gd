@@ -260,6 +260,39 @@ func _touch_layout_test() -> void:
 	var notch := Design.safe_margins_from(Vector2(1280, 720), Rect2i(80, 0, 1200, 700), Vector2(1280, 720))
 	h._check(notch["left"] == 80.0 and notch["top"] == 0.0 and notch["right"] == 0.0 and notch["bottom"] == 20.0, "cutout insets convert to canvas units")
 	h._check(Design.safe_margins(Vector2(1280, 720))["left"] == 0.0, "desktop reports no safe insets")
+
+	# A faixa morta do topo existe para o gesto da barra de notificações não
+	# virar entrada de jogo. Ela era um 70.0 literal enquanto o botão de pausa
+	# já somava o inset da safe area: num aparelho com recorte os dois
+	# discordavam, e a discordância abria uma fresta bem embaixo do botão.
+	var tc_probe := TouchControls.new()
+	tc_probe.size = Vector2(1280, 720)
+	h._check(is_equal_approx(tc_probe.call("dead_zone_top"), 70.0),
+		"without a cutout the top dead zone is the bare strip")
+	h._check(tc_probe.call("dead_zone_top") >= tc_probe.call("_pause_btn").position.y,
+		"the dead zone never starts below the pause button it protects")
+
+	# Opacidade é um multiplicador só, aplicado no desenho. O ALVO não muda:
+	# apagar os botões não pode apagar a área que responde ao dedo.
+	var saved_opacity := Sfx.touch_opacity
+	var full_rect: Rect2 = tc_probe.call("_dash_btn")
+	Sfx.touch_opacity = 0.35
+	h._check((tc_probe.call("_dash_btn") as Rect2).is_equal_approx(full_rect),
+		"lowering button opacity never shrinks the touch target")
+	h._check(is_equal_approx(tc_probe.call("_a", 1.0), 0.35) and is_equal_approx(tc_probe.call("_a", 0.0), 0.0),
+		"opacity scales every control alpha from a single point")
+	Sfx.touch_opacity = saved_opacity
+
+	# O rótulo de cada metade tem que descrever o que AQUELA metade faz.
+	var plain := TouchControls.hint_keys(false)
+	var mirrored := TouchControls.hint_keys(true)
+	h._check(plain[0] == "CTRL_LEFT_THUMB" and plain[1] == "CTRL_RIGHT_THUMB",
+		"right-handed hints keep the historic sides")
+	h._check(mirrored[0] != plain[0] and mirrored[1] != plain[1],
+		"mirroring the controls also mirrors what each half claims to do")
+	for key in plain + mirrored:
+		h._check(TranslationServer.translate(key) != key, "onboarding hint %s is translated" % key)
+	tc_probe.queue_free()
 	OS.set_environment("KP_FORCE_TOUCH", "1")
 	var shell := MenuShell.new()
 	h.add_child(shell)

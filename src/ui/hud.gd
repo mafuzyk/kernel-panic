@@ -225,7 +225,7 @@ func hud_bottom_y(gap: float) -> float:
 	return _layout_height() - _safe_bottom_margin() - gap
 
 func layout_snapshot(viewport: Vector2 = size) -> Dictionary:
-	return TacticalUIHelper.layout(viewport, touch_layout(), Sfx.touch_scale)
+	return TacticalUIHelper.layout(viewport, touch_layout(), Sfx.touch_scale, Sfx.touch_handed == "left")
 
 func touch_layout() -> bool:
 	return DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
@@ -355,7 +355,7 @@ func visible_event_lines(limit: int = 4) -> Array[String]:
 	return result
 
 func achievement_toast_rect(viewport: Vector2 = size) -> Rect2:
-	var layout := TacticalUIHelper.layout(viewport, touch_layout(), Sfx.touch_scale)
+	var layout := TacticalUIHelper.layout(viewport, touch_layout(), Sfx.touch_scale, Sfx.touch_handed == "left")
 	var integrity: Rect2 = layout["integrity"]
 	var encounter: Rect2 = layout["encounter"]
 	var side := TacticalUIHelper.frame_margins(viewport).x

@@ -299,6 +299,26 @@ func _build_settings() -> void:
 	)
 	assign_section(touch_sz, "CONTROLS", "touch_scale")
 	box.add_child(touch_sz)
+
+	var handed := _setting_button(_touch_handed_label())
+	handed.pressed.connect(func() -> void:
+		var order: Array = Sfx.TOUCH_HANDED_MODES
+		Sfx.touch_handed = str(order[(order.find(Sfx.touch_handed) + 1) % order.size()])
+		handed.text = _touch_handed_label()
+		Sfx.save_settings()
+	)
+	assign_section(handed, "CONTROLS", "touch_handed")
+	box.add_child(handed)
+
+	var opacity := _setting_button(_touch_opacity_label())
+	opacity.pressed.connect(func() -> void:
+		var steps: Array = Sfx.TOUCH_OPACITY_STEPS
+		Sfx.touch_opacity = float(steps[(_touch_opacity_idx() + 1) % steps.size()])
+		opacity.text = _touch_opacity_label()
+		Sfx.save_settings()
+	)
+	assign_section(opacity, "CONTROLS", "touch_opacity")
+	box.add_child(opacity)
 	var motion_label := _settings_group_label(tr("SET_HEAD_MOTION"))
 	assign_section(motion_label, "ACCESSIBILITY")
 	box.add_child(motion_label)
@@ -775,6 +795,29 @@ func _setting_button(label: String) -> Button:
 		box.content_margin_bottom = Design.SPACE_SM
 		button.add_theme_stylebox_override(state, box)
 	return button
+
+
+## Rótulo do lado que comanda. "DIREITA" é o histórico: ações à direita,
+## movimento à esquerda.
+func _touch_handed_label() -> String:
+	var value := tr("SET_VAL_LEFT") if Sfx.touch_handed == "left" else tr("SET_VAL_RIGHT")
+	return tr("SET_TOUCH_HANDED") % value
+
+
+## Degrau de opacidade mais próximo do valor salvo — o valor em disco é
+## contínuo e pode vir de uma versão futura com outra escala.
+func _touch_opacity_idx() -> int:
+	var steps: Array = Sfx.TOUCH_OPACITY_STEPS
+	var best := 0
+	for i in steps.size():
+		if absf(float(steps[i]) - Sfx.touch_opacity) < absf(float(steps[best]) - Sfx.touch_opacity):
+			best = i
+	return best
+
+
+func _touch_opacity_label() -> String:
+	var names := [tr("SET_VAL_FAINT"), tr("SET_VAL_LOW"), tr("SET_VAL_FULL")]
+	return tr("SET_TOUCH_OPACITY") % names[_touch_opacity_idx()]
 
 
 func _cycle_button(label: String) -> Button:

@@ -30,6 +30,16 @@ var window_mode := 0
 var vsync_mode := 1
 var target_fps := 60
 var touch_scale := 1.0
+## Lado da mão que comanda: "right" põe as ações à direita e o movimento à
+## esquerda (o histórico), "left" espelha os dois. Quem é canhota não tinha
+## opção nenhuma até aqui.
+var touch_handed := "right"
+## Opacidade dos controles na tela. Eles ficam POR CIMA da arena, então quem
+## acha que atrapalham a leitura precisa de um jeito de apagá-los sem perder
+## o alvo — o toque continua valendo na mesma área.
+var touch_opacity := 1.0
+const TOUCH_HANDED_MODES := ["right", "left"]
+const TOUCH_OPACITY_STEPS := [0.35, 0.65, 1.0]
 var aim_mode := "drag"
 var color_assist := false
 var show_run_info := false
@@ -212,6 +222,10 @@ func _load_settings() -> void:
 	Engine.max_fps = target_fps
 	touch_scale = cf.get_value("feel", "touch_scale", 1.0)
 	aim_mode = cf.get_value("feel", "aim_mode", "drag")
+	touch_handed = str(cf.get_value("feel", "touch_handed", "right"))
+	if not TOUCH_HANDED_MODES.has(touch_handed):
+		touch_handed = "right"
+	touch_opacity = clampf(float(cf.get_value("feel", "touch_opacity", 1.0)), 0.2, 1.0)
 	color_assist = bool(cf.get_value("feel", "color_assist", false))
 	show_run_info = bool(cf.get_value("feel", "show_run_info", false))
 	window_mode = clampi(int(cf.get_value("video", "window_mode", 0)), 0, WINDOW_MODES.size() - 1)
@@ -229,6 +243,8 @@ func save_settings() -> void:
 	cf.set_value("feel", "target_fps", target_fps)
 	cf.set_value("feel", "touch_scale", touch_scale)
 	cf.set_value("feel", "aim_mode", aim_mode)
+	cf.set_value("feel", "touch_handed", touch_handed)
+	cf.set_value("feel", "touch_opacity", touch_opacity)
 	cf.set_value("feel", "color_assist", color_assist)
 	cf.set_value("feel", "show_run_info", show_run_info)
 	cf.set_value("video", "window_mode", window_mode)
