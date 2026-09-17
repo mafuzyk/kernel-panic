@@ -61,7 +61,10 @@ static func rule(parent: Node, opacity: float = 0.22) -> void:
 
 
 ## Coluna raiz com as margens da página.
-static func page(parent: Control) -> VBoxContainer:
+## `scrollable` embrulha a coluna num rolável. Telas de estado com muito
+## conteúdo — a pausa, depois que ganhou ajustes — não cabem em 540px de
+## altura, e cortar conteúdo pela borda é pior que rolar.
+static func page(parent: Control, scrollable: bool = false) -> VBoxContainer:
 	var pad := MarginContainer.new()
 	pad.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	pad.add_theme_constant_override("margin_left", Design.SPACE_4XL)
@@ -69,9 +72,17 @@ static func page(parent: Control) -> VBoxContainer:
 	pad.add_theme_constant_override("margin_top", Design.SPACE_2XL)
 	pad.add_theme_constant_override("margin_bottom", Design.SPACE_2XL)
 	parent.add_child(pad)
+	var host: Node = pad
+	if scrollable:
+		var scroll := ScrollContainer.new()
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		pad.add_child(scroll)
+		host = scroll
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 0)
-	pad.add_child(col)
+	if scrollable:
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	host.add_child(col)
 	return col
 
 
@@ -326,3 +337,113 @@ static func set_glyph_tint(node: Control, color: Color) -> void:
 		return
 	node.set_meta("glyph_color", color)
 	node.queue_redraw()
+
+
+## Linha de settings em DUAS colunas: rótulo à esquerda, valor à direita.
+##
+## Antes era uma frase só ("MODO DE MIRA: DRAG") alinhada à esquerda. Numa
+## tela de celular isso vira uma pilha de frases soltas: não há coluna de
+## valor para percorrer com o olho, e justamente o que muda ao tocar fica
+## enterrado no meio da frase.
+##
+## A linha continua sendo um `Button` — os tipos declarados em `menu.gd` e o
+## que o harness afirma seguem valendo. O texto é distribuído por
+## `_set_row_text()`, que parte no separador do próprio gabarito traduzido.
+static func setting_row(label: String) -> Button:
+	var button := Button.new()
+	# `flat` faz o Godot pular o stylebox inteiro — inclusive o fio de baixo.
+	# O fundo já é transparente nos cinco estados, então não há o que esconder.
+	button.flat = false
+	button.text = ""
+	button.focus_mode = Control.FOCUS_ALL
+	button.clip_contents = true
+	button.add_theme_font_override("font", Design.FONT_MONO)
+	button.add_theme_font_size_override("font_size", Design.px(Design.TEXT_SUBHEAD))
+	button.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
+	button.add_theme_color_override("font_focus_color", Design.ACCENT)
+	button.add_theme_color_override("font_pressed_color", Design.ACCENT)
+	if not Platform.is_touch():
+		button.add_theme_color_override("font_hover_color", Design.ACCENT)
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.custom_minimum_size = Vector2(0.0, Design.target_min())
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		var box := StyleBoxFlat.new()
+		box.bg_color = Design.alpha(Design.TEXT_PRIMARY, 0.05) if state == "hover" else Color(0, 0, 0, 0)
+		if state == "focus":
+			for side in ["border_width_left", "border_width_right", "border_width_top", "border_width_bottom"]:
+				box.set(side, int(Design.FOCUS_RING_WIDTH))
+			box.border_color = Design.FOCUS_RING_COLOR
+		box.content_margin_left = 0
+		box.content_margin_right = Design.SPACE_MD
+		box.content_margin_top = Design.SPACE_SM
+		box.content_margin_bottom = Design.SPACE_SM
+		# Fio embaixo de cada linha: sem ele a lista lê como frases soltas no
+		# vazio, que é o que a tela de celular parecia.
+		box.border_color = Design.alpha(Design.TEXT_PRIMARY, 0.14)
+		box.border_width_bottom = 1
+		button.add_theme_stylebox_override(state, box)
+
+	# Os dois ocupam a linha inteira e se separam pelo ALINHAMENTO. Ancorar o
+	# valor com `PRESET_RIGHT_WIDE` dava uma faixa de largura zero colada na
+	# borda, e a coluna de valor simplesmente não aparecia.
+	var name_label := ScreenKit.mono("", Design.TEXT_SUBHEAD, Design.TEXT_PRIMARY)
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	button.add_child(name_label)
+	var value_label := ScreenKit.mono("", Design.TEXT_SUBHEAD, Design.ACCENT)
+	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	value_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	value_label.offset_right = -float(Design.SPACE_MD)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	button.add_child(value_label)
+	button.set_meta(ROW_NAME_META, name_label)
+	button.set_meta(ROW_VALUE_META, value_label)
+	set_row_text(button, label)
+	return button
+
+
+const ROW_RULED_META := "kp_row_ruled"
+const ROW_NAME_META := "kp_row_name"
+const ROW_VALUE_META := "kp_row_value"
+
+
+## Distribui "RÓTULO: VALOR" nas duas colunas da linha.
+##
+## O corte é no ÚLTIMO separador da frase traduzida, não numa posição fixa:
+## os gabaritos do CSV usam ":" e "//", e as duas línguas põem o valor no fim.
+## Sem separador, a frase inteira é rótulo — é o caso dos textos de ação.
+static func split_row_text(text: String) -> Array:
+	var cut := -1
+	for sep in [": ", " // "]:
+		cut = maxi(cut, text.rfind(sep))
+	if cut < 0:
+		return [text, ""]
+	var sep_len := 2 if text.substr(cut, 2) == ": " else 4
+	return [text.substr(0, cut).strip_edges(), text.substr(cut + sep_len).strip_edges()]
+
+
+static func set_row_text(button: Button, text: String) -> void:
+	if button == null or not button.has_meta(ROW_NAME_META):
+		button.text = text
+		return
+	var parts := split_row_text(text)
+	var name_label: Label = button.get_meta(ROW_NAME_META)
+	var value_label: Label = button.get_meta(ROW_VALUE_META)
+	if is_instance_valid(name_label):
+		name_label.text = str(parts[0])
+	if is_instance_valid(value_label):
+		value_label.text = str(parts[1])
+
+
+
+
+
+
+
+
+
+
+
+

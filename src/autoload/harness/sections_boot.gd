@@ -1032,3 +1032,99 @@ func _panel_touch_target_test() -> void:
 		OS.set_environment("KP_FORCE_TOUCH", "")
 	else:
 		OS.set_environment("KP_FORCE_TOUCH", saved_force)
+
+## Ajustar sem sair da run.
+##
+## Trocar a mira ou o tamanho dos botões no meio de uma partida exigia
+## ABANDONÁ-LA: menu, ajuste, voltar, recomeçar do zero. São justamente os
+## ajustes que só se descobre errados jogando.
+func _pause_settings_test() -> void:
+	print("AT_STEP pause_settings")
+	var saved_force := OS.get_environment("KP_FORCE_TOUCH")
+	OS.set_environment("KP_FORCE_TOUCH", "1")
+
+	var pause := PausePanel.new()
+	h.add_child(pause)
+	await h._ticks(3)
+	var ids: Array = pause.call("run_setting_ids")
+	h._check(not ids.is_empty(), "pause offers in-run adjustments (%s)" % str(ids))
+	for expected in ["aim_mode", "touch_handed", "flash"]:
+		h._check(ids.has(expected), "pause can reach %s without leaving the run" % expected)
+
+	# A pausa não conhece opção nenhuma pelo nome: as linhas vêm do manifesto,
+	# então uma opção nova aparece aqui sozinha.
+	var pause_src := str((load("res://src/ui/pause_panel.gd") as Script).source_code)
+	h._check_source(not pause_src.contains('"aim_mode"') and not pause_src.contains('"touch_handed"'),
+		"the pause panel names no individual setting")
+
+	# E ajusta DE VERDADE: o valor muda e atravessa o disco.
+	var before := Sfx.aim_mode
+	var label_before := SettingsManifest.label_for("aim_mode")
+	SettingsManifest.cycle("aim_mode")
+	h._check(Sfx.aim_mode != before, "cycling from the pause actually changes the value")
+	h._check(SettingsManifest.label_for("aim_mode") != label_before, "and the row says so")
+	Sfx._load_settings()
+	h._check(Sfx.aim_mode != before, "the change from inside a run is saved, not just shown")
+	Sfx.aim_mode = before
+	Sfx.save_settings()
+
+	# No desktop, mira e tamanho de toque não aparecem nem aqui.
+	OS.set_environment("KP_FORCE_TOUCH", "")
+	var desktop_ids := SettingsManifest.ids_in_run(Platform.id())
+	h._check(not desktop_ids.has("aim_mode") and not desktop_ids.has("touch_handed"),
+		"the pause hides the touch-only adjustments on desktop too")
+	h._check(desktop_ids.has("flash") and desktop_ids.has("shake"),
+		"comfort settings stay reachable mid-run on both platforms")
+
+	pause.queue_free()
+	if saved_force.is_empty():
+		OS.set_environment("KP_FORCE_TOUCH", "")
+	else:
+		OS.set_environment("KP_FORCE_TOUCH", saved_force)
+
+## A pausa tem que caber na tela, em todas as larguras.
+##
+## Seis ajustes em coluna única empurravam o último para fora de 1280x600 —
+## a altura útil de um celular deitado — e nenhuma asserção pegava isso.
+func _pause_fits_test() -> void:
+	print("AT_STEP pause_fits")
+	var saved_force := OS.get_environment("KP_FORCE_TOUCH")
+	OS.set_environment("KP_FORCE_TOUCH", "1")
+	for vp in [Vector2(1280, 600), Vector2(1366, 768), Vector2(900, 540), Vector2(432, 720)]:
+		var pause := PausePanel.new()
+		h.add_child(pause)
+		# Depois de entrar na árvore: o preset de âncora do painel sobrescreve
+		# qualquer tamanho definido antes, e a medição virava a do pai.
+		pause.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		pause.position = Vector2.ZERO
+		pause.size = vp
+		await h._ticks(4)
+		var overflow: Array[String] = []
+		for node in pause.find_children("*", "Control", true, false):
+			var control := node as Control
+			if not control.is_visible_in_tree() or control.size.y <= 0.0:
+				continue
+			# Só o que está DENTRO do painel conta; o fundo escurecido é
+			# desenhado em tela cheia de propósito.
+			if control is ColorRect:
+				continue
+			# Conteúdo DENTRO de um rolável pode passar da borda: é para isso
+			# que ele existe. O rolável em si é que precisa caber.
+			var inside_scroll := false
+			var walk := control.get_parent()
+			while walk != null and walk != pause:
+				if walk is ScrollContainer:
+					inside_scroll = true
+					break
+				walk = walk.get_parent()
+			if inside_scroll:
+				continue
+			if control.global_position.y + control.size.y > vp.y + 1.0:
+				overflow.append("%s@%.0f>%.0f" % [control.get_class(), control.global_position.y + control.size.y, vp.y])
+		h._check(overflow.is_empty(), "pause fits inside %dx%d (%s)" % [int(vp.x), int(vp.y), str(overflow.slice(0, 3))])
+		pause.queue_free()
+		await h._ticks(1)
+	if saved_force.is_empty():
+		OS.set_environment("KP_FORCE_TOUCH", "")
+	else:
+		OS.set_environment("KP_FORCE_TOUCH", saved_force)

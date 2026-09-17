@@ -20,6 +20,8 @@ signal terminal_pressed
 signal abandon_pressed
 signal sfx_changed(value: float)
 signal music_changed(value: float)
+var _run_setting_rows := {}
+var _run_setting_grid: GridContainer
 
 ## Ordem segura: a ação destrutiva é sempre a última.
 const ACTION_ICON_KINDS := ["resume", "restart", "terminal", "warning"]
@@ -64,6 +66,7 @@ func _notification(what: int) -> void:
 ## horizontal de ações transbordam abaixo de ~1100px — foi o que a asserção de
 ## contenção em 720x720 e 432x720 pegou.
 func _apply_layout_mode() -> void:
+	_relayout_run_settings()
 	if not is_instance_valid(_title) or not is_instance_valid(_actions_row):
 		return
 	var step := Design.breakpoint_for(size.x)
@@ -171,7 +174,7 @@ func _build() -> void:
 	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(veil)
 
-	var col := ScreenKit.page(self)
+	var col := ScreenKit.page(self, true)
 	_masthead = ScreenKit.masthead(col, tr("PAUSE_STATE"))
 	ScreenKit.gap(col, Design.SPACE_3XL)
 
@@ -194,6 +197,10 @@ func _build() -> void:
 	_build_audio(col)
 	ScreenKit.grow_v(col)
 	_build_actions(col)
+	# Os ajustes ficam num painel rolável que ocupa o que sobrar. Sem isso,
+	# seis linhas passavam da borda inferior numa tela de 600px de altura — e
+	# em 432x720 a coluna toda saía por baixo.
+	_build_run_settings(col)
 
 
 ## Dois controles de volume compactos, lado a lado. O layout antigo esticava um
@@ -205,6 +212,61 @@ func _build_audio(parent: Node) -> void:
 	_sfx_slider = _volume_control(row, tr("AUDIO_SFX"), func(v: float) -> void: sfx_changed.emit(v))
 	_music_slider = _volume_control(row, tr("AUDIO_MUSIC"), func(v: float) -> void: music_changed.emit(v))
 	ScreenKit.grow_h(row)
+
+
+## Ajustes que só se percebe que estão errados jogando — mira, tamanho e lado
+## dos botões, shake, flash.
+##
+## Até aqui mudar qualquer um deles no meio de uma run exigia ABANDONÁ-LA: ir
+## ao menu, mexer, voltar e recomeçar do zero. As linhas são as mesmas da tela
+## de settings, vindas do manifesto: a pausa não conhece opção nenhuma pelo
+## nome, então nada aqui envelhece quando uma opção nova entra.
+func _build_run_settings(parent: Node) -> void:
+	var ids := SettingsManifest.ids_in_run(Platform.id())
+	if ids.is_empty():
+		return
+	ScreenKit.gap(parent, Design.SPACE_LG)
+	var head := ScreenKit.mono(tr("PAUSE_ADJUST"), Design.px(Design.TEXT_CAPTION), Design.TEXT_MUTED)
+	parent.add_child(head)
+	# Em coluna única, seis ajustes empurram o último para fora de uma tela de
+	# 600px de altura — que é a altura útil de um celular deitado. Eles se
+	# dividem em colunas conforme a largura disponível.
+	var grid := GridContainer.new()
+	grid.columns = 2 if size.x >= Design.COMPACT_WIDTH else 1
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", Design.SPACE_3XL)
+	parent.add_child(grid)
+	_run_setting_grid = grid
+	_run_setting_rows.clear()
+	for id in ids:
+		var row := ScreenKit.setting_row(SettingsManifest.label_for(id))
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.pressed.connect(func() -> void:
+			ScreenKit.set_row_text(row, SettingsManifest.cycle(id))
+			Sfx.play("ui", 1.0, -10.0)
+		)
+		grid.add_child(row)
+		_run_setting_rows[id] = row
+
+
+## A grade volta para uma coluna em tela estreita.
+func _relayout_run_settings() -> void:
+	if is_instance_valid(_run_setting_grid):
+		_run_setting_grid.columns = 2 if size.x >= Design.COMPACT_WIDTH else 1
+
+
+## Reescreve os rótulos a partir do estado atual. O jogo pode ter mudado um
+## valor por fora enquanto a pausa estava aberta.
+func refresh_run_settings() -> void:
+	for id in _run_setting_rows:
+		var row: Button = _run_setting_rows[id]
+		if is_instance_valid(row):
+			ScreenKit.set_row_text(row, SettingsManifest.label_for(str(id)))
+
+
+## Ids das linhas de ajuste vivas, para o harness afirmar sem adivinhar.
+func run_setting_ids() -> Array:
+	return _run_setting_rows.keys()
 
 
 func _volume_control(parent: Node, label: String, on_change: Callable) -> HSlider:

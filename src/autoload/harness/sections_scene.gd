@@ -287,7 +287,10 @@ func _arena_focus_test(arena: Arena) -> void:
 	arena._set_paused(true)
 	await h._ticks(3)
 	var pause: Control = arena.get("_pause_screen")
-	var resume: Button = h._first_button(pause)
+	# Nomeia o que quer dizer. Assumir "primeiro Button da árvore = Resume"
+	# quebrou assim que a pausa ganhou linhas de ajuste, sem nada ter
+	# regredido no foco.
+	var resume: Button = pause.get("_action_blocks")[0].get_meta("hit")
 	h._check(h.get_viewport().gui_get_focus_owner() == resume,
 		"pause opens with Resume focused instead of requiring Tab")
 	var terminal: Button = pause.get("_action_blocks")[2].get_meta("hit")

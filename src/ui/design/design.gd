@@ -176,6 +176,9 @@ const CONTENT_MAX_PANEL := 1080.0   ## painéis de estado (pausa, game over)
 ## no celular o alvo sobe (ver TOUCH_TARGET_MIN).
 ## Largura de um controle deslizante. Um valor de 0-100% não ganha nada em
 ## esticar: só afasta o rótulo do controle e o controle do valor.
+## Largura abaixo da qual a tela se recompõe em coluna única. O número já
+## estava repetido como 760 literal em três lugares.
+const COMPACT_WIDTH := 760.0
 const SLIDER_WIDTH := 320.0
 
 const CLICK_TARGET_MIN := 44.0

@@ -300,21 +300,21 @@ func _build_settings() -> void:
 	assign_section(touch_sz, "CONTROLS", "touch_scale")
 	box.add_child(touch_sz)
 
-	var handed := _setting_button(_touch_handed_label())
+	var handed := _setting_button(SettingsManifest._touch_handed_label())
 	handed.pressed.connect(func() -> void:
 		var order: Array = Sfx.TOUCH_HANDED_MODES
 		Sfx.touch_handed = str(order[(order.find(Sfx.touch_handed) + 1) % order.size()])
-		_set_row_text(handed, _touch_handed_label())
+		_set_row_text(handed, SettingsManifest._touch_handed_label())
 		Sfx.save_settings()
 	)
 	assign_section(handed, "CONTROLS", "touch_handed")
 	box.add_child(handed)
 
-	var opacity := _setting_button(_touch_opacity_label())
+	var opacity := _setting_button(SettingsManifest._touch_opacity_label())
 	opacity.pressed.connect(func() -> void:
 		var steps: Array = Sfx.TOUCH_OPACITY_STEPS
-		Sfx.touch_opacity = float(steps[(_touch_opacity_idx() + 1) % steps.size()])
-		_set_row_text(opacity, _touch_opacity_label())
+		Sfx.touch_opacity = float(steps[(SettingsManifest._touch_opacity_idx() + 1) % steps.size()])
+		_set_row_text(opacity, SettingsManifest._touch_opacity_label())
 		Sfx.save_settings()
 	)
 	assign_section(opacity, "CONTROLS", "touch_opacity")
@@ -331,19 +331,19 @@ func _build_settings() -> void:
 	assign_section(shake_btn, "ACCESSIBILITY", "shake")
 	box.add_child(shake_btn)
 
-	var flash_btn := _setting_button(_flash_label())
+	var flash_btn := _setting_button(SettingsManifest._flash_label())
 	flash_btn.pressed.connect(func() -> void:
 		Sfx.flash_level = (Sfx.flash_level + 1) % 3
-		_set_row_text(flash_btn, _flash_label())
+		_set_row_text(flash_btn, SettingsManifest._flash_label())
 		Sfx.save_settings()
 	)
 	assign_section(flash_btn, "ACCESSIBILITY", "flash")
 	box.add_child(flash_btn)
 
-	var text_btn := _setting_button(_text_scale_label())
+	var text_btn := _setting_button(SettingsManifest._text_scale_label())
 	text_btn.pressed.connect(func() -> void:
 		var steps: Array = Sfx.TEXT_SCALE_STEPS
-		Sfx.text_scale = float(steps[(_text_scale_idx() + 1) % steps.size()])
+		Sfx.text_scale = float(steps[(SettingsManifest._text_scale_idx() + 1) % steps.size()])
 		Sfx.save_settings()
 		# A escala muda o tamanho de TODA linha desta tela, inclusive esta.
 		# Reconstruir é a forma honesta de mostrar o efeito na hora.
@@ -535,7 +535,7 @@ func _build_settings() -> void:
 	if not Platform.is_touch():
 		reset.add_theme_color_override("font_hover_color", Design.DANGER)
 	reset.pressed.connect(func() -> void:
-		if split_row_text(tr("SET_RESET_SCORE"))[0] == str((reset.get_meta(ROW_NAME_META) as Label).text):
+		if split_row_text(tr("SET_RESET_SCORE"))[0] == str((reset.get_meta(ScreenKit.ROW_NAME_META) as Label).text):
 			_set_row_text(reset, tr("SET_TAP_CONFIRM"))
 			return
 		m._reset_scores()
@@ -792,145 +792,16 @@ func _build_video_section(box: Node) -> void:
 ## Agora tamanho e cor saem do `Design`, a altura vem de `Design.target_min()`
 ## (44 no clique, 56 no toque) e o realce segue a plataforma: hover só onde há
 ## ponteiro, pressão e foco nas duas.
-## Linha de settings em DUAS colunas: rótulo à esquerda, valor à direita.
-##
-## Antes era uma frase só ("MODO DE MIRA: DRAG") alinhada à esquerda. Numa
-## tela de celular isso vira uma pilha de frases soltas: não há coluna de
-## valor para percorrer com o olho, e justamente o que muda ao tocar fica
-## enterrado no meio da frase.
-##
-## A linha continua sendo um `Button` — os tipos declarados em `menu.gd` e o
-## que o harness afirma seguem valendo. O texto é distribuído por
-## `_set_row_text()`, que parte no separador do próprio gabarito traduzido.
 func _setting_button(label: String) -> Button:
-	var button := Button.new()
-	# `flat` faz o Godot pular o stylebox inteiro — inclusive o fio de baixo.
-	# O fundo já é transparente nos cinco estados, então não há o que esconder.
-	button.flat = false
-	button.text = ""
-	button.focus_mode = Control.FOCUS_ALL
-	button.clip_contents = true
-	button.add_theme_font_override("font", Design.FONT_MONO)
-	button.add_theme_font_size_override("font_size", Design.px(Design.TEXT_SUBHEAD))
-	button.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
-	button.add_theme_color_override("font_focus_color", Design.ACCENT)
-	button.add_theme_color_override("font_pressed_color", Design.ACCENT)
-	if not Platform.is_touch():
-		button.add_theme_color_override("font_hover_color", Design.ACCENT)
-	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	button.custom_minimum_size = Vector2(0.0, Design.target_min())
-	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
-		var box := StyleBoxFlat.new()
-		box.bg_color = Design.alpha(Design.TEXT_PRIMARY, 0.05) if state == "hover" else Color(0, 0, 0, 0)
-		if state == "focus":
-			for side in ["border_width_left", "border_width_right", "border_width_top", "border_width_bottom"]:
-				box.set(side, int(Design.FOCUS_RING_WIDTH))
-			box.border_color = Design.FOCUS_RING_COLOR
-		box.content_margin_left = 0
-		box.content_margin_right = Design.SPACE_MD
-		box.content_margin_top = Design.SPACE_SM
-		box.content_margin_bottom = Design.SPACE_SM
-		# Fio embaixo de cada linha: sem ele a lista lê como frases soltas no
-		# vazio, que é o que a tela de celular parecia.
-		box.border_color = Design.alpha(Design.TEXT_PRIMARY, 0.14)
-		box.border_width_bottom = 1
-		button.add_theme_stylebox_override(state, box)
-
-	# Os dois ocupam a linha inteira e se separam pelo ALINHAMENTO. Ancorar o
-	# valor com `PRESET_RIGHT_WIDE` dava uma faixa de largura zero colada na
-	# borda, e a coluna de valor simplesmente não aparecia.
-	var name_label := ScreenKit.mono("", Design.TEXT_SUBHEAD, Design.TEXT_PRIMARY)
-	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	name_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	button.add_child(name_label)
-	var value_label := ScreenKit.mono("", Design.TEXT_SUBHEAD, Design.ACCENT)
-	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	value_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	value_label.offset_right = -float(Design.SPACE_MD)
-	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	button.add_child(value_label)
-	button.set_meta(ROW_NAME_META, name_label)
-	button.set_meta(ROW_VALUE_META, value_label)
-	_set_row_text(button, label)
-	return button
-
-
-const ROW_RULED_META := "kp_row_ruled"
-const ROW_NAME_META := "kp_row_name"
-const ROW_VALUE_META := "kp_row_value"
-
-
-## Distribui "RÓTULO: VALOR" nas duas colunas da linha.
-##
-## O corte é no ÚLTIMO separador da frase traduzida, não numa posição fixa:
-## os gabaritos do CSV usam ":" e "//", e as duas línguas põem o valor no fim.
-## Sem separador, a frase inteira é rótulo — é o caso dos textos de ação.
-static func split_row_text(text: String) -> Array:
-	var cut := -1
-	for sep in [": ", " // "]:
-		cut = maxi(cut, text.rfind(sep))
-	if cut < 0:
-		return [text, ""]
-	var sep_len := 2 if text.substr(cut, 2) == ": " else 4
-	return [text.substr(0, cut).strip_edges(), text.substr(cut + sep_len).strip_edges()]
+	return ScreenKit.setting_row(label)
 
 
 func _set_row_text(button: Button, text: String) -> void:
-	if button == null or not button.has_meta(ROW_NAME_META):
-		button.text = text
-		return
-	var parts := split_row_text(text)
-	var name_label: Label = button.get_meta(ROW_NAME_META)
-	var value_label: Label = button.get_meta(ROW_VALUE_META)
-	if is_instance_valid(name_label):
-		name_label.text = str(parts[0])
-	if is_instance_valid(value_label):
-		value_label.text = str(parts[1])
+	ScreenKit.set_row_text(button, text)
 
 
-func _text_scale_idx() -> int:
-	var steps: Array = Sfx.TEXT_SCALE_STEPS
-	var best := 0
-	for i in steps.size():
-		if absf(float(steps[i]) - Sfx.text_scale) < absf(float(steps[best]) - Sfx.text_scale):
-			best = i
-	return best
-
-
-func _text_scale_label() -> String:
-	var names := [tr("SET_VAL_NORMAL"), tr("SET_VAL_BIG"), tr("SET_VAL_LARGER")]
-	return tr("SET_TEXT_SIZE") % names[_text_scale_idx()]
-
-
-## Rótulo da intensidade de luz, na mesma escala do shake.
-func _flash_label() -> String:
-	var names := [tr("SET_VAL_OFF"), tr("SET_VAL_LOW"), tr("SET_VAL_FULL")]
-	return tr("SET_FLASH") % names[clampi(Sfx.flash_level, 0, 2)]
-
-
-## Rótulo do lado que comanda. "DIREITA" é o histórico: ações à direita,
-## movimento à esquerda.
-func _touch_handed_label() -> String:
-	var value := tr("SET_VAL_LEFT") if Sfx.touch_handed == "left" else tr("SET_VAL_RIGHT")
-	return tr("SET_TOUCH_HANDED") % value
-
-
-## Degrau de opacidade mais próximo do valor salvo — o valor em disco é
-## contínuo e pode vir de uma versão futura com outra escala.
-func _touch_opacity_idx() -> int:
-	var steps: Array = Sfx.TOUCH_OPACITY_STEPS
-	var best := 0
-	for i in steps.size():
-		if absf(float(steps[i]) - Sfx.touch_opacity) < absf(float(steps[best]) - Sfx.touch_opacity):
-			best = i
-	return best
-
-
-func _touch_opacity_label() -> String:
-	var names := [tr("SET_VAL_FAINT"), tr("SET_VAL_LOW"), tr("SET_VAL_FULL")]
-	return tr("SET_TOUCH_OPACITY") % names[_touch_opacity_idx()]
+func split_row_text(text: String) -> Array:
+	return ScreenKit.split_row_text(text)
 
 
 func _cycle_button(label: String) -> Button:
@@ -1128,6 +999,9 @@ func rebuild_settings() -> void:
 		_open_settings()
 
 const SETTING_ID_META := "kp_setting_id"
+const ROW_RULED_META := "kp_row_ruled"
+const ROW_NAME_META := ScreenKit.ROW_NAME_META
+const ROW_VALUE_META := ScreenKit.ROW_VALUE_META
 
 ## `id` é o identificador da opção no `SettingsManifest`. Quem passa id é um
 ## controle de verdade; rótulo, nota e dica são decoração e ficam sem id.

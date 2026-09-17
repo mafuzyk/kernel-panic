@@ -44,12 +44,12 @@ const ENTRIES := [
 	# toque no celular. Estes três só são lidos pelo `touch_controls.gd` e
 	# não têm efeito nenhum com mouse e teclado.
 	{"id": "haptics", "section": "CONTROLS", "platforms": TOUCH_ONLY},
-	{"id": "aim_mode", "section": "CONTROLS", "platforms": TOUCH_ONLY},
-	{"id": "touch_scale", "section": "CONTROLS", "platforms": TOUCH_ONLY},
-	{"id": "touch_handed", "section": "CONTROLS", "platforms": TOUCH_ONLY},
-	{"id": "touch_opacity", "section": "CONTROLS", "platforms": TOUCH_ONLY},
-	{"id": "shake", "section": "ACCESSIBILITY", "platforms": BOTH},
-	{"id": "flash", "section": "ACCESSIBILITY", "platforms": BOTH},
+	{"id": "aim_mode", "section": "CONTROLS", "platforms": TOUCH_ONLY, "in_run": true},
+	{"id": "touch_scale", "section": "CONTROLS", "platforms": TOUCH_ONLY, "in_run": true},
+	{"id": "touch_handed", "section": "CONTROLS", "platforms": TOUCH_ONLY, "in_run": true},
+	{"id": "touch_opacity", "section": "CONTROLS", "platforms": TOUCH_ONLY, "in_run": true},
+	{"id": "shake", "section": "ACCESSIBILITY", "platforms": BOTH, "in_run": true},
+	{"id": "flash", "section": "ACCESSIBILITY", "platforms": BOTH, "in_run": true},
 	{"id": "text_scale", "section": "ACCESSIBILITY", "platforms": BOTH},
 	{"id": "run_info", "section": "GAMEPLAY", "platforms": BOTH},
 
@@ -122,9 +122,111 @@ static func sections_for(profile: String, order: Array = []) -> Array[String]:
 	return out
 
 
+## Opções que valem ser ajustadas SEM sair da run.
+##
+## Até aqui trocar a mira ou o tamanho dos botões no meio de uma partida
+## exigia abandoná-la: ir ao menu, mexer, voltar e recomeçar do zero. São
+## justamente os ajustes que só se percebe que estão errados jogando.
+static func ids_in_run(profile: String) -> Array[String]:
+	var out: Array[String] = []
+	for entry in ENTRIES:
+		if bool(entry.get("in_run", false)) and Platform.serves(entry["platforms"], profile):
+			out.append(str(entry["id"]))
+	return out
+
+
+## Rótulo pronto de uma opção, pelo id. É o que a pausa usa para montar as
+## mesmas linhas da tela de settings sem conhecer nenhuma delas.
+static func label_for(id: String) -> String:
+	match id:
+		"aim_mode": return TranslationServer.translate("SET_AIM") % Sfx.aim_mode.to_upper()
+		"touch_scale": return TranslationServer.translate("SET_TOUCH_SIZE") % [
+			TranslationServer.translate("SET_VAL_SMALL"),
+			TranslationServer.translate("SET_VAL_NORMAL"),
+			TranslationServer.translate("SET_VAL_BIG")][_touch_scale_step()]
+		"touch_handed": return _touch_handed_label()
+		"touch_opacity": return _touch_opacity_label()
+		"shake": return TranslationServer.translate("SET_SHAKE") % [
+			TranslationServer.translate("SET_VAL_OFF"),
+			TranslationServer.translate("SET_VAL_LOW"),
+			TranslationServer.translate("SET_VAL_FULL")][clampi(Sfx.shake_level, 0, 2)]
+		"flash": return _flash_label()
+	return ""
+
+
+static func _touch_scale_step() -> int:
+	var steps := [0.85, 1.0, 1.2]
+	var best := 0
+	for i in steps.size():
+		if absf(steps[i] - Sfx.touch_scale) < absf(steps[best] - Sfx.touch_scale):
+			best = i
+	return best
+
+
+## Avança uma opção para o próximo valor e devolve o rótulo novo.
+static func cycle(id: String) -> String:
+	match id:
+		"aim_mode":
+			var order := ["drag", "stick", "lockon"]
+			Sfx.aim_mode = order[(order.find(Sfx.aim_mode) + 1) % order.size()]
+		"touch_scale":
+			var steps := [0.85, 1.0, 1.2]
+			Sfx.touch_scale = steps[(_touch_scale_step() + 1) % steps.size()]
+		"touch_handed":
+			var modes: Array = Sfx.TOUCH_HANDED_MODES
+			Sfx.touch_handed = str(modes[(modes.find(Sfx.touch_handed) + 1) % modes.size()])
+		"touch_opacity":
+			var op: Array = Sfx.TOUCH_OPACITY_STEPS
+			Sfx.touch_opacity = float(op[(_touch_opacity_idx() + 1) % op.size()])
+		"shake":
+			Sfx.shake_level = (Sfx.shake_level + 1) % 3
+		"flash":
+			Sfx.flash_level = (Sfx.flash_level + 1) % 3
+	Sfx.save_settings()
+	return label_for(id)
+
+
 ## Seção declarada de uma opção, ou string vazia se ela não está no manifesto.
 static func section_of(id: String) -> String:
 	for entry in ENTRIES:
 		if str(entry["id"]) == id:
 			return str(entry["section"])
 	return ""
+
+
+## ── Rótulos das opções ───────────────────────────────────────────────────
+##
+## Ficam aqui, estáticos, porque agora têm DOIS consumidores: a tela de
+## settings e o painel de pausa. Duplicá-los deixaria os dois discordarem no
+## primeiro ajuste de texto.
+static func _text_scale_idx() -> int:
+	var steps: Array = Sfx.TEXT_SCALE_STEPS
+	var best := 0
+	for i in steps.size():
+		if absf(float(steps[i]) - Sfx.text_scale) < absf(float(steps[best]) - Sfx.text_scale):
+			best = i
+	return best
+static func _text_scale_label() -> String:
+	var names := [TranslationServer.translate("SET_VAL_NORMAL"), TranslationServer.translate("SET_VAL_BIG"), TranslationServer.translate("SET_VAL_LARGER")]
+	return TranslationServer.translate("SET_TEXT_SIZE") % names[_text_scale_idx()]
+## Rótulo da intensidade de luz, na mesma escala do shake.
+static func _flash_label() -> String:
+	var names := [TranslationServer.translate("SET_VAL_OFF"), TranslationServer.translate("SET_VAL_LOW"), TranslationServer.translate("SET_VAL_FULL")]
+	return TranslationServer.translate("SET_FLASH") % names[clampi(Sfx.flash_level, 0, 2)]
+## Rótulo do lado que comanda. "DIREITA" é o histórico: ações à direita,
+## movimento à esquerda.
+static func _touch_handed_label() -> String:
+	var value := TranslationServer.translate("SET_VAL_LEFT") if Sfx.touch_handed == "left" else TranslationServer.translate("SET_VAL_RIGHT")
+	return TranslationServer.translate("SET_TOUCH_HANDED") % value
+## Degrau de opacidade mais próximo do valor salvo — o valor em disco é
+## contínuo e pode vir de uma versão futura com outra escala.
+static func _touch_opacity_idx() -> int:
+	var steps: Array = Sfx.TOUCH_OPACITY_STEPS
+	var best := 0
+	for i in steps.size():
+		if absf(float(steps[i]) - Sfx.touch_opacity) < absf(float(steps[best]) - Sfx.touch_opacity):
+			best = i
+	return best
+static func _touch_opacity_label() -> String:
+	var names := [TranslationServer.translate("SET_VAL_FAINT"), TranslationServer.translate("SET_VAL_LOW"), TranslationServer.translate("SET_VAL_FULL")]
+	return TranslationServer.translate("SET_TOUCH_OPACITY") % names[_touch_opacity_idx()]
