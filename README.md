@@ -28,7 +28,40 @@ Somehow, it worked.
 
 ## Play it
 
-Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v3.1.0`. On Linux there is also an AppImage that runs anywhere, an AUR package for Arch, an xbps template for Void, and a Nix flake — see [Install the game](#install-the-game).
+Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v3.2.0`. On Linux there is also an AppImage that runs anywhere, an AUR package for Arch, an xbps template for Void, and a Nix flake — see [Install the game](#install-the-game).
+
+### What's new in 3.2.0
+
+- **The mobile interface is its own interface now.** Every option declares which
+  platform it serves, so aim mode, haptics and touch size no longer sit in a PC
+  menu doing nothing, and keybinds no longer take up a section on a phone.
+  CONTROLS became the controls section *of each platform*.
+- **Left-handed touch.** BUTTON SIDE mirrors the whole layout — move zone,
+  action buttons, the safe-area cutout they avoid, and the onboarding labels
+  that used to claim the left thumb moved when it no longer did.
+- **BUTTON OPACITY** fades the on-screen controls without shrinking what
+  responds to your thumb.
+- **Every settings row is a real touch target.** The action blocks measured
+  67px tall and responded in 35: the padding lived on the panel, which shrinks
+  its children — including the invisible button that receives the touch.
+- **FLASH: OFF / LOW / FULL.** Nothing controlled light before. The full-screen
+  white, the palette inversion mid-dodge, the damage distortion and the CRT
+  flicker now answer to one setting. What *informs* you — the damage pulse, the
+  low-integrity vignette — is never dimmed.
+- **Colour assist that assists.** Measured against simulated protanopia,
+  deuteranopia and tritanopia, the old palette swap made 29 pair-and-deficiency
+  combinations *worse*: with assist on, BULWARK and OOM_KILLER sat 0.009 apart
+  in deuteranopia. It is now a marker on all 23 entries instead of a recolour,
+  because fourteen enemies do not fit on the axis a dichromat has left.
+- **TEXT SIZE: NORMAL / LARGE / LARGER**, applied to the whole interface.
+- **Adjust without leaving the run.** Aim, touch size, button side, opacity,
+  shake and flash are reachable from the pause screen.
+- **In-game update check on desktop.** It is a button, and checking on launch
+  ships off — the game still contacts nothing on its own. It never replaces a
+  running binary, and where a package manager owns the install, it says so.
+- Two palette defects that affected everyone: UPDATE_LOOP sat 0.004 from
+  BULWARK under protanopia, and CRON was 0.016 from a memory mote — the enemy
+  looked like the thing you collect.
 
 ### What's new in 3.1.0
 
