@@ -125,7 +125,7 @@ func _rebuild_stats(stats: Array) -> void:
 
 		var value := Label.new()
 		value.add_theme_font_override("font", Design.grotesk(Design.WEIGHT_BLACK))
-		value.add_theme_font_size_override("font_size", 38)
+		value.add_theme_font_size_override("font_size", Design.px(Design.TEXT_TITLE))
 		value.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
 		value.text = str(entry[1])
 		value.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -139,7 +139,7 @@ func _rebuild_stats(stats: Array) -> void:
 func _grot(size: int, weight: int, color: Color) -> Label:
 	var l := Label.new()
 	l.add_theme_font_override("font", Design.grotesk(weight))
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", Design.px(size))
 	l.add_theme_color_override("font_color", color)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
@@ -148,7 +148,7 @@ func _grot(size: int, weight: int, color: Color) -> Label:
 func _mono(text: String, size: int, color: Color) -> Label:
 	var l := Label.new()
 	l.theme_type_variation = "BodyLabel"
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", Design.px(size))
 	l.add_theme_color_override("font_color", color)
 	l.text = text
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE

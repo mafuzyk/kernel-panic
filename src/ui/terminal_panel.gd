@@ -206,7 +206,7 @@ func _build() -> void:
 	_input.custom_minimum_size.y = Design.CLICK_TARGET_MIN
 	_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_input.add_theme_font_override("font", Design.FONT_MONO)
-	_input.add_theme_font_size_override("font_size", Design.TEXT_BODY)
+	_input.add_theme_font_size_override("font_size", Design.px(Design.TEXT_BODY))
 	_input.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
 	_input.add_theme_color_override("caret_color", Design.ACCENT)
 	_input.add_theme_stylebox_override("normal", _input_style(false))
@@ -334,12 +334,12 @@ func _layout_panel() -> void:
 	if is_instance_valid(_shortcuts):
 		_shortcuts.visible = not narrow
 	if is_instance_valid(_title):
-		_title.add_theme_font_size_override("font_size", 26 if narrow else Design.TEXT_HEADING)
+		_title.add_theme_font_size_override("font_size", Design.px(Design.step_down(Design.TEXT_HEADING) if narrow else Design.TEXT_HEADING))
 	if is_instance_valid(_output):
 		_output.add_theme_font_size_override("normal_font_size", Design.TEXT_CAPTION if narrow else Design.TEXT_BODY)
 	if is_instance_valid(_prompt_label):
 		_prompt_label.custom_minimum_size.x = 100.0 if narrow else 170.0
-		_prompt_label.add_theme_font_size_override("font_size", Design.TEXT_CAPTION if narrow else Design.TEXT_SUBHEAD)
+		_prompt_label.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION if narrow else Design.TEXT_SUBHEAD))
 	if is_instance_valid(_run_button):
 		_run_button.text = tr("TERM_RUN_SHORT") if narrow else tr("TERM_RUN")
 		_run_button.custom_minimum_size.x = 70.0 if narrow else 150.0
@@ -399,7 +399,7 @@ func _make_button(text: String, size: int, color: Color) -> Button:
 	button.flat = true
 	button.focus_mode = Control.FOCUS_ALL
 	button.add_theme_font_override("font", Design.FONT_MONO)
-	button.add_theme_font_size_override("font_size", size)
+	button.add_theme_font_size_override("font_size", Design.px(size))
 	button.add_theme_color_override("font_color", color)
 	button.add_theme_color_override("font_hover_color", Design.ACCENT_HOT)
 	var normal := StyleBoxFlat.new()

@@ -68,7 +68,7 @@ func _apply_layout_mode() -> void:
 		return
 	var step := Design.breakpoint_for(size.x)
 	var compact := step == "compact" or step == "medium"
-	_title.add_theme_font_size_override("font_size", 32 if compact else 60)
+	_title.add_theme_font_size_override("font_size", Design.px(Design.step_down(Design.TEXT_DISPLAY) if compact else Design.TEXT_DISPLAY))
 	_subtitle.visible = not compact
 	# Em janela estreita o masthead é 70px de decoração que não cabe.
 	if is_instance_valid(_masthead):

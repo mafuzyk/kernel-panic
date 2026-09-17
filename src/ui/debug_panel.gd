@@ -110,7 +110,7 @@ func _label(text: String, size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_font_size_override("font_size", Design.px(size))
 	label.add_theme_color_override("font_color", color)
 	return label
 
@@ -122,7 +122,7 @@ func _button(text: String, action: Callable) -> Button:
 	button.custom_minimum_size = Vector2(0.0, 30.0)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	button.add_theme_font_size_override("font_size", 12)
+	button.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	button.add_theme_color_override("font_color", Balance.COL_TEXT)
 	button.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
 	button.add_theme_color_override("font_pressed_color", Balance.COL_PLAYER_HOT)

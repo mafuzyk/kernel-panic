@@ -904,7 +904,7 @@ func _apply_layout_mode() -> void:
 	# Touch usa a composição empilhada mesmo em landscape largo: o split
 	# desktop espreme lista e detalhe até virar microcópia no telefone.
 	var narrow := step == "compact" or step == "medium" or Design.touch_input()
-	_title.add_theme_font_size_override("font_size", title_font_size())
+	_title.add_theme_font_size_override("font_size", Design.px(title_font_size()))
 	_subtitle.visible = not narrow
 	if is_instance_valid(_body):
 		# Em compact/medium a soma dos mínimos da lista e do detalhe ultrapassa a
@@ -917,7 +917,7 @@ func _apply_layout_mode() -> void:
 		if is_instance_valid(row) and row.has_meta("path"):
 			var path_label: Label = row.get_meta("path")
 			if is_instance_valid(path_label):
-				path_label.add_theme_font_size_override("font_size", path_size)
+				path_label.add_theme_font_size_override("font_size", Design.px(path_size))
 	if is_instance_valid(_footer):
 		_footer.vertical = narrow
 		_body.update_minimum_size()

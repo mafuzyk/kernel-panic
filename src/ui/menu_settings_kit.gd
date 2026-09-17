@@ -107,7 +107,7 @@ func _layout_settings() -> void:
 	if m._settings_title != null and is_instance_valid(m._settings_title):
 		m._settings_title.position = title.position
 		m._settings_title.size = title.size
-		m._settings_title.add_theme_font_size_override("font_size", int(settings_layout["title_size"]))
+		m._settings_title.add_theme_font_size_override("font_size", Design.px(int(settings_layout["title_size"])))
 	if m._settings_footer_row != null and is_instance_valid(m._settings_footer_row):
 		m._settings_footer_row.position = footer.position
 		m._settings_footer_row.size = footer.size
@@ -230,7 +230,7 @@ func _build_settings() -> void:
 	var title_rect: Rect2 = settings_layout["title"]
 	title.position = title_rect.position
 	title.size = title_rect.size
-	title.add_theme_font_size_override("font_size", int(settings_layout["title_size"]))
+	title.add_theme_font_size_override("font_size", Design.px(int(settings_layout["title_size"])))
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m._settings_title = title
 	m._settings_panel.add_child(title)
@@ -258,7 +258,7 @@ func _build_settings() -> void:
 	assign_section(mute, "AUDIO", "mute")
 	box.add_child(_bounded_row(mute))
 	var mute_hint := _settings_group_label(tr("SET_MUTE_HINT"))
-	mute_hint.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	mute_hint.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	mute_hint.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.4))
 	assign_section(mute_hint, "AUDIO")
 	box.add_child(mute_hint)
@@ -339,6 +339,18 @@ func _build_settings() -> void:
 	)
 	assign_section(flash_btn, "ACCESSIBILITY", "flash")
 	box.add_child(flash_btn)
+
+	var text_btn := _setting_button(_text_scale_label())
+	text_btn.pressed.connect(func() -> void:
+		var steps: Array = Sfx.TEXT_SCALE_STEPS
+		Sfx.text_scale = float(steps[(_text_scale_idx() + 1) % steps.size()])
+		Sfx.save_settings()
+		# A escala muda o tamanho de TODA linha desta tela, inclusive esta.
+		# Reconstruir é a forma honesta de mostrar o efeito na hora.
+		rebuild_settings.call_deferred()
+	)
+	assign_section(text_btn, "ACCESSIBILITY", "text_scale")
+	box.add_child(text_btn)
 	var gameplay_label := _settings_group_label(tr("SET_HEAD_GAMEPLAY"))
 	assign_section(gameplay_label, "GAMEPLAY")
 	box.add_child(gameplay_label)
@@ -376,7 +388,7 @@ func _build_settings() -> void:
 	box.add_child(board_label)
 
 	var board_note := _settings_group_label(tr("SET_BOARD_NOTE"))
-	board_note.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	board_note.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	board_note.add_theme_color_override("font_color", Design.TEXT_FAINT)
 	assign_section(board_note, "BOARD")
 	box.add_child(board_note)
@@ -391,7 +403,7 @@ func _build_settings() -> void:
 	box.add_child(m._board_toggle_btn)
 
 	var url_title := _settings_group_label(tr("SET_BOARD_URL"))
-	url_title.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	url_title.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	assign_section(url_title, "BOARD")
 	box.add_child(url_title)
 	m._board_url_field = LineEdit.new()
@@ -399,7 +411,7 @@ func _build_settings() -> void:
 	m._board_url_field.placeholder_text = "https://"
 	m._board_url_field.custom_minimum_size = Vector2(Design.SLIDER_WIDTH * 2.0, Design.target_min())
 	m._board_url_field.add_theme_font_override("font", Design.FONT_MONO)
-	m._board_url_field.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	m._board_url_field.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	m._board_url_field.text_submitted.connect(func(value: String) -> void:
 		Board.set_url(value)
 		_refresh_board_status()
@@ -412,7 +424,7 @@ func _build_settings() -> void:
 	box.add_child(_bounded_row(m._board_url_field))
 
 	var name_title := _settings_group_label(tr("SET_BOARD_NAME"))
-	name_title.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	name_title.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	assign_section(name_title, "BOARD")
 	box.add_child(name_title)
 	m._board_name_field = LineEdit.new()
@@ -420,7 +432,7 @@ func _build_settings() -> void:
 	m._board_name_field.max_length = 24
 	m._board_name_field.custom_minimum_size = Vector2(Design.SLIDER_WIDTH, Design.target_min())
 	m._board_name_field.add_theme_font_override("font", Design.FONT_MONO)
-	m._board_name_field.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	m._board_name_field.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	m._board_name_field.text_submitted.connect(func(value: String) -> void:
 		Board.set_player_name(value)
 		_refresh_board_status()
@@ -433,7 +445,7 @@ func _build_settings() -> void:
 	box.add_child(_bounded_row(m._board_name_field))
 
 	m._board_status = _settings_group_label("")
-	m._board_status.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	m._board_status.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	assign_section(m._board_status, "BOARD")
 	box.add_child(m._board_status)
 	_refresh_board_status()
@@ -444,7 +456,7 @@ func _build_settings() -> void:
 	var transfer_title := Label.new()
 	transfer_title.text = tr("SET_EXPORT_HEAD")
 	transfer_title.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	transfer_title.add_theme_font_size_override("font_size", Design.TEXT_BODY)
+	transfer_title.add_theme_font_size_override("font_size", Design.px(Design.TEXT_BODY))
 	transfer_title.add_theme_color_override("font_color", Balance.COL_MOTE)
 	assign_section(transfer_title, "SAVE DATA")
 	box.add_child(transfer_title)
@@ -452,7 +464,7 @@ func _build_settings() -> void:
 	m._save_transfer_field.placeholder_text = tr("SET_IMPORT_PLACEHOLDER")
 	m._save_transfer_field.custom_minimum_size = Vector2(0.0, Design.target_min())
 	m._save_transfer_field.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	m._save_transfer_field.add_theme_font_size_override("font_size", Design.TEXT_MICRO)
+	m._save_transfer_field.add_theme_font_size_override("font_size", Design.px(Design.TEXT_MICRO))
 	m._save_transfer_field.add_theme_color_override("font_color", Balance.COL_TEXT)
 	assign_section(m._save_transfer_field, "SAVE DATA", "save_transfer")
 	box.add_child(m._save_transfer_field)
@@ -463,7 +475,7 @@ func _build_settings() -> void:
 	export_btn.flat = true
 	export_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	export_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	export_btn.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	export_btn.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	export_btn.add_theme_color_override("font_color", Balance.COL_TEXT)
 	export_btn.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
 	export_btn.pressed.connect(m._export_save_to_clipboard)
@@ -473,7 +485,7 @@ func _build_settings() -> void:
 	import_btn.flat = true
 	import_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	import_btn.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	import_btn.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	import_btn.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	import_btn.add_theme_color_override("font_color", Balance.COL_TEXT)
 	import_btn.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
 	import_btn.pressed.connect(m._import_save_from_clipboard)
@@ -483,14 +495,14 @@ func _build_settings() -> void:
 	m._save_transfer_status = Label.new()
 	m._save_transfer_status.text = tr("SET_EXPORT_NOTE")
 	m._save_transfer_status.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	m._save_transfer_status.add_theme_font_size_override("font_size", Design.TEXT_MICRO)
+	m._save_transfer_status.add_theme_font_size_override("font_size", Design.px(Design.TEXT_MICRO))
 	m._save_transfer_status.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.5))
 	m._save_transfer_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	assign_section(m._save_transfer_status, "SAVE DATA")
 	box.add_child(m._save_transfer_status)
 	var stats := Label.new()
 	stats.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	stats.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	stats.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	stats.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.45))
 	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var cf2 := ConfigFile.new()
@@ -553,7 +565,7 @@ func _build_settings() -> void:
 		nav_button.size = Vector2(navigation.size.x - 20.0, 38.0)
 		nav_button.focus_mode = Control.FOCUS_ALL
 		nav_button.add_theme_font_override("font", Design.grotesk(Design.WEIGHT_BOLD))
-		nav_button.add_theme_font_size_override("font_size", Design.TEXT_SUBHEAD)
+		nav_button.add_theme_font_size_override("font_size", Design.px(Design.TEXT_SUBHEAD))
 		nav_button.add_theme_color_override("font_color", Design.TEXT_SECONDARY)
 		nav_button.add_theme_color_override("font_hover_color", Design.TEXT_PRIMARY)
 		nav_button.add_theme_stylebox_override("normal", _nav_style(false, false))
@@ -567,7 +579,7 @@ func _build_settings() -> void:
 	nav_hint.position = navigation.position + Vector2(14.0, navigation.size.y - 28.0)
 	nav_hint.size = Vector2(navigation.size.x - 28.0, 18.0)
 	nav_hint.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	nav_hint.add_theme_font_size_override("font_size", Design.TEXT_MICRO)
+	nav_hint.add_theme_font_size_override("font_size", Design.px(Design.TEXT_MICRO))
 	nav_hint.add_theme_color_override("font_color", Design.TEXT_FAINT)
 	m._settings_nav_hint = nav_hint
 	m._settings_panel.add_child(nav_hint)
@@ -583,7 +595,7 @@ func _build_settings() -> void:
 		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		chip.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		chip.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		chip.add_theme_font_size_override("font_size", Design.TEXT_MICRO)
+		chip.add_theme_font_size_override("font_size", Design.px(Design.TEXT_MICRO))
 		chip.add_theme_color_override("font_color", Design.TEXT_SECONDARY)
 		chip.add_theme_color_override("font_hover_color", Design.TEXT_PRIMARY)
 		chip.add_theme_stylebox_override("normal", _chip_style(false, false))
@@ -620,7 +632,7 @@ func _settings_group_label(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_override("font", Design.FONT_MONO)
-	label.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	label.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	label.add_theme_color_override("font_color", Design.TEXT_MUTED)
 	label.custom_minimum_size = Vector2(0.0, 22.0)
 	return label
@@ -630,7 +642,7 @@ func _style_toggle(toggle: CheckButton) -> void:
 	toggle.custom_minimum_size = Vector2(0.0, Design.target_min())
 	toggle.set_meta(ROW_RULED_META, true)
 	toggle.add_theme_font_override("font", Design.FONT_MONO)
-	toggle.add_theme_font_size_override("font_size", Design.TEXT_BODY)
+	toggle.add_theme_font_size_override("font_size", Design.px(Design.TEXT_BODY))
 	toggle.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
 	toggle.add_theme_color_override("font_hover_color", Design.TEXT_PRIMARY)
 	for state in ["normal", "pressed"]:
@@ -655,7 +667,7 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 	var title := Label.new()
 	title.text = tr("SET_KEYBINDS")
 	title.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	title.add_theme_font_size_override("font_size", Design.TEXT_BODY)
+	title.add_theme_font_size_override("font_size", Design.px(Design.TEXT_BODY))
 	title.add_theme_color_override("font_color", Balance.COL_MOTE)
 	m._keybind_box.add_child(title)
 	var grid := GridContainer.new()
@@ -671,14 +683,14 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 		label.text = _keybind_action_label(action)
 		label.custom_minimum_size = Vector2(92, 0)
 		label.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		label.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+		label.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 		label.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.7))
 		row.add_child(label)
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(112, 28)
 		button.flat = true
 		button.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-		button.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+		button.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 		button.add_theme_color_override("font_color", Balance.COL_TEXT)
 		button.add_theme_color_override("font_hover_color", Balance.COL_PLAYER)
 		button.pressed.connect(_begin_keybind_capture.bind(action))
@@ -689,7 +701,7 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 	m._keybind_status = Label.new()
 	m._keybind_status.text = tr("SET_BIND_HINT")
 	m._keybind_status.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	m._keybind_status.add_theme_font_size_override("font_size", Design.TEXT_MICRO)
+	m._keybind_status.add_theme_font_size_override("font_size", Design.px(Design.TEXT_MICRO))
 	m._keybind_status.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.55))
 	m._keybind_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	m._keybind_box.add_child(m._keybind_status)
@@ -699,7 +711,7 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 	reset.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	reset.custom_minimum_size = Vector2(160.0, 28.0)
 	reset.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	reset.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	reset.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	reset.add_theme_color_override("font_color", Balance.COL_DANGER)
 	reset.add_theme_color_override("font_hover_color", Balance.COL_PLAYER_HOT)
 	reset.pressed.connect(func() -> void:
@@ -757,13 +769,13 @@ func _build_video_section(box: Node) -> void:
 		m._field_tint_btn = tint_btn
 	else:
 		var tint_hint := _settings_group_label(tr("SET_FIELD_TINT_LOCKED"))
-		tint_hint.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+		tint_hint.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 		tint_hint.add_theme_color_override("font_color", Design.TEXT_FAINT)
 		assign_section(tint_hint, "VIDEO")
 		box.add_child(tint_hint)
 
 	var note := _settings_group_label(tr("SET_VIDEO_NOTE"))
-	note.add_theme_font_size_override("font_size", Design.TEXT_CAPTION)
+	note.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	note.add_theme_color_override("font_color", Design.TEXT_FAINT)
 	assign_section(note, "VIDEO")
 	box.add_child(note)
@@ -799,7 +811,7 @@ func _setting_button(label: String) -> Button:
 	button.focus_mode = Control.FOCUS_ALL
 	button.clip_contents = true
 	button.add_theme_font_override("font", Design.FONT_MONO)
-	button.add_theme_font_size_override("font_size", Design.TEXT_SUBHEAD)
+	button.add_theme_font_size_override("font_size", Design.px(Design.TEXT_SUBHEAD))
 	button.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
 	button.add_theme_color_override("font_focus_color", Design.ACCENT)
 	button.add_theme_color_override("font_pressed_color", Design.ACCENT)
@@ -876,6 +888,20 @@ func _set_row_text(button: Button, text: String) -> void:
 		name_label.text = str(parts[0])
 	if is_instance_valid(value_label):
 		value_label.text = str(parts[1])
+
+
+func _text_scale_idx() -> int:
+	var steps: Array = Sfx.TEXT_SCALE_STEPS
+	var best := 0
+	for i in steps.size():
+		if absf(float(steps[i]) - Sfx.text_scale) < absf(float(steps[best]) - Sfx.text_scale):
+			best = i
+	return best
+
+
+func _text_scale_label() -> String:
+	var names := [tr("SET_VAL_NORMAL"), tr("SET_VAL_BIG"), tr("SET_VAL_LARGER")]
+	return tr("SET_TEXT_SIZE") % names[_text_scale_idx()]
 
 
 ## Rótulo da intensidade de luz, na mesma escala do shake.
@@ -995,7 +1021,7 @@ func _make_slider_row(label_text: String, value: float, on_change: Callable) -> 
 	l.text = label_text
 	l.custom_minimum_size = Vector2(110, 0)
 	l.add_theme_font_override("font", Design.FONT_MONO)
-	l.add_theme_font_size_override("font_size", Design.TEXT_SUBHEAD)
+	l.add_theme_font_size_override("font_size", Design.px(Design.TEXT_SUBHEAD))
 	l.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
 	row.add_child(l)
 	var s := HSlider.new()
@@ -1018,7 +1044,7 @@ func _make_slider_row(label_text: String, value: float, on_change: Callable) -> 
 	v.text = "%d%%" % int(value * 100.0)
 	v.custom_minimum_size = Vector2(56, 0)
 	v.add_theme_font_override("font", Design.FONT_MONO)
-	v.add_theme_font_size_override("font_size", Design.TEXT_BODY)
+	v.add_theme_font_size_override("font_size", Design.px(Design.TEXT_BODY))
 	v.add_theme_color_override("font_color", Design.TEXT_SECONDARY)
 	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	s.value_changed.connect(func(val: float) -> void:

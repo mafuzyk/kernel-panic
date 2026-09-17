@@ -48,6 +48,34 @@ const TEXT_HEADING := 28    ## título de tela (SETTINGS //, BESTIARY //)
 const TEXT_TITLE := 36      ## título de painel de estado (PAUSED)
 const TEXT_DISPLAY := 60    ## exclusivo do título do menu
 
+## A escala inteira, em ordem. É o único lugar que conhece a sequência, e é
+## por onde a escala global de texto vai multiplicar.
+const TEXT_SCALE := [TEXT_MICRO, TEXT_CAPTION, TEXT_BODY, TEXT_SUBHEAD,
+	TEXT_HEADING, TEXT_TITLE, TEXT_DISPLAY]
+
+
+## Tamanho final em pixels, com a preferência de texto da pessoa aplicada.
+##
+## TODO tamanho de fonte da UI passa por aqui. É o que permite uma escala
+## global sem tocar em 60 lugares — e só é possível porque nenhum arquivo de
+## UI carrega mais número mágico; o harness exige isso.
+static func px(size: int) -> int:
+	return int(round(float(size) * Sfx.text_scale))
+
+
+## Um degrau abaixo na escala.
+##
+## Telas estreitas encolhiam o texto com números avulsos — "32 se compacto,
+## senão 60" — que não eram degraus de escala nenhuma e viravam número mágico
+## em cada arquivo. Descer degrau é a mesma decisão em todo lugar, então mora
+## aqui.
+static func step_down(size: int, steps: int = 1) -> int:
+	var index := TEXT_SCALE.find(size)
+	if index < 0:
+		return size
+	return int(TEXT_SCALE[maxi(index - maxi(steps, 0), 0)])
+
+
 ## Entrelinha como múltiplo do tamanho da fonte.
 const LEADING_TIGHT := 1.15
 const LEADING_NORMAL := 1.45

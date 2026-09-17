@@ -284,7 +284,7 @@ func _apply_layout_mode() -> void:
 		return
 	var step := Design.breakpoint_for(size.x)
 	var narrow := step == "compact" or step == "medium"
-	_title.add_theme_font_size_override("font_size", title_font_size())
+	_title.add_theme_font_size_override("font_size", Design.px(title_font_size()))
 	_subtitle.visible = not narrow
 	if is_instance_valid(_back_block):
 		ScreenKit.set_action_density(_back_block, narrow)

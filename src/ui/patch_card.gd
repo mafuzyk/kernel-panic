@@ -198,7 +198,7 @@ func _refresh() -> void:
 	_rarity.text = rarity_label()
 	_rarity.add_theme_color_override("font_color", marker)
 	_title.text = card_title()
-	_title.add_theme_font_size_override("font_size", _title_font_size(_title.text))
+	_title.add_theme_font_size_override("font_size", Design.px(_title_font_size(_title.text)))
 	_title.add_theme_color_override("font_color", ink.get("title", Design.TEXT_PRIMARY))
 	_desc.text = patch_desc(_def)
 	_desc.add_theme_color_override("font_color", ink.get("body", Design.TEXT_SECONDARY))

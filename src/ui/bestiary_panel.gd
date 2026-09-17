@@ -578,7 +578,7 @@ func _apply_layout_mode() -> void:
 		return
 	var step := Design.breakpoint_for(size.x)
 	var narrow := step == "compact" or step == "medium" or Design.touch_input()
-	_title.add_theme_font_size_override("font_size", title_font_size())
+	_title.add_theme_font_size_override("font_size", Design.px(title_font_size()))
 	_subtitle.visible = step != "compact"
 	if is_instance_valid(_body):
 		_body.vertical = narrow

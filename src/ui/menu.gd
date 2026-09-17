@@ -215,7 +215,7 @@ func _ready() -> void:
 	var sub := Label.new()
 	sub.text = "// last process standing"
 	sub.add_theme_font_override("font", mono)
-	sub.add_theme_font_size_override("font_size", 17)
+	sub.add_theme_font_size_override("font_size", Design.px(Design.TEXT_SUBHEAD))
 	sub.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.65))
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.anchor_left = 0.0
@@ -227,7 +227,7 @@ func _ready() -> void:
 	_prompt = Label.new()
 	_prompt.text = "PRESS [ENTER] OR HIT >> PURGE"
 	_prompt.add_theme_font_override("font", mono)
-	_prompt.add_theme_font_size_override("font_size", 19)
+	_prompt.add_theme_font_size_override("font_size", Design.px(Design.TEXT_SUBHEAD))
 	_prompt.add_theme_color_override("font_color", Balance.COL_PLAYER)
 	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_prompt.anchor_left = 0.0
@@ -257,7 +257,7 @@ func _ready() -> void:
 	_controls_line = controls
 	_best_label = Label.new()
 	_best_label.add_theme_font_override("font", mono)
-	_best_label.add_theme_font_size_override("font_size", 14)
+	_best_label.add_theme_font_size_override("font_size", Design.px(Design.TEXT_BODY))
 	_best_label.add_theme_color_override("font_color", Color(Balance.COL_MOTE.r, Balance.COL_MOTE.g, Balance.COL_MOTE.b, 0.8))
 	_best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_best_label.anchor_left = 0.0
@@ -268,7 +268,7 @@ func _ready() -> void:
 	var tag := Label.new()
 	tag.text = tr("MENU_TAGLINE") % ProjectSettings.get_setting("application/config/version", "dev")
 	tag.add_theme_font_override("font", mono)
-	tag.add_theme_font_size_override("font_size", 11)
+	tag.add_theme_font_size_override("font_size", Design.px(Design.TEXT_MICRO))
 	tag.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.3))
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tag.anchor_left = 1.0
@@ -297,7 +297,7 @@ func _ready() -> void:
 	_settings_kit._build_settings()
 	_klog = Label.new()
 	_klog.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	_klog.add_theme_font_size_override("font_size", 11)
+	_klog.add_theme_font_size_override("font_size", Design.px(Design.TEXT_MICRO))
 	_klog.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.22))
 	_klog.anchor_top = 0.0
 	_klog.anchor_bottom = 0.0

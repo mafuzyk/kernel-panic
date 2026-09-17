@@ -701,7 +701,10 @@ func _settings_touch_target_test(menu: Node) -> void:
 ## então o teto só pode CAIR. Ao zerar tudo, isto vira `== 0`.
 func _ui_font_scale_ratchet_test() -> void:
 	print("AT_STEP ui_font_scale_ratchet")
-	const CEILING := 16
+	# Era catraca em 16 enquanto as telas iam sendo refeitas. Zerou: agora a
+	# regra que o próprio `Design` declara — "nenhum arquivo de UI deve conter
+	# número mágico de tamanho" — é exigida, não tolerada.
+	const CEILING := 0
 	const CLEAN_FILES := ["res://src/ui/menu_settings_kit.gd"]
 	var dir := DirAccess.open("res://src/ui")
 	var offenders := {}
@@ -728,11 +731,9 @@ func _ui_font_scale_ratchet_test() -> void:
 		for sub in d.get_directories():
 			stack.append("%s/%s" % [at, sub])
 	h._check_source(total <= CEILING,
-		"hardcoded UI font sizes stay at or below the ratchet (%d <= %d): %s" % [total, CEILING, str(offenders)])
+		"no UI file carries a magic font size (%d): %s" % [total, str(offenders)])
 	for clean in CLEAN_FILES:
 		h._check_source(not offenders.has(clean), "%s stays free of magic font sizes" % clean)
-	if total < CEILING:
-		print("AT_NOTE lower the font-size ratchet to ", total)
 
 
 ## A UI do KERNEL PANIC é desenhada, não rasterizada.
@@ -922,3 +923,55 @@ func _entity_palette_test() -> void:
 	var pure_red := Color(1, 0, 0)
 	h._check(h._color_distance(Balance.simulate_cvd(pure_red, "protan"), pure_red) > 0.3,
 		"protanopia visibly moves pure red, so the simulation is doing something")
+
+## Escala global de texto.
+##
+## Só é possível porque nenhum arquivo de UI carrega mais número mágico de
+## tamanho: os 65 pontos que definem fonte passam por `Design.px()`, e a
+## preferência multiplica ali. Antes eram 43 literais espalhados por dez
+## arquivos, e qualquer escala global deixaria metade da tela para trás.
+func _text_scale_test(menu: Node) -> void:
+	print("AT_STEP text_scale")
+	var saved := Sfx.text_scale
+
+	Sfx.text_scale = 1.0
+	h._check(Design.px(Design.TEXT_BODY) == Design.TEXT_BODY, "at normal size the scale changes nothing")
+	Sfx.text_scale = 1.3
+	h._check(Design.px(Design.TEXT_BODY) > Design.TEXT_BODY, "a larger setting grows the body text")
+	h._check(Design.px(Design.TEXT_MICRO) > Design.TEXT_MICRO, "it grows the smallest step too, which is the one that hurts")
+	# A ordem dos degraus tem que sobreviver à multiplicação, senão a
+	# hierarquia da tela inverte em algum tamanho.
+	for scale in Sfx.TEXT_SCALE_STEPS:
+		Sfx.text_scale = float(scale)
+		var last := 0
+		var ordered := true
+		for step in Design.TEXT_SCALE:
+			var value := Design.px(int(step))
+			if value <= last:
+				ordered = false
+			last = value
+		h._check(ordered, "the type scale stays strictly increasing at %.2fx" % scale)
+
+	# E o layout tem que aguentar: cada linha de settings dentro da coluna.
+	var kit = menu.get("_settings_kit")
+	if kit != null:
+		for scale2 in Sfx.TEXT_SCALE_STEPS:
+			Sfx.text_scale = float(scale2)
+			kit.call("rebuild_settings")
+			await h._ticks(2)
+			var box: Control = menu.get("_settings_box")
+			var overflow: Array[String] = []
+			if box != null and is_instance_valid(box):
+				for section in (kit.get("_section_members") as Dictionary):
+					for control in (kit.get("_section_members") as Dictionary)[section]:
+						if control == null or not is_instance_valid(control) or not control.visible:
+							continue
+						if control.size.x > box.size.x + 1.0:
+							overflow.append("%s@%.0f>%.0f" % [section, control.size.x, box.size.x])
+			h._check(overflow.is_empty(), "no settings row overflows its column at %.2fx (%s)" % [scale2, str(overflow)])
+
+	Sfx.text_scale = saved
+	Sfx.save_settings()
+	if kit != null:
+		kit.call("rebuild_settings")
+		await h._ticks(2)

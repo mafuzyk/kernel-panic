@@ -47,7 +47,7 @@ func _style_settings_footer_button(button: Button, border: Color) -> void:
 	button.focus_mode = Control.FOCUS_NONE
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	button.add_theme_font_size_override("font_size", 14)
+	button.add_theme_font_size_override("font_size", Design.px(Design.TEXT_BODY))
 	button.add_theme_color_override("font_color", border if border != TacticalUIHelper.CYAN else TacticalUIHelper.TEXT)
 	button.add_theme_color_override("font_hover_color", TacticalUIHelper.TEXT)
 	button.add_theme_stylebox_override("normal", _settings_nav_style(Color(border.r, border.g, border.b, 0.55)))
@@ -113,7 +113,7 @@ func _style_overlay_back(back: Button) -> void:
 	back.custom_minimum_size = Vector2(154.0, 42.0)
 	back.focus_mode = Control.FOCUS_NONE
 	back.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	back.add_theme_font_size_override("font_size", 13)
+	back.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	back.add_theme_color_override("font_color", Balance.COL_PLAYER)
 	back.add_theme_color_override("font_hover_color", Balance.COL_TEXT)
 	back.alignment = HORIZONTAL_ALIGNMENT_LEFT

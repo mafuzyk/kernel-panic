@@ -85,7 +85,7 @@ func _apply_layout_mode() -> void:
 	var step := Design.breakpoint_for(size.x)
 	var compact := step == "compact" or step == "medium"
 	_body.vertical = compact
-	_purge_label.add_theme_font_size_override("font_size", 32 if compact else 54)
+	_purge_label.add_theme_font_size_override("font_size", Design.px(Design.step_down(Design.TEXT_DISPLAY) if compact else Design.TEXT_DISPLAY))
 	if is_instance_valid(_hero_wrap):
 		var r: float = HERO_RADIUS_COMPACT if compact else HERO_RADIUS_WIDE
 		_hero_wrap.custom_minimum_size = Vector2(r * 2.2, r * 2.2)

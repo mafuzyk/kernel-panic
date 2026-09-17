@@ -14,7 +14,7 @@ extends RefCounted
 static func grot(text: String, size: int, weight: int, color: Color) -> Label:
 	var l := Label.new()
 	l.add_theme_font_override("font", Design.grotesk(weight))
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", Design.px(size))
 	l.add_theme_color_override("font_color", color)
 	l.text = text
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -24,7 +24,7 @@ static func grot(text: String, size: int, weight: int, color: Color) -> Label:
 static func mono(text: String, size: int, color: Color) -> Label:
 	var l := Label.new()
 	l.add_theme_font_override("font", Design.FONT_MONO)
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", Design.px(size))
 	l.add_theme_color_override("font_color", color)
 	l.text = text
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -232,7 +232,7 @@ static func set_action_density(block: PanelContainer, compact: bool) -> void:
 	if block.has_meta("label_node"):
 		var node: Label = block.get_meta("label_node")
 		if is_instance_valid(node):
-			node.add_theme_font_size_override("font_size", 18 if compact else 26)
+			node.add_theme_font_size_override("font_size", Design.px(Design.step_down(Design.TEXT_HEADING) if compact else Design.TEXT_HEADING))
 
 
 ## Troca o rótulo de um bloco criado por `action()`.

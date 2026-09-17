@@ -95,7 +95,7 @@ func _ready() -> void:
 	_run_info_label.offset_bottom = 36.0
 	_run_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_run_info_label.add_theme_font_override("font", _mono)
-	_run_info_label.add_theme_font_size_override("font_size", 12)
+	_run_info_label.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	_run_info_label.add_theme_color_override("font_color", Color(Balance.COL_TEXT.r, Balance.COL_TEXT.g, Balance.COL_TEXT.b, 0.62))
 	add_child(_run_info_label)
 	_dash_icon = TacticalIconScript.new()
@@ -117,7 +117,7 @@ func _ready() -> void:
 	_achievement_label.offset_top = 112.0
 	_achievement_label.offset_bottom = 136.0
 	_achievement_label.add_theme_font_override("font", _mono)
-	_achievement_label.add_theme_font_size_override("font_size", 12)
+	_achievement_label.add_theme_font_size_override("font_size", Design.px(Design.TEXT_CAPTION))
 	_achievement_label.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
 	_achievement_label.modulate.a = 0.0
 	add_child(_achievement_label)
@@ -149,7 +149,7 @@ func _apply_surface_transform() -> void:
 func _mk_label(size: int, col: Color, pos: Vector2) -> Label:
 	var l := Label.new()
 	l.add_theme_font_override("font", _score_font if size >= 24 else _mono)
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", Design.px(size))
 	l.add_theme_color_override("font_color", col)
 	l.anchor_left = 0.0
 	l.anchor_right = 1.0

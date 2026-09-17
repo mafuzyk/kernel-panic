@@ -115,7 +115,7 @@ func fit_body(max_height: float, font_floor: int) -> int:
 		if TacticalUI.wrapped_height(font, body_label.text, width, fs) <= max_height:
 			chosen = fs
 			break
-	body_label.add_theme_font_size_override("font_size", chosen)
+	body_label.add_theme_font_size_override("font_size", Design.px(chosen))
 	return chosen
 
 
@@ -140,4 +140,4 @@ func _apply_layout_mode() -> void:
 	_page.add_theme_constant_override("margin_bottom", vertical)
 	var available := maxf(size.x - float(side) * 2.0, 240.0)
 	_content.custom_minimum_size.x = minf(Design.CONTENT_MAX_PROSE, available)
-	title_label.add_theme_font_size_override("font_size", Design.TEXT_HEADING if narrow else Design.TEXT_TITLE)
+	title_label.add_theme_font_size_override("font_size", Design.px(Design.TEXT_HEADING if narrow else Design.TEXT_TITLE))

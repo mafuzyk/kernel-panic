@@ -630,7 +630,7 @@ func _apply_layout_mode() -> void:
 	if not is_instance_valid(_title):
 		return
 	var compact := Design.breakpoint_for(size.x) == "compact"
-	_title.add_theme_font_size_override("font_size", title_font_size())
+	_title.add_theme_font_size_override("font_size", Design.px(title_font_size()))
 	_subtitle.visible = not compact
 	if is_instance_valid(_hint):
 		_hint.text = scroll_hint_text()

@@ -55,7 +55,7 @@ func _grot(size: int, weight: int, color: Color) -> Label:
 		l.add_theme_font_override("font", fv)
 	else:
 		l.add_theme_font_override("font", Design.FONT_DISPLAY)
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", Design.px(size))
 	l.add_theme_color_override("font_color", color)
 	return l
 
@@ -63,7 +63,7 @@ func _grot(size: int, weight: int, color: Color) -> Label:
 func _mono(parent: Node, text: String, size: int, color: Color) -> Label:
 	var l := Label.new()
 	l.add_theme_font_override("font", Design.FONT_MONO)
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", Design.px(size))
 	l.add_theme_color_override("font_color", color)
 	l.text = text
 	if parent != null:

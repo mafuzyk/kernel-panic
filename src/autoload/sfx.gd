@@ -22,6 +22,10 @@ var shake_level := 2
 ## costuma precisar da outra, mas não sempre: dá para querer flash baixo com
 ## shake alto. São dois controles porque são dois incômodos diferentes.
 var flash_level := 2
+## Escala global do texto da interface. Multiplica a escala inteira do
+## `Design` num ponto só — ver `Design.px()`.
+var text_scale := 1.0
+const TEXT_SCALE_STEPS := [1.0, 1.15, 1.3]
 const FLASH_SCALES := [0.0, 0.45, 1.0]
 
 ## ── vídeo ─────────────────────────────────────────────────────────────
@@ -226,6 +230,7 @@ func _load_settings() -> void:
 	haptics_enabled = cf.get_value("feel", "haptics", true)
 	shake_level = cf.get_value("feel", "shake", 2)
 	flash_level = clampi(int(cf.get_value("feel", "flash", 2)), 0, 2)
+	text_scale = clampf(float(cf.get_value("feel", "text_scale", 1.0)), 1.0, 1.6)
 	target_fps = cf.get_value("feel", "target_fps", 60)
 	Engine.max_fps = target_fps
 	touch_scale = cf.get_value("feel", "touch_scale", 1.0)
@@ -249,6 +254,7 @@ func save_settings() -> void:
 	cf.set_value("feel", "haptics", haptics_enabled)
 	cf.set_value("feel", "shake", shake_level)
 	cf.set_value("feel", "flash", flash_level)
+	cf.set_value("feel", "text_scale", text_scale)
 	cf.set_value("feel", "target_fps", target_fps)
 	cf.set_value("feel", "touch_scale", touch_scale)
 	cf.set_value("feel", "aim_mode", aim_mode)

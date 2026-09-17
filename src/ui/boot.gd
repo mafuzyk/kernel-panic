@@ -28,7 +28,7 @@ func _ready() -> void:
 	]
 	_label = Label.new()
 	_label.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
-	_label.add_theme_font_size_override("font_size", 14)
+	_label.add_theme_font_size_override("font_size", Design.px(Design.TEXT_BODY))
 	_label.add_theme_color_override("font_color", Balance.COL_TEXT)
 	_label.position = Vector2(32, 32)
 	_label.size = Vector2(900, 400)
