@@ -40,6 +40,7 @@ Grab the Android, Linux, or Windows build from the [latest release](https://gith
 - **The Win11 stage stopped hurting to look at.** Its field was blowing out to pure white; it is dark glass now, and every stage theme is measured so it cannot happen again.
 - **The combat HUD takes the colour of the arena** and anything walking under a module shows through as a silhouette instead of disappearing.
 - **Switching language no longer leaves half the menu behind** — or brings the old button frames back with it.
+- **Installs on more than Arch now:** an AppImage for any distribution, an xbps package built from source for Void, and a real Nix flake.
 
 ### What's new in 3.0.0
 
@@ -72,7 +73,10 @@ Grab the Android, Linux, or Windows build from the [latest release](https://gith
 2. If Android blocks the installation, allow that app to **Install unknown apps** in the system settings, then open the APK again.
 3. Confirm **Install**. The current export targets 64-bit ARM devices (`arm64-v8a`).
 
-KERNEL PANIC does not request network access and stores progress locally.
+KERNEL PANIC stores progress locally and makes no network request on its own.
+The optional weekly leaderboard is the only thing that ever sends anything, it
+ships switched off with no server configured, and a run only travels when you
+press the button. See [the server's README](server/leaderboard/README.md).
 
 ### Linux x86_64
 
@@ -87,6 +91,19 @@ To update an installed release, download the newer `kernel-panic` executable,
 replace the old file in the same directory, and keep its execute permission.
 Your local save data is kept separately by Godot, so replacing the executable
 does not remove the save. The game has no in-game updater yet.
+
+### Any Linux (AppImage)
+
+Download `KERNEL-PANIC-v3.1.0-x86_64.AppImage`, make it executable, and run it.
+Nothing is installed and nothing is left behind:
+
+```sh
+chmod +x KERNEL-PANIC-v3.1.0-x86_64.AppImage
+./KERNEL-PANIC-v3.1.0-x86_64.AppImage
+```
+
+On a machine without FUSE — some containers, some minimal installs — run it with
+`--appimage-extract-and-run`.
 
 ### Windows x86_64
 
@@ -109,6 +126,40 @@ paru -S kernel-panic-git
 Update an installed AUR package with your normal system upgrade command, for
 example `paru -Syu`. The package manager replaces the executable and keeps the
 game's separate local save data.
+
+### Void Linux (xbps)
+
+Void ships Godot 4.7.2 and its export templates at exactly the version this
+project uses, so the package is built from source rather than wrapping a
+prebuilt binary. Copy the template into your `void-packages` checkout:
+
+```sh
+cp -r packaging/void ~/void-packages/srcpkgs/kernel-panic
+cd ~/void-packages && ./xbps-src pkg kernel-panic
+sudo xbps-install --repository=hostdir/binpkgs kernel-panic
+```
+
+To just get the game on this machine without the packaging tree, build an
+installable `.xbps` from a release binary:
+
+```sh
+./packaging/void/build-xbps.sh path/to/kernel-panic
+sudo xbps-install --repository=packaging/void/out kernel-panic
+```
+
+### Nix / NixOS
+
+A real derivation — it exports the game from source with `godot_4_7`, not a
+wrapper around a downloaded binary:
+
+```sh
+nix run github:mafuzyk/kernel-panic          # play it
+nix build github:mafuzyk/kernel-panic        # build it
+nix develop github:mafuzyk/kernel-panic      # engine + templates, nothing installed
+```
+
+Add it to a NixOS configuration through the flake's
+`packages.x86_64-linux.kernel-panic`.
 
 ## How it plays
 
