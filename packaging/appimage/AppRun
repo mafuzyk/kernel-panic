@@ -1,0 +1,7 @@
+#!/bin/sh
+# Ponto de entrada do AppImage.
+#
+# O binário do Godot resolve caminhos a partir de onde ele está, então basta
+# entrar no diretório montado e executar. `$APPDIR` é definido pelo runtime.
+HERE=$(dirname "$(readlink -f "$0")")
+exec "$HERE/usr/bin/kernel-panic" "$@"

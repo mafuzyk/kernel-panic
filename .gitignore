@@ -4,6 +4,10 @@
 # Local export credentials
 export_credentials.cfg
 
+# Saída de empacotamento (artefatos, nunca fonte)
+packaging/void/out/
+packaging/appimage/out/
+
 # Builds
 *.apk
 *.aab

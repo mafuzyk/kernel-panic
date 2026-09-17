@@ -1,0 +1,54 @@
+# Template file for 'kernel-panic'
+#
+# Copie para void-packages/srcpkgs/kernel-panic/template e construa com
+# `./xbps-src pkg kernel-panic`.
+#
+# Constrói do FONTE: o Void empacota o Godot e os export templates na mesma
+# versão que o projeto usa, então não há motivo para empacotar um binário
+# pronto aqui. O `.xbps` local de `build-xbps.sh` é para uso na própria
+# máquina; este é o que se manda para a distribuição.
+pkgname=kernel-panic
+version=3.1.0
+revision=1
+hostmakedepends="godot godot-export-templates"
+depends="libX11 libXcursor libXext libXi libXinerama libXrandr libXrender
+ libglvnd alsa-lib libpulseaudio dbus-libs fontconfig libdecor eudev-libudev
+ wayland"
+short_desc="Neon arena shooter about keeping one stubborn process alive"
+maintainer="mafuzyk <gacha0310405@gmail.com>"
+license="MIT"
+homepage="https://github.com/mafuzyk/kernel-panic"
+distfiles="https://github.com/mafuzyk/kernel-panic/archive/refs/tags/v${version}.tar.gz"
+checksum=debaa22b088db31e5c576b7e7f5995e262fea8d84fa2e0d568701a2f6be9be54
+
+# O binário exportado só LINKA a glibc; X11, EGL, ALSA, PulseAudio, dbus,
+# fontconfig, libdecor e udev entram por dlopen em tempo de execução. Sem isto
+# o xbps não enxergaria nenhuma dessas dependências.
+noverifyrdeps=yes
+
+do_build() {
+	# O Godot procura os templates no XDG_DATA_HOME, e o pacote do Void os
+	# instala em /usr/lib. Um link dentro do diretório de trabalho evita
+	# escrever no home de quem constrói.
+	local _templates=/usr/lib/godot/export_templates
+	export XDG_DATA_HOME="${wrksrc}/.local/share"
+	mkdir -p "${XDG_DATA_HOME}/godot/export_templates"
+	ln -sfn "${_templates}"/* "${XDG_DATA_HOME}/godot/export_templates/"
+
+	mkdir -p bin
+	godot --headless --path . --export-release "Linux x86_64" "${wrksrc}/bin/kernel-panic"
+}
+
+do_check() {
+	# A suíte do próprio jogo, rodando contra o artefato recém-construído.
+	XDG_DATA_HOME="${wrksrc}/.check" XDG_CONFIG_HOME="${wrksrc}/.check" \
+		"${wrksrc}/bin/kernel-panic" --headless -- --autotest | grep -q AUTOTEST_ALL_PASS
+}
+
+do_install() {
+	vbin bin/kernel-panic
+	vinstall packaging/void/kernel-panic.desktop 644 usr/share/applications
+	vinstall assets/icons/launcher.png 644 \
+		usr/share/icons/hicolor/192x192/apps kernel-panic.png
+	vlicense LICENSE
+}
