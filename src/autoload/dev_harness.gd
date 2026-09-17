@@ -169,6 +169,7 @@ func _autotest() -> void:
 	_check(Game.BESTIARY_MAP.get("SEGFAULT", "") == "segfault", "segfault maps to bestiary")
 	_check(Game.BESTIARY_MAP.get("BLUE SCREEN", "") == "bluescreen", "blue screen maps to bestiary")
 	_check(Game.BESTIARY_MAP.get("PAGE FAULT", "") == "pagefault", "page fault maps to bestiary")
+	await _sec_boot._settings_manifest_test()
 	await _sec_boot._color_assist_test()
 	await _sec_boot._settings_focus_test(get_tree().current_scene)
 	await _sec_boot._language_selector_test(get_tree().current_scene)

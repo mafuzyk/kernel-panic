@@ -239,12 +239,12 @@ func _build_settings() -> void:
 		Sfx.set_sfx_vol(v)
 		Sfx.play("ui", 1.0, -6.0)
 	)
-	assign_section(sfx_row, "AUDIO")
+	assign_section(sfx_row, "AUDIO", "sfx_vol")
 	box.add_child(sfx_row)
 	var music_row := _make_slider_row(tr("SET_MUSIC"), Sfx.music_vol, func(v: float) -> void:
 		Sfx.set_music_vol(v)
 	)
-	assign_section(music_row, "AUDIO")
+	assign_section(music_row, "AUDIO", "music_vol")
 	box.add_child(music_row)
 	var mute := CheckButton.new()
 	mute.text = tr("SET_MUTE_ALL")
@@ -253,7 +253,7 @@ func _build_settings() -> void:
 	mute.toggled.connect(func(on: bool) -> void:
 		Sfx.set_muted(on)
 	)
-	assign_section(mute, "AUDIO")
+	assign_section(mute, "AUDIO", "mute")
 	box.add_child(_bounded_row(mute))
 	var mute_hint := _settings_group_label(tr("SET_MUTE_HINT"))
 	mute_hint.add_theme_font_size_override("font_size", 12)
@@ -272,7 +272,7 @@ func _build_settings() -> void:
 		Sfx.haptics_enabled = on
 		Sfx.save_settings()
 	)
-	assign_section(haptics, "GAMEPLAY")
+	assign_section(haptics, "GAMEPLAY", "haptics")
 	box.add_child(haptics)
 	var aim_btn := Button.new()
 	aim_btn.flat = true
@@ -290,7 +290,7 @@ func _build_settings() -> void:
 	)
 	m._aim_btn_ref = aim_btn
 	m._refresh_aim_label(aim_btn)
-	assign_section(aim_btn, "GAMEPLAY")
+	assign_section(aim_btn, "GAMEPLAY", "aim_mode")
 	box.add_child(aim_btn)
 	var touch_sz := Button.new()
 	touch_sz.flat = true
@@ -306,8 +306,7 @@ func _build_settings() -> void:
 		touch_sz.text = tr("SET_TOUCH_SIZE") % [tr("SET_VAL_SMALL"), tr("SET_VAL_NORMAL"), tr("SET_VAL_BIG")][idx]
 		Sfx.save_settings()
 	)
-	touch_sz.set_meta("touch_only", true)
-	assign_section(touch_sz, "GAMEPLAY")
+	assign_section(touch_sz, "GAMEPLAY", "touch_scale")
 	box.add_child(touch_sz)
 	var shake_btn := Button.new()
 	shake_btn.flat = true
@@ -322,7 +321,7 @@ func _build_settings() -> void:
 		shake_btn.text = tr("SET_SHAKE") % [tr("SET_VAL_OFF"), tr("SET_VAL_LOW"), tr("SET_VAL_FULL")][Sfx.shake_level]
 		Sfx.save_settings()
 	)
-	assign_section(shake_btn, "GAMEPLAY")
+	assign_section(shake_btn, "GAMEPLAY", "shake")
 	box.add_child(shake_btn)
 	var run_info := Button.new()
 	run_info.flat = true
@@ -337,7 +336,7 @@ func _build_settings() -> void:
 		run_info.text = tr("SET_SPEEDRUN") % (tr("SET_VAL_ON") if Sfx.show_run_info else tr("SET_VAL_OFF"))
 		Sfx.save_settings()
 	)
-	assign_section(run_info, "GAMEPLAY")
+	assign_section(run_info, "GAMEPLAY", "run_info")
 	box.add_child(run_info)
 	var access_label := _settings_group_label(tr("SET_HEAD_VISION"))
 	assign_section(access_label, "ACCESSIBILITY")
@@ -354,7 +353,7 @@ func _build_settings() -> void:
 		_refresh_color_assist_label()
 	)
 	_refresh_color_assist_label()
-	assign_section(m._color_assist_btn, "ACCESSIBILITY")
+	assign_section(m._color_assist_btn, "ACCESSIBILITY", "color_assist")
 	box.add_child(m._color_assist_btn)
 	m._language_btn = Button.new()
 	m._language_btn.flat = true
@@ -365,7 +364,7 @@ func _build_settings() -> void:
 	m._language_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	m._language_btn.pressed.connect(_cycle_language)
 	_refresh_language_label()
-	assign_section(m._language_btn, "ACCESSIBILITY")
+	assign_section(m._language_btn, "ACCESSIBILITY", "language")
 	box.add_child(m._language_btn)
 	# ── placar semanal ────────────────────────────────────────────────
 	#
@@ -388,7 +387,7 @@ func _build_settings() -> void:
 		m._board_toggle_btn.text = _board_enabled_label()
 		_refresh_board_status()
 	)
-	assign_section(m._board_toggle_btn, "BOARD")
+	assign_section(m._board_toggle_btn, "BOARD", "board_enabled")
 	box.add_child(m._board_toggle_btn)
 
 	var url_title := _settings_group_label(tr("SET_BOARD_URL"))
@@ -409,7 +408,7 @@ func _build_settings() -> void:
 		Board.set_url(m._board_url_field.text)
 		_refresh_board_status()
 	)
-	assign_section(m._board_url_field, "BOARD")
+	assign_section(m._board_url_field, "BOARD", "board_url")
 	box.add_child(_bounded_row(m._board_url_field))
 
 	var name_title := _settings_group_label(tr("SET_BOARD_NAME"))
@@ -430,7 +429,7 @@ func _build_settings() -> void:
 		Board.set_player_name(m._board_name_field.text)
 		_refresh_board_status()
 	)
-	assign_section(m._board_name_field, "BOARD")
+	assign_section(m._board_name_field, "BOARD", "board_name")
 	box.add_child(_bounded_row(m._board_name_field))
 
 	m._board_status = _settings_group_label("")
@@ -455,7 +454,7 @@ func _build_settings() -> void:
 	m._save_transfer_field.add_theme_font_override("font", load("res://assets/fonts/ShareTechMono.ttf"))
 	m._save_transfer_field.add_theme_font_size_override("font_size", 11)
 	m._save_transfer_field.add_theme_color_override("font_color", Balance.COL_TEXT)
-	assign_section(m._save_transfer_field, "SAVE DATA")
+	assign_section(m._save_transfer_field, "SAVE DATA", "save_transfer")
 	box.add_child(m._save_transfer_field)
 	var transfer_row := HBoxContainer.new()
 	transfer_row.add_theme_constant_override("separation", 8)
@@ -507,7 +506,7 @@ func _build_settings() -> void:
 			tk = int(kd[k])
 			top = str(k)
 	stats.text = tr("SET_LIFETIME") % [runs, kills, chain, top]
-	assign_section(stats, "SAVE DATA")
+	assign_section(stats, "SAVE DATA", "lifetime_stats")
 	box.add_child(stats)
 	if m._desktop_keybinds_enabled():
 		_build_keybind_settings(box)
@@ -530,7 +529,7 @@ func _build_settings() -> void:
 		m._update_best()
 		reset.text = tr("SET_CLEARED")
 	)
-	assign_section(reset, "SAVE DATA")
+	assign_section(reset, "SAVE DATA", "reset_score")
 	box.add_child(reset)
 	var footer_row := HBoxContainer.new()
 	footer_row.position = footer.position
@@ -707,7 +706,7 @@ func _build_keybind_settings(parent: VBoxContainer) -> void:
 	m._keybind_box.add_child(reset)
 	_refresh_keybind_buttons()
 	parent.add_child(m._keybind_box)
-	assign_section(m._keybind_box, "CONTROLS")
+	assign_section(m._keybind_box, "CONTROLS", "keybinds")
 
 ## O nome da AÇÃO é identificador do InputMap; o rótulo é o que o jogador lê.
 ## B12: modo de janela e vsync. O jogo não tinha opção de vídeo nenhuma.
@@ -725,7 +724,7 @@ func _build_video_section(box: Node) -> void:
 		Sfx.set_window_mode((Sfx.window_mode + 1) % Sfx.WINDOW_MODES.size())
 		window_btn.text = _window_label()
 	)
-	assign_section(window_btn, "VIDEO")
+	assign_section(window_btn, "VIDEO", "window_mode")
 	box.add_child(window_btn)
 
 	var vsync_btn := _cycle_button(_vsync_label())
@@ -733,7 +732,7 @@ func _build_video_section(box: Node) -> void:
 		Sfx.set_vsync_mode((Sfx.vsync_mode + 1) % Sfx.VSYNC_MODES.size())
 		vsync_btn.text = _vsync_label()
 	)
-	assign_section(vsync_btn, "VIDEO")
+	assign_section(vsync_btn, "VIDEO", "vsync")
 	box.add_child(vsync_btn)
 
 	# Tinta de campo: a recompensa dos atos do Story. Só aparece com opções, e
@@ -748,7 +747,7 @@ func _build_video_section(box: Node) -> void:
 			Game.set_field_tint(str(options[(maxi(current, 0) + 1) % options.size()]))
 			tint_btn.text = _field_tint_label()
 		)
-		assign_section(tint_btn, "VIDEO")
+		assign_section(tint_btn, "VIDEO", "field_tint")
 		box.add_child(tint_btn)
 		m._field_tint_btn = tint_btn
 	else:
@@ -970,9 +969,15 @@ func rebuild_settings() -> void:
 	if was_open:
 		_open_settings()
 
-func assign_section(control: Control, section: String) -> void:
+const SETTING_ID_META := "kp_setting_id"
+
+## `id` é o identificador da opção no `SettingsManifest`. Quem passa id é um
+## controle de verdade; rótulo, nota e dica são decoração e ficam sem id.
+func assign_section(control: Control, section: String, id: String = "") -> void:
 	if control == null or not SETTINGS_SECTIONS.has(section):
 		return
+	if id != "":
+		control.set_meta(SETTING_ID_META, id)
 	if not _section_members.has(section):
 		_section_members[section] = []
 	_section_members[section].append(control)
@@ -988,10 +993,12 @@ func section_controls(section: String) -> Array:
 
 ## Seções visíveis na navegação. Touch esconde CONTROLS (keybinds não
 ## existem no telefone); o idioma continua em ACCESSIBILITY.
+## Quem decide é o manifesto: uma seção aparece quando tem ao menos uma opção
+## servida nesta plataforma. Antes isto era um caso especial escrito à mão
+## ("no toque, esconda CONTROLS"), que só valia para essa seção e não
+## acompanhava opção nova nenhuma.
 func _visible_sections() -> Array:
-	if Design.touch_input():
-		return SETTINGS_SECTIONS.filter(func(s: String) -> bool: return s != "CONTROLS")
-	return SETTINGS_SECTIONS.duplicate()
+	return SettingsManifest.sections_for(Platform.id(), SETTINGS_SECTIONS)
 
 func set_active_section(section: String) -> void:
 	if not SETTINGS_SECTIONS.has(section):
@@ -1003,17 +1010,16 @@ func set_active_section(section: String) -> void:
 		m._settings_title.text = tr("SET_TITLE") % section_label(section)
 	Sfx.play("ui", 1.0, -10.0)
 
-func _touch_only_controls_ok() -> bool:
-	return DisplayServer.is_touchscreen_available() or OS.get_environment("KP_FORCE_TOUCH") != ""
-
 func _apply_section_visibility() -> void:
+	var profile := Platform.id()
 	for section in _section_members:
 		var active: bool = section == _active_section
 		for control in _section_members[section]:
 			if control == null or not is_instance_valid(control):
 				continue
 			control.visible = active
-			if active and control.has_meta("touch_only") and not _touch_only_controls_ok():
+			if active and control.has_meta(SETTING_ID_META) \
+					and not SettingsManifest.shows(str(control.get_meta(SETTING_ID_META)), profile):
 				control.visible = false
 	if m._keybind_box != null and is_instance_valid(m._keybind_box):
 		m._keybind_box.visible = _active_section == "CONTROLS"

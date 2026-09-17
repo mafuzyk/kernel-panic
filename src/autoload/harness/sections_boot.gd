@@ -542,3 +542,83 @@ func _restore_run_config_fixture(saved_mode: String, saved_diff: String, saved_o
 	h._restore_config_snapshot("run", "onehp_unlocked", saved_onehp_disk)
 	if menu != null and menu.has_method("refresh_shell"):
 		menu.refresh_shell()
+
+## O manifesto de settings é o que impede a volta do bug "opção que não faz
+## nada nesta plataforma" — `aim_mode` e háptico apareciam no desktop, onde
+## `Game.effective_aim_mode()` só é lido pelo `touch_controls.gd`.
+func _settings_manifest_test() -> void:
+	print("AT_STEP settings_manifest")
+	var touch := Platform.TOUCH
+	var desktop := Platform.DESKTOP
+
+	# Regra central, afirmada por ID e não por rótulo: o teste antigo do HUD
+	# já foi quebrado uma vez por travar frase literal, e a frase muda com a
+	# tradução sem que nada tenha regredido.
+	for id in ["aim_mode", "touch_scale", "haptics"]:
+		h._check(SettingsManifest.shows(id, touch), "%s is offered on touch" % id)
+		h._check(not SettingsManifest.shows(id, desktop), "%s stays hidden on desktop, where it does nothing" % id)
+	for id in ["keybinds", "window_mode"]:
+		h._check(SettingsManifest.shows(id, desktop), "%s is offered on desktop" % id)
+		h._check(not SettingsManifest.shows(id, touch), "%s stays hidden on touch, where it does nothing" % id)
+	for id in ["sfx_vol", "shake", "color_assist", "language", "board_enabled", "save_transfer"]:
+		h._check(SettingsManifest.shows(id, touch) and SettingsManifest.shows(id, desktop),
+			"%s is offered on both platforms" % id)
+
+	# Uma seção sem nada para mostrar não vira aba vazia. Hoje é o caso de
+	# CONTROLS no toque, que só contém keybinds.
+	# O kit não declara `class_name`, então a lista de seções vem pelo mapa de
+	# constantes do script em vez de ser reescrita aqui — reescrever criaria
+	# uma segunda ordem que envelheceria sozinha.
+	var kit_script: GDScript = load("res://src/ui/menu_settings_kit.gd")
+	var order: Array = kit_script.get_script_constant_map()["SETTINGS_SECTIONS"]
+	var touch_sections: Array = SettingsManifest.sections_for(touch, order)
+	var desktop_sections: Array = SettingsManifest.sections_for(desktop, order)
+	h._check(not touch_sections.has("CONTROLS"), "touch drops a section with nothing to show")
+	h._check(desktop_sections.has("CONTROLS"), "desktop keeps its keybind section")
+	for section in ["AUDIO", "VIDEO", "ACCESSIBILITY", "BOARD", "SAVE DATA"]:
+		h._check(touch_sections.has(section) and desktop_sections.has(section),
+			"%s survives on both platforms" % section)
+
+	# Controle declarado na tela mas não no manifesto passaria despercebido e
+	# voltaria a decidir plataforma sozinho. Isto cobra a declaração.
+	var kit_src := str(kit_script.source_code)
+	var undeclared: Array[String] = []
+	for line in kit_src.split("\n"):
+		var at := line.find("assign_section(")
+		if at < 0 or line.begins_with("##") or line.begins_with("func "):
+			continue
+		var parts := line.substr(at).split("\"")
+		# assign_section(ctrl, "SECTION", "id") -> parts[1] seção, parts[3] id
+		if parts.size() >= 4 and str(parts[3]) != "":
+			var id := str(parts[3])
+			if SettingsManifest.section_of(id) == "":
+				undeclared.append(id)
+	h._check(undeclared.is_empty(), "every tagged settings control is declared in the manifest (stray: %s)" % str(undeclared))
+
+	# Esconder é só UI: o valor tem que atravessar disco igual nas duas
+	# plataformas, senão quem transfere o save do celular para o PC e volta
+	# perde a configuração escondida.
+	var saved_aim := Sfx.aim_mode
+	var saved_scale := Sfx.touch_scale
+	var saved_haptics := Sfx.haptics_enabled
+	Sfx.aim_mode = "lockon"
+	Sfx.touch_scale = 1.2
+	Sfx.haptics_enabled = false
+	Sfx.save_settings()
+	Sfx.aim_mode = "drag"
+	Sfx.touch_scale = 0.85
+	Sfx.haptics_enabled = true
+	Sfx._load_settings()
+	h._check(Sfx.aim_mode == "lockon" and is_equal_approx(Sfx.touch_scale, 1.2) and not Sfx.haptics_enabled,
+		"touch-only settings survive a save/load round trip regardless of platform")
+
+	# A prova de que o filtro nunca encosta na persistência: quem salva não
+	# conhece o manifesto.
+	var sfx_src := str((load("res://src/autoload/sfx.gd") as Script).source_code)
+	h._check_source(not sfx_src.contains("SettingsManifest") and not sfx_src.contains("Platform."),
+		"settings persistence never consults the platform filter")
+
+	Sfx.aim_mode = saved_aim
+	Sfx.touch_scale = saved_scale
+	Sfx.haptics_enabled = saved_haptics
+	Sfx.save_settings()
