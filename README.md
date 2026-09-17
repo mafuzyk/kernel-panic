@@ -28,7 +28,7 @@ Somehow, it worked.
 
 ## Play it
 
-Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v3.1.0`.
+Grab the Android, Linux, or Windows build from the [latest release](https://github.com/mafuzyk/kernel-panic/releases/latest). The current release is `v3.1.0`. On Linux there is also an AppImage that runs anywhere, an AUR package for Arch, an xbps template for Void, and a Nix flake — see [Install the game](#install-the-game).
 
 ### What's new in 3.1.0
 
@@ -161,6 +161,27 @@ nix develop github:mafuzyk/kernel-panic      # engine + templates, nothing insta
 
 Add it to a NixOS configuration through the flake's
 `packages.x86_64-linux.kernel-panic`.
+
+## Verify what you downloaded
+
+Every release ships a `SHA256SUMS.txt` covering all of its files. Download it
+next to the build you grabbed and check them together:
+
+```sh
+sha256sum --ignore-missing -c SHA256SUMS.txt
+```
+
+The Android APK is signed with the same key from 3.0.0 onward, so a phone will
+install a new version straight over the old one. To confirm a downloaded APK is
+really that key, its certificate digest must be:
+
+```
+9fd554575a253ba9a98fec403e45a72a8deb0b066ff70e505a60d6393fb45e31
+```
+
+```sh
+apksigner verify --print-certs KERNEL-PANIC-v3.1.0-release.apk
+```
 
 ## How it plays
 
