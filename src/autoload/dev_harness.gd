@@ -174,6 +174,7 @@ func _autotest() -> void:
 	await _sec_boot._settings_focus_test(get_tree().current_scene)
 	await _sec_boot._settings_touch_target_test(get_tree().current_scene)
 	await _sec_boot._ui_font_scale_ratchet_test()
+	await _sec_boot._ui_is_vector_test()
 	await _sec_boot._language_selector_test(get_tree().current_scene)
 	await _sec_scene._desktop_focus_test(get_tree().current_scene)
 	Fx.stacktrace(Vector2.ZERO, "TEST_CRASH")

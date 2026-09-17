@@ -171,10 +171,6 @@ func _pause_btn() -> Rect2:
 func _a(base: float) -> float:
 	return clampf(base * Sfx.touch_opacity, 0.0, 1.0)
 
-var _tex_dash: Texture2D = preload("res://assets/icons/icon_dash.png")
-var _tex_pause: Texture2D = preload("res://assets/icons/icon_pause.png")
-var _tex_oc: Texture2D = preload("res://assets/icons/icon_overclock.png")
-
 ## Intenção, não ação. Chamar `request_dash()` daqui pulava o ponto onde o
 ## comando do quadro é resolvido e gravado — ver `Player.touch_dash`.
 func _press_dash() -> void:
@@ -205,18 +201,16 @@ func _draw_action_buttons(c: Color, mono: Font) -> void:
 	if not dash_ready and player != null and is_instance_valid(player):
 		var frac := clampf(1.0 - player.dash_cd / (Balance.DASH_CD * pow(0.82, Game.patch_level("dash"))), 0.0, 1.0)
 		draw_arc(db.get_center(), dr, -PI / 2.0, -PI / 2.0 + TAU * frac, 32, Color(c.r, c.g, c.b, _a(0.8)), 3.5, true)
-	var dsize := db.size.x * 0.46
-	var dcol := Color(1, 1, 1, _a(1.0 if dash_ready else 0.35))
-	draw_texture_rect(_tex_dash, Rect2(db.get_center() - Vector2(dsize, dsize) * 0.5, Vector2(dsize, dsize)), false, dcol)
+	var dcol := Color(c.r, c.g, c.b, _a(0.95 if dash_ready else 0.3))
+	TacticalIcon.stroke_dash(self, db.get_center(), db.size.x * 0.23, dcol)
 	draw_string(mono, db.get_center() + Vector2(-30, db.size.y * 0.42), "DASH", HORIZONTAL_ALIGNMENT_CENTER, 60, 13 * _sc(), Color(c.r, c.g, c.b, _a(0.75)))
 	var ob := _oc_btn()
 	if player != null and is_instance_valid(player) and player.oc_ready:
 		var hot := Balance.COL_PLAYER_HOT
 		hot.a = _a(0.55 + 0.45 * absf(sin(Time.get_ticks_msec() / 120.0)))
 		draw_arc(ob.get_center(), ob.size.x * 0.44, 0, TAU, 40, hot, 3.0, true)
-	var osize := ob.size.x * 0.5
-	var ocol := Color(1, 1, 1, _a(1.0 if (player != null and is_instance_valid(player) and player.oc_ready) else 0.4))
-	draw_texture_rect(_tex_oc, Rect2(ob.get_center() - Vector2(osize, osize) * 0.5, Vector2(osize, osize)), false, ocol)
+	var ocol := Color(c.r, c.g, c.b, _a(0.95 if (player != null and is_instance_valid(player) and player.oc_ready) else 0.3))
+	TacticalIcon.stroke_overclock(self, ob.get_center(), ob.size.x * 0.25, ocol)
 	draw_string(mono, ob.get_center() + Vector2(-34, ob.size.y * 0.42), "BOOST", HORIZONTAL_ALIGNMENT_CENTER, 80, 13 * _sc(), Color(c.r, c.g, c.b, _a(0.8 if (player != null and is_instance_valid(player) and player.oc_ready) else 0.4)))
 
 func _draw() -> void:
@@ -224,8 +218,7 @@ func _draw() -> void:
 	var mono: Font = load("res://assets/fonts/ShareTechMono.ttf")
 	var pb := _pause_btn()
 	draw_arc(pb.get_center(), pb.size.y * 0.42, 0, TAU, 32, Color(c.r, c.g, c.b, _a(0.5)), 2.0, true)
-	var psize := pb.size.y * 0.5
-	draw_texture_rect(_tex_pause, Rect2(pb.get_center() - Vector2(psize, psize) * 0.5, Vector2(psize, psize)), false, Color(1, 1, 1, 0.85))
+	TacticalIcon.stroke_pause(self, pb.get_center(), pb.size.y * 0.25, Color(c.r, c.g, c.b, _a(0.85)))
 	if _move_id != -1:
 		var movement := movement_geometry()
 		var draw_radius: float = movement["draw_radius"]

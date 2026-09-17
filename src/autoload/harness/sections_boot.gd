@@ -426,11 +426,20 @@ func _color_assist_test() -> void:
 				break
 	h._check(color_button != null, "settings expose color assist toggle")
 	if color_button != null:
-		h._check(color_button.text == tr("SET_COLOR_ASSIST") % tr("SET_VAL_OFF"), "color assist toggle shows OFF by default")
+		# A linha distribui a frase em duas colunas, então o estado é lido na
+		# COLUNA DE VALOR — que é justamente o que a pessoa olha para saber se
+		# está ligado. Ler `.text` do botão testava a frase inteira.
+		var kit = menu.get("_settings_kit")
+		var value_of := func() -> String:
+			var label: Label = color_button.get_meta(kit.ROW_VALUE_META) if color_button.has_meta(kit.ROW_VALUE_META) else null
+			return str(label.text) if is_instance_valid(label) else ""
+		h._check(value_of.call() == tr("SET_VAL_OFF"), "color assist toggle shows OFF by default")
 		color_button.pressed.emit()
-		h._check(bool(Sfx.get("color_assist")) and color_button.text == tr("SET_COLOR_ASSIST") % tr("SET_VAL_ON"), "color assist toggle enables assist mode")
+		h._check(bool(Sfx.get("color_assist")) and value_of.call() == tr("SET_VAL_ON"), "color assist toggle enables assist mode")
 		color_button.pressed.emit()
-		h._check(not bool(Sfx.get("color_assist")) and color_button.text == tr("SET_COLOR_ASSIST") % tr("SET_VAL_OFF"), "color assist toggle disables assist mode")
+		h._check(not bool(Sfx.get("color_assist")) and value_of.call() == tr("SET_VAL_OFF"), "color assist toggle disables assist mode")
+		h._check(str((color_button.get_meta(kit.ROW_NAME_META) as Label).text) == kit.split_row_text(tr("SET_COLOR_ASSIST") % tr("SET_VAL_OFF"))[0],
+			"the row keeps its label in the left column")
 	if menu != null and menu.has_method("_close_settings"):
 		menu._close_settings()
 
@@ -716,3 +725,42 @@ func _ui_font_scale_ratchet_test() -> void:
 		h._check_source(not offenders.has(clean), "%s stays free of magic font sizes" % clean)
 	if total < CEILING:
 		print("AT_NOTE lower the font-size ratchet to ", total)
+
+
+## A UI do KERNEL PANIC é desenhada, não rasterizada.
+##
+## Os controles de toque eram o último resto: dash, boost e pausa saíam de
+## PNG porque o `TacticalIcon` nunca ganhou overclock nem pausa, e um símbolo
+## rasterizado não acompanha escala de toque nem densidade de tela. Agora os
+## três vêm da mesma geometria que o HUD usa.
+func _ui_is_vector_test() -> void:
+	print("AT_STEP ui_is_vector")
+	var icon_script: GDScript = load("res://src/ui/tactical_icon.gd")
+	var drawable := {}
+	for entry in icon_script.get_script_method_list():
+		drawable[str(entry["name"])] = true
+	for kind in ["dash", "overclock", "pause"]:
+		h._check(drawable.has("stroke_%s" % kind),
+			"the icon library can draw %s in code" % kind)
+
+	var offenders: Array[String] = []
+	var stack: Array[String] = ["res://src/ui"]
+	while not stack.is_empty():
+		var at: String = stack.pop_back()
+		var d := DirAccess.open(at)
+		if d == null:
+			continue
+		for name in d.get_files():
+			if not name.ends_with(".gd"):
+				continue
+			var script: Script = load("%s/%s" % [at, name])
+			if script == null:
+				continue
+			var src := str(script.source_code)
+			# `generated/` é cache rasterizado DO QUE JÁ É VETOR, gerado a
+			# partir destas mesmas funções; ícone desenhado à mão é que não.
+			if src.contains("assets/icons/") and not src.contains("assets/icons/generated/"):
+				offenders.append("%s/%s" % [at, name])
+		for sub in d.get_directories():
+			stack.append("%s/%s" % [at, sub])
+	h._check_source(offenders.is_empty(), "no UI script draws from a hand-made raster icon (%s)" % str(offenders))

@@ -150,7 +150,8 @@ func _refresh_color_assist_label() -> void:
 	_settings_kit._refresh_color_assist_label()
 
 func _refresh_aim_label(btn: Button) -> void:
-	btn.text = tr("MENU_AIM") % Game.effective_aim_mode().to_upper()
+	# Passa pelo kit para a linha distribuir rótulo e valor nas duas colunas.
+	_settings_kit._set_row_text(btn, tr("MENU_AIM") % Game.effective_aim_mode().to_upper())
 
 func _ready() -> void:
 	_settings_kit = MenuSettingsKitScript.new(self)

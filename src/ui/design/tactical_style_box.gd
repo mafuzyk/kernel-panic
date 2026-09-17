@@ -50,7 +50,11 @@ func _init() -> void:
 func _draw(to_canvas_item: RID, rect: Rect2) -> void:
 	if rect.size.x <= 2.0 or rect.size.y <= 2.0:
 		return
-	var cut: float = minf(corner_cut, minf(rect.size.x, rect.size.y) * 0.5)
+	# Teto PROPORCIONAL. Em metade do menor lado, um chip de tecla com 28px de
+	# altura recebia corte de 14 e virava hexágono — a moldura deixava de ser
+	# "retângulo com canto cortado" e passava a ser outra forma. Painéis
+	# grandes não sentem: 0.28 de 200px ainda é maior que o corte pedido.
+	var cut: float = minf(corner_cut, minf(rect.size.x, rect.size.y) * 0.28)
 	var points := _angular_points(rect, cut)
 
 	if fill_alpha > 0.0:

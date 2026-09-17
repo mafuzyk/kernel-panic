@@ -217,12 +217,16 @@ func _draw_bestiary(center: Vector2, radius: float) -> void:
 	draw_arc(center, radius * 0.33, 0.0, TAU, 18, _line_color(), 1.7, true)
 	draw_circle(center, radius * 0.14, _line_color())
 
-func _draw_dash(center: Vector2, radius: float) -> void:
-	if DASH_BADGE_ENABLED:
-		var badge := Rect2(center - Vector2(radius * 1.18, radius * 0.90), Vector2(radius * 2.36, radius * 1.80))
-		var badge_points := TacticalUIHelper.angular_points(badge, radius * 0.28)
-		draw_colored_polygon(badge_points, Color(_accent.r, _accent.g, _accent.b, 0.10))
-		_points_closed(badge_points, _line_color(0.72), 1.5)
+## ── Geometria compartilhada ──────────────────────────────────────────────
+##
+## Estes desenham num CanvasItem QUALQUER, não só neste Control. Existem
+## porque os controles de toque precisavam dos mesmos três símbolos e, sem um
+## lugar comum, tinham ficado presos em PNG — o único resto de UI rasterizada
+## do jogo. Uma geometria, dois consumidores: o que o HUD desenha e o que o
+## dedo pressiona não podem divergir.
+
+## Três chevrons. É o mesmo traço que o HUD usa para o dash.
+static func stroke_dash(canvas: CanvasItem, center: Vector2, radius: float, color: Color) -> void:
 	for index in 3:
 		var x := center.x - radius * 0.62 + float(index) * radius * 0.62
 		var points := PackedVector2Array([
@@ -230,8 +234,43 @@ func _draw_dash(center: Vector2, radius: float) -> void:
 			Vector2(x + radius * 0.26, center.y),
 			Vector2(x - radius * 0.25, center.y + radius * 0.55),
 		])
-		draw_colored_polygon(points, _line_color())
-		_points_closed(points, _line_color(), 2.2)
+		canvas.draw_colored_polygon(points, color)
+
+
+## Estrela de overclock: um núcleo com oito pontas, denso no centro e aberto
+## nas bordas — a mesma leitura de "energia acumulada" do medidor.
+static func stroke_overclock(canvas: CanvasItem, center: Vector2, radius: float, color: Color) -> void:
+	var spikes := PackedVector2Array()
+	for index in 16:
+		var angle := TAU * float(index) / 16.0 - PI / 2.0
+		var reach := radius * (0.95 if index % 2 == 0 else 0.40)
+		spikes.append(center + Vector2.from_angle(angle) * reach)
+	canvas.draw_colored_polygon(spikes, color)
+	canvas.draw_circle(center, radius * 0.17, Color(color.r, color.g, color.b, minf(color.a * 1.2, 1.0)))
+
+
+## Duas barras. Pausa não precisa de mais do que isso.
+static func stroke_pause(canvas: CanvasItem, center: Vector2, radius: float, color: Color) -> void:
+	var bar := Vector2(radius * 0.30, radius * 1.05)
+	for side in [-1.0, 1.0]:
+		var at := center + Vector2(side * radius * 0.34, 0.0)
+		canvas.draw_rect(Rect2(at - bar * 0.5, bar), color)
+
+
+func _draw_dash(center: Vector2, radius: float) -> void:
+	if DASH_BADGE_ENABLED:
+		var badge := Rect2(center - Vector2(radius * 1.18, radius * 0.90), Vector2(radius * 2.36, radius * 1.80))
+		var badge_points := TacticalUIHelper.angular_points(badge, radius * 0.28)
+		draw_colored_polygon(badge_points, Color(_accent.r, _accent.g, _accent.b, 0.10))
+		_points_closed(badge_points, _line_color(0.72), 1.5)
+	stroke_dash(self, center, radius, _line_color())
+	for index in 3:
+		var x := center.x - radius * 0.62 + float(index) * radius * 0.62
+		_points_closed(PackedVector2Array([
+			Vector2(x - radius * 0.25, center.y - radius * 0.55),
+			Vector2(x + radius * 0.26, center.y),
+			Vector2(x - radius * 0.25, center.y + radius * 0.55),
+		]), _line_color(), 2.2)
 
 func _draw_back(center: Vector2, radius: float) -> void:
 	draw_line(Vector2(center.x - radius * 0.62, center.y), Vector2(center.x + radius * 0.62, center.y), _line_color(), 2.2)

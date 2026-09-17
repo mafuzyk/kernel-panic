@@ -294,7 +294,7 @@ func _build_settings() -> void:
 	touch_sz.pressed.connect(func() -> void:
 		var idx: int = m._next_touch_scale_idx(Sfx.touch_scale)
 		Sfx.touch_scale = [0.85, 1.0, 1.2][idx]
-		touch_sz.text = tr("SET_TOUCH_SIZE") % [tr("SET_VAL_SMALL"), tr("SET_VAL_NORMAL"), tr("SET_VAL_BIG")][idx]
+		_set_row_text(touch_sz, tr("SET_TOUCH_SIZE") % [tr("SET_VAL_SMALL"), tr("SET_VAL_NORMAL"), tr("SET_VAL_BIG")][idx])
 		Sfx.save_settings()
 	)
 	assign_section(touch_sz, "CONTROLS", "touch_scale")
@@ -304,7 +304,7 @@ func _build_settings() -> void:
 	handed.pressed.connect(func() -> void:
 		var order: Array = Sfx.TOUCH_HANDED_MODES
 		Sfx.touch_handed = str(order[(order.find(Sfx.touch_handed) + 1) % order.size()])
-		handed.text = _touch_handed_label()
+		_set_row_text(handed, _touch_handed_label())
 		Sfx.save_settings()
 	)
 	assign_section(handed, "CONTROLS", "touch_handed")
@@ -314,7 +314,7 @@ func _build_settings() -> void:
 	opacity.pressed.connect(func() -> void:
 		var steps: Array = Sfx.TOUCH_OPACITY_STEPS
 		Sfx.touch_opacity = float(steps[(_touch_opacity_idx() + 1) % steps.size()])
-		opacity.text = _touch_opacity_label()
+		_set_row_text(opacity, _touch_opacity_label())
 		Sfx.save_settings()
 	)
 	assign_section(opacity, "CONTROLS", "touch_opacity")
@@ -325,7 +325,7 @@ func _build_settings() -> void:
 	var shake_btn := _setting_button(tr("SET_SHAKE") % [tr("SET_VAL_OFF"), tr("SET_VAL_LOW"), tr("SET_VAL_FULL")][clampi(Sfx.shake_level, 0, 2)])
 	shake_btn.pressed.connect(func() -> void:
 		Sfx.shake_level = (Sfx.shake_level + 1) % 3
-		shake_btn.text = tr("SET_SHAKE") % [tr("SET_VAL_OFF"), tr("SET_VAL_LOW"), tr("SET_VAL_FULL")][Sfx.shake_level]
+		_set_row_text(shake_btn, tr("SET_SHAKE") % [tr("SET_VAL_OFF"), tr("SET_VAL_LOW"), tr("SET_VAL_FULL")][Sfx.shake_level])
 		Sfx.save_settings()
 	)
 	assign_section(shake_btn, "ACCESSIBILITY", "shake")
@@ -336,7 +336,7 @@ func _build_settings() -> void:
 	var run_info := _setting_button(tr("SET_SPEEDRUN") % (tr("SET_VAL_ON") if Sfx.show_run_info else tr("SET_VAL_OFF")))
 	run_info.pressed.connect(func() -> void:
 		Sfx.show_run_info = not Sfx.show_run_info
-		run_info.text = tr("SET_SPEEDRUN") % (tr("SET_VAL_ON") if Sfx.show_run_info else tr("SET_VAL_OFF"))
+		_set_row_text(run_info, tr("SET_SPEEDRUN") % (tr("SET_VAL_ON") if Sfx.show_run_info else tr("SET_VAL_OFF")))
 		Sfx.save_settings()
 	)
 	assign_section(run_info, "GAMEPLAY", "run_info")
@@ -375,7 +375,7 @@ func _build_settings() -> void:
 	m._board_toggle_btn = _cycle_button(_board_enabled_label())
 	m._board_toggle_btn.pressed.connect(func() -> void:
 		Board.set_enabled(not Board.enabled)
-		m._board_toggle_btn.text = _board_enabled_label()
+		_set_row_text(m._board_toggle_btn, _board_enabled_label())
 		_refresh_board_status()
 	)
 	assign_section(m._board_toggle_btn, "BOARD", "board_enabled")
@@ -514,12 +514,12 @@ func _build_settings() -> void:
 	if not Platform.is_touch():
 		reset.add_theme_color_override("font_hover_color", Design.DANGER)
 	reset.pressed.connect(func() -> void:
-		if reset.text == tr("SET_RESET_SCORE"):
-			reset.text = tr("SET_TAP_CONFIRM")
+		if split_row_text(tr("SET_RESET_SCORE"))[0] == str((reset.get_meta(ROW_NAME_META) as Label).text):
+			_set_row_text(reset, tr("SET_TAP_CONFIRM"))
 			return
 		m._reset_scores()
 		m._update_best()
-		reset.text = tr("SET_CLEARED")
+		_set_row_text(reset, tr("SET_CLEARED"))
 	)
 	assign_section(reset, "SAVE DATA", "reset_score")
 	box.add_child(reset)
@@ -619,6 +619,7 @@ func _settings_group_label(text: String) -> Label:
 
 func _style_toggle(toggle: CheckButton) -> void:
 	toggle.custom_minimum_size = Vector2(0.0, Design.target_min())
+	toggle.set_meta(ROW_RULED_META, true)
 	toggle.add_theme_font_override("font", Design.FONT_MONO)
 	toggle.add_theme_font_size_override("font_size", Design.TEXT_BODY)
 	toggle.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
@@ -626,6 +627,8 @@ func _style_toggle(toggle: CheckButton) -> void:
 	for state in ["normal", "pressed"]:
 		var empty := StyleBoxFlat.new()
 		empty.bg_color = Color(0, 0, 0, 0)
+		empty.border_color = Design.alpha(Design.TEXT_PRIMARY, 0.14)
+		empty.border_width_bottom = 1
 		toggle.add_theme_stylebox_override(state, empty)
 	var hover := StyleBoxFlat.new()
 	hover.bg_color = Design.alpha(Design.TEXT_PRIMARY, 0.05)
@@ -715,7 +718,7 @@ func _build_video_section(box: Node) -> void:
 	var window_btn := _cycle_button(_window_label())
 	window_btn.pressed.connect(func() -> void:
 		Sfx.set_window_mode((Sfx.window_mode + 1) % Sfx.WINDOW_MODES.size())
-		window_btn.text = _window_label()
+		_set_row_text(window_btn, _window_label())
 	)
 	assign_section(window_btn, "VIDEO", "window_mode")
 	box.add_child(window_btn)
@@ -723,7 +726,7 @@ func _build_video_section(box: Node) -> void:
 	var vsync_btn := _cycle_button(_vsync_label())
 	vsync_btn.pressed.connect(func() -> void:
 		Sfx.set_vsync_mode((Sfx.vsync_mode + 1) % Sfx.VSYNC_MODES.size())
-		vsync_btn.text = _vsync_label()
+		_set_row_text(vsync_btn, _vsync_label())
 	)
 	assign_section(vsync_btn, "VIDEO", "vsync")
 	box.add_child(vsync_btn)
@@ -738,7 +741,7 @@ func _build_video_section(box: Node) -> void:
 			var options: Array = Game.unlocked_field_tints()
 			var current := options.find(Game.field_tint)
 			Game.set_field_tint(str(options[(maxi(current, 0) + 1) % options.size()]))
-			tint_btn.text = _field_tint_label()
+			_set_row_text(tint_btn, _field_tint_label())
 		)
 		assign_section(tint_btn, "VIDEO", "field_tint")
 		box.add_child(tint_btn)
@@ -768,11 +771,24 @@ func _build_video_section(box: Node) -> void:
 ## Agora tamanho e cor saem do `Design`, a altura vem de `Design.target_min()`
 ## (44 no clique, 56 no toque) e o realce segue a plataforma: hover só onde há
 ## ponteiro, pressão e foco nas duas.
+## Linha de settings em DUAS colunas: rótulo à esquerda, valor à direita.
+##
+## Antes era uma frase só ("MODO DE MIRA: DRAG") alinhada à esquerda. Numa
+## tela de celular isso vira uma pilha de frases soltas: não há coluna de
+## valor para percorrer com o olho, e justamente o que muda ao tocar fica
+## enterrado no meio da frase.
+##
+## A linha continua sendo um `Button` — os tipos declarados em `menu.gd` e o
+## que o harness afirma seguem valendo. O texto é distribuído por
+## `_set_row_text()`, que parte no separador do próprio gabarito traduzido.
 func _setting_button(label: String) -> Button:
 	var button := Button.new()
-	button.flat = true
-	button.text = label
+	# `flat` faz o Godot pular o stylebox inteiro — inclusive o fio de baixo.
+	# O fundo já é transparente nos cinco estados, então não há o que esconder.
+	button.flat = false
+	button.text = ""
 	button.focus_mode = Control.FOCUS_ALL
+	button.clip_contents = true
 	button.add_theme_font_override("font", Design.FONT_MONO)
 	button.add_theme_font_size_override("font_size", Design.TEXT_SUBHEAD)
 	button.add_theme_color_override("font_color", Design.TEXT_PRIMARY)
@@ -793,8 +809,64 @@ func _setting_button(label: String) -> Button:
 		box.content_margin_right = Design.SPACE_MD
 		box.content_margin_top = Design.SPACE_SM
 		box.content_margin_bottom = Design.SPACE_SM
+		# Fio embaixo de cada linha: sem ele a lista lê como frases soltas no
+		# vazio, que é o que a tela de celular parecia.
+		box.border_color = Design.alpha(Design.TEXT_PRIMARY, 0.14)
+		box.border_width_bottom = 1
 		button.add_theme_stylebox_override(state, box)
+
+	# Os dois ocupam a linha inteira e se separam pelo ALINHAMENTO. Ancorar o
+	# valor com `PRESET_RIGHT_WIDE` dava uma faixa de largura zero colada na
+	# borda, e a coluna de valor simplesmente não aparecia.
+	var name_label := ScreenKit.mono("", Design.TEXT_SUBHEAD, Design.TEXT_PRIMARY)
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	button.add_child(name_label)
+	var value_label := ScreenKit.mono("", Design.TEXT_SUBHEAD, Design.ACCENT)
+	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	value_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	value_label.offset_right = -float(Design.SPACE_MD)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	button.add_child(value_label)
+	button.set_meta(ROW_NAME_META, name_label)
+	button.set_meta(ROW_VALUE_META, value_label)
+	_set_row_text(button, label)
 	return button
+
+
+const ROW_RULED_META := "kp_row_ruled"
+const ROW_NAME_META := "kp_row_name"
+const ROW_VALUE_META := "kp_row_value"
+
+
+## Distribui "RÓTULO: VALOR" nas duas colunas da linha.
+##
+## O corte é no ÚLTIMO separador da frase traduzida, não numa posição fixa:
+## os gabaritos do CSV usam ":" e "//", e as duas línguas põem o valor no fim.
+## Sem separador, a frase inteira é rótulo — é o caso dos textos de ação.
+static func split_row_text(text: String) -> Array:
+	var cut := -1
+	for sep in [": ", " // "]:
+		cut = maxi(cut, text.rfind(sep))
+	if cut < 0:
+		return [text, ""]
+	var sep_len := 2 if text.substr(cut, 2) == ": " else 4
+	return [text.substr(0, cut).strip_edges(), text.substr(cut + sep_len).strip_edges()]
+
+
+func _set_row_text(button: Button, text: String) -> void:
+	if button == null or not button.has_meta(ROW_NAME_META):
+		button.text = text
+		return
+	var parts := split_row_text(text)
+	var name_label: Label = button.get_meta(ROW_NAME_META)
+	var value_label: Label = button.get_meta(ROW_VALUE_META)
+	if is_instance_valid(name_label):
+		name_label.text = str(parts[0])
+	if is_instance_valid(value_label):
+		value_label.text = str(parts[1])
 
 
 ## Rótulo do lado que comanda. "DIREITA" é o histórico: ações à direita,
@@ -977,7 +1049,7 @@ func _refresh_board_status() -> void:
 
 func _refresh_color_assist_label() -> void:
 	if m._color_assist_btn != null:
-		m._color_assist_btn.text = tr("SET_COLOR_ASSIST") % (tr("SET_VAL_ON") if Sfx.color_assist else tr("SET_VAL_OFF"))
+		_set_row_text(m._color_assist_btn, tr("SET_COLOR_ASSIST") % (tr("SET_VAL_ON") if Sfx.color_assist else tr("SET_VAL_OFF")))
 
 func _cycle_language() -> void:
 	var next := "pt_BR" if Game.language() == "en" else "en"
@@ -987,7 +1059,7 @@ func _cycle_language() -> void:
 func _refresh_language_label() -> void:
 	if m._language_btn != null and is_instance_valid(m._language_btn):
 		var name := tr("SET_LANG_ENGLISH") if Game.language() == "en" else tr("SET_LANG_PORTUGUESE")
-		m._language_btn.text = tr("SET_LANGUAGE") % name
+		_set_row_text(m._language_btn, tr("SET_LANGUAGE") % name)
 
 func language_button() -> Button:
 	return m._language_btn
